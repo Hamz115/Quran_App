@@ -8,7 +8,15 @@ import shutil
 from pathlib import Path
 from datetime import date, datetime
 
+# Import auth routers
+from auth.routes import router as auth_router, students_router, teachers_router
+
 app = FastAPI(title="Quran Logbook API")
+
+# Include auth routers
+app.include_router(auth_router)
+app.include_router(students_router)
+app.include_router(teachers_router)
 
 # CORS - allow frontend and mobile app to access
 app.add_middleware(
@@ -88,6 +96,49 @@ def init_app_db():
         CREATE INDEX IF NOT EXISTS idx_occurrences_mistake ON mistake_occurrences(mistake_id);
         CREATE INDEX IF NOT EXISTS idx_occurrences_class ON mistake_occurrences(class_id);
         CREATE INDEX IF NOT EXISTS idx_assignments_class ON assignments(class_id);
+
+        -- User authentication tables
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT UNIQUE NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            is_verified BOOLEAN DEFAULT 0,
+            verification_token TEXT,
+            verification_token_expires_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            last_login_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS teacher_student_relationships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id INTEGER NOT NULL,
+            student_id INTEGER NOT NULL,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(teacher_id, student_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_users_student_id ON users(student_id);
+        CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+        CREATE INDEX IF NOT EXISTS idx_tsr_teacher ON teacher_student_relationships(teacher_id);
+        CREATE INDEX IF NOT EXISTS idx_tsr_student ON teacher_student_relationships(student_id);
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
     """)
     conn.commit()
 
@@ -761,6 +812,28 @@ def sync_push(payload: SyncPushPayload):
         "mistake_id_mapping": mistake_id_mapping,
         "server_time": server_time
     }
+
+
+# ============ ADMIN ENDPOINTS ============
+
+@app.delete("/api/admin/clear-data")
+def clear_all_data():
+    """Clear all classes, mistakes, and related data (for fresh start)"""
+    conn = get_app_db()
+
+    # Clear in correct order due to foreign keys
+    conn.execute("DELETE FROM mistake_occurrences")
+    conn.execute("DELETE FROM mistakes")
+    conn.execute("DELETE FROM assignments")
+    conn.execute("DELETE FROM classes")
+    conn.execute("DELETE FROM refresh_tokens")
+    conn.execute("DELETE FROM teacher_student_relationships")
+    conn.execute("DELETE FROM users")
+
+    conn.commit()
+    conn.close()
+
+    return {"message": "All data cleared successfully (including users)"}
 
 
 # ============ HEALTH CHECK ============

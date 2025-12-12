@@ -1,5 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
@@ -13,29 +17,64 @@ import QuranReader from './pages/QuranReader';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          {/* Default dashboard - will be role-based later */}
-          <Route index element={<Dashboard />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-          {/* Teacher Routes */}
-          <Route path="teacher" element={<TeacherDashboard />} />
-          <Route path="teacher/classes" element={<TeacherClasses />} />
-          <Route path="teacher/classes/:id" element={<TeacherClassroom />} />
+          {/* Protected routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Default dashboard */}
+            <Route index element={<Dashboard />} />
 
-          {/* Student Routes */}
-          <Route path="student" element={<StudentDashboard />} />
-          <Route path="student/classes" element={<StudentClasses />} />
-          <Route path="student/classes/:id" element={<StudentClassroom />} />
+            {/* Teacher Routes (require verification) */}
+            <Route
+              path="teacher"
+              element={
+                <ProtectedRoute requireVerified>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="teacher/classes"
+              element={
+                <ProtectedRoute requireVerified>
+                  <TeacherClasses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="teacher/classes/:id"
+              element={
+                <ProtectedRoute requireVerified>
+                  <TeacherClassroom />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Shared/Legacy Routes */}
-          <Route path="classes" element={<Classes />} />
-          <Route path="classes/:id" element={<Classroom />} />
-          <Route path="reader" element={<QuranReader />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+            {/* Student Routes */}
+            <Route path="student" element={<StudentDashboard />} />
+            <Route path="student/classes" element={<StudentClasses />} />
+            <Route path="student/classes/:id" element={<StudentClassroom />} />
+
+            {/* Shared/Legacy Routes */}
+            <Route path="classes" element={<Classes />} />
+            <Route path="classes/:id" element={<Classroom />} />
+            <Route path="reader" element={<QuranReader />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

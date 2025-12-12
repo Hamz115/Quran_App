@@ -1,37 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { getMyStudents, lookupStudent, addStudent, removeStudent, type StudentListItem } from '../api';
 
-// Mock data for now - will connect to backend later
-const mockStudents = [
-  { id: 1, name: 'Ahmed Hassan', currentSurah: 67, totalClasses: 24, lastClass: '2024-12-10', performance: 'Excellent', mistakes: 12 },
-  { id: 2, name: 'Bilal Omar', currentSurah: 72, totalClasses: 18, lastClass: '2024-12-09', performance: 'Very Good', mistakes: 8 },
-  { id: 3, name: 'Zaid Ibrahim', currentSurah: 78, totalClasses: 31, lastClass: '2024-12-10', performance: 'Good', mistakes: 15 },
-  { id: 4, name: 'Yusuf Ali', currentSurah: 84, totalClasses: 12, lastClass: '2024-12-08', performance: 'Needs Work', mistakes: 22 },
-  { id: 5, name: 'Hamza Khan', currentSurah: 89, totalClasses: 45, lastClass: '2024-12-10', performance: 'Excellent', mistakes: 5 },
-];
-
-const surahNames: Record<number, string> = {
-  67: 'Al-Mulk', 68: 'Al-Qalam', 69: 'Al-Haqqah', 70: 'Al-Maarij', 71: 'Nuh', 72: 'Al-Jinn',
-  73: 'Al-Muzzammil', 74: 'Al-Muddaththir', 75: 'Al-Qiyamah', 76: 'Al-Insan', 77: 'Al-Mursalat',
-  78: 'An-Naba', 79: 'An-Naziat', 80: 'Abasa', 81: 'At-Takwir', 82: 'Al-Infitar',
-  83: 'Al-Mutaffifin', 84: 'Al-Inshiqaq', 85: 'Al-Buruj', 86: 'At-Tariq',
-  87: 'Al-Ala', 88: 'Al-Ghashiyah', 89: 'Al-Fajr', 90: 'Al-Balad', 91: 'Ash-Shams',
-  92: 'Al-Layl', 93: 'Ad-Duha', 94: 'Ash-Sharh', 95: 'At-Tin', 96: 'Al-Alaq',
-};
-
-const getPerformanceStyle = (perf: string) => {
-  switch (perf) {
-    case 'Excellent': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-    case 'Very Good': return 'bg-teal-500/20 text-teal-400 border-teal-500/30';
-    case 'Good': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    case 'Needs Work': return 'bg-red-500/20 text-red-400 border-red-500/30';
-    default: return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-  }
-};
+interface StudentLookup {
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+}
 
 export default function TeacherDashboard() {
+  const { user } = useAuth();
+  const [students, setStudents] = useState<StudentListItem[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [showNewClassModal, setShowNewClassModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Add student modal state
+  const [studentIdInput, setStudentIdInput] = useState('');
+  const [lookupResult, setLookupResult] = useState<StudentLookup | null>(null);
+  const [lookupError, setLookupError] = useState('');
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
+  async function loadStudents() {
+    try {
+      const data = await getMyStudents();
+      setStudents(data);
+    } catch (err) {
+      console.error('Failed to load students:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const toggleStudentSelection = (id: number) => {
     setSelectedStudents(prev =>
@@ -39,9 +45,60 @@ export default function TeacherDashboard() {
     );
   };
 
-  const totalStudents = mockStudents.length;
-  const totalClasses = mockStudents.reduce((sum, s) => sum + s.totalClasses, 0);
-  const avgPerformance = mockStudents.filter(s => s.performance === 'Excellent' || s.performance === 'Very Good').length;
+  const handleLookupStudent = async () => {
+    if (!studentIdInput.trim()) return;
+
+    setIsLookingUp(true);
+    setLookupError('');
+    setLookupResult(null);
+
+    try {
+      const result = await lookupStudent(studentIdInput.trim().toUpperCase());
+      setLookupResult(result);
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : 'Student not found');
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleAddStudent = async () => {
+    if (!lookupResult) return;
+
+    setIsAdding(true);
+    try {
+      await addStudent(lookupResult.student_id);
+      await loadStudents();
+      setShowAddStudentModal(false);
+      setStudentIdInput('');
+      setLookupResult(null);
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : 'Failed to add student');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleRemoveStudent = async (studentId: string) => {
+    if (!confirm('Are you sure you want to remove this student from your roster?')) return;
+
+    try {
+      await removeStudent(studentId);
+      await loadStudents();
+    } catch (err) {
+      console.error('Failed to remove student:', err);
+    }
+  };
+
+  const totalStudents = students.length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-400">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -49,7 +106,7 @@ export default function TeacherDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-100">Teacher Dashboard</h1>
-          <p className="text-slate-400 mt-1">Manage your Halaqah and track student progress</p>
+          <p className="text-slate-400 mt-1">Welcome back, {user?.first_name}! Manage your Halaqah and track student progress.</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -96,8 +153,8 @@ export default function TeacherDashboard() {
               </svg>
             </div>
           </div>
-          <p className="text-4xl font-bold text-slate-100">{avgPerformance}/{totalStudents}</p>
-          <p className="text-slate-400 mt-1">Performing Well</p>
+          <p className="text-4xl font-bold text-slate-100">-</p>
+          <p className="text-slate-400 mt-1">Classes This Week</p>
         </div>
 
         <div className="card p-6">
@@ -108,7 +165,7 @@ export default function TeacherDashboard() {
               </svg>
             </div>
           </div>
-          <p className="text-4xl font-bold text-slate-100">{totalClasses}</p>
+          <p className="text-4xl font-bold text-slate-100">-</p>
           <p className="text-slate-400 mt-1">Total Classes</p>
         </div>
 
@@ -132,7 +189,12 @@ export default function TeacherDashboard() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-slate-100">My Students</h2>
-            <p className="text-sm text-slate-400 mt-1">Select students to start a group class</p>
+            <p className="text-sm text-slate-400 mt-1">
+              {students.length === 0
+                ? 'Add students using their Student ID to get started'
+                : 'Select students to start a group class'
+              }
+            </p>
           </div>
           {selectedStudents.length > 0 && (
             <button
@@ -148,7 +210,7 @@ export default function TeacherDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockStudents.map((student) => (
+          {students.map((student) => (
             <div
               key={student.id}
               onClick={() => toggleStudentSelection(student.id)}
@@ -174,34 +236,30 @@ export default function TeacherDashboard() {
               {/* Student Info */}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-lg font-bold text-slate-300">
-                  {student.name.split(' ').map(n => n[0]).join('')}
+                  {student.first_name[0]}{student.last_name[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-slate-100 truncate">{student.name}</h3>
+                  <h3 className="font-semibold text-slate-100 truncate">{student.first_name} {student.last_name}</h3>
                   <p className="text-sm text-slate-400">
-                    Currently: {surahNames[student.currentSurah] || `Surah ${student.currentSurah}`}
+                    ID: {student.student_id}
                   </p>
                 </div>
               </div>
 
               {/* Stats Row */}
               <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-slate-400">
-                    <span className="font-medium text-slate-300">{student.totalClasses}</span> classes
-                  </span>
-                  <span className="text-slate-400">
-                    <span className="font-medium text-red-400">{student.mistakes}</span> mistakes
-                  </span>
+                <div className="text-xs text-slate-500">
+                  Added: {new Date(student.added_at).toLocaleDateString()}
                 </div>
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getPerformanceStyle(student.performance)}`}>
-                  {student.performance}
-                </span>
-              </div>
-
-              {/* Last Class */}
-              <div className="mt-3 text-xs text-slate-500">
-                Last class: {student.lastClass}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveStudent(student.student_id);
+                  }}
+                  className="text-xs text-red-400 hover:text-red-300"
+                >
+                  Remove
+                </button>
               </div>
             </div>
           ))}
@@ -217,79 +275,7 @@ export default function TeacherDashboard() {
               </svg>
             </div>
             <p className="font-medium text-slate-400">Add New Student</p>
-            <p className="text-sm text-slate-500 mt-1">Invite to your Halaqah</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="grid grid-cols-2 gap-6">
-        {/* Recent Classes */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-200">Recent Classes</h3>
-            <a href="/classes" className="text-sm text-emerald-400 hover:text-emerald-300">View All</a>
-          </div>
-          <div className="space-y-3">
-            {[
-              { date: '2024-12-10', students: ['Ahmed', 'Zaid', 'Hamza'], status: 'published' },
-              { date: '2024-12-09', students: ['Bilal'], status: 'published' },
-              { date: '2024-12-08', students: ['Yusuf', 'Ahmed'], status: 'draft' },
-            ].map((cls, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-xl">
-                <div>
-                  <p className="font-medium text-slate-200">{cls.date}</p>
-                  <p className="text-sm text-slate-400">{cls.students.join(', ')}</p>
-                </div>
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                  cls.status === 'published'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-amber-500/20 text-amber-400'
-                }`}>
-                  {cls.status === 'published' ? 'Published' : 'Draft'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Students Needing Attention */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-200">Needs Attention</h3>
-            <span className="text-xs font-medium bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full">
-              Focus Here
-            </span>
-          </div>
-          <div className="space-y-3">
-            {mockStudents
-              .filter(s => s.performance === 'Needs Work' || s.mistakes > 15)
-              .map((student) => (
-                <div key={student.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-sm font-bold text-slate-300">
-                      {student.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-200">{student.name}</p>
-                      <p className="text-sm text-red-400">{student.mistakes} repeated mistakes</p>
-                    </div>
-                  </div>
-                  <button className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">
-                    Review
-                  </button>
-                </div>
-              ))}
-            {mockStudents.filter(s => s.performance === 'Needs Work' || s.mistakes > 15).length === 0 && (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <p className="text-slate-400">All students are doing well!</p>
-              </div>
-            )}
+            <p className="text-sm text-slate-500 mt-1">Enter their Student ID</p>
           </div>
         </div>
       </div>
@@ -310,19 +296,23 @@ export default function TeacherDashboard() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Select Students</label>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {mockStudents.map((student) => (
-                    <label key={student.id} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.includes(student.id)}
-                        onChange={() => toggleStudentSelection(student.id)}
-                        className="w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500"
-                      />
-                      <span className="text-slate-200">{student.name}</span>
-                    </label>
-                  ))}
-                </div>
+                {students.length === 0 ? (
+                  <p className="text-slate-400 text-sm">No students added yet. Add students first!</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {students.map((student) => (
+                      <label key={student.id} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.includes(student.id)}
+                          onChange={() => toggleStudentSelection(student.id)}
+                          className="w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span className="text-slate-200">{student.first_name} {student.last_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -335,7 +325,10 @@ export default function TeacherDashboard() {
                 <button
                   onClick={() => {
                     // TODO: Navigate to classroom with selected students
-                    alert(`Starting class with: ${selectedStudents.map(id => mockStudents.find(s => s.id === id)?.name).join(', ')}`);
+                    alert(`Starting class with: ${selectedStudents.map(id => {
+                      const s = students.find(st => st.id === id);
+                      return s ? `${s.first_name} ${s.last_name}` : '';
+                    }).join(', ')}`);
                     setShowNewClassModal(false);
                   }}
                   disabled={selectedStudents.length === 0}
@@ -355,7 +348,15 @@ export default function TeacherDashboard() {
           <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 w-full max-w-lg mx-4">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-slate-100">Add New Student</h2>
-              <button onClick={() => setShowAddStudentModal(false)} className="text-slate-400 hover:text-slate-200">
+              <button
+                onClick={() => {
+                  setShowAddStudentModal(false);
+                  setStudentIdInput('');
+                  setLookupResult(null);
+                  setLookupError('');
+                }}
+                className="text-slate-400 hover:text-slate-200"
+              >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -364,49 +365,62 @@ export default function TeacherDashboard() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Student Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter student's full name"
-                  className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-                />
+                <label className="block text-sm font-medium text-slate-300 mb-2">Student ID</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={studentIdInput}
+                    onChange={(e) => {
+                      setStudentIdInput(e.target.value.toUpperCase());
+                      setLookupResult(null);
+                      setLookupError('');
+                    }}
+                    placeholder="STU-XXXXXX"
+                    className="flex-1 px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                  <button
+                    onClick={handleLookupStudent}
+                    disabled={!studentIdInput.trim() || isLookingUp}
+                    className="px-4 py-2.5 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-200 rounded-xl font-medium transition-colors"
+                  >
+                    {isLookingUp ? 'Looking...' : 'Lookup'}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Ask the student for their ID from their profile</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Email (Optional)</label>
-                <input
-                  type="email"
-                  placeholder="student@email.com"
-                  className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-                />
-                <p className="text-xs text-slate-500 mt-1">They'll receive an invite to join your Halaqah</p>
-              </div>
+              {lookupError && (
+                <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                  {lookupError}
+                </div>
+              )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Starting Surah</label>
-                <select className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-slate-100 focus:outline-none focus:border-emerald-500">
-                  <option value="67">67 - Al-Mulk</option>
-                  <option value="78">78 - An-Naba</option>
-                  <option value="1">1 - Al-Fatihah</option>
-                </select>
-              </div>
+              {lookupResult && (
+                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                  <p className="text-sm text-slate-400 mb-1">Found student:</p>
+                  <p className="text-lg font-semibold text-slate-100">{lookupResult.first_name} {lookupResult.last_name}</p>
+                  <p className="text-sm text-slate-400">{lookupResult.student_id}</p>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setShowAddStudentModal(false)}
+                  onClick={() => {
+                    setShowAddStudentModal(false);
+                    setStudentIdInput('');
+                    setLookupResult(null);
+                    setLookupError('');
+                  }}
                   className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: Add student to backend
-                    alert('Student added! (mock)');
-                    setShowAddStudentModal(false);
-                  }}
-                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors"
+                  onClick={handleAddStudent}
+                  disabled={!lookupResult || isAdding}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
                 >
-                  Add Student
+                  {isAdding ? 'Adding...' : 'Add Student'}
                 </button>
               </div>
             </div>

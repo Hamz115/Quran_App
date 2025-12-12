@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getStats, getClasses } from '../api';
+import { useAuth } from '../contexts/AuthContext';
+import { getStats, getClasses, getMyTeachers } from '../api';
 
 const surahNames: Record<number, string> = {
   1: 'Al-Fatihah', 2: 'Al-Baqarah', 3: 'Ali Imran', 67: 'Al-Mulk', 68: 'Al-Qalam',
@@ -13,14 +14,6 @@ const surahNames: Record<number, string> = {
   101: 'Al-Qariah', 102: 'At-Takathur', 103: 'Al-Asr', 104: 'Al-Humazah',
   105: 'Al-Fil', 106: 'Quraysh', 107: 'Al-Maun', 108: 'Al-Kawthar', 109: 'Al-Kafirun',
   110: 'An-Nasr', 111: 'Al-Masad', 112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas'
-};
-
-// Mock student data - will come from auth/backend later
-const mockStudent = {
-  id: 1,
-  name: 'Ahmed Hassan',
-  teacherName: 'Ustadh Ibrahim',
-  joinDate: '2024-09-15',
 };
 
 interface ClassData {
@@ -49,6 +42,13 @@ interface Stats {
   top_repeated_mistakes: { id: number; surah_number: number; ayah_number: number; word_text: string; error_count: number }[];
 }
 
+interface Teacher {
+  id: number;
+  first_name: string;
+  last_name: string;
+  added_at: string;
+}
+
 const getPerformanceStyle = (perf?: string) => {
   switch (perf) {
     case 'Excellent': return 'bg-emerald-500/20 text-emerald-400';
@@ -60,19 +60,23 @@ const getPerformanceStyle = (perf?: string) => {
 };
 
 export default function StudentDashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [classes, setClasses] = useState<ClassData[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [statsData, classesData] = await Promise.all([
+        const [statsData, classesData, teachersData] = await Promise.all([
           getStats(),
-          getClasses()
+          getClasses(),
+          getMyTeachers()
         ]);
         setStats(statsData);
         setClasses(classesData);
+        setTeachers(teachersData);
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
       } finally {
@@ -96,6 +100,7 @@ export default function StudentDashboard() {
   const topRepeatedMistakes = stats?.top_repeated_mistakes || [];
   const latestClass = classes[0];
   const currentSurah = latestClass?.assignments[0]?.start_surah || 67;
+  const teacherName = teachers.length > 0 ? `${teachers[0].first_name} ${teachers[0].last_name}` : 'No teacher yet';
 
 
   return (
@@ -105,17 +110,30 @@ export default function StudentDashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-emerald-500/20">
-              {mockStudent.name.split(' ').map(n => n[0]).join('')}
+              {user?.first_name?.[0]}{user?.last_name?.[0]}
             </div>
             <div>
               <p className="text-slate-400 text-sm">Assalamu Alaikum,</p>
-              <h1 className="text-3xl font-bold text-slate-100">{mockStudent.name}</h1>
+              <h1 className="text-3xl font-bold text-slate-100">{user?.first_name} {user?.last_name}</h1>
               <p className="text-slate-400 mt-1 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                Teacher: {mockStudent.teacherName}
+                Teacher: {teacherName}
               </p>
+              <div className="text-slate-500 text-sm mt-1 flex items-center gap-2">
+                Your Student ID:
+                <button
+                  onClick={() => navigator.clipboard.writeText(user?.student_id || '')}
+                  className="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-emerald-400 font-mono flex items-center gap-1.5 transition-colors"
+                  title="Click to copy"
+                >
+                  {user?.student_id}
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
           <div className="text-right">

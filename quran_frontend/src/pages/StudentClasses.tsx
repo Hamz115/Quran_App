@@ -1,114 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { getClasses, getMyTeachers } from '../api';
 
 const surahNames: Record<number, string> = {
-  67: 'Al-Mulk', 68: 'Al-Qalam', 69: 'Al-Haqqah', 70: 'Al-Maarij', 71: 'Nuh', 72: 'Al-Jinn',
-  73: 'Al-Muzzammil', 74: 'Al-Muddaththir', 75: 'Al-Qiyamah', 76: 'Al-Insan', 77: 'Al-Mursalat',
+  1: 'Al-Fatihah', 2: 'Al-Baqarah', 3: 'Ali Imran', 67: 'Al-Mulk', 68: 'Al-Qalam',
+  69: 'Al-Haqqah', 70: 'Al-Maarij', 71: 'Nuh', 72: 'Al-Jinn', 73: 'Al-Muzzammil',
+  74: 'Al-Muddaththir', 75: 'Al-Qiyamah', 76: 'Al-Insan', 77: 'Al-Mursalat',
   78: 'An-Naba', 79: 'An-Naziat', 80: 'Abasa', 81: 'At-Takwir', 82: 'Al-Infitar',
   83: 'Al-Mutaffifin', 84: 'Al-Inshiqaq', 85: 'Al-Buruj', 86: 'At-Tariq', 87: 'Al-Ala',
   88: 'Al-Ghashiyah', 89: 'Al-Fajr', 90: 'Al-Balad', 91: 'Ash-Shams', 92: 'Al-Layl',
+  93: 'Ad-Duha', 94: 'Ash-Sharh', 95: 'At-Tin', 96: 'Al-Alaq', 97: 'Al-Qadr',
+  98: 'Al-Bayyinah', 99: 'Az-Zalzalah', 100: 'Al-Adiyat', 101: 'Al-Qariah',
+  102: 'At-Takathur', 103: 'Al-Asr', 104: 'Al-Humazah', 105: 'Al-Fil', 106: 'Quraysh',
+  107: 'Al-Maun', 108: 'Al-Kawthar', 109: 'Al-Kafirun', 110: 'An-Nasr', 111: 'Al-Masad',
+  112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas'
 };
 
-// Mock student info
-const mockStudent = {
-  id: 1,
-  name: 'Ahmed Hassan',
-};
+interface ClassData {
+  id: number;
+  date: string;
+  day: string;
+  notes: string | null;
+  performance?: string;
+  assignments: {
+    id: number;
+    type: string;
+    start_surah: number;
+    end_surah: number;
+    start_ayah: number | null;
+    end_ayah: number | null;
+  }[];
+}
 
-// Mock data - only this student's published classes
-const mockMyClasses = [
-  {
-    id: 1,
-    date: '2024-12-10',
-    day: 'Tuesday',
-    type: 'hifz',
-    surah: 67,
-    ayahStart: 1,
-    ayahEnd: 10,
-    performance: 'Excellent',
-    mistakes: 2,
-    notes: 'Great recitation today. Minor tajweed corrections needed.',
-    teacherName: 'Ustadh Ibrahim',
-  },
-  {
-    id: 2,
-    date: '2024-12-07',
-    day: 'Saturday',
-    type: 'hifz',
-    surah: 67,
-    ayahStart: 1,
-    ayahEnd: 5,
-    performance: 'Very Good',
-    mistakes: 1,
-    notes: 'Good progress. Keep practicing the first few ayahs.',
-    teacherName: 'Ustadh Ibrahim',
-  },
-  {
-    id: 3,
-    date: '2024-12-05',
-    day: 'Thursday',
-    type: 'sabqi',
-    surah: 78,
-    ayahStart: 1,
-    ayahEnd: 20,
-    performance: 'Good',
-    mistakes: 4,
-    notes: 'Review Surah An-Naba again before next class.',
-    teacherName: 'Ustadh Ibrahim',
-  },
-  {
-    id: 4,
-    date: '2024-12-03',
-    day: 'Tuesday',
-    type: 'manzil',
-    surah: 112,
-    ayahStart: null,
-    ayahEnd: null,
-    endSurah: 114,
-    performance: 'Excellent',
-    mistakes: 0,
-    notes: 'Mashallah, perfect recitation of the last 3 surahs.',
-    teacherName: 'Ustadh Ibrahim',
-  },
-  {
-    id: 5,
-    date: '2024-11-28',
-    day: 'Thursday',
-    type: 'hifz',
-    surah: 67,
-    ayahStart: 1,
-    ayahEnd: 3,
-    performance: 'Needs Work',
-    mistakes: 6,
-    notes: 'Need more practice. Review with family before next class.',
-    teacherName: 'Ustadh Ibrahim',
-  },
-];
-
-// Practice sessions (done at home with family)
-const mockPracticeSessions = [
-  {
-    id: 101,
-    date: '2024-12-09',
-    day: 'Monday',
-    type: 'practice',
-    surah: 67,
-    ayahStart: 1,
-    ayahEnd: 10,
-    mistakes: 1,
-    helperName: 'Mom',
-  },
-  {
-    id: 102,
-    date: '2024-12-06',
-    day: 'Friday',
-    type: 'practice',
-    surah: 78,
-    ayahStart: 1,
-    ayahEnd: 15,
-    mistakes: 3,
-    helperName: 'Dad',
-  },
-];
+interface Teacher {
+  id: number;
+  first_name: string;
+  last_name: string;
+  added_at: string;
+}
 
 const getPerformanceStyle = (perf: string) => {
   switch (perf) {
@@ -124,8 +53,7 @@ const getTypeStyle = (type: string) => {
   switch (type) {
     case 'hifz': return 'bg-emerald-500/20 text-emerald-400';
     case 'sabqi': return 'bg-blue-500/20 text-blue-400';
-    case 'manzil': return 'bg-purple-500/20 text-purple-400';
-    case 'practice': return 'bg-amber-500/20 text-amber-400';
+    case 'revision': return 'bg-purple-500/20 text-purple-400';
     default: return 'bg-slate-600/50 text-slate-400';
   }
 };
@@ -134,15 +62,14 @@ const getTypeLabel = (type: string) => {
   switch (type) {
     case 'hifz': return 'Hifz';
     case 'sabqi': return 'Sabqi';
-    case 'manzil': return 'Manzil';
-    case 'practice': return 'Practice';
+    case 'revision': return 'Revision';
     default: return type;
   }
 };
 
 // Group classes by month
-const groupByMonth = (classes: typeof mockMyClasses) => {
-  const grouped: Record<string, typeof mockMyClasses> = {};
+const groupByMonth = (classes: ClassData[]) => {
+  const grouped: Record<string, ClassData[]> = {};
   classes.forEach(cls => {
     const date = new Date(cls.date);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -159,27 +86,46 @@ const getMonthLabel = (monthKey: string) => {
   return `${months[parseInt(month)]} ${year}`;
 };
 
-// Calculate week number from first class
-const getWeekNumber = (dateStr: string, allClasses: typeof mockMyClasses) => {
-  if (allClasses.length === 0) return 1;
-  const sortedDates = allClasses.map(c => new Date(c.date).getTime()).sort((a, b) => a - b);
-  const firstDate = new Date(sortedDates[0]);
-  const currentDate = new Date(dateStr);
-  const diffDays = Math.floor((currentDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.floor(diffDays / 7) + 1;
-};
-
 export default function StudentClasses() {
-  const [viewMode, setViewMode] = useState<'classes' | 'practice'>('classes');
+  const { user } = useAuth();
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loading, setLoading] = useState(true);
   const [expandedNote, setExpandedNote] = useState<number | null>(null);
 
-  const groupedClasses = groupByMonth(mockMyClasses);
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [classesData, teachersData] = await Promise.all([
+          getClasses(),
+          getMyTeachers()
+        ]);
+        setClasses(classesData);
+        setTeachers(teachersData);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const groupedClasses = groupByMonth(classes);
   const sortedMonths = Object.keys(groupedClasses).sort((a, b) => b.localeCompare(a));
 
   // Calculate stats
-  const totalClasses = mockMyClasses.length;
-  const excellentCount = mockMyClasses.filter(c => c.performance === 'Excellent').length;
-  const totalMistakes = mockMyClasses.reduce((sum, c) => sum + c.mistakes, 0);
+  const totalClasses = classes.length;
+  const excellentCount = classes.filter(c => c.performance === 'Excellent').length;
+  const teacherName = teachers.length > 0 ? `${teachers[0].first_name} ${teachers[0].last_name}` : 'No teacher yet';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-400">Loading classes...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -188,7 +134,7 @@ export default function StudentClasses() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-100">My Classes</h1>
-            <p className="text-slate-400 mt-1">Your learning journey with {mockMyClasses[0]?.teacherName}</p>
+            <p className="text-slate-400 mt-1">Your learning journey with {teacherName}</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-center">
@@ -199,38 +145,12 @@ export default function StudentClasses() {
               <p className="text-3xl font-bold text-teal-400">{excellentCount}</p>
               <p className="text-xs text-slate-500">Excellent</p>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-red-400">{totalMistakes}</p>
-              <p className="text-xs text-slate-500">Mistakes</p>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* View Toggle */}
+      {/* Quick Actions */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
-          <button
-            onClick={() => setViewMode('classes')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'classes'
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Teacher Classes
-          </button>
-          <button
-            onClick={() => setViewMode('practice')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'practice'
-                ? 'bg-amber-500/20 text-amber-400'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Practice Sessions
-          </button>
-        </div>
         <a
           href="/student/practice"
           className="ml-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
@@ -242,8 +162,8 @@ export default function StudentClasses() {
         </a>
       </div>
 
-      {viewMode === 'classes' ? (
-        /* Teacher Classes View */
+      {/* Classes by Month */}
+      {sortedMonths.length > 0 ? (
         sortedMonths.map(monthKey => {
           const monthClasses = groupedClasses[monthKey];
           return (
@@ -261,12 +181,10 @@ export default function StudentClasses() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-700/50 text-left">
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-400">Wk</th>
                       <th className="px-4 py-3 text-xs font-semibold text-slate-400">Date</th>
                       <th className="px-4 py-3 text-xs font-semibold text-slate-400">Type</th>
                       <th className="px-4 py-3 text-xs font-semibold text-slate-400">Portion</th>
                       <th className="px-4 py-3 text-xs font-semibold text-slate-400">Performance</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-400">Mistakes</th>
                       <th className="px-4 py-3 text-xs font-semibold text-slate-400">Notes</th>
                       <th className="px-4 py-3 text-xs font-semibold text-slate-400"></th>
                     </tr>
@@ -275,39 +193,43 @@ export default function StudentClasses() {
                     {monthClasses.map(cls => (
                       <tr key={cls.id} className="hover:bg-slate-800/30">
                         <td className="px-4 py-3">
-                          <span className="text-xs text-slate-500 font-medium">
-                            W{getWeekNumber(cls.date, mockMyClasses)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
                           <div>
-                            <p className="text-sm font-medium text-slate-200">{cls.date.split('-').slice(1).join('/')}</p>
+                            <p className="text-sm font-medium text-slate-200">{cls.date}</p>
                             <p className="text-xs text-slate-500">{cls.day}</p>
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTypeStyle(cls.type)}`}>
-                            {getTypeLabel(cls.type)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-slate-200">
-                            {surahNames[cls.surah] || `Surah ${cls.surah}`}
-                          </p>
-                          {cls.ayahStart && (
-                            <p className="text-xs text-slate-500">
-                              Ayah {cls.ayahStart}-{cls.ayahEnd}
-                            </p>
+                          {cls.assignments.length > 0 ? (
+                            cls.assignments.map((a, i) => (
+                              <span key={a.id} className={`text-xs font-medium px-2 py-1 rounded-full ${getTypeStyle(a.type)}`}>
+                                {i > 0 && ' '}
+                                {getTypeLabel(a.type)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-500 text-sm">-</span>
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getPerformanceStyle(cls.performance)}`}>
-                            {cls.performance}
-                          </span>
+                          {cls.assignments.length > 0 ? (
+                            cls.assignments.map((a, i) => (
+                              <div key={a.id} className="text-sm text-slate-200">
+                                {i > 0 && ', '}
+                                {surahNames[a.start_surah] || `Surah ${a.start_surah}`}
+                                {a.start_ayah && (
+                                  <span className="text-xs text-slate-500 ml-1">
+                                    ({a.start_ayah}-{a.end_ayah})
+                                  </span>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-slate-500 text-sm">-</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-sm font-medium ${cls.mistakes > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {cls.mistakes}
+                          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getPerformanceStyle(cls.performance || '')}`}>
+                            {cls.performance || 'Not rated'}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -349,7 +271,7 @@ export default function StudentClasses() {
                       </svg>
                       <div>
                         <p className="text-sm text-slate-300">{cls.notes}</p>
-                        <p className="text-xs text-slate-500 mt-1">From {cls.teacherName} on {cls.date}</p>
+                        <p className="text-xs text-slate-500 mt-1">From {teacherName} on {cls.date}</p>
                       </div>
                     </div>
                   ))}
@@ -359,49 +281,7 @@ export default function StudentClasses() {
           );
         })
       ) : (
-        /* Practice Sessions View */
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 bg-amber-500/10 border-b border-amber-500/20">
-            <h2 className="text-lg font-semibold text-amber-400">Practice Sessions</h2>
-            <p className="text-sm text-slate-400 mt-1">Sessions done at home with family</p>
-          </div>
-
-          {mockPracticeSessions.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-slate-400">No practice sessions yet</p>
-              <p className="text-sm text-slate-500 mt-1">Start practicing with your family!</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-700/30">
-              {mockPracticeSessions.map(session => (
-                <div key={session.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-800/30">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-200">{session.date} ({session.day})</p>
-                      <p className="text-sm text-slate-400">
-                        {surahNames[session.surah]} ({session.ayahStart}-{session.ayahEnd}) with {session.helperName}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`text-sm font-medium ${session.mistakes > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {session.mistakes} mistakes
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Empty State for classes */}
-      {viewMode === 'classes' && mockMyClasses.length === 0 && (
+        /* Empty State */
         <div className="card p-12 text-center">
           <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
