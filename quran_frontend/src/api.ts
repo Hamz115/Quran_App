@@ -167,19 +167,19 @@ export async function verifyEmail(token: string): Promise<{ message: string }> {
 
 // ============ STUDENTS (Teacher only) ============
 
-export async function lookupStudent(studentId: string): Promise<StudentLookup> {
-  const res = await authFetch(`${API_BASE}/students/lookup/${studentId}`);
+export async function lookupStudent(email: string): Promise<StudentLookup> {
+  const res = await authFetch(`${API_BASE}/students/lookup?email=${encodeURIComponent(email)}`);
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(error.detail || 'Student not found');
+    throw new Error(error.detail || 'No user found with that email');
   }
   return res.json();
 }
 
-export async function addStudent(studentId: string): Promise<{ message: string }> {
+export async function addStudent(email: string): Promise<{ message: string }> {
   const res = await authFetch(`${API_BASE}/students/add`, {
     method: 'POST',
-    body: JSON.stringify({ student_id: studentId }),
+    body: JSON.stringify({ email }),
   });
   if (!res.ok) {
     const error = await res.json();
@@ -198,7 +198,7 @@ export async function getMyStudents(): Promise<StudentListItem[]> {
 }
 
 export async function removeStudent(studentId: string): Promise<{ message: string }> {
-  const res = await authFetch(`${API_BASE}/students/${studentId}`, {
+  const res = await authFetch(`${API_BASE}/students/remove/${studentId}`, {
     method: 'DELETE',
   });
   if (!res.ok) {

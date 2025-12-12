@@ -382,17 +382,17 @@ async def verify_email(data: VerifyEmailRequest):
 
 # ============ STUDENT MANAGEMENT ENDPOINTS ============
 
-@students_router.get("/lookup/{student_id}", response_model=StudentLookupResponse)
+@students_router.get("/lookup", response_model=StudentLookupResponse)
 async def lookup_student(
-    student_id: str,
+    email: str,
     current_user: dict = Depends(get_current_verified_user)
 ):
-    """Look up a student by their ID (Teacher only)"""
+    """Look up a student by their email (Teacher only)"""
     conn = get_db()
 
     cursor = conn.execute(
-        "SELECT student_id, first_name, last_name FROM users WHERE student_id = ?",
-        (student_id.upper(),)
+        "SELECT student_id, email, first_name, last_name FROM users WHERE email = ?",
+        (email.lower(),)
     )
     student = cursor.fetchone()
     conn.close()
@@ -400,7 +400,7 @@ async def lookup_student(
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
+            detail="No user found with that email"
         )
 
     student = dict(student)
@@ -410,6 +410,7 @@ async def lookup_student(
 
     return StudentLookupResponse(
         student_id=student["student_id"],
+        email=student["email"],
         first_name=student["first_name"],
         last_name=student["last_name"],
         display_name=display_name
@@ -425,10 +426,10 @@ async def add_student(
     teacher_id = int(current_user["sub"])
     conn = get_db()
 
-    # Find the student
+    # Find the student by email
     cursor = conn.execute(
-        "SELECT id, first_name, last_name FROM users WHERE student_id = ?",
-        (data.student_id.upper(),)
+        "SELECT id, first_name, last_name FROM users WHERE email = ?",
+        (data.email.lower(),)
     )
     student = cursor.fetchone()
 
@@ -495,7 +496,7 @@ async def get_my_students(current_user: dict = Depends(get_current_verified_user
     return students
 
 
-@students_router.delete("/{student_id}", response_model=MessageResponse)
+@students_router.delete("/remove/{student_id}", response_model=MessageResponse)
 async def remove_student(
     student_id: str,
     current_user: dict = Depends(get_current_verified_user)

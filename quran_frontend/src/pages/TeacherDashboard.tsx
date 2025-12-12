@@ -4,6 +4,7 @@ import { getMyStudents, lookupStudent, addStudent, removeStudent, type StudentLi
 
 interface StudentLookup {
   student_id: string;
+  email: string;
   first_name: string;
   last_name: string;
   display_name: string;
@@ -18,7 +19,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Add student modal state
-  const [studentIdInput, setStudentIdInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
   const [lookupResult, setLookupResult] = useState<StudentLookup | null>(null);
   const [lookupError, setLookupError] = useState('');
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -46,17 +47,17 @@ export default function TeacherDashboard() {
   };
 
   const handleLookupStudent = async () => {
-    if (!studentIdInput.trim()) return;
+    if (!emailInput.trim()) return;
 
     setIsLookingUp(true);
     setLookupError('');
     setLookupResult(null);
 
     try {
-      const result = await lookupStudent(studentIdInput.trim().toUpperCase());
+      const result = await lookupStudent(emailInput.trim().toLowerCase());
       setLookupResult(result);
     } catch (err) {
-      setLookupError(err instanceof Error ? err.message : 'Student not found');
+      setLookupError(err instanceof Error ? err.message : 'No user found with that email');
     } finally {
       setIsLookingUp(false);
     }
@@ -67,10 +68,10 @@ export default function TeacherDashboard() {
 
     setIsAdding(true);
     try {
-      await addStudent(lookupResult.student_id);
+      await addStudent(lookupResult.email);
       await loadStudents();
       setShowAddStudentModal(false);
-      setStudentIdInput('');
+      setEmailInput('');
       setLookupResult(null);
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : 'Failed to add student');
@@ -191,7 +192,7 @@ export default function TeacherDashboard() {
             <h2 className="text-xl font-semibold text-slate-100">My Students</h2>
             <p className="text-sm text-slate-400 mt-1">
               {students.length === 0
-                ? 'Add students using their Student ID to get started'
+                ? 'Add students using their email to get started'
                 : 'Select students to start a group class'
               }
             </p>
@@ -275,7 +276,7 @@ export default function TeacherDashboard() {
               </svg>
             </div>
             <p className="font-medium text-slate-400">Add New Student</p>
-            <p className="text-sm text-slate-500 mt-1">Enter their Student ID</p>
+            <p className="text-sm text-slate-500 mt-1">Enter their email address</p>
           </div>
         </div>
       </div>
@@ -351,7 +352,7 @@ export default function TeacherDashboard() {
               <button
                 onClick={() => {
                   setShowAddStudentModal(false);
-                  setStudentIdInput('');
+                  setEmailInput('');
                   setLookupResult(null);
                   setLookupError('');
                 }}
@@ -365,28 +366,31 @@ export default function TeacherDashboard() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Student ID</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Student Email</label>
                 <div className="flex gap-2">
                   <input
-                    type="text"
-                    value={studentIdInput}
+                    type="email"
+                    value={emailInput}
                     onChange={(e) => {
-                      setStudentIdInput(e.target.value.toUpperCase());
+                      setEmailInput(e.target.value);
                       setLookupResult(null);
                       setLookupError('');
                     }}
-                    placeholder="STU-XXXXXX"
-                    className="flex-1 px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-mono"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleLookupStudent();
+                    }}
+                    placeholder="student@example.com"
+                    className="flex-1 px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                   />
                   <button
                     onClick={handleLookupStudent}
-                    disabled={!studentIdInput.trim() || isLookingUp}
+                    disabled={!emailInput.trim() || isLookingUp}
                     className="px-4 py-2.5 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-200 rounded-xl font-medium transition-colors"
                   >
                     {isLookingUp ? 'Looking...' : 'Lookup'}
                   </button>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Ask the student for their ID from their profile</p>
+                <p className="text-xs text-slate-500 mt-1">Enter the student's email address to find them</p>
               </div>
 
               {lookupError && (
@@ -399,7 +403,7 @@ export default function TeacherDashboard() {
                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
                   <p className="text-sm text-slate-400 mb-1">Found student:</p>
                   <p className="text-lg font-semibold text-slate-100">{lookupResult.first_name} {lookupResult.last_name}</p>
-                  <p className="text-sm text-slate-400">{lookupResult.student_id}</p>
+                  <p className="text-sm text-slate-400">{lookupResult.email}</p>
                 </div>
               )}
 
@@ -407,7 +411,7 @@ export default function TeacherDashboard() {
                 <button
                   onClick={() => {
                     setShowAddStudentModal(false);
-                    setStudentIdInput('');
+                    setEmailInput('');
                     setLookupResult(null);
                     setLookupError('');
                   }}

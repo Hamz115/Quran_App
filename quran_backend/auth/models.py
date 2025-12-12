@@ -27,7 +27,7 @@ class VerifyEmailRequest(BaseModel):
 
 
 class AddStudentRequest(BaseModel):
-    student_id: str = Field(..., pattern=r'^STU-[A-Z0-9]{6}$')
+    email: EmailStr
 
 
 class UpdateProfileRequest(BaseModel):
@@ -65,6 +65,7 @@ class TokenResponse(BaseModel):
 
 class StudentLookupResponse(BaseModel):
     student_id: str
+    email: str
     first_name: str
     last_name: str
     display_name: str  # "Ahmed H." for privacy
