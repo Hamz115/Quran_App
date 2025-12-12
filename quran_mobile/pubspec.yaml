@@ -1,0 +1,51 @@
+name: quran_mobile
+description: "Quran Teaching Logbook - Track student mistakes during memorization"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+
+  # Database
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  path: ^1.8.3
+
+  # Network
+  dio: ^5.4.0
+  connectivity_plus: ^5.0.2
+
+  # UI
+  google_fonts: ^6.1.0
+
+  # Utilities
+  intl: ^0.18.1
+  uuid: ^4.2.2
+  equatable: ^2.0.5
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/qicon.png"
+  adaptive_icon_background: "#1e293b"
+  adaptive_icon_foreground: "assets/qicon.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/databases/
