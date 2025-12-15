@@ -58,7 +58,8 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  is_verified: boolean;
+  role?: 'teacher' | 'student';  // Optional - derived from is_verified
+  is_verified: boolean;  // true = teacher, false = student
   created_at: string;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSurahs, getClasses, createClass, deleteClass, createBackup, listBackups, restoreBackup, updateClassPerformance, updateClassNotes } from '../api';
+import type { ClassData } from '../api';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -13,20 +14,11 @@ interface SurahInfo {
 
 interface Assignment {
   id: number;
-  type: 'hifz' | 'sabqi' | 'revision';
+  type: string;
   start_surah: number;
   end_surah: number;
   start_ayah?: number;
   end_ayah?: number;
-}
-
-interface ClassData {
-  id: number;
-  date: string;
-  day: string;
-  notes?: string;
-  performance?: string;
-  assignments: Assignment[];
 }
 
 interface PortionInput {
@@ -205,6 +197,7 @@ export default function Classes() {
       await createClass({
         date,
         day: getDayFromDate(date),
+        student_ids: [], // Legacy single-user mode
         assignments: allAssignments,
       });
 
@@ -284,16 +277,6 @@ export default function Classes() {
     } else {
       return `${startName} to ${endName}`;
     }
-  };
-
-  // Group assignments by type for display
-  const groupAssignmentsByType = (assignments: Assignment[]) => {
-    const grouped: Record<string, Assignment[]> = {};
-    assignments.forEach(a => {
-      if (!grouped[a.type]) grouped[a.type] = [];
-      grouped[a.type].push(a);
-    });
-    return grouped;
   };
 
   // Group classes by month for table view
@@ -653,7 +636,7 @@ export default function Classes() {
 
                 {sections.map((section) => {
                   const config = SECTION_CONFIG[section.type];
-                  const colorClasses = {
+                  const colorMap: Record<string, { bg: string; border: string; text: string; toggle: string; addBtn: string }> = {
                     emerald: {
                       bg: 'bg-emerald-500/20',
                       border: 'border-emerald-500/30',
@@ -675,7 +658,8 @@ export default function Classes() {
                       toggle: 'bg-purple-500',
                       addBtn: 'text-purple-400 hover:bg-purple-500/20',
                     },
-                  }[config.color];
+                  };
+                  const colorClasses = colorMap[config.color] || colorMap.emerald;
 
                   return (
                     <div

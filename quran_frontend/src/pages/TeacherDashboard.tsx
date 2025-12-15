@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getMyStudents, lookupStudent, addStudent, removeStudent, type StudentListItem } from '../api';
+import { getMyStudents, lookupStudent, addStudent, removeStudent, getClasses, type StudentListItem, type ClassData } from '../api';
 
 interface StudentLookup {
   student_id: string;
@@ -13,8 +13,8 @@ interface StudentLookup {
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const [students, setStudents] = useState<StudentListItem[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
-  const [showNewClassModal, setShowNewClassModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -26,8 +26,23 @@ export default function TeacherDashboard() {
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    loadStudents();
+    loadData();
   }, []);
+
+  async function loadData() {
+    try {
+      const [studentsData, classesData] = await Promise.all([
+        getMyStudents(),
+        getClasses()
+      ]);
+      setStudents(studentsData);
+      setClasses(classesData);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function loadStudents() {
     try {
@@ -35,8 +50,6 @@ export default function TeacherDashboard() {
       setStudents(data);
     } catch (err) {
       console.error('Failed to load students:', err);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -92,6 +105,22 @@ export default function TeacherDashboard() {
   };
 
   const totalStudents = students.length;
+  const totalClasses = classes.length;
+
+  // Calculate classes this week
+  const getClassesThisWeek = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    return classes.filter(cls => {
+      const classDate = new Date(cls.date);
+      return classDate >= startOfWeek;
+    }).length;
+  };
+
+  const classesThisWeek = getClassesThisWeek();
 
   if (loading) {
     return (
@@ -111,6 +140,15 @@ export default function TeacherDashboard() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => window.location.href = '/quran-test'}
+            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Quran Page Test
+          </button>
+          <button
             onClick={() => setShowAddStudentModal(true)}
             className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors flex items-center gap-2"
           >
@@ -120,7 +158,7 @@ export default function TeacherDashboard() {
             Add Student
           </button>
           <button
-            onClick={() => setShowNewClassModal(true)}
+            onClick={() => window.location.href = '/teacher/classes?new=1'}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -154,7 +192,7 @@ export default function TeacherDashboard() {
               </svg>
             </div>
           </div>
-          <p className="text-4xl font-bold text-slate-100">-</p>
+          <p className="text-4xl font-bold text-slate-100">{classesThisWeek}</p>
           <p className="text-slate-400 mt-1">Classes This Week</p>
         </div>
 
@@ -166,7 +204,7 @@ export default function TeacherDashboard() {
               </svg>
             </div>
           </div>
-          <p className="text-4xl font-bold text-slate-100">-</p>
+          <p className="text-4xl font-bold text-slate-100">{totalClasses}</p>
           <p className="text-slate-400 mt-1">Total Classes</p>
         </div>
 
@@ -199,7 +237,7 @@ export default function TeacherDashboard() {
           </div>
           {selectedStudents.length > 0 && (
             <button
-              onClick={() => setShowNewClassModal(true)}
+              onClick={() => window.location.href = '/teacher/classes?new=1'}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -280,68 +318,6 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
-
-      {/* New Class Modal */}
-      {showNewClassModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-slate-100">Start New Class</h2>
-              <button onClick={() => setShowNewClassModal(false)} className="text-slate-400 hover:text-slate-200">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Select Students</label>
-                {students.length === 0 ? (
-                  <p className="text-slate-400 text-sm">No students added yet. Add students first!</p>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {students.map((student) => (
-                      <label key={student.id} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.includes(student.id)}
-                          onChange={() => toggleStudentSelection(student.id)}
-                          className="w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500"
-                        />
-                        <span className="text-slate-200">{student.first_name} {student.last_name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowNewClassModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    // TODO: Navigate to classroom with selected students
-                    alert(`Starting class with: ${selectedStudents.map(id => {
-                      const s = students.find(st => st.id === id);
-                      return s ? `${s.first_name} ${s.last_name}` : '';
-                    }).join(', ')}`);
-                    setShowNewClassModal(false);
-                  }}
-                  disabled={selectedStudents.length === 0}
-                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
-                >
-                  Start Class
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add Student Modal */}
       {showAddStudentModal && (

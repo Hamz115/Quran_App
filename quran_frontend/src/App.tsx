@@ -11,9 +11,8 @@ import Classes from './pages/Classes';
 import TeacherClasses from './pages/TeacherClasses';
 import StudentClasses from './pages/StudentClasses';
 import Classroom from './pages/Classroom';
-import TeacherClassroom from './pages/TeacherClassroom';
-import StudentClassroom from './pages/StudentClassroom';
 import QuranReader from './pages/QuranReader';
+import QuranPageTest from './pages/QuranPageTest';
 
 function App() {
   return (
@@ -57,7 +56,7 @@ function App() {
               path="teacher/classes/:id"
               element={
                 <ProtectedRoute requireVerified>
-                  <TeacherClassroom />
+                  <Classroom />
                 </ProtectedRoute>
               }
             />
@@ -65,12 +64,13 @@ function App() {
             {/* Student Routes */}
             <Route path="student" element={<StudentDashboard />} />
             <Route path="student/classes" element={<StudentClasses />} />
-            <Route path="student/classes/:id" element={<StudentClassroom />} />
+            <Route path="student/classes/:id" element={<Classroom />} />
 
             {/* Shared/Legacy Routes */}
             <Route path="classes" element={<Classes />} />
             <Route path="classes/:id" element={<Classroom />} />
             <Route path="reader" element={<QuranReader />} />
+            <Route path="quran-test" element={<QuranPageTest />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -13,6 +13,7 @@
 10. [Sync System](#sync-system)
 11. [Backup System](#backup-system)
 12. [Setup & Running](#setup--running)
+13. [Related Documentation](#related-documentation)
 
 ---
 
@@ -21,8 +22,10 @@
 QuranTrack is a full-stack application designed to track Quran teaching sessions. It helps teachers monitor student mistakes during memorization (Hifz), recent revision (Sabqi), and long-term revision (Manzil) sessions.
 
 **Important Design Decisions:**
-- **Single Student System:** The app is designed for one teacher tracking one student
-- **GLOBAL Mistakes:** Mistakes are tracked GLOBALLY across all classes - they are NOT tied to any specific class. When you mark a mistake, it persists and shows everywhere that word appears.
+- **Multi-User System:** Teachers can have multiple students; classes support 1-on-1 or group halaqah
+- **GLOBAL Mistakes (per student):** Mistakes are tracked GLOBALLY per student across all classes. Each student has their own mistakes.
+- **Class Visibility:** Classes are hidden by default (`is_published = false`); students only see published classes they're part of
+- **Privacy:** Students never see other students in a class or their mistakes
 - **Class Performance:** Teachers rate each class after completion (Excellent, Very Good, Good, Needs Work)
 
 ### Key Capabilities
@@ -147,9 +150,22 @@ Contains application data.
 | day | TEXT | Day of week |
 | notes | TEXT | Optional class notes |
 | **performance** | TEXT | Class rating: 'Excellent', 'Very Good', 'Good', 'Needs Work' |
+| **teacher_id** | INTEGER | Foreign key to users (class owner) |
+| **is_published** | BOOLEAN | Default false; when true, students can see class |
 | created_at | TEXT | Timestamp |
 | updated_at | TEXT | Timestamp |
 | device_id | TEXT | For sync identification |
+
+#### Table: `class_students` (Junction Table)
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key |
+| class_id | INTEGER | Foreign key to classes (CASCADE delete) |
+| student_id | INTEGER | Foreign key to users |
+
+**Unique Constraint:** `(class_id, student_id)`
+
+Links multiple students to each class, supporting both 1-on-1 and group halaqah sessions.
 
 #### Table: `assignments`
 | Column | Type | Description |
@@ -162,10 +178,11 @@ Contains application data.
 | start_ayah | INTEGER | Optional starting ayah |
 | end_ayah | INTEGER | Optional ending ayah |
 
-#### Table: `mistakes` (GLOBAL - Not Class-Specific)
+#### Table: `mistakes` (GLOBAL per Student - Not Class-Specific)
 | Column | Type | Description |
 |--------|------|-------------|
 | id | INTEGER | Primary key |
+| **student_id** | INTEGER | Foreign key to users (which student made this mistake) |
 | surah_number | INTEGER | Surah where mistake occurred |
 | ayah_number | INTEGER | Ayah number |
 | word_index | INTEGER | Word position in ayah (0-indexed) |
@@ -175,9 +192,9 @@ Contains application data.
 | updated_at | TEXT | Timestamp |
 | device_id | TEXT | For sync identification |
 
-**Unique Constraint:** `(surah_number, ayah_number, word_index, char_index)`
+**Unique Constraint:** `(student_id, surah_number, ayah_number, word_index, char_index)`
 
-**IMPORTANT:** Mistakes are GLOBAL. They are NOT tied to any specific class. Once marked, a mistake will show up everywhere that word appears across all classes and reading sessions.
+**IMPORTANT:** Mistakes are GLOBAL per student. They are NOT tied to any specific class. Each student has their own mistakes tracked separately. Teachers record mistakes for specific students; students can only view their own.
 
 #### Table: `mistake_occurrences`
 | Column | Type | Description |
@@ -205,38 +222,53 @@ Base URL: `http://localhost:8000/api`
 | GET | `/surahs` | Get all 114 surahs |
 | GET | `/surahs/{surah_number}` | Get specific surah with ayahs |
 
-### Class Endpoints
+### Class Endpoints (Authenticated)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/classes` | Get all classes with assignments |
-| GET | `/classes/{class_id}` | Get specific class |
-| POST | `/classes` | Create new class |
-| DELETE | `/classes/{class_id}` | Delete class (cascades) |
-| PATCH | `/classes/{class_id}/notes` | Update class notes |
-| **PATCH** | `/classes/{class_id}/performance` | **Update class performance rating** |
-| POST | `/classes/{class_id}/assignments` | Add assignments to existing class |
-| PATCH | `/assignments/{assignment_id}` | Update an assignment |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/classes` | Any | Teachers: their classes; Students: published classes they're in |
+| GET | `/classes/{class_id}` | Any | Get specific class (with auth check) |
+| POST | `/classes` | Teacher | Create new class with student_ids |
+| DELETE | `/classes/{class_id}` | Teacher | Delete class (owner only, cascades) |
+| PATCH | `/classes/{class_id}/notes` | Teacher | Update class notes (owner only) |
+| PATCH | `/classes/{class_id}/performance` | Teacher | Update class rating (owner only) |
+| **PATCH** | `/classes/{class_id}/publish` | Teacher | **Toggle visibility for students** |
+| **POST** | `/classes/{class_id}/students` | Teacher | **Add students to class** |
+| **DELETE** | `/classes/{class_id}/students/{student_id}` | Teacher | **Remove student from class** |
+| POST | `/classes/{class_id}/assignments` | Teacher | Add assignments (owner only) |
+| PATCH | `/assignments/{assignment_id}` | Teacher | Update an assignment |
 
-#### PATCH `/classes/{id}/performance` Request Body:
+#### POST `/classes` Request Body:
 ```json
 {
-  "performance": "Excellent"  // or "Very Good", "Good", "Needs Work"
+  "date": "2025-12-13",
+  "day": "Friday",
+  "notes": "Optional notes",
+  "student_ids": [1, 2, 3],
+  "assignments": [...]
 }
 ```
 
-### Mistake Endpoints
+#### PATCH `/classes/{id}/publish` Request Body:
+```json
+{
+  "is_published": true
+}
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/mistakes` | Get all GLOBAL mistakes (optional: `?surah=N`) |
-| GET | `/mistakes/with-occurrences` | Get mistakes with class occurrence info |
-| POST | `/mistakes` | Add or increment mistake (GLOBAL) |
-| DELETE | `/mistakes/{mistake_id}` | Decrement or delete mistake |
+### Mistake Endpoints (Authenticated)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/mistakes` | Any | Teachers: filter by `?student_id=N`; Students: own mistakes only |
+| GET | `/mistakes/with-occurrences` | Any | Same as above with class occurrence info |
+| POST | `/mistakes` | Teacher | Record mistake for a student (requires student_id) |
+| DELETE | `/mistakes/{mistake_id}` | Teacher | Remove mistake (for their students only) |
 
 #### POST `/mistakes` Request Body:
 ```json
 {
+  "student_id": 5,       // REQUIRED: which student made this mistake
   "surah_number": 96,
   "ayah_number": 1,
   "word_index": 0,
@@ -342,12 +374,13 @@ Base URL: `http://localhost:8000/api`
 
 ## Features
 
-### 1. GLOBAL Mistake Tracking
-**Mistakes are NOT class-specific.** When you mark a word as a mistake:
-- It is stored globally in the `mistakes` table
-- It will appear highlighted wherever that word shows up
+### 1. GLOBAL Mistake Tracking (Per Student)
+**Mistakes are NOT class-specific but ARE student-specific.** When a teacher marks a word as a mistake for a student:
+- It is stored globally per student in the `mistakes` table
+- It will appear highlighted wherever that word shows up (for that student)
 - The `mistake_occurrences` table tracks WHEN it was marked
-- This allows seeing if a mistake is repeated across multiple classes
+- Each student has their own independent mistake tracking
+- Students can only see their own mistakes (privacy enforced)
 
 ### 2. Word-Level vs Character-Level Mistakes
 - **Word-level:** `char_index = null` - entire word is highlighted
@@ -391,34 +424,43 @@ Each class can have multiple portions:
 
 ## Data Flow
 
-### Adding a GLOBAL Mistake
+### Adding a Mistake (Teacher Only)
 ```
-User clicks word in Classroom
+Teacher clicks word in Classroom (student selected)
     ↓
-Frontend: addMistake(data) with optional class_id
+Frontend: addMistake(data) with student_id (required) and class_id (optional)
     ↓
-Backend: Check if GLOBAL mistake exists (surah + ayah + word_index + char_index)
+Backend: Auth check - must be verified teacher
+    ↓
+Backend: Check if mistake exists for THIS STUDENT (student_id + surah + ayah + word_index + char_index)
     ↓
 If exists: INCREMENT error_count
-If new: INSERT into mistakes table
+If new: INSERT into mistakes table with student_id
     ↓
 INSERT into mistake_occurrences (links this occurrence to class)
     ↓
 Return updated mistake with error_count
     ↓
-Frontend: Reload mistakes - highlighted everywhere
+Frontend: Reload mistakes - highlighted for that student
 ```
 
-### Viewing Mistakes (Global + Class Context)
+### Viewing Mistakes (Role-Based)
 ```
-Frontend: getMistakesWithOccurrences()
+Teacher: getMistakesWithOccurrences(studentId)
     ↓
-Backend: Returns ALL global mistakes with occurrence arrays
+Backend: Auth check, returns mistakes for specified student
     ↓
 Frontend filters for display:
   - "Mistakes in This Class": occurrences where class_id = current
   - "Mistakes from Previous Classes": occurrences with earlier dates
-  - ALL mistakes are highlighted in text (they're global)
+  - Mistakes highlighted for the selected student
+
+Student: getMistakesWithOccurrences() (no studentId param)
+    ↓
+Backend: Auth check, returns ONLY the student's own mistakes
+    ↓
+Frontend displays student's personal mistake history
+  - Privacy enforced: cannot see other students' mistakes
 ```
 
 ---
@@ -533,4 +575,12 @@ flutter run
 
 ---
 
-*Last Updated: December 11, 2025*
+## Related Documentation
+
+- **[AUTH_SYSTEM.md](./AUTH_SYSTEM.md)** - Authentication system, JWT tokens, user roles, student management
+- **[CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)** - Classes, assignments, mistake tracking, page-based Quran display
+- **[PROJECT_CHANGELOG.md](./PROJECT_CHANGELOG.md)** - Chronological development history
+
+---
+
+*Last Updated: December 14, 2025*

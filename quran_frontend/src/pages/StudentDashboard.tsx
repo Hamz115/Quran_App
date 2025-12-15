@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getStats, getClasses, getMyTeachers } from '../api';
+import type { ClassData } from '../api';
 
 const surahNames: Record<number, string> = {
   1: 'Al-Fatihah', 2: 'Al-Baqarah', 3: 'Ali Imran', 67: 'Al-Mulk', 68: 'Al-Qalam',
@@ -15,22 +16,6 @@ const surahNames: Record<number, string> = {
   105: 'Al-Fil', 106: 'Quraysh', 107: 'Al-Maun', 108: 'Al-Kawthar', 109: 'Al-Kafirun',
   110: 'An-Nasr', 111: 'Al-Masad', 112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas'
 };
-
-interface ClassData {
-  id: number;
-  date: string;
-  day: string;
-  notes: string | null;
-  performance?: string;
-  assignments: {
-    id: number;
-    type: string;
-    start_surah: number;
-    end_surah: number;
-    start_ayah: number | null;
-    end_ayah: number | null;
-  }[];
-}
 
 interface Stats {
   total_classes: number;
@@ -67,11 +52,13 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Always get student-specific data (classes attended, own mistakes)
+    // This works for both regular students AND teachers who are also students
     async function loadData() {
       try {
         const [statsData, classesData, teachersData] = await Promise.all([
-          getStats(),
-          getClasses(),
+          getStats('student'),    // Get stats as a student (own mistakes, classes attended)
+          getClasses('student'),  // Get classes where enrolled as student
           getMyTeachers()
         ]);
         setStats(statsData);

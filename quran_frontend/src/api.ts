@@ -233,16 +233,66 @@ export async function getSurah(surahNumber: number) {
   return data.data;
 }
 
-// ============ CLASSES ============
+// QPC word data for a page (code_v1, line_number, etc.)
+export interface QuranPageWord {
+  id: number;
+  s: number;    // surah
+  a: number;    // ayah
+  p: number;    // position in ayah
+  t: string;    // text_uthmani
+  c1: string;   // code_v1 (QPC glyph)
+  c2: string;   // code_v2
+  l: number;    // line_number (1-15)
+  ct: string;   // char_type ('word' | 'end')
+}
 
-export async function getClasses() {
-  const res = await fetch(`${API_BASE}/classes`);
+export async function getQuranPageWords(pageNumber: number): Promise<QuranPageWord[]> {
+  const res = await fetch(`${API_BASE}/quran/page/${pageNumber}`);
   const data = await res.json();
   return data.data;
 }
 
-export async function getClass(classId: number) {
-  const res = await fetch(`${API_BASE}/classes/${classId}`);
+// ============ CLASSES ============
+
+export interface ClassStudent {
+  id: number;
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  performance?: string;  // Per-student performance for this class
+}
+
+export interface ClassAssignment {
+  id: number;
+  type: string;
+  start_surah: number;
+  end_surah: number;
+  start_ayah?: number;
+  end_ayah?: number;
+  student_id?: number;  // Which student this assignment is for (null = all students)
+}
+
+export interface ClassData {
+  id: number;
+  date: string;
+  day: string;
+  notes?: string;
+  performance?: string;
+  teacher_id: number;
+  is_published: boolean;
+  assignments: ClassAssignment[];
+  students?: ClassStudent[];  // Only included for teachers
+}
+
+export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
+  const url = role ? `${API_BASE}/classes?role=${role}` : `${API_BASE}/classes`;
+  const res = await authFetch(url);
+  const data = await res.json();
+  return data.data;
+}
+
+export async function getClass(classId: number): Promise<ClassData> {
+  const res = await authFetch(`${API_BASE}/classes/${classId}`);
   const data = await res.json();
   return data.data;
 }
@@ -251,43 +301,73 @@ export async function createClass(classData: {
   date: string;
   day: string;
   notes?: string;
+  student_ids: number[];  // List of student user IDs
   assignments: {
     type: string;
     start_surah: number;
     end_surah: number;
     start_ayah?: number;
     end_ayah?: number;
+    student_id?: number;  // Which student this assignment is for (null = all students)
   }[];
 }) {
-  const res = await fetch(`${API_BASE}/classes`, {
+  const res = await authFetch(`${API_BASE}/classes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(classData),
   });
   return res.json();
 }
 
 export async function deleteClass(classId: number) {
-  const res = await fetch(`${API_BASE}/classes/${classId}`, {
+  const res = await authFetch(`${API_BASE}/classes/${classId}`, {
     method: 'DELETE',
   });
   return res.json();
 }
 
 export async function updateClassNotes(classId: number, notes: string | null) {
-  const res = await fetch(`${API_BASE}/classes/${classId}/notes`, {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/notes`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notes }),
   });
   return res.json();
 }
 
 export async function updateClassPerformance(classId: number, performance: string) {
-  const res = await fetch(`${API_BASE}/classes/${classId}/performance`, {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/performance`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ performance }),
+  });
+  return res.json();
+}
+
+export async function updateStudentPerformance(classId: number, studentId: number, performance: string) {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/student-performance`, {
+    method: 'PATCH',
+    body: JSON.stringify({ student_id: studentId, performance }),
+  });
+  return res.json();
+}
+
+export async function updateClassPublish(classId: number, isPublished: boolean) {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/publish`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_published: isPublished }),
+  });
+  return res.json();
+}
+
+export async function addClassStudents(classId: number, studentIds: number[]) {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/students`, {
+    method: 'POST',
+    body: JSON.stringify(studentIds),
+  });
+  return res.json();
+}
+
+export async function removeClassStudent(classId: number, studentId: number) {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/students/${studentId}`, {
+    method: 'DELETE',
   });
   return res.json();
 }
@@ -298,10 +378,10 @@ export async function addClassAssignments(classId: number, assignments: Array<{
   end_surah: number;
   start_ayah?: number;
   end_ayah?: number;
+  student_id?: number;  // Which student this assignment is for (null = all students)
 }>) {
-  const res = await fetch(`${API_BASE}/classes/${classId}/assignments`, {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/assignments`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(assignments),
   });
   return res.json();
@@ -324,25 +404,48 @@ export async function updateAssignment(assignmentId: number, assignment: {
 
 // ============ MISTAKES ============
 
-export async function getMistakes(surahNumber?: number) {
-  const url = surahNumber
-    ? `${API_BASE}/mistakes?surah=${surahNumber}`
+export interface MistakeData {
+  id: number;
+  student_id: number;
+  surah_number: number;
+  ayah_number: number;
+  word_index: number;
+  word_text: string;
+  char_index?: number;
+  error_count: number;
+}
+
+// For teachers: pass studentId to view a specific student's mistakes
+// For students: studentId is ignored, they see their own mistakes
+export async function getMistakes(surahNumber?: number, studentId?: number): Promise<MistakeData[]> {
+  const params = new URLSearchParams();
+  if (surahNumber) params.append('surah', surahNumber.toString());
+  if (studentId) params.append('student_id', studentId.toString());
+
+  const url = params.toString()
+    ? `${API_BASE}/mistakes?${params.toString()}`
     : `${API_BASE}/mistakes`;
-  const res = await fetch(url);
+  const res = await authFetch(url);
   const data = await res.json();
   return data.data;
 }
 
-export async function getMistakesWithOccurrences(surahNumber?: number) {
-  const url = surahNumber
-    ? `${API_BASE}/mistakes/with-occurrences?surah=${surahNumber}`
+export async function getMistakesWithOccurrences(surahNumber?: number, studentId?: number) {
+  const params = new URLSearchParams();
+  if (surahNumber) params.append('surah', surahNumber.toString());
+  if (studentId) params.append('student_id', studentId.toString());
+
+  const url = params.toString()
+    ? `${API_BASE}/mistakes/with-occurrences?${params.toString()}`
     : `${API_BASE}/mistakes/with-occurrences`;
-  const res = await fetch(url);
+  const res = await authFetch(url);
   const data = await res.json();
   return data.data;
 }
 
+// Record a mistake - teachers must specify student_id, students can omit (uses self)
 export async function addMistake(mistake: {
+  student_id?: number;  // Required for teachers, optional for students (uses self)
   surah_number: number;
   ayah_number: number;
   word_index: number;
@@ -350,16 +453,15 @@ export async function addMistake(mistake: {
   char_index?: number;
   class_id?: number;
 }) {
-  const res = await fetch(`${API_BASE}/mistakes`, {
+  const res = await authFetch(`${API_BASE}/mistakes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(mistake),
   });
   return res.json();
 }
 
 export async function removeMistake(mistakeId: number) {
-  const res = await fetch(`${API_BASE}/mistakes/${mistakeId}`, {
+  const res = await authFetch(`${API_BASE}/mistakes/${mistakeId}`, {
     method: 'DELETE',
   });
   return res.json();
@@ -367,8 +469,9 @@ export async function removeMistake(mistakeId: number) {
 
 // ============ STATS ============
 
-export async function getStats() {
-  const res = await fetch(`${API_BASE}/stats`);
+export async function getStats(role?: 'teacher' | 'student') {
+  const url = role ? `${API_BASE}/stats?role=${role}` : `${API_BASE}/stats`;
+  const res = await authFetch(url);
   return res.json();
 }
 

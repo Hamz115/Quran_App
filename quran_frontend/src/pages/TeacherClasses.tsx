@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { getClasses, getMyStudents } from '../api';
-import type { StudentListItem } from '../api';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance } from '../api';
+import type { StudentListItem, ClassData } from '../api';
+import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
 
 const surahNames: Record<number, string> = {
   1: 'Al-Fatihah', 2: 'Al-Baqarah', 3: 'Ali Imran', 67: 'Al-Mulk', 68: 'Al-Qalam',
@@ -16,31 +18,28 @@ const surahNames: Record<number, string> = {
   112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas'
 };
 
-interface ClassData {
-  id: number;
-  date: string;
-  day: string;
-  notes: string | null;
-  performance?: string;
-  assignments: {
-    id: number;
-    type: string;
-    start_surah: number;
-    end_surah: number;
-    start_ayah: number | null;
-    end_ayah: number | null;
-  }[];
+interface SurahInfo {
+  number: number;
+  englishName: string;
+  name: string;
+  numberOfAyahs: number;
 }
 
-const getPerformanceStyle = (perf: string | null) => {
-  switch (perf) {
-    case 'Excellent': return 'bg-emerald-500/20 text-emerald-400';
-    case 'Very Good': return 'bg-teal-500/20 text-teal-400';
-    case 'Good': return 'bg-amber-500/20 text-amber-400';
-    case 'Needs Work': return 'bg-red-500/20 text-red-400';
-    default: return 'bg-slate-600/50 text-slate-400';
-  }
-};
+interface SinglePortion {
+  id: number;
+  mode: 'page' | 'surah';  // Default to page
+  startPage: number;
+  endPage: number;
+  startSurah: number;
+  endSurah: number;
+  startAyah: string;
+  endAyah: string;
+}
+
+interface PortionConfig {
+  enabled: boolean;
+  portions: SinglePortion[];
+}
 
 // Group classes by month
 const groupByMonth = (classes: ClassData[]) => {
@@ -62,21 +61,76 @@ const getMonthLabel = (monthKey: string) => {
 };
 
 export default function TeacherClasses() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
+  const [surahList, setSurahList] = useState<SurahInfo[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal state
   const [showNewClassModal, setShowNewClassModal] = useState(false);
+  const [modalStep, setModalStep] = useState<1 | 2>(1);
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+  const [creating, setCreating] = useState(false);
+
+  // Notes modal state
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesClassId, setNotesClassId] = useState<number | null>(null);
+  const [notesText, setNotesText] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+
+  // Auto-open modal if ?new=1 is in URL
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowNewClassModal(true);
+      // Remove the query param from URL
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Portion configuration mode: 'same' for all students, 'per-student' for individual
+  const [portionMode, setPortionMode] = useState<'same' | 'per-student'>('same');
+  const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
+
+  // Portion configuration - shared (for 'same' mode) or per-student (for 'per-student' mode)
+  // Default to page mode with page 560 (Surah Al-Mulk starts on page 560)
+  const createDefaultPortion = (): SinglePortion => ({
+    id: Date.now(),
+    mode: 'page',
+    startPage: 560,
+    endPage: 560,
+    startSurah: 67,
+    endSurah: 67,
+    startAyah: '',
+    endAyah: ''
+  });
+
+  // Default configs (used when mode is 'same' or as fallback)
+  const [hifzConfig, setHifzConfig] = useState<PortionConfig>({ enabled: true, portions: [createDefaultPortion()] });
+  const [sabqiConfig, setSabqiConfig] = useState<PortionConfig>({ enabled: false, portions: [createDefaultPortion()] });
+  const [revisionConfig, setRevisionConfig] = useState<PortionConfig>({ enabled: false, portions: [createDefaultPortion()] });
+
+  // Per-student configs: Map of student_id -> { hifz, sabqi, revision }
+  const [perStudentConfigs, setPerStudentConfigs] = useState<Record<number, {
+    hifz: PortionConfig;
+    sabqi: PortionConfig;
+    revision: PortionConfig;
+  }>>({});
+
+  // Ref for modal scroll preservation
+  const modalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [classesData, studentsData] = await Promise.all([
+        const [classesData, studentsData, surahsData] = await Promise.all([
           getClasses(),
-          getMyStudents()
+          getMyStudents(),
+          getSurahs()
         ]);
         setClasses(classesData);
         setStudents(studentsData);
+        setSurahList(surahsData);
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -92,8 +146,133 @@ export default function TeacherClasses() {
     );
   };
 
+  const resetModal = () => {
+    setShowNewClassModal(false);
+    setModalStep(1);
+    setSelectedStudents([]);
+    setPortionMode('same');
+    setActiveStudentId(null);
+    setHifzConfig({ enabled: true, portions: [createDefaultPortion()] });
+    setSabqiConfig({ enabled: false, portions: [createDefaultPortion()] });
+    setRevisionConfig({ enabled: false, portions: [createDefaultPortion()] });
+    setPerStudentConfigs({});
+  };
+
+  // Initialize per-student configs when switching to per-student mode
+  const initPerStudentConfigs = () => {
+    const configs: Record<number, { hifz: PortionConfig; sabqi: PortionConfig; revision: PortionConfig }> = {};
+    selectedStudents.forEach(studentId => {
+      configs[studentId] = {
+        hifz: { enabled: true, portions: [createDefaultPortion()] },
+        sabqi: { enabled: false, portions: [createDefaultPortion()] },
+        revision: { enabled: false, portions: [createDefaultPortion()] },
+      };
+    });
+    setPerStudentConfigs(configs);
+    if (selectedStudents.length > 0) {
+      setActiveStudentId(selectedStudents[0]);
+    }
+  };
+
+  // Get the current student's config (for per-student mode)
+  const getActiveStudentConfig = () => {
+    if (!activeStudentId || !perStudentConfigs[activeStudentId]) {
+      return {
+        hifz: { enabled: true, portions: [createDefaultPortion()] },
+        sabqi: { enabled: false, portions: [createDefaultPortion()] },
+        revision: { enabled: false, portions: [createDefaultPortion()] },
+      };
+    }
+    return perStudentConfigs[activeStudentId];
+  };
+
+  // Update the active student's config
+  const updateActiveStudentConfig = (type: 'hifz' | 'sabqi' | 'revision', config: PortionConfig) => {
+    if (!activeStudentId) return;
+    setPerStudentConfigs(prev => ({
+      ...prev,
+      [activeStudentId]: {
+        ...prev[activeStudentId],
+        [type]: config,
+      },
+    }));
+  };
+
+  const handleCreateClass = async () => {
+    setCreating(true);
+    try {
+      const today = new Date();
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+      // Build assignments array from enabled portions
+      const assignments: Array<{
+        type: string;
+        start_surah: number;
+        end_surah: number;
+        start_ayah?: number;
+        end_ayah?: number;
+        student_id?: number;
+      }> = [];
+
+      const addPortions = (config: PortionConfig, type: string, studentId?: number) => {
+        if (config.enabled) {
+          config.portions.forEach(p => {
+            assignments.push({
+              type,
+              start_surah: p.startSurah,
+              end_surah: p.endSurah,
+              start_ayah: p.startAyah ? parseInt(p.startAyah) : undefined,
+              end_ayah: p.endAyah ? parseInt(p.endAyah) : undefined,
+              student_id: studentId,
+            });
+          });
+        }
+      };
+
+      if (portionMode === 'same') {
+        // Same portions for all students (student_id = undefined means all)
+        addPortions(hifzConfig, 'hifz');
+        addPortions(sabqiConfig, 'sabqi');
+        addPortions(revisionConfig, 'revision');
+      } else {
+        // Per-student portions - add assignments for each student
+        Object.entries(perStudentConfigs).forEach(([studentIdStr, config]) => {
+          const studentId = parseInt(studentIdStr);
+          addPortions(config.hifz, 'hifz', studentId);
+          addPortions(config.sabqi, 'sabqi', studentId);
+          addPortions(config.revision, 'revision', studentId);
+        });
+      }
+
+      const result = await createClass({
+        date: today.toISOString().split('T')[0],
+        day: days[today.getDay()],
+        student_ids: selectedStudents,
+        assignments
+      });
+
+      if (result.id) {
+        resetModal();
+        window.location.href = `/teacher/classes/${result.id}`;
+      } else if (result.detail) {
+        alert('Error: ' + result.detail);
+      }
+    } catch (err) {
+      console.error('Error creating class:', err);
+      alert('Error creating class: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const groupedClasses = groupByMonth(classes);
   const sortedMonths = Object.keys(groupedClasses).sort((a, b) => b.localeCompare(a));
+
+  const selectedStudentNames = selectedStudents
+    .map(id => students.find(s => s.id === id))
+    .filter(Boolean)
+    .map(s => `${s!.first_name} ${s!.last_name}`)
+    .join(', ');
 
   if (loading) {
     return (
@@ -102,6 +281,281 @@ export default function TeacherClasses() {
       </div>
     );
   }
+
+  // Toggle Switch Component
+  const ToggleSwitch = ({ enabled, onChange, color }: { enabled: boolean; onChange: (v: boolean) => void; color: string }) => (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+        enabled ? color : 'bg-slate-600'
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+          enabled ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+
+  const PortionSelector = ({
+    label,
+    description,
+    borderColor,
+    toggleColor,
+    config,
+    setConfig
+  }: {
+    label: string;
+    description: string;
+    borderColor: string;
+    toggleColor: string;
+    config: PortionConfig;
+    setConfig: (c: PortionConfig) => void;
+  }) => {
+    const updatePortion = (portionId: number, updates: Partial<SinglePortion>) => {
+      // Save scroll position before state update
+      const scrollTop = modalBodyRef.current?.scrollTop || 0;
+      setConfig({
+        ...config,
+        portions: config.portions.map(p => p.id === portionId ? { ...p, ...updates } : p)
+      });
+      // Restore scroll position after state update
+      requestAnimationFrame(() => {
+        if (modalBodyRef.current) {
+          modalBodyRef.current.scrollTop = scrollTop;
+        }
+      });
+    };
+
+    const addPortion = () => {
+      setConfig({
+        ...config,
+        portions: [...config.portions, createDefaultPortion()]
+      });
+    };
+
+    const removePortion = (portionId: number) => {
+      if (config.portions.length > 1) {
+        setConfig({
+          ...config,
+          portions: config.portions.filter(p => p.id !== portionId)
+        });
+      }
+    };
+
+    // Convert page to surah/ayah when page changes
+    const handlePageChange = (portionId: number, startPage: number, endPage: number) => {
+      const startRange = getPageRange(startPage);
+      const endRange = getPageRange(endPage);
+      updatePortion(portionId, {
+        startPage,
+        endPage,
+        startSurah: startRange.startSurah,
+        endSurah: endRange.endSurah,
+        startAyah: String(startRange.startAyah),
+        endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
+      });
+    };
+
+    return (
+      <div className={`p-4 rounded-xl border-2 transition-all ${
+        config.enabled ? borderColor : 'border-slate-700 bg-slate-800/30'
+      }`}>
+        {/* Header with toggle */}
+        <div className="flex items-start justify-between mb-1">
+          <div>
+            <h3 className={`font-semibold ${config.enabled ? 'text-slate-100' : 'text-slate-400'}`}>
+              {label}
+            </h3>
+            <p className="text-sm text-slate-500">{description}</p>
+          </div>
+          <ToggleSwitch enabled={config.enabled} onChange={(v) => setConfig({ ...config, enabled: v })} color={toggleColor} />
+        </div>
+
+        {config.enabled && (
+          <div className="mt-4 space-y-4">
+            {config.portions.map((portion, index) => {
+              const startSurahInfo = surahList.find(s => s.number === portion.startSurah);
+              const endSurahInfo = surahList.find(s => s.number === portion.endSurah);
+              const isSameSurah = portion.startSurah === portion.endSurah;
+              const maxStartAyahs = startSurahInfo?.numberOfAyahs || 286;
+              const maxEndAyahs = endSurahInfo?.numberOfAyahs || 286;
+
+              return (
+                <div key={portion.id} className="space-y-3">
+                  {index > 0 && <div className="border-t border-slate-700 pt-3" />}
+
+                  {config.portions.length > 1 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500">Portion {index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removePortion(portion.id)}
+                        className="text-red-400 hover:text-red-300 text-xs"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Mode Toggle - Page (default) or Surah */}
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => updatePortion(portion.id, { mode: 'page' })}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        portion.mode === 'page'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                          : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                      }`}
+                    >
+                      By Page
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updatePortion(portion.id, { mode: 'surah' })}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        portion.mode === 'surah'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                          : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                      }`}
+                    >
+                      By Surah
+                    </button>
+                  </div>
+
+                  {portion.mode === 'page' ? (
+                    /* Page-based selection */
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">From Page</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={TOTAL_PAGES}
+                          value={portion.startPage}
+                          onChange={(e) => {
+                            const newStart = Math.min(Math.max(1, parseInt(e.target.value) || 1), TOTAL_PAGES);
+                            handlePageChange(
+                              portion.id,
+                              newStart,
+                              Math.max(newStart, portion.endPage)
+                            );
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">To Page</label>
+                        <input
+                          type="number"
+                          min={portion.startPage}
+                          max={TOTAL_PAGES}
+                          value={portion.endPage}
+                          onChange={(e) => {
+                            const newEnd = Math.min(Math.max(portion.startPage, parseInt(e.target.value) || portion.startPage), TOTAL_PAGES);
+                            handlePageChange(portion.id, portion.startPage, newEnd);
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Surah-based selection */
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">From Surah</label>
+                          <select
+                            value={portion.startSurah}
+                            onChange={(e) => {
+                              const newStart = parseInt(e.target.value);
+                              updatePortion(portion.id, {
+                                startSurah: newStart,
+                                endSurah: newStart > portion.endSurah ? newStart : portion.endSurah,
+                                startAyah: '',
+                                endAyah: ''
+                              });
+                            }}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {surahList.map((surah) => (
+                              <option key={surah.number} value={surah.number}>
+                                {surah.number}. {surah.englishName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">To Surah</label>
+                          <select
+                            value={portion.endSurah}
+                            onChange={(e) => updatePortion(portion.id, { endSurah: parseInt(e.target.value), startAyah: '', endAyah: '' })}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {surahList.filter(s => s.number >= portion.startSurah).map((surah) => (
+                              <option key={surah.number} value={surah.number}>
+                                {surah.number}. {surah.englishName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">From Ayah (optional)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxStartAyahs}
+                            placeholder="All"
+                            value={portion.startAyah}
+                            onChange={(e) => updatePortion(portion.id, { startAyah: e.target.value })}
+                            disabled={!isSameSurah}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">To Ayah (optional)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxEndAyahs}
+                            placeholder="All"
+                            value={portion.endAyah}
+                            onChange={(e) => updatePortion(portion.id, { endAyah: e.target.value })}
+                            disabled={!isSameSurah}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
+                      {!isSameSurah && (
+                        <p className="text-xs text-slate-500 italic">
+                          Note: Ayah range only applies when start and end surah are the same
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={addPortion}
+              className="w-full py-2 border border-dashed border-slate-600 rounded-lg text-slate-400 hover:text-slate-200 hover:border-slate-500 text-sm transition-colors"
+            >
+              + Add Another Portion
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -126,70 +580,289 @@ export default function TeacherClasses() {
       {sortedMonths.length > 0 ? (
         sortedMonths.map(monthKey => {
           const monthClasses = groupedClasses[monthKey];
+
+          // Helper to get week number within month
+          const getWeekOfMonth = (dateStr: string) => {
+            const date = new Date(dateStr);
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+            const dayOfMonth = date.getDate();
+            const firstDayOfWeek = firstDay.getDay();
+            return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
+          };
+
+          // Helper to format portion display nicely - now filters by student
+          const getPortionDisplay = (cls: ClassData, type: string, studentId?: number) => {
+            // Filter portions: show shared (no student_id) + student-specific
+            const portions = cls.assignments.filter(a =>
+              a.type === type && (!a.student_id || a.student_id === studentId)
+            );
+            if (portions.length === 0) return <span className="text-slate-600">—</span>;
+
+            return portions.map((p, i) => {
+              const startName = surahNames[p.start_surah] || `Surah ${p.start_surah}`;
+              const endName = surahNames[p.end_surah] || `Surah ${p.end_surah}`;
+
+              let display = '';
+              if (p.start_surah === p.end_surah) {
+                // Same surah - show ayah range if available
+                display = startName;
+                if (p.start_ayah && p.end_ayah) {
+                  display += ` (${p.start_ayah}-${p.end_ayah})`;
+                }
+              } else {
+                // Different surahs - show range
+                display = `${startName} to ${endName}`;
+              }
+
+              return <div key={i} className="text-sm">{display}{i < portions.length - 1 ? ', ' : ''}</div>;
+            });
+          };
+
+          // Expand classes: one row per student (or one row if no students)
+          type ExpandedRow = {
+            cls: ClassData;
+            student: { id: number; first_name: string; last_name: string; performance?: string } | null;
+            isFirstOfClass: boolean;
+            isLastOfClass: boolean;
+            studentCount: number;
+          };
+
+          const expandedRows: ExpandedRow[] = [];
+          monthClasses.forEach(cls => {
+            if (cls.students && cls.students.length > 0) {
+              cls.students.forEach((student, idx) => {
+                expandedRows.push({
+                  cls,
+                  student,
+                  isFirstOfClass: idx === 0,
+                  isLastOfClass: idx === cls.students!.length - 1,
+                  studentCount: cls.students!.length,
+                });
+              });
+            } else {
+              // No students - show single row
+              expandedRows.push({
+                cls,
+                student: null,
+                isFirstOfClass: true,
+                isLastOfClass: true,
+                studentCount: 0,
+              });
+            }
+          });
+
+          // Get short day name
+          const getShortDay = (day: string) => {
+            const dayMap: Record<string, string> = {
+              'Sunday': 'Sun', 'Monday': 'Mon', 'Tuesday': 'Tue',
+              'Wednesday': 'Wed', 'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat'
+            };
+            return dayMap[day] || day.slice(0, 3);
+          };
+
           return (
             <div key={monthKey} className="card overflow-hidden">
               {/* Month Header */}
               <div className="px-6 py-4 bg-slate-800/50 border-b border-slate-700/50 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-emerald-400">{getMonthLabel(monthKey)}</h2>
-                <span className="text-sm text-slate-400">
-                  {monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-slate-100">{getMonthLabel(monthKey)}</h2>
+                  <span className="text-sm text-slate-500">({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
+                </div>
               </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-700/50">
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Portion</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Performance</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Notes</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {monthClasses.map(cls => (
-                      <tr key={cls.id} className="hover:bg-slate-800/30">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-slate-200">{cls.date}</p>
-                            <p className="text-sm text-slate-500">{cls.day}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {cls.assignments.length > 0 ? (
-                            cls.assignments.map((a, i) => (
-                              <div key={a.id} className="text-sm text-slate-300">
-                                {i > 0 && <span className="text-slate-500">, </span>}
-                                {surahNames[a.start_surah] || `Surah ${a.start_surah}`}
-                                {a.start_ayah && ` (${a.start_ayah}-${a.end_ayah})`}
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-slate-500">No assignments</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getPerformanceStyle(cls.performance || null)}`}>
-                            {cls.performance || 'Not rated'}
+              {/* Table Header */}
+              <div className="grid grid-cols-[60px_70px_60px_minmax(100px,1fr)_1fr_1fr_1fr_70px_70px_50px_50px] gap-2 px-6 py-3 border-b border-slate-700/50 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <div>Week</div>
+                <div>Date</div>
+                <div>Day</div>
+                <div>Student</div>
+                <div className="text-emerald-400">Hifz</div>
+                <div className="text-cyan-400">Sabqi</div>
+                <div className="text-slate-300">Manzil</div>
+                <div>Perf.</div>
+                <div>Status</div>
+                <div>Notes</div>
+                <div></div>
+              </div>
+
+              {/* Class Rows - One row per student */}
+              <div className="divide-y divide-slate-700/30">
+                {expandedRows.map((row) => {
+                  const { cls, student, isFirstOfClass, isLastOfClass, studentCount } = row;
+                  const classDate = new Date(cls.date);
+                  const weekNum = getWeekOfMonth(cls.date);
+                  const rowKey = student ? `${cls.id}-${student.id}` : `${cls.id}-no-student`;
+
+                  return (
+                    <div
+                      key={rowKey}
+                      onClick={() => {
+                        // Include student_id in URL if clicking on a specific student row
+                        const url = student
+                          ? `/teacher/classes/${cls.id}?student=${student.id}`
+                          : `/teacher/classes/${cls.id}`;
+                        window.location.href = url;
+                      }}
+                      className={`grid grid-cols-[60px_70px_60px_minmax(100px,1fr)_1fr_1fr_1fr_70px_70px_50px_50px] gap-2 px-6 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors items-center ${
+                        !isLastOfClass && studentCount > 1 ? 'border-b border-slate-700/20' : ''
+                      }`}
+                    >
+                      {/* Week - only show on first row of class */}
+                      <div>
+                        {isFirstOfClass ? (
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-medium">
+                            W{weekNum}
                           </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-slate-400 truncate max-w-xs">{cls.notes || '-'}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <a
-                            href={`/teacher/classes/${cls.id}`}
-                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-medium transition-colors"
+                        ) : null}
+                      </div>
+
+                      {/* Date - only show on first row of class */}
+                      <div className="text-slate-200 text-sm">
+                        {isFirstOfClass ? `${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}` : ''}
+                      </div>
+
+                      {/* Day - only show on first row of class */}
+                      <div className="text-slate-400 text-sm">
+                        {isFirstOfClass ? getShortDay(cls.day) : ''}
+                      </div>
+
+                      {/* Student */}
+                      <div className="min-w-0">
+                        {student ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                              {student.first_name[0]}
+                            </span>
+                            <span className="truncate">{student.first_name} {student.last_name}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-sm">No students</span>
+                        )}
+                      </div>
+
+                      {/* Hifz - filtered by student */}
+                      <div className="text-emerald-400 min-w-0">
+                        {getPortionDisplay(cls, 'hifz', student?.id)}
+                      </div>
+
+                      {/* Sabqi - filtered by student */}
+                      <div className="text-cyan-400 min-w-0">
+                        {getPortionDisplay(cls, 'sabqi', student?.id)}
+                      </div>
+
+                      {/* Manzil - filtered by student */}
+                      <div className="text-slate-300 min-w-0">
+                        {getPortionDisplay(cls, 'revision', student?.id)}
+                      </div>
+
+                      {/* Performance - per student */}
+                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                        {student ? (
+                          <div className="relative">
+                            <select
+                              value={student.performance || ''}
+                              onChange={async (e) => {
+                                await updateStudentPerformance(cls.id, student.id, e.target.value);
+                                const updated = await getClasses();
+                                setClasses(updated);
+                              }}
+                              className={`appearance-none text-[10px] font-medium pl-1.5 pr-4 py-0.5 rounded cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+                                student.performance === 'Excellent'
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  : student.performance === 'Very Good'
+                                  ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                                  : student.performance === 'Good'
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                  : student.performance === 'Needs Work'
+                                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                  : 'bg-slate-700/50 text-slate-500 border border-slate-600'
+                              }`}
+                            >
+                              <option value="" className="bg-slate-800 text-slate-300">—</option>
+                              <option value="Excellent" className="bg-slate-800 text-slate-100">A+</option>
+                              <option value="Very Good" className="bg-slate-800 text-slate-100">A</option>
+                              <option value="Good" className="bg-slate-800 text-slate-100">B</option>
+                              <option value="Needs Work" className="bg-slate-800 text-slate-100">C</option>
+                            </select>
+                            <svg className="absolute right-0.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-current pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </div>
+
+                      {/* Status - only show on first row */}
+                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                        {isFirstOfClass ? (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await updateClassPublish(cls.id, !cls.is_published);
+                              const updated = await getClasses();
+                              setClasses(updated);
+                            }}
+                            className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                              cls.is_published
+                                ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                                : 'bg-slate-600/50 text-slate-400 hover:bg-slate-600/70'
+                            }`}
+                            title={cls.is_published ? 'Click to unpublish' : 'Click to publish'}
                           >
-                            Open
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            {cls.is_published ? 'Live' : 'Draft'}
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {/* Notes - only show on first row */}
+                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                        {isFirstOfClass ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNotesClassId(cls.id);
+                              setNotesText(cls.notes || '');
+                              setShowNotesModal(true);
+                            }}
+                            className={`p-1.5 rounded transition-colors ${
+                              cls.notes
+                                ? 'text-amber-400 hover:bg-amber-500/20'
+                                : 'text-slate-500 hover:bg-slate-700/50'
+                            }`}
+                            title={cls.notes ? 'View/Edit notes' : 'Add notes'}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {/* Delete - only show on first row */}
+                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                        {isFirstOfClass ? (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (confirm('Delete this class?')) {
+                                await deleteClass(cls.id);
+                                const updated = await getClasses();
+                                setClasses(updated);
+                              }
+                            }}
+                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -209,67 +882,350 @@ export default function TeacherClasses() {
 
       {/* New Class Modal */}
       {showNewClassModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-slate-100">Start New Class</h2>
-              <button onClick={() => setShowNewClassModal(false)} className="text-slate-400 hover:text-slate-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-100">
+                  {modalStep === 1 ? 'Select Students' : 'Configure Portions'}
+                </h2>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  Step {modalStep} of 2
+                </p>
+              </div>
+              <button onClick={resetModal} className="text-slate-400 hover:text-slate-200">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Select Students for this Class</label>
-                {students.length === 0 ? (
-                  <div className="p-4 bg-slate-700/30 rounded-lg text-center">
-                    <p className="text-slate-400">No students added yet</p>
-                    <p className="text-sm text-slate-500 mt-1">Add students from the Dashboard first</p>
+            {/* Modal Body */}
+            <div ref={modalBodyRef} className="p-6 overflow-y-auto flex-1">
+              {modalStep === 1 ? (
+                /* Step 1: Select Students */
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-slate-300">
+                    Select students for this class
+                  </label>
+                  {students.length === 0 ? (
+                    <div className="p-6 bg-slate-700/30 rounded-xl text-center">
+                      <p className="text-slate-400">No students added yet</p>
+                      <p className="text-sm text-slate-500 mt-1">Add students from the Dashboard first</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {students.map((student) => {
+                        const isSelected = selectedStudents.includes(student.id);
+                        return (
+                          <button
+                            key={student.id}
+                            type="button"
+                            onClick={() => toggleStudent(student.id)}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-emerald-500/20 border-2 border-emerald-500'
+                                : 'bg-slate-700/50 border-2 border-transparent hover:bg-slate-700'
+                            }`}
+                          >
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                              isSelected
+                                ? 'bg-emerald-500 border-emerald-500'
+                                : 'border-slate-500'
+                            }`}>
+                              {isSelected && (
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
+                              {student.first_name[0]}{student.last_name[0]}
+                            </div>
+                            <span className="text-slate-200 font-medium">{student.first_name} {student.last_name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Step 2: Configure Portions */
+                <div className="space-y-4">
+                  <div className="p-3 bg-slate-700/50 rounded-lg">
+                    <p className="text-sm text-slate-400">
+                      Class with: <span className="text-emerald-400 font-medium">{selectedStudentNames}</span>
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {students.map((student) => (
-                      <label key={student.id} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.includes(student.id)}
-                          onChange={() => toggleStudent(student.id)}
-                          className="w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500"
-                        />
-                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-slate-300">
-                          {student.first_name[0]}{student.last_name[0]}
-                        </div>
-                        <span className="text-slate-200">{student.first_name} {student.last_name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {selectedStudents.length > 0 && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <p className="text-sm text-emerald-400">
-                    Starting class with {selectedStudents.length} student{selectedStudents.length > 1 ? 's' : ''}
+                  {/* Portion Mode Toggle - only show if multiple students selected */}
+                  {selectedStudents.length > 1 && (
+                    <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                      <label className="block text-sm font-medium text-slate-300 mb-3">
+                        How do you want to assign portions?
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPortionMode('same')}
+                          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                            portionMode === 'same'
+                              ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500'
+                              : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                          }`}
+                        >
+                          Same for all students
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPortionMode('per-student');
+                            initPerStudentConfigs();
+                          }}
+                          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                            portionMode === 'per-student'
+                              ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
+                              : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                          }`}
+                        >
+                          Different per student
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Per-student tabs - show when in per-student mode */}
+                  {portionMode === 'per-student' && selectedStudents.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {selectedStudents.map(studentId => {
+                        const student = students.find(s => s.id === studentId);
+                        if (!student) return null;
+                        const isActive = activeStudentId === studentId;
+                        const studentConfig = perStudentConfigs[studentId];
+                        const hasPortions = studentConfig && (studentConfig.hifz.enabled || studentConfig.sabqi.enabled || studentConfig.revision.enabled);
+
+                        return (
+                          <button
+                            key={studentId}
+                            type="button"
+                            onClick={() => setActiveStudentId(studentId)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                              isActive
+                                ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
+                                : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                            }`}
+                          >
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-xs font-bold text-white">
+                              {student.first_name[0]}
+                            </div>
+                            {student.first_name}
+                            {hasPortions && (
+                              <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <p className="text-sm text-slate-300">
+                    {portionMode === 'per-student' && selectedStudents.length > 1
+                      ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
+                      : 'Select the Quran portions for this class (you can also add/edit later):'}
                   </p>
+
+                  <div className="space-y-3">
+                    {portionMode === 'same' ? (
+                      <>
+                        <PortionSelector
+                          label="Hifz (New Memorization)"
+                          description="New verses to memorize"
+                          borderColor="border-emerald-500 bg-emerald-500/5"
+                          toggleColor="bg-emerald-500"
+                          config={hifzConfig}
+                          setConfig={setHifzConfig}
+                        />
+                        <PortionSelector
+                          label="Sabqi (Recent)"
+                          description="Recently memorized, needs reinforcement"
+                          borderColor="border-blue-500 bg-blue-500/5"
+                          toggleColor="bg-blue-500"
+                          config={sabqiConfig}
+                          setConfig={setSabqiConfig}
+                        />
+                        <PortionSelector
+                          label="Revision (Manzil)"
+                          description="Long-term revision"
+                          borderColor="border-purple-500 bg-purple-500/5"
+                          toggleColor="bg-purple-500"
+                          config={revisionConfig}
+                          setConfig={setRevisionConfig}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <PortionSelector
+                          label="Hifz (New Memorization)"
+                          description="New verses to memorize"
+                          borderColor="border-emerald-500 bg-emerald-500/5"
+                          toggleColor="bg-emerald-500"
+                          config={getActiveStudentConfig().hifz}
+                          setConfig={(c) => updateActiveStudentConfig('hifz', c)}
+                        />
+                        <PortionSelector
+                          label="Sabqi (Recent)"
+                          description="Recently memorized, needs reinforcement"
+                          borderColor="border-blue-500 bg-blue-500/5"
+                          toggleColor="bg-blue-500"
+                          config={getActiveStudentConfig().sabqi}
+                          setConfig={(c) => updateActiveStudentConfig('sabqi', c)}
+                        />
+                        <PortionSelector
+                          label="Revision (Manzil)"
+                          description="Long-term revision"
+                          borderColor="border-purple-500 bg-purple-500/5"
+                          toggleColor="bg-purple-500"
+                          config={getActiveStudentConfig().revision}
+                          setConfig={(c) => updateActiveStudentConfig('revision', c)}
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
+            </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowNewClassModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={selectedStudents.length === 0}
-                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
-                >
-                  Start Class
-                </button>
-              </div>
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-700 flex gap-3 flex-shrink-0">
+              {modalStep === 1 ? (
+                <>
+                  <button
+                    onClick={resetModal}
+                    className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={selectedStudents.length === 0}
+                    onClick={() => setModalStep(2)}
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                  >
+                    Next: Choose Portions
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setModalStep(1)}
+                    className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleCreateClass}
+                    disabled={creating}
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    {creating ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Creating...
+                      </>
+                    ) : (
+                      'Start Class'
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notes Modal */}
+      {showNotesModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Class Notes
+              </h2>
+              <button
+                onClick={() => {
+                  setShowNotesModal(false);
+                  setNotesClassId(null);
+                }}
+                className="text-slate-400 hover:text-slate-200"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <textarea
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                placeholder="Add observations, feedback, or reminders for this class..."
+                rows={5}
+                className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-700 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNotesModal(false);
+                  setNotesClassId(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!notesClassId) return;
+                  setNotesSaving(true);
+                  try {
+                    await updateClassNotes(notesClassId, notesText || null);
+                    const updated = await getClasses();
+                    setClasses(updated);
+                    setShowNotesModal(false);
+                    setNotesClassId(null);
+                  } catch (err) {
+                    console.error('Failed to save notes:', err);
+                  } finally {
+                    setNotesSaving(false);
+                  }
+                }}
+                disabled={notesSaving}
+                className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {notesSaving ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Notes'
+                )}
+              </button>
             </div>
           </div>
         </div>

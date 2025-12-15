@@ -70,6 +70,30 @@ Every user receives a unique TeamViewer-style ID on signup:
 |--------|----------|-------------|
 | GET | `/api/teachers` | List teachers who added me |
 
+### Classes (Authenticated)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/classes` | Any user | Teachers: their classes; Students: published classes they're in |
+| GET | `/api/classes/{id}` | Any user | Get class (with auth check) |
+| POST | `/api/classes` | Teacher | Create class with student_ids |
+| DELETE | `/api/classes/{id}` | Teacher | Delete class (owner only) |
+| PATCH | `/api/classes/{id}/notes` | Teacher | Update notes (owner only) |
+| PATCH | `/api/classes/{id}/performance` | Teacher | Update rating (owner only) |
+| PATCH | `/api/classes/{id}/publish` | Teacher | Toggle visibility for students |
+| POST | `/api/classes/{id}/students` | Teacher | Add students to class |
+| DELETE | `/api/classes/{id}/students/{student_id}` | Teacher | Remove student from class |
+| POST | `/api/classes/{id}/assignments` | Teacher | Add assignments (owner only) |
+
+### Mistakes (Authenticated)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/mistakes` | Any user | Teachers: filter by ?student_id; Students: own mistakes |
+| GET | `/api/mistakes/with-occurrences` | Any user | Same as above with occurrence data |
+| POST | `/api/mistakes` | Teacher | Record mistake for a student (requires student_id) |
+| DELETE | `/api/mistakes/{id}` | Teacher | Remove mistake (for their students only) |
+
 ### Admin
 
 | Method | Endpoint | Description |
@@ -125,6 +149,18 @@ Every user receives a unique TeamViewer-style ID on signup:
 ### refresh_tokens
 - id, user_id, token_hash, expires_at, created_at
 
+### classes (multi-user fields)
+- teacher_id (foreign key to users) - class owner
+- is_published (boolean, default false) - visibility to students
+
+### class_students (junction table)
+- id, class_id, student_id
+- Links multiple students to each class (group halaqah support)
+- UNIQUE(class_id, student_id)
+
+### mistakes (multi-user field)
+- student_id (foreign key to users) - which student made this mistake
+
 ## Frontend Integration
 
 ### AuthContext
@@ -144,3 +180,15 @@ Provides: user, isAuthenticated, isVerified, login, signup, logout, refreshUser
 - Profile dropdown shows "Verified Teacher" or "Verified Student"
 - Student ID clickable to copy (profile dropdown + student dashboard)
 - "Upgrade to Teacher" with Pro badge (students only, not yet functional)
+
+---
+
+## Related Documentation
+
+- **[TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)** - Full technical overview of the project
+- **[CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)** - Classes, assignments, mistake tracking system
+- **[PROJECT_CHANGELOG.md](./PROJECT_CHANGELOG.md)** - Chronological development history
+
+---
+
+*Last Updated: December 14, 2025*

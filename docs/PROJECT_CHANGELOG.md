@@ -57,6 +57,70 @@ See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md)
 
 ---
 
+## Phase 3: Classes & Mistakes Multi-User Integration
+
+**Status:** Complete
+
+### Class Ownership & Visibility
+- Teachers own classes (`teacher_id` foreign key)
+- Classes support multiple students (group halaqah) via `class_students` junction table
+- Classes hidden by default (`is_published = false`)
+- Students only see published classes they're part of
+- Teachers can toggle publish status per class
+
+### Student-Specific Mistakes
+- Mistakes now belong to specific students (`student_id` foreign key)
+- Teachers record mistakes for individual students during class
+- Students can only view their own mistakes (privacy enforced)
+- Same word can be a mistake for different students
+
+### New API Endpoints
+- `PATCH /api/classes/{id}/publish` - Toggle class visibility
+- `POST /api/classes/{id}/students` - Add students to class
+- `DELETE /api/classes/{id}/students/{student_id}` - Remove student from class
+- All class/mistake endpoints now require authentication
+- Role-based filtering (teachers see their classes, students see published classes)
+
+### Frontend Updates
+- TeacherClasses: Student selection when creating class, publish toggle
+- StudentClasses: Shows only published classes student is part of
+- Teachers see which students attended each class
+- Privacy: Students never see other students in class or their mistakes
+
+See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
+
+---
+
+## Phase 4: Mushaf-Style Quran Display
+
+**Status:** In Progress
+
+### Page-Based Navigation
+- Madani Mushaf page mapping (604 pages)
+- One page displayed at a time (no endless scrolling)
+- RTL navigation (Next on left, Previous on right for Arabic)
+- Multi-surah page support (Juz Amma short surahs)
+
+### Mushaf Styling
+- White background (like real mushaf paper)
+- Green border (emerald-600)
+- Uthmani fonts (Amiri Quran, Scheherazade New)
+- Arabic-only surah headers (removed English)
+
+### Per-Student Portions
+- Teachers can assign different portions to different students
+- Page-based portion selector in class creation
+- Student-specific assignments stored with `student_id`
+
+### Per-Student Performance
+- Individual performance rating per student per class
+- Stored in `class_students.performance` junction table
+- Dropdown selector in teacher classroom view
+
+See: [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
+
+---
+
 ## Running the Project
 
 **Backend:**

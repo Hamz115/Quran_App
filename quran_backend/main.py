@@ -1,15 +1,16 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import sqlite3
 import shutil
 from pathlib import Path
 from datetime import date, datetime
 
-# Import auth routers
+# Import auth routers and dependencies
 from auth.routes import router as auth_router, students_router, teachers_router
+from auth.dependencies import get_current_user, get_current_verified_user
 
 app = FastAPI(title="Quran Logbook API")
 
@@ -139,6 +140,18 @@ def init_app_db():
         CREATE INDEX IF NOT EXISTS idx_tsr_teacher ON teacher_student_relationships(teacher_id);
         CREATE INDEX IF NOT EXISTS idx_tsr_student ON teacher_student_relationships(student_id);
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+
+        -- Class-student relationships (which students attended which class)
+        CREATE TABLE IF NOT EXISTS class_students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class_id INTEGER NOT NULL,
+            student_id INTEGER NOT NULL,
+            FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+            FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(class_id, student_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_class_students_class ON class_students(class_id);
+        CREATE INDEX IF NOT EXISTS idx_class_students_student ON class_students(student_id);
     """)
     conn.commit()
 
@@ -171,6 +184,33 @@ def init_app_db():
         except:
             pass  # Column already exists
 
+    # Migration: Add multi-user columns to classes and mistakes
+    multi_user_migrations = [
+        "ALTER TABLE classes ADD COLUMN teacher_id INTEGER REFERENCES users(id)",
+        "ALTER TABLE classes ADD COLUMN is_published BOOLEAN DEFAULT 0",
+        "ALTER TABLE mistakes ADD COLUMN student_id INTEGER REFERENCES users(id)",
+    ]
+    for migration in multi_user_migrations:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except:
+            pass  # Column already exists
+
+    # Migration: Add student_id to assignments for per-student portions
+    try:
+        conn.execute("ALTER TABLE assignments ADD COLUMN student_id INTEGER REFERENCES users(id)")
+        conn.commit()
+    except:
+        pass  # Column already exists
+
+    # Migration: Add performance column to class_students for per-student performance
+    try:
+        conn.execute("ALTER TABLE class_students ADD COLUMN performance TEXT")
+        conn.commit()
+    except:
+        pass  # Column already exists
+
     conn.close()
 
 
@@ -182,16 +222,19 @@ class AssignmentCreate(BaseModel):
     end_surah: int
     start_ayah: Optional[int] = None
     end_ayah: Optional[int] = None
+    student_id: Optional[int] = None  # Which student this assignment is for (None = all students)
 
 
 class ClassCreate(BaseModel):
     date: str
     day: str
     notes: Optional[str] = None
-    assignments: list[AssignmentCreate]
+    student_ids: List[int] = []  # List of student user IDs to add to the class
+    assignments: list[AssignmentCreate]  # Each assignment can have a student_id for per-student portions
 
 
 class MistakeCreate(BaseModel):
+    student_id: Optional[int] = None  # Which student - required for teachers, optional for students (uses self)
     surah_number: int
     ayah_number: int
     word_index: int
@@ -205,6 +248,26 @@ class ClassNotesUpdate(BaseModel):
 
 
 # ============ QURAN ENDPOINTS ============
+
+# Directory for QPC word data (code_v1, line_number, etc.)
+QURAN_PAGES_DIR = Path(__file__).parent / "quran-pages"
+
+@app.get("/api/quran/page/{page_number}")
+def get_quran_page_words(page_number: int):
+    """Get word-by-word data for a specific page (1-604) with QPC glyph codes"""
+    if page_number < 1 or page_number > 604:
+        raise HTTPException(status_code=404, detail="Page not found (must be 1-604)")
+
+    page_file = QURAN_PAGES_DIR / f"page_{page_number:03d}.json"
+    if not page_file.exists():
+        raise HTTPException(status_code=404, detail="Page data not found")
+
+    import json
+    with open(page_file, 'r', encoding='utf-8') as f:
+        words = json.load(f)
+
+    return {"data": words, "page": page_number}
+
 
 @app.get("/api/surahs")
 def get_all_surahs():
@@ -251,21 +314,69 @@ def get_surah(surah_number: int):
 # ============ CLASSES ENDPOINTS ============
 
 @app.get("/api/classes")
-def get_all_classes():
-    """Get all classes with their assignments"""
+def get_all_classes(
+    role: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get classes based on user role:
+    - role=teacher (or default for teachers): returns classes they created
+    - role=student (or default for students): returns published classes they're part of
+
+    Teachers can pass role=student to see classes where they are enrolled as a student.
+    """
     conn = get_app_db()
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
 
-    cursor = conn.execute("SELECT * FROM classes ORDER BY date DESC")
+    # Determine which view to show
+    # If role is explicitly set, use that; otherwise use default based on is_verified
+    show_teacher_view = (role == "teacher") or (role is None and is_teacher)
+
+    if show_teacher_view and is_teacher:
+        # Teacher sees all their classes (published or not)
+        cursor = conn.execute(
+            "SELECT * FROM classes WHERE teacher_id = ? ORDER BY date DESC",
+            (user_id,)
+        )
+    else:
+        # Student view - sees only published classes they're part of
+        cursor = conn.execute(
+            """SELECT c.* FROM classes c
+               JOIN class_students cs ON c.id = cs.class_id
+               WHERE cs.student_id = ? AND c.is_published = 1
+               ORDER BY c.date DESC""",
+            (user_id,)
+        )
+
     classes = []
-
     for row in cursor.fetchall():
         class_dict = dict(row)
         # Get assignments for this class
-        assign_cursor = conn.execute(
-            "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah FROM assignments WHERE class_id = ?",
-            (class_dict["id"],)
-        )
+        # Teachers see all assignments with student_id
+        # Students see only shared (student_id=NULL) or their own assignments
+        if show_teacher_view and is_teacher:
+            assign_cursor = conn.execute(
+                "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ?",
+                (class_dict["id"],)
+            )
+        else:
+            assign_cursor = conn.execute(
+                "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ? AND (student_id IS NULL OR student_id = ?)",
+                (class_dict["id"], user_id)
+            )
         class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
+
+        # For teacher view, include list of students in the class with their performance
+        if show_teacher_view and is_teacher:
+            students_cursor = conn.execute(
+                """SELECT u.id, u.student_id, u.first_name, u.last_name, cs.performance
+                   FROM users u
+                   JOIN class_students cs ON u.id = cs.student_id
+                   WHERE cs.class_id = ?""",
+                (class_dict["id"],)
+            )
+            class_dict["students"] = [dict(s) for s in students_cursor.fetchall()]
+
         classes.append(class_dict)
 
     conn.close()
@@ -273,9 +384,11 @@ def get_all_classes():
 
 
 @app.get("/api/classes/{class_id}")
-def get_class(class_id: int):
-    """Get a single class with assignments"""
+def get_class(class_id: int, current_user: dict = Depends(get_current_user)):
+    """Get a single class with assignments (with auth check)"""
     conn = get_app_db()
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
 
     cursor = conn.execute("SELECT * FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
@@ -286,32 +399,83 @@ def get_class(class_id: int):
 
     class_dict = dict(row)
 
-    assign_cursor = conn.execute(
-        "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah FROM assignments WHERE class_id = ?",
-        (class_id,)
-    )
+    # Check access permissions
+    if is_teacher:
+        # Teacher must own this class
+        if class_dict.get("teacher_id") != user_id:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Not authorized to access this class")
+    else:
+        # Student must be in the class AND class must be published
+        cursor = conn.execute(
+            "SELECT 1 FROM class_students WHERE class_id = ? AND student_id = ?",
+            (class_id, user_id)
+        )
+        if not cursor.fetchone() or not class_dict.get("is_published"):
+            conn.close()
+            raise HTTPException(status_code=403, detail="Not authorized to access this class")
+
+    # Get assignments - teachers see all, students see only their own (student_id = NULL or their ID)
+    if is_teacher:
+        assign_cursor = conn.execute(
+            "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ?",
+            (class_id,)
+        )
+    else:
+        # Students see assignments with no student_id (shared) OR their specific student_id
+        assign_cursor = conn.execute(
+            "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ? AND (student_id IS NULL OR student_id = ?)",
+            (class_id, user_id)
+        )
     class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
+
+    # For teachers, include list of students with their performance
+    if is_teacher:
+        students_cursor = conn.execute(
+            """SELECT u.id, u.student_id, u.first_name, u.last_name, cs.performance
+               FROM users u
+               JOIN class_students cs ON u.id = cs.student_id
+               WHERE cs.class_id = ?""",
+            (class_id,)
+        )
+        class_dict["students"] = [dict(s) for s in students_cursor.fetchall()]
 
     conn.close()
     return {"data": class_dict}
 
 
 @app.post("/api/classes")
-def create_class(data: ClassCreate):
-    """Create a new class with assignments"""
+def create_class(data: ClassCreate, current_user: dict = Depends(get_current_verified_user)):
+    """Create a new class with assignments (Teacher only)"""
+    teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
+    # Create the class with teacher_id
     cursor = conn.execute(
-        "INSERT INTO classes (date, day, notes) VALUES (?, ?, ?)",
-        (data.date, data.day, data.notes)
+        "INSERT INTO classes (date, day, notes, teacher_id, is_published) VALUES (?, ?, ?, ?, 0)",
+        (data.date, data.day, data.notes, teacher_id)
     )
     class_id = cursor.lastrowid
 
+    # Add assignments (with optional student_id for per-student portions)
     for assignment in data.assignments:
         conn.execute(
-            "INSERT INTO assignments (class_id, type, start_surah, end_surah, start_ayah, end_ayah) VALUES (?, ?, ?, ?, ?, ?)",
-            (class_id, assignment.type, assignment.start_surah, assignment.end_surah, assignment.start_ayah, assignment.end_ayah)
+            "INSERT INTO assignments (class_id, type, start_surah, end_surah, start_ayah, end_ayah, student_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (class_id, assignment.type, assignment.start_surah, assignment.end_surah, assignment.start_ayah, assignment.end_ayah, assignment.student_id)
         )
+
+    # Add students to the class
+    for student_id in data.student_ids:
+        # Verify student exists and is in teacher's roster
+        cursor = conn.execute(
+            "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
+            (teacher_id, student_id)
+        )
+        if cursor.fetchone():
+            conn.execute(
+                "INSERT OR IGNORE INTO class_students (class_id, student_id) VALUES (?, ?)",
+                (class_id, student_id)
+            )
 
     conn.commit()
     conn.close()
@@ -320,14 +484,19 @@ def create_class(data: ClassCreate):
 
 
 @app.patch("/api/classes/{class_id}/notes")
-def update_class_notes(class_id: int, data: ClassNotesUpdate):
-    """Update notes for a class"""
+def update_class_notes(class_id: int, data: ClassNotesUpdate, current_user: dict = Depends(get_current_verified_user)):
+    """Update notes for a class (Teacher only)"""
+    teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
-    cursor = conn.execute("SELECT id FROM classes WHERE id = ?", (class_id,))
-    if not cursor.fetchone():
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
     conn.execute("UPDATE classes SET notes = ? WHERE id = ?", (data.notes, class_id))
     conn.commit()
@@ -336,21 +505,26 @@ def update_class_notes(class_id: int, data: ClassNotesUpdate):
 
 
 @app.post("/api/classes/{class_id}/assignments")
-def add_class_assignments(class_id: int, assignments: list[AssignmentCreate]):
-    """Add new assignments to an existing class"""
+def add_class_assignments(class_id: int, assignments: list[AssignmentCreate], current_user: dict = Depends(get_current_verified_user)):
+    """Add new assignments to an existing class (Teacher only)"""
+    teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
-    # Verify class exists
-    cursor = conn.execute("SELECT id FROM classes WHERE id = ?", (class_id,))
-    if not cursor.fetchone():
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
-    # Add new assignments
+    # Add new assignments (with optional student_id for per-student portions)
     for assignment in assignments:
         conn.execute(
-            "INSERT INTO assignments (class_id, type, start_surah, end_surah, start_ayah, end_ayah) VALUES (?, ?, ?, ?, ?, ?)",
-            (class_id, assignment.type, assignment.start_surah, assignment.end_surah, assignment.start_ayah, assignment.end_ayah)
+            "INSERT INTO assignments (class_id, type, start_surah, end_surah, start_ayah, end_ayah, student_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (class_id, assignment.type, assignment.start_surah, assignment.end_surah, assignment.start_ayah, assignment.end_ayah, assignment.student_id)
         )
 
     conn.commit()
@@ -381,16 +555,25 @@ def update_assignment(assignment_id: int, assignment: AssignmentCreate):
 
 
 @app.delete("/api/classes/{class_id}")
-def delete_class(class_id: int):
-    """Delete a class and its assignments"""
+def delete_class(class_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Delete a class and its assignments (Teacher only)"""
+    teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
-    conn.execute("DELETE FROM assignments WHERE class_id = ?", (class_id,))
-    cursor = conn.execute("DELETE FROM classes WHERE id = ?", (class_id,))
-
-    if cursor.rowcount == 0:
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to delete this class")
+
+    # Delete related data
+    conn.execute("DELETE FROM class_students WHERE class_id = ?", (class_id,))
+    conn.execute("DELETE FROM assignments WHERE class_id = ?", (class_id,))
+    conn.execute("DELETE FROM classes WHERE id = ?", (class_id,))
 
     conn.commit()
     conn.close()
@@ -401,39 +584,220 @@ class PerformanceUpdate(BaseModel):
     performance: str  # "Excellent", "Good", "Needs Work"
 
 
+class PublishUpdate(BaseModel):
+    is_published: bool
+
+
 @app.patch("/api/classes/{class_id}/performance")
-def update_class_performance(class_id: int, data: PerformanceUpdate):
-    """Update class performance rating"""
+def update_class_performance(class_id: int, data: PerformanceUpdate, current_user: dict = Depends(get_current_verified_user)):
+    """Update class performance rating (Teacher only)"""
+    teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
-    cursor = conn.execute(
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
+
+    conn.execute(
         "UPDATE classes SET performance = ? WHERE id = ?",
         (data.performance, class_id)
     )
-
-    if cursor.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Class not found")
 
     conn.commit()
     conn.close()
     return {"message": "Performance updated", "performance": data.performance}
 
 
+class StudentPerformanceUpdate(BaseModel):
+    student_id: int
+    performance: str  # "Excellent", "Very Good", "Good", "Needs Work"
+
+
+@app.patch("/api/classes/{class_id}/student-performance")
+def update_student_performance(class_id: int, data: StudentPerformanceUpdate, current_user: dict = Depends(get_current_verified_user)):
+    """Update a specific student's performance for a class (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
+
+    # Verify student is in this class
+    cursor = conn.execute(
+        "SELECT id FROM class_students WHERE class_id = ? AND student_id = ?",
+        (class_id, data.student_id)
+    )
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Student not in this class")
+
+    # Update the student's performance for this class
+    conn.execute(
+        "UPDATE class_students SET performance = ? WHERE class_id = ? AND student_id = ?",
+        (data.performance, class_id, data.student_id)
+    )
+
+    conn.commit()
+    conn.close()
+    return {"message": "Student performance updated", "performance": data.performance}
+
+
+@app.patch("/api/classes/{class_id}/publish")
+def update_class_publish(class_id: int, data: PublishUpdate, current_user: dict = Depends(get_current_verified_user)):
+    """Toggle class visibility for students (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
+
+    conn.execute(
+        "UPDATE classes SET is_published = ? WHERE id = ?",
+        (1 if data.is_published else 0, class_id)
+    )
+
+    conn.commit()
+    conn.close()
+    return {"message": "Class visibility updated", "is_published": data.is_published}
+
+
+@app.post("/api/classes/{class_id}/students")
+def add_students_to_class(class_id: int, student_ids: List[int], current_user: dict = Depends(get_current_verified_user)):
+    """Add students to an existing class (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
+
+    added = 0
+    for student_id in student_ids:
+        # Verify student is in teacher's roster
+        cursor = conn.execute(
+            "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
+            (teacher_id, student_id)
+        )
+        if cursor.fetchone():
+            try:
+                conn.execute(
+                    "INSERT INTO class_students (class_id, student_id) VALUES (?, ?)",
+                    (class_id, student_id)
+                )
+                added += 1
+            except:
+                pass  # Already in class
+
+    conn.commit()
+    conn.close()
+    return {"message": f"Added {added} student(s) to class"}
+
+
+@app.delete("/api/classes/{class_id}/students/{student_id}")
+def remove_student_from_class(class_id: int, student_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Remove a student from a class (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Verify class exists and user owns it
+    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+    if row["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to modify this class")
+
+    cursor = conn.execute(
+        "DELETE FROM class_students WHERE class_id = ? AND student_id = ?",
+        (class_id, student_id)
+    )
+
+    if cursor.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Student not in this class")
+
+    conn.commit()
+    conn.close()
+    return {"message": "Student removed from class"}
+
+
 # ============ MISTAKES ENDPOINTS ============
 
 @app.get("/api/mistakes")
-def get_all_mistakes(surah: Optional[int] = None):
-    """Get all mistakes, optionally filtered by surah"""
+def get_all_mistakes(
+    surah: Optional[int] = None,
+    student_id: Optional[int] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get mistakes filtered by user role:
+    - Teacher: can view any student's mistakes (pass student_id)
+    - Student: can only view own mistakes
+    """
     conn = get_app_db()
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
 
-    if surah:
-        cursor = conn.execute(
-            "SELECT * FROM mistakes WHERE surah_number = ? ORDER BY ayah_number, word_index",
-            (surah,)
-        )
+    # Determine which student's mistakes to fetch
+    if is_teacher:
+        # Teacher can view any of their students' mistakes
+        target_student_id = student_id  # If None, might want to show all? For now require student_id
+        if target_student_id:
+            # Verify this student is in teacher's roster
+            cursor = conn.execute(
+                "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
+                (user_id, target_student_id)
+            )
+            if not cursor.fetchone():
+                conn.close()
+                raise HTTPException(status_code=403, detail="Student not in your roster")
     else:
-        cursor = conn.execute("SELECT * FROM mistakes ORDER BY surah_number, ayah_number, word_index")
+        # Student can only see own mistakes
+        target_student_id = user_id
+
+    # Build query
+    if target_student_id:
+        if surah:
+            cursor = conn.execute(
+                "SELECT * FROM mistakes WHERE student_id = ? AND surah_number = ? ORDER BY ayah_number, word_index",
+                (target_student_id, surah)
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM mistakes WHERE student_id = ? ORDER BY surah_number, ayah_number, word_index",
+                (target_student_id,)
+            )
+    else:
+        # Teacher didn't specify student - return empty for now
+        conn.close()
+        return {"data": []}
 
     mistakes = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -441,18 +805,45 @@ def get_all_mistakes(surah: Optional[int] = None):
 
 
 @app.get("/api/mistakes/with-occurrences")
-def get_mistakes_with_occurrences(surah: Optional[int] = None):
-    """Get all mistakes with their class occurrence info"""
+def get_mistakes_with_occurrences(
+    surah: Optional[int] = None,
+    student_id: Optional[int] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get mistakes with class occurrence info, filtered by user role"""
     conn = get_app_db()
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
+
+    # Determine which student's mistakes to fetch
+    if is_teacher:
+        target_student_id = student_id
+        if target_student_id:
+            cursor = conn.execute(
+                "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
+                (user_id, target_student_id)
+            )
+            if not cursor.fetchone():
+                conn.close()
+                raise HTTPException(status_code=403, detail="Student not in your roster")
+    else:
+        target_student_id = user_id
+
+    if not target_student_id:
+        conn.close()
+        return {"data": []}
 
     # Get mistakes
     if surah:
         cursor = conn.execute(
-            "SELECT * FROM mistakes WHERE surah_number = ? ORDER BY ayah_number, word_index",
-            (surah,)
+            "SELECT * FROM mistakes WHERE student_id = ? AND surah_number = ? ORDER BY ayah_number, word_index",
+            (target_student_id, surah)
         )
     else:
-        cursor = conn.execute("SELECT * FROM mistakes ORDER BY surah_number, ayah_number, word_index")
+        cursor = conn.execute(
+            "SELECT * FROM mistakes WHERE student_id = ? ORDER BY surah_number, ayah_number, word_index",
+            (target_student_id,)
+        )
 
     mistakes = [dict(row) for row in cursor.fetchall()]
 
@@ -478,20 +869,51 @@ def get_mistakes_with_occurrences(surah: Optional[int] = None):
 
 
 @app.post("/api/mistakes")
-def add_or_increment_mistake(data: MistakeCreate):
-    """Add a new mistake or increment existing one, and record the occurrence"""
+def add_or_increment_mistake(data: MistakeCreate, current_user: dict = Depends(get_current_user)):
+    """Add a new mistake or increment existing one.
+    - Teachers must specify student_id (student in their roster)
+    - Students can omit student_id (defaults to themselves)
+    """
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
     conn = get_app_db()
 
-    # Check if mistake exists (include char_index in check)
+    # Determine which student this mistake is for
+    if data.student_id:
+        student_id = data.student_id
+        if is_teacher:
+            # Teacher specifying student - verify in roster
+            cursor = conn.execute(
+                "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
+                (user_id, student_id)
+            )
+            if not cursor.fetchone():
+                conn.close()
+                raise HTTPException(status_code=403, detail="Student not in your roster")
+        else:
+            # Student can only mark mistakes for themselves
+            if student_id != user_id:
+                conn.close()
+                raise HTTPException(status_code=403, detail="You can only mark your own mistakes")
+    else:
+        # No student_id provided
+        if is_teacher:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Teachers must specify student_id")
+        else:
+            # Student marking their own mistake
+            student_id = user_id
+
+    # Check if mistake exists for this student (include student_id and char_index in check)
     if data.char_index is not None:
         cursor = conn.execute(
-            "SELECT id, error_count FROM mistakes WHERE surah_number = ? AND ayah_number = ? AND word_index = ? AND char_index = ?",
-            (data.surah_number, data.ayah_number, data.word_index, data.char_index)
+            "SELECT id, error_count FROM mistakes WHERE student_id = ? AND surah_number = ? AND ayah_number = ? AND word_index = ? AND char_index = ?",
+            (student_id, data.surah_number, data.ayah_number, data.word_index, data.char_index)
         )
     else:
         cursor = conn.execute(
-            "SELECT id, error_count FROM mistakes WHERE surah_number = ? AND ayah_number = ? AND word_index = ? AND char_index IS NULL",
-            (data.surah_number, data.ayah_number, data.word_index)
+            "SELECT id, error_count FROM mistakes WHERE student_id = ? AND surah_number = ? AND ayah_number = ? AND word_index = ? AND char_index IS NULL",
+            (student_id, data.surah_number, data.ayah_number, data.word_index)
         )
     existing = cursor.fetchone()
 
@@ -504,10 +926,10 @@ def add_or_increment_mistake(data: MistakeCreate):
         )
         new_count = existing["error_count"] + 1
     else:
-        # Create new mistake
+        # Create new mistake with student_id
         cursor = conn.execute(
-            "INSERT INTO mistakes (surah_number, ayah_number, word_index, word_text, char_index, error_count) VALUES (?, ?, ?, ?, ?, 1)",
-            (data.surah_number, data.ayah_number, data.word_index, data.word_text, data.char_index)
+            "INSERT INTO mistakes (student_id, surah_number, ayah_number, word_index, word_text, char_index, error_count) VALUES (?, ?, ?, ?, ?, ?, 1)",
+            (student_id, data.surah_number, data.ayah_number, data.word_index, data.word_text, data.char_index)
         )
         mistake_id = cursor.lastrowid
         new_count = 1
@@ -521,20 +943,41 @@ def add_or_increment_mistake(data: MistakeCreate):
 
     conn.commit()
     conn.close()
-    return {"id": mistake_id, "error_count": new_count, "char_index": data.char_index, "class_id": data.class_id}
+    return {"id": mistake_id, "error_count": new_count, "char_index": data.char_index, "class_id": data.class_id, "student_id": data.student_id}
 
 
 @app.delete("/api/mistakes/{mistake_id}")
-def decrement_or_delete_mistake(mistake_id: int):
-    """Decrement mistake count or delete if count reaches 0, and remove most recent occurrence"""
+def decrement_or_delete_mistake(mistake_id: int, current_user: dict = Depends(get_current_user)):
+    """Decrement mistake count or delete if count reaches 0.
+    - Teachers can delete mistakes for students in their roster
+    - Students can delete their own mistakes
+    """
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
     conn = get_app_db()
 
-    cursor = conn.execute("SELECT error_count FROM mistakes WHERE id = ?", (mistake_id,))
+    cursor = conn.execute("SELECT error_count, student_id FROM mistakes WHERE id = ?", (mistake_id,))
     existing = cursor.fetchone()
 
     if not existing:
         conn.close()
         raise HTTPException(status_code=404, detail="Mistake not found")
+
+    # Verify access
+    if is_teacher:
+        # Teacher must have this student in their roster
+        cursor = conn.execute(
+            "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
+            (user_id, existing["student_id"])
+        )
+        if not cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=403, detail="Not authorized to modify this mistake")
+    else:
+        # Student can only delete their own mistakes
+        if existing["student_id"] != user_id:
+            conn.close()
+            raise HTTPException(status_code=403, detail="You can only delete your own mistakes")
 
     # Delete the most recent occurrence
     conn.execute(
@@ -561,49 +1004,143 @@ def decrement_or_delete_mistake(mistake_id: int):
 # ============ STATS ENDPOINT ============
 
 @app.get("/api/stats")
-def get_stats():
-    """Get dashboard statistics"""
+def get_stats(
+    role: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get dashboard statistics for the current user.
+    - role=student: stats as a student (classes attended, own mistakes)
+    - role=teacher: stats as a teacher (classes created, students' mistakes)
+    Default is based on is_verified flag.
+    """
     conn = get_app_db()
+    user_id = int(current_user["sub"])
+    is_teacher = current_user.get("is_verified", False)
 
-    # Total classes
-    cursor = conn.execute("SELECT COUNT(*) as count FROM classes")
-    total_classes = cursor.fetchone()["count"]
+    # Determine which view
+    show_student_view = (role == "student") or (role is None and not is_teacher)
 
-    # Total unique mistakes
-    cursor = conn.execute("SELECT COUNT(*) as count FROM mistakes")
-    total_unique_mistakes = cursor.fetchone()["count"]
+    if show_student_view:
+        # STUDENT STATS - show only the user's own data as a student
 
-    # Repeated mistakes (mistakes with error_count > 1)
-    cursor = conn.execute("SELECT COUNT(*) as count FROM mistakes WHERE error_count > 1")
-    repeated_mistakes = cursor.fetchone()["count"]
+        # Total classes attended (where user is enrolled as student)
+        cursor = conn.execute("""
+            SELECT COUNT(*) as count FROM classes c
+            JOIN class_students cs ON c.id = cs.class_id
+            WHERE cs.student_id = ? AND c.is_published = 1
+        """, (user_id,))
+        total_classes = cursor.fetchone()["count"]
 
-    # Total occurrences (all times mistakes were made across all classes)
-    cursor = conn.execute("SELECT COUNT(*) as count FROM mistake_occurrences")
-    total_occurrences = cursor.fetchone()["count"]
+        # User's own mistakes
+        cursor = conn.execute("SELECT COUNT(*) as count FROM mistakes WHERE student_id = ?", (user_id,))
+        total_unique_mistakes = cursor.fetchone()["count"]
 
-    # Mistakes by surah (top 5)
-    cursor = conn.execute("""
-        SELECT surah_number, SUM(error_count) as count
-        FROM mistakes
-        GROUP BY surah_number
-        ORDER BY count DESC
-        LIMIT 5
-    """)
-    mistakes_by_surah = [dict(row) for row in cursor.fetchall()]
+        # User's repeated mistakes
+        cursor = conn.execute("SELECT COUNT(*) as count FROM mistakes WHERE student_id = ? AND error_count > 1", (user_id,))
+        repeated_mistakes = cursor.fetchone()["count"]
 
-    # Latest class
-    cursor = conn.execute("SELECT * FROM classes ORDER BY date DESC LIMIT 1")
-    latest_class = cursor.fetchone()
+        # User's total occurrences
+        cursor = conn.execute("""
+            SELECT COUNT(*) as count FROM mistake_occurrences mo
+            JOIN mistakes m ON mo.mistake_id = m.id
+            WHERE m.student_id = ?
+        """, (user_id,))
+        total_occurrences = cursor.fetchone()["count"]
 
-    # Top repeated mistakes (for dashboard display)
-    cursor = conn.execute("""
-        SELECT m.id, m.surah_number, m.ayah_number, m.word_text, m.error_count
-        FROM mistakes m
-        WHERE m.error_count > 1
-        ORDER BY m.error_count DESC
-        LIMIT 6
-    """)
-    top_repeated_mistakes = [dict(row) for row in cursor.fetchall()]
+        # User's mistakes by surah
+        cursor = conn.execute("""
+            SELECT surah_number, SUM(error_count) as count
+            FROM mistakes
+            WHERE student_id = ?
+            GROUP BY surah_number
+            ORDER BY count DESC
+            LIMIT 5
+        """, (user_id,))
+        mistakes_by_surah = [dict(row) for row in cursor.fetchall()]
+
+        # User's latest class (as student)
+        cursor = conn.execute("""
+            SELECT c.* FROM classes c
+            JOIN class_students cs ON c.id = cs.class_id
+            WHERE cs.student_id = ? AND c.is_published = 1
+            ORDER BY c.date DESC LIMIT 1
+        """, (user_id,))
+        latest_class = cursor.fetchone()
+
+        # User's top repeated mistakes
+        cursor = conn.execute("""
+            SELECT id, surah_number, ayah_number, word_text, error_count
+            FROM mistakes
+            WHERE student_id = ? AND error_count > 1
+            ORDER BY error_count DESC
+            LIMIT 6
+        """, (user_id,))
+        top_repeated_mistakes = [dict(row) for row in cursor.fetchall()]
+
+    else:
+        # TEACHER STATS - This could show aggregate stats for all students
+        # For now, just return the teacher's own teaching stats
+
+        # Total classes created
+        cursor = conn.execute("SELECT COUNT(*) as count FROM classes WHERE teacher_id = ?", (user_id,))
+        total_classes = cursor.fetchone()["count"]
+
+        # Total unique mistakes across all students in teacher's roster
+        cursor = conn.execute("""
+            SELECT COUNT(*) as count FROM mistakes m
+            WHERE m.student_id IN (
+                SELECT student_id FROM teacher_student_relationships WHERE teacher_id = ?
+            )
+        """, (user_id,))
+        total_unique_mistakes = cursor.fetchone()["count"]
+
+        # Repeated mistakes across all students
+        cursor = conn.execute("""
+            SELECT COUNT(*) as count FROM mistakes m
+            WHERE m.student_id IN (
+                SELECT student_id FROM teacher_student_relationships WHERE teacher_id = ?
+            ) AND m.error_count > 1
+        """, (user_id,))
+        repeated_mistakes = cursor.fetchone()["count"]
+
+        # Total occurrences
+        cursor = conn.execute("""
+            SELECT COUNT(*) as count FROM mistake_occurrences mo
+            JOIN mistakes m ON mo.mistake_id = m.id
+            WHERE m.student_id IN (
+                SELECT student_id FROM teacher_student_relationships WHERE teacher_id = ?
+            )
+        """, (user_id,))
+        total_occurrences = cursor.fetchone()["count"]
+
+        # Mistakes by surah across all students
+        cursor = conn.execute("""
+            SELECT surah_number, SUM(error_count) as count
+            FROM mistakes
+            WHERE student_id IN (
+                SELECT student_id FROM teacher_student_relationships WHERE teacher_id = ?
+            )
+            GROUP BY surah_number
+            ORDER BY count DESC
+            LIMIT 5
+        """, (user_id,))
+        mistakes_by_surah = [dict(row) for row in cursor.fetchall()]
+
+        # Latest class created
+        cursor = conn.execute("SELECT * FROM classes WHERE teacher_id = ? ORDER BY date DESC LIMIT 1", (user_id,))
+        latest_class = cursor.fetchone()
+
+        # Top repeated mistakes across all students
+        cursor = conn.execute("""
+            SELECT id, surah_number, ayah_number, word_text, error_count
+            FROM mistakes
+            WHERE student_id IN (
+                SELECT student_id FROM teacher_student_relationships WHERE teacher_id = ?
+            ) AND error_count > 1
+            ORDER BY error_count DESC
+            LIMIT 6
+        """, (user_id,))
+        top_repeated_mistakes = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
 

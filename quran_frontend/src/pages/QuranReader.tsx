@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { getSurahs, getSurah, getMistakes, addMistake, removeMistake } from '../api';
+import { useState, useEffect, useRef } from 'react';
+import { getSurahs, getSurah } from '../api';
+import { getPageRange, getSurahsOnPage, TOTAL_PAGES } from '../data/quranPages';
 
 interface AyahData {
   number: number;
@@ -18,172 +18,176 @@ interface SurahData {
   ayahs: AyahData[];
 }
 
-interface Mistake {
-  id: number;
-  surah_number: number;
-  ayah_number: number;
-  word_index: number;
-  word_text: string;
-  error_count: number;
-  last_error: string;
-}
-
 export default function QuranReader() {
-  const [searchParams] = useSearchParams();
-  const initialSurah = Number(searchParams.get('surah')) || 67;
-
-  const [selectedSurah, setSelectedSurah] = useState(initialSurah);
-  const [surahData, setSurahData] = useState<SurahData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [mistakes, setMistakes] = useState<Mistake[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSurahsData, setPageSurahsData] = useState<Map<number, SurahData>>(new Map());
+  const [surahLoading, setSurahLoading] = useState(false);
   const [surahList, setSurahList] = useState<{ number: number; englishName: string; name: string; numberOfAyahs: number }[]>([]);
+  const [jumpToPage, setJumpToPage] = useState('');
   const [showJumpModal, setShowJumpModal] = useState(false);
-  const [jumpToAyah, setJumpToAyah] = useState('');
+
+  // Refs for content
+  const quranContentRef = useRef<HTMLDivElement>(null);
+  const quranContainerRef = useRef<HTMLDivElement>(null);
+  const [lineHeight, setLineHeight] = useState(2.2);
+
+  // Calculate line-height to fill page AFTER content renders
+  useEffect(() => {
+    if (!quranContentRef.current || !quranContainerRef.current || surahLoading || !pageSurahsData.size) return;
+
+    // Wait for content to fully render
+    const timer = setTimeout(() => {
+      const container = quranContainerRef.current;
+      const content = quranContentRef.current;
+      if (!container || !content) return;
+
+      // Get available height (container minus padding)
+      const containerRect = container.getBoundingClientRect();
+      const style = getComputedStyle(container);
+      const paddingTop = parseFloat(style.paddingTop);
+      const paddingBottom = parseFloat(style.paddingBottom);
+      const availableHeight = containerRect.height - paddingTop - paddingBottom;
+
+      // Measure content at base line-height
+      content.style.lineHeight = '2';
+      void content.offsetHeight; // Force reflow
+      const contentHeight = content.getBoundingClientRect().height;
+
+      if (contentHeight > 0) {
+        const ratio = availableHeight / contentHeight;
+        // Scale line-height: compress if too big (ratio < 1), expand if too small (ratio > 1)
+        // Min 1.4 (very compressed), Max 4.0 (very expanded)
+        const newLH = Math.max(1.4, Math.min(4.0, 2 * ratio));
+        setLineHeight(newLH);
+      } else {
+        setLineHeight(2);
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [currentPage, pageSurahsData, surahLoading]);
 
   // Load surah list
   useEffect(() => {
     getSurahs().then(setSurahList).catch(console.error);
   }, []);
 
-  // Load mistakes
+  // Load surahs for current page
   useEffect(() => {
-    getMistakes().then(setMistakes).catch(console.error);
-  }, []);
+    const loadPageSurahs = async () => {
+      const surahsOnPage = getSurahsOnPage(currentPage);
+      const newSurahsData = new Map(pageSurahsData);
+      let needsUpdate = false;
 
-  // Handle URL param changes
-  useEffect(() => {
-    const surahFromUrl = Number(searchParams.get('surah'));
-    if (surahFromUrl && surahFromUrl !== selectedSurah) {
-      setSelectedSurah(surahFromUrl);
-    }
-  }, [searchParams]);
+      setSurahLoading(true);
 
-  // Load surah data
-  useEffect(() => {
-    setLoading(true);
-    getSurah(selectedSurah)
-      .then(setSurahData)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [selectedSurah]);
+      for (const surahNum of surahsOnPage) {
+        if (!newSurahsData.has(surahNum)) {
+          try {
+            const data = await getSurah(surahNum);
+            newSurahsData.set(surahNum, data);
+            needsUpdate = true;
+          } catch (err) {
+            console.error(`Failed to load surah ${surahNum}:`, err);
+          }
+        }
+      }
 
-  const getMistakeLevel = (ayahNumber: number, wordIndex: number): number => {
-    const mistake = mistakes.find(
-      (m) =>
-        m.surah_number === selectedSurah &&
-        m.ayah_number === ayahNumber &&
-        m.word_index === wordIndex
-    );
-    if (!mistake) return 0;
-    if (mistake.error_count >= 3) return 3;
-    if (mistake.error_count >= 2) return 2;
-    return 1;
-  };
+      if (needsUpdate) {
+        setPageSurahsData(newSurahsData);
+      }
+      setSurahLoading(false);
+    };
 
-  const handleWordClick = async (ayahNumber: number, wordIndex: number, wordText: string) => {
-    try {
-      const result = await addMistake({
-        surah_number: selectedSurah,
-        ayah_number: ayahNumber,
-        word_index: wordIndex,
-        word_text: wordText,
-      });
+    loadPageSurahs();
+  }, [currentPage]);
 
-      // Update local state
-      const existingIndex = mistakes.findIndex(
-        (m) =>
-          m.surah_number === selectedSurah &&
-          m.ayah_number === ayahNumber &&
-          m.word_index === wordIndex
+  // Get content for current page
+  const getPageContent = () => {
+    const range = getPageRange(currentPage);
+    const surahsOnPage = getSurahsOnPage(currentPage);
+    const content: { surahNum: number; surahData: SurahData; ayahs: AyahData[] }[] = [];
+
+    for (const surahNum of surahsOnPage) {
+      const surahData = pageSurahsData.get(surahNum);
+      if (!surahData) continue;
+
+      let startAyah = 1;
+      let endAyah = surahData.numberOfAyahs;
+
+      if (surahNum === range.startSurah) {
+        startAyah = range.startAyah;
+      }
+      if (surahNum === range.endSurah) {
+        endAyah = range.endAyah === 999 ? surahData.numberOfAyahs : range.endAyah;
+      }
+
+      const ayahs = surahData.ayahs.filter(
+        a => a.numberInSurah >= startAyah && a.numberInSurah <= endAyah
       );
 
-      if (existingIndex >= 0) {
-        const updated = [...mistakes];
-        updated[existingIndex] = { ...updated[existingIndex], error_count: result.error_count };
-        setMistakes(updated);
-      } else {
-        setMistakes([...mistakes, {
-          id: result.id,
-          surah_number: selectedSurah,
-          ayah_number: ayahNumber,
-          word_index: wordIndex,
-          word_text: wordText,
-          error_count: result.error_count,
-          last_error: new Date().toISOString().split('T')[0],
-        }]);
+      if (ayahs.length > 0) {
+        content.push({ surahNum, surahData, ayahs });
       }
-    } catch (err) {
-      console.error('Failed to add mistake:', err);
     }
+
+    return content;
   };
 
-  const handleWordRightClick = async (e: React.MouseEvent, ayahNumber: number, wordIndex: number) => {
-    e.preventDefault();
+  const pageContent = getPageContent();
+  const allSurahsLoaded = getSurahsOnPage(currentPage).every(s => pageSurahsData.has(s));
 
-    const existingMistake = mistakes.find(
-      (m) =>
-        m.surah_number === selectedSurah &&
-        m.ayah_number === ayahNumber &&
-        m.word_index === wordIndex
-    );
+  const canGoNext = currentPage < TOTAL_PAGES;
+  const canGoPrev = currentPage > 1;
 
-    if (!existingMistake) return;
-
-    try {
-      const result = await removeMistake(existingMistake.id);
-
-      if (result.error_count === 0) {
-        setMistakes(mistakes.filter((m) => m.id !== existingMistake.id));
-      } else {
-        setMistakes(
-          mistakes.map((m) =>
-            m.id === existingMistake.id ? { ...m, error_count: result.error_count } : m
-          )
-        );
-      }
-    } catch (err) {
-      console.error('Failed to remove mistake:', err);
-    }
-  };
-
-  const currentMistakes = mistakes.filter((m) => m.surah_number === selectedSurah);
-  const totalErrors = currentMistakes.reduce((acc, m) => acc + m.error_count, 0);
-
-  const goToPrevSurah = () => {
-    if (selectedSurah > 1) setSelectedSurah(selectedSurah - 1);
-  };
-
-  const goToNextSurah = () => {
-    if (selectedSurah < 114) setSelectedSurah(selectedSurah + 1);
-  };
-
-  const handleJumpToAyah = () => {
-    const ayahNum = parseInt(jumpToAyah);
-    if (ayahNum && surahData && ayahNum >= 1 && ayahNum <= surahData.numberOfAyahs) {
-      const element = document.getElementById(`ayah-${ayahNum}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2');
-        setTimeout(() => {
-          element.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2');
-        }, 2000);
-      }
+  const handleJumpToPage = () => {
+    const pageNum = parseInt(jumpToPage);
+    if (pageNum && pageNum >= 1 && pageNum <= TOTAL_PAGES) {
+      setCurrentPage(pageNum);
       setShowJumpModal(false);
-      setJumpToAyah('');
+      setJumpToPage('');
     }
+  };
+
+  // Get surah info for current page
+  const getPageSurahInfo = () => {
+    const surahsOnPage = getSurahsOnPage(currentPage);
+    const names = surahsOnPage.map(s => {
+      const surah = surahList.find(sl => sl.number === s);
+      return surah ? surah.englishName : `Surah ${s}`;
+    });
+    return names.join(', ');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Quran Reader</h1>
-          <p className="text-slate-400 mt-1">Click words to mark mistakes. Right-click to remove.</p>
+          <h1 className="text-2xl font-bold text-slate-100">Mushaf Page Viewer</h1>
+          <p className="text-slate-400 mt-1">Check each page for errors in page mapping</p>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Jump to Ayah */}
+          {/* Page Input */}
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max={TOTAL_PAGES}
+              value={currentPage}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (val >= 1 && val <= TOTAL_PAGES) {
+                  setCurrentPage(val);
+                }
+              }}
+              className="w-20 px-3 py-2 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <span className="text-slate-400">/ {TOTAL_PAGES}</span>
+          </div>
+
+          {/* Jump Button */}
           <button
             onClick={() => setShowJumpModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-slate-300 hover:bg-slate-700/30 transition-colors"
@@ -191,218 +195,152 @@ export default function QuranReader() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            Jump to Ayah
+            Jump
           </button>
-
-          {/* Surah Selector */}
-          <select
-            value={selectedSurah}
-            onChange={(e) => setSelectedSurah(Number(e.target.value))}
-            className="px-4 py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-w-[200px]"
-          >
-            {surahList.map((surah) => (
-              <option key={surah.number} value={surah.number}>
-                {surah.number}. {surah.englishName}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
-      {/* Info Bar */}
-      <div className="card p-4 flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-6">
-          {/* Legend */}
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-slate-400 font-medium">Legend:</span>
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded mistake-1"></span>
-              <span className="text-slate-400">1x</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded mistake-2"></span>
-              <span className="text-slate-400">2x</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded mistake-3"></span>
-              <span className="text-slate-400">3+</span>
-            </div>
-          </div>
+      {/* Page Info */}
+      <div className="card p-4 flex items-center justify-between">
+        <div className="text-slate-300">
+          <span className="font-semibold">Page {currentPage}</span>
+          <span className="text-slate-500 mx-2">•</span>
+          <span className="text-slate-400">{getPageSurahInfo()}</span>
         </div>
-
-        <div className="flex items-center gap-4">
-          {/* Error Count */}
-          <div className={`px-4 py-2 rounded-xl text-sm font-medium ${
-            totalErrors === 0
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : totalErrors < 5
-              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-              : 'bg-red-500/20 text-red-400 border border-red-500/30'
-          }`}>
-            {totalErrors} {totalErrors === 1 ? 'mistake' : 'mistakes'} in this Surah
-          </div>
+        <div className="text-sm text-slate-500">
+          Use arrow keys or buttons to navigate
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between">
+      {/* Mushaf Display */}
+      <div className="flex items-center justify-center gap-2 md:gap-4 min-h-[90vh] relative">
+        {/* Next Page Button - LEFT side (RTL: forward = left) - Small & subtle */}
         <button
-          onClick={goToPrevSurah}
-          disabled={selectedSurah === 1}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
+          disabled={!canGoNext}
+          className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
+            canGoNext
+              ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white'
+              : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
+          }`}
+          title="Next Page"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Previous Surah
         </button>
 
-        {surahData && (
-          <div className="text-center">
-            <h2 className="arabic text-2xl text-slate-100">{surahData.name}</h2>
-            <p className="text-sm text-slate-400">{surahData.englishName} • {surahData.numberOfAyahs} Ayahs • {surahData.revelationType}</p>
-          </div>
-        )}
+        {/* Mushaf Page - Madani Mushaf aspect ratio 14:20 (width:height = 0.7), 15 lines per page */}
+        <div className="mushaf-page mx-auto overflow-hidden flex flex-col" style={{ aspectRatio: '14/20', height: '85vh' }}>
+          {/* Corner decorations */}
+          <span className="corner-tl">✦</span>
+          <span className="corner-tr">✦</span>
+          <span className="corner-bl">✦</span>
+          <span className="corner-br">✦</span>
+          {/* Edge decorations */}
+          <span className="edge-top">❧ ✤ ❧ ✤ ❧ ✤ ❧</span>
+          <span className="edge-bottom">❧ ✤ ❧ ✤ ❧ ✤ ❧</span>
 
+          {/* Content */}
+          <div ref={quranContainerRef} className="p-4 md:p-6 pt-8 pb-8 h-full flex flex-col">
+            {surahLoading || !allSurahsLoaded ? (
+              <div className="flex flex-col items-center justify-center py-20 flex-1">
+                <div className="spinner mb-4"></div>
+                <p className="text-slate-600">Loading Quran...</p>
+              </div>
+            ) : pageContent.length > 0 ? (
+              <div ref={quranContentRef} style={{ lineHeight }}>
+                {pageContent.map(({ surahNum, surahData, ayahs }, surahIndex) => (
+                  <div key={surahNum}>
+                    {/* Surah Header */}
+                    {ayahs.some(a => a.numberInSurah === 1) && (
+                      <div className={`text-center mb-2 ${surahIndex > 0 ? 'mt-6' : ''}`}>
+                        <div className="surah-header-frame">
+                          <h2 className="font-amiri text-xl md:text-2xl text-emerald-800">{surahData.name}</h2>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bismillah */}
+                    {surahNum !== 9 && surahNum !== 1 && ayahs.some(a => a.numberInSurah === 1) && (
+                      <p className="font-amiri text-base md:text-lg text-center text-emerald-700 mb-3 pb-1 border-b border-emerald-600/20">
+                        بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                      </p>
+                    )}
+
+                    {/* Continuation badge */}
+                    {!ayahs.some(a => a.numberInSurah === 1) && surahIndex === 0 && (
+                      <div className="text-center mb-2">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs">
+                          {surahData.englishName} (continued)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Ayahs */}
+                    <div className="font-amiri text-lg md:text-xl text-slate-800 text-justify" dir="rtl" style={{ lineHeight }}>
+                      {ayahs.map((ayah) => {
+                        const shouldStripBismillah = ayah.numberInSurah === 1 && surahNum !== 1 && surahNum !== 9;
+                        const words = ayah.text.split(' ');
+                        const displayWords = shouldStripBismillah ? words.slice(4) : words;
+
+                        return (
+                          <span key={`${surahNum}-${ayah.number}`} className="inline">
+                            {displayWords.map((word, idx) => (
+                              <span key={`${ayah.number}-${idx}`} className="inline">
+                                {word}{' '}
+                              </span>
+                            ))}
+                            <span className="text-emerald-600 text-sm md:text-base font-medium select-none">
+                              ﴿{ayah.numberInSurah}﴾
+                            </span>{' '}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20">
+                <p className="text-slate-700">No content for this page</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Previous Page Button - RIGHT side - Small & subtle */}
         <button
-          onClick={goToNextSurah}
-          disabled={selectedSurah === 114}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
+          disabled={!canGoPrev}
+          className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
+            canGoPrev
+              ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white'
+              : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
+          }`}
+          title="Previous Page"
         >
-          Next Surah
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
 
-      {/* Quran Text */}
-      <div className="card p-8">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="spinner mb-4"></div>
-            <p className="text-slate-400">Loading Surah...</p>
-          </div>
-        ) : surahData ? (
-          <div>
-            {/* Bismillah */}
-            {selectedSurah !== 9 && selectedSurah !== 1 && (
-              <p className="arabic text-2xl text-center text-emerald-400 mb-8 pb-6 border-b border-slate-700/30">
-                بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-              </p>
-            )}
-
-            {/* Ayahs */}
-            <div className="arabic text-2xl leading-[2.8] text-slate-100 text-right">
-              {surahData.ayahs.map((ayah) => {
-                // Strip Bismillah from first ayah (4 words) for surahs other than 1 and 9
-                const shouldStripBismillah = ayah.numberInSurah === 1 && selectedSurah !== 1 && selectedSurah !== 9;
-                const words = ayah.text.split(' ');
-                const displayWords = shouldStripBismillah ? words.slice(4) : words;
-                const wordOffset = shouldStripBismillah ? 4 : 0;
-
-                return (
-                <span key={ayah.number} id={`ayah-${ayah.numberInSurah}`} className="inline transition-all rounded-lg">
-                  {displayWords.map((word, idx) => {
-                    const wordIndex = idx + wordOffset;
-                    const mistakeLevel = getMistakeLevel(ayah.numberInSurah, wordIndex);
-                    return (
-                      <span
-                        key={`${ayah.number}-${wordIndex}`}
-                        onClick={() => handleWordClick(ayah.numberInSurah, wordIndex, word)}
-                        onContextMenu={(e) => handleWordRightClick(e, ayah.numberInSurah, wordIndex)}
-                        className={`cursor-pointer hover:bg-slate-700/50 rounded px-0.5 transition-all inline-block ${
-                          mistakeLevel === 1
-                            ? 'mistake-1'
-                            : mistakeLevel === 2
-                            ? 'mistake-2'
-                            : mistakeLevel === 3
-                            ? 'mistake-3'
-                            : ''
-                        }`}
-                      >
-                        {word}
-                      </span>
-                    );
-                  })}{' '}
-                  <span className="text-emerald-400 text-lg font-medium mx-2 select-none">
-                    ﴿{ayah.numberInSurah}﴾
-                  </span>{' '}
-                </span>
-              );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <p className="text-slate-100 font-medium mb-1">Failed to load Surah</p>
-            <p className="text-slate-400 text-sm">Please check your connection and try again</p>
-          </div>
-        )}
-      </div>
-
-      {/* Mistakes Summary */}
-      {currentMistakes.length > 0 && (
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-100">Mistakes in this Surah</h3>
-            <span className="text-sm text-slate-400">{currentMistakes.length} words marked</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {currentMistakes.map((mistake) => (
-              <button
-                key={mistake.id}
-                onClick={() => {
-                  const element = document.getElementById(`ayah-${mistake.ayah_number}`);
-                  if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }
-                }}
-                className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all hover:scale-105 ${
-                  mistake.error_count >= 3
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
-                    : mistake.error_count >= 2
-                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30 hover:bg-orange-500/30'
-                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
-                }`}
-              >
-                <span className="arabic text-lg">{mistake.word_text}</span>
-                <span className="text-xs opacity-75">
-                  {mistake.ayah_number}:{mistake.word_index + 1}
-                </span>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                  mistake.error_count >= 3 ? 'bg-red-500/40' :
-                  mistake.error_count >= 2 ? 'bg-orange-500/40' :
-                  'bg-amber-500/40'
-                }`}>
-                  {mistake.error_count}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Jump to Ayah Modal */}
+      {/* Jump Modal */}
       {showJumpModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-semibold text-slate-100 mb-4">Jump to Ayah</h3>
+            <h3 className="text-lg font-semibold text-slate-100 mb-4">Jump to Page</h3>
             <input
               type="number"
               min="1"
-              max={surahData?.numberOfAyahs || 999}
-              value={jumpToAyah}
-              onChange={(e) => setJumpToAyah(e.target.value)}
-              placeholder={`Enter ayah number (1-${surahData?.numberOfAyahs || '...'})`}
-              className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+              max={TOTAL_PAGES}
+              value={jumpToPage}
+              onChange={(e) => setJumpToPage(e.target.value)}
+              placeholder={`Enter page number (1-${TOTAL_PAGES})`}
+              className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
               autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleJumpToAyah()}
+              onKeyDown={(e) => e.key === 'Enter' && handleJumpToPage()}
             />
             <div className="flex gap-3">
               <button
@@ -412,7 +350,7 @@ export default function QuranReader() {
                 Cancel
               </button>
               <button
-                onClick={handleJumpToAyah}
+                onClick={handleJumpToPage}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors"
               >
                 Jump

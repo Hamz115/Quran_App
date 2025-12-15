@@ -32,6 +32,154 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Uthmani Quran font - prioritize Amiri Quran for authentic look */
+.font-amiri {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif;
+  direction: rtl;
+  line-height: 2.2;
+  text-align-last: center; /* Center the last line of justified text */
+}
+
+/* Mushaf page styling with ornate border */
+.mushaf-page {
+  position: relative;
+  background: #fffef8;
+  border: 12px solid;
+  border-image: linear-gradient(
+    to bottom,
+    #047857 0%, #10b981 15%, #047857 20%,
+    #10b981 25%, #047857 30%, #10b981 70%,
+    #047857 75%, #10b981 80%, #047857 85%,
+    #10b981 100%
+  ) 1;
+  box-shadow:
+    inset 0 0 0 4px #047857,
+    inset 0 0 0 8px #d4f5e4,
+    inset 0 0 0 10px #047857,
+    0 6px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Outer decorative frame */
+.mushaf-page::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border: 4px solid #10b981;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Inner decorative line */
+.mushaf-page::after {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border: 2px solid #10b981;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Corner decorations */
+.mushaf-page .corner-tl,
+.mushaf-page .corner-tr,
+.mushaf-page .corner-bl,
+.mushaf-page .corner-br {
+  position: absolute;
+  font-size: 20px;
+  color: #047857;
+  text-shadow: 0 1px 2px rgba(4, 120, 87, 0.3);
+  z-index: 20;
+  line-height: 1;
+}
+
+.mushaf-page .corner-tl { top: -6px; left: -6px; }
+.mushaf-page .corner-tr { top: -6px; right: -6px; }
+.mushaf-page .corner-bl { bottom: -6px; left: -6px; }
+.mushaf-page .corner-br { bottom: -6px; right: -6px; }
+
+/* Decorative edge patterns */
+.mushaf-page .edge-top,
+.mushaf-page .edge-bottom,
+.mushaf-page .edge-left,
+.mushaf-page .edge-right {
+  position: absolute;
+  color: #10b981;
+  z-index: 15;
+  font-size: 10px;
+  letter-spacing: 4px;
+}
+
+.mushaf-page .edge-top {
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.mushaf-page .edge-bottom {
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.mushaf-page .edge-left {
+  left: -2px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+.mushaf-page .edge-right {
+  right: -2px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+/* Surah header frame */
+.surah-header-frame {
+  position: relative;
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%);
+  border: 2px solid #10b981;
+  border-radius: 8px;
+  padding: 8px 24px;
+  margin: 0 auto 16px;
+  display: inline-block;
+}
+
+.surah-header-frame::before,
+.surah-header-frame::after {
+  content: '✦';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #10b981;
+  font-size: 12px;
+}
+
+.surah-header-frame::before {
+  left: 8px;
+}
+
+.surah-header-frame::after {
+  right: 8px;
+}
+
+/* Custom scrollbar for mushaf page (light theme) */
+.mushaf-page ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mushaf-page ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.mushaf-page ::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 3px;
+}
+
+.mushaf-page ::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
 .card {
   @apply bg-slate-800/50 border border-slate-700/50 rounded-2xl shadow-lg shadow-black/20 backdrop-blur-sm transition-all duration-200;
 }

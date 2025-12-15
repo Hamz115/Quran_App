@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getClass, getSurahs, getSurah, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, addClassAssignments, updateAssignment } from '../api';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { getClass, getSurahs, getSurah, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment } from '../api';
+import { useAuth } from '../contexts/AuthContext';
+import { getPageNumber, getSurahsOnPage } from '../data/quranPages';
 
 interface AyahData {
   number: number;
@@ -20,11 +22,12 @@ interface SurahData {
 
 interface Assignment {
   id: number;
-  type: 'hifz' | 'sabqi' | 'revision';
+  type: string;
   start_surah: number;
   end_surah: number;
   start_ayah?: number;
   end_ayah?: number;
+  student_id?: number;  // Which student this assignment is for (null = all students)
 }
 
 interface ClassData {
@@ -33,6 +36,9 @@ interface ClassData {
   day: string;
   notes?: string;
   assignments: Assignment[];
+  students?: { id: number; first_name: string; last_name: string; performance?: string }[];
+  is_published?: boolean;
+  performance?: string;  // Legacy - now using per-student performance
 }
 
 interface MistakeOccurrence {
@@ -79,19 +85,38 @@ const SECTION_LABELS: Record<SectionType, { label: string; color: string; bgColo
 export default function Classroom() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  // Teachers are verified users (is_verified = true when role=teacher at signup)
+  const isTeacher = user?.is_verified === true;
+
+  // Get pre-selected student from URL (if clicked from Classes tab)
+  const preSelectedStudentId = searchParams.get('student') ? Number(searchParams.get('student')) : null;
+
+  // Determine the back route based on current URL
+  const getBackRoute = () => {
+    if (location.pathname.startsWith('/teacher/')) return '/teacher/classes';
+    if (location.pathname.startsWith('/student/')) return '/student/classes';
+    return '/classes';
+  };
 
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<SectionType>('hifz');
-  const [surahData, setSurahData] = useState<SurahData | null>(null);
+  // Store multiple surahs for pages that span multiple surahs
+  const [pageSurahsData, setPageSurahsData] = useState<Map<number, SurahData>>(new Map());
   const [surahLoading, setSurahLoading] = useState(false);
   const [mistakes, setMistakes] = useState<Mistake[]>([]);
   const [surahList, setSurahList] = useState<{ number: number; englishName: string; name: string; numberOfAyahs: number }[]>([]);
-  const [selectedSurahNum, setSelectedSurahNum] = useState<number | null>(null);
   const [selectedPortionIndex, setSelectedPortionIndex] = useState<number>(0);
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
+  // Performance state
+  const [performanceSaving, setPerformanceSaving] = useState(false);
+  // Selected student for teachers viewing class
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
 
   // Add portion modal state
   const [showAddPortionModal, setShowAddPortionModal] = useState(false);
@@ -100,6 +125,7 @@ export default function Classroom() {
   const [newPortionEnd, setNewPortionEnd] = useState(67);
   const [newPortionStartAyah, setNewPortionStartAyah] = useState<number | undefined>(undefined);
   const [newPortionEndAyah, setNewPortionEndAyah] = useState<number | undefined>(undefined);
+  const [newPortionStudentId, setNewPortionStudentId] = useState<number | null>(null);  // null = all students
 
   // Edit portion modal state
   const [showEditPortionModal, setShowEditPortionModal] = useState(false);
@@ -110,10 +136,19 @@ export default function Classroom() {
   const [editPortionStartAyah, setEditPortionStartAyah] = useState<number | undefined>(undefined);
   const [editPortionEndAyah, setEditPortionEndAyah] = useState<number | undefined>(undefined);
 
+  // Page-based navigation state
+  const [currentPage, setCurrentPage] = useState<number>(560); // Default to Al-Mulk page
+
+  // Refs for content measurement
+  const quranContentRef = useRef<HTMLDivElement>(null);
+  const quranContainerRef = useRef<HTMLDivElement>(null);
+  const [lineHeight, setLineHeight] = useState(2.2);
+
   // Word popup state for selecting word/letter/haraka
   const [wordPopup, setWordPopup] = useState<{
     show: boolean;
     word: string;
+    surahNum: number;
     ayahNumber: number;
     wordIndex: number;
     position: { x: number; y: number };
@@ -128,6 +163,41 @@ export default function Classroom() {
     return () => window.removeEventListener('scroll', handleScroll, true);
   }, [wordPopup]);
 
+  // Calculate line-height to fill page AFTER content renders
+  useEffect(() => {
+    if (!quranContentRef.current || !quranContainerRef.current || surahLoading || !pageSurahsData.size) return;
+
+    const timer = setTimeout(() => {
+      const container = quranContainerRef.current;
+      const content = quranContentRef.current;
+      if (!container || !content) return;
+
+      // Get available height
+      const containerRect = container.getBoundingClientRect();
+      const style = getComputedStyle(container);
+      const paddingTop = parseFloat(style.paddingTop);
+      const paddingBottom = parseFloat(style.paddingBottom);
+      const availableHeight = containerRect.height - paddingTop - paddingBottom;
+
+      // Measure content at base line-height
+      content.style.lineHeight = '2';
+      void content.offsetHeight;
+      const contentHeight = content.getBoundingClientRect().height;
+
+      if (contentHeight > 0) {
+        const ratio = availableHeight / contentHeight;
+        // Scale line-height: compress if too big (ratio < 1), expand if too small (ratio > 1)
+        // Min 1.4 (very compressed), Max 4.0 (very expanded)
+        const newLH = Math.max(1.4, Math.min(4.0, 2 * ratio));
+        setLineHeight(newLH);
+      } else {
+        setLineHeight(2);
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [currentPage, pageSurahsData, surahLoading]);
+
   // Load class data
   useEffect(() => {
     if (!id) return;
@@ -138,28 +208,54 @@ export default function Classroom() {
         setNotesText(data.notes || '');
         // Set initial active section to first available
         if (data.assignments.length > 0) {
-          setActiveSection(data.assignments[0].type);
-          setSelectedSurahNum(data.assignments[0].start_surah);
+          setActiveSection(data.assignments[0].type as SectionType);
+        }
+        // For teachers, pre-select student from URL or fall back to first student
+        if (isTeacher && data.students && data.students.length > 0) {
+          // Check if preSelectedStudentId is valid (exists in this class)
+          const validPreSelected = preSelectedStudentId && data.students.some(s => s.id === preSelectedStudentId);
+          setSelectedStudentId(validPreSelected ? preSelectedStudentId : data.students[0].id);
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, isTeacher, preSelectedStudentId]);
 
   // Load surah list
   useEffect(() => {
     getSurahs().then(setSurahList).catch(console.error);
   }, []);
 
-  // Load mistakes with occurrence info
+  // Load mistakes with occurrence info - depends on selected student for teachers
   useEffect(() => {
-    getMistakesWithOccurrences()
+    // For teachers, need a selected student to fetch mistakes
+    if (isTeacher && !selectedStudentId) {
+      setMistakes([]);
+      return;
+    }
+
+    getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined)
       .then(data => setMistakes(data || []))
       .catch(console.error);
-  }, []);
+  }, [isTeacher, selectedStudentId]);
 
   // Get all assignments for the active section type
-  const sectionAssignments = classData?.assignments.filter(a => a.type === activeSection) || [];
+  // For teachers: filter by selected student (show shared + student-specific)
+  // For students: backend already filters, but we also filter here for safety
+  const sectionAssignments = classData?.assignments.filter(a => {
+    if (a.type !== activeSection) return false;
+    // If no student_id, it's for all students
+    if (!a.student_id) return true;
+    // If teacher has a student selected, show that student's portions
+    if (isTeacher && selectedStudentId) {
+      return a.student_id === selectedStudentId;
+    }
+    // For students, show portions assigned to them
+    if (!isTeacher && user?.id) {
+      return a.student_id === user.id;
+    }
+    return false;
+  }) || [];
 
   // Get current assignment based on selected portion index
   const currentAssignment = sectionAssignments[selectedPortionIndex];
@@ -169,23 +265,64 @@ export default function Classroom() {
     setSelectedPortionIndex(0);
   }, [activeSection]);
 
-  // Update selected surah when section or portion changes
+  // Calculate page range for current assignment
+  const assignmentPageRange = (() => {
+    if (!currentAssignment) return { minPage: 560, maxPage: 560 };
+
+    // Get starting page
+    const startPage = getPageNumber(
+      currentAssignment.start_surah,
+      currentAssignment.start_ayah || 1
+    );
+
+    // Get ending page - need to figure out the last ayah
+    // For simplicity, if end_ayah specified use it, otherwise use a high number
+    const endSurah = currentAssignment.end_surah;
+    const endAyahEstimate = currentAssignment.end_ayah || 286; // Max ayahs in any surah
+    const endPage = getPageNumber(endSurah, endAyahEstimate);
+
+    return { minPage: startPage, maxPage: endPage };
+  })();
+
+  // Initialize currentPage when assignment changes
   useEffect(() => {
     if (currentAssignment) {
-      setSelectedSurahNum(currentAssignment.start_surah);
+      const startPage = getPageNumber(
+        currentAssignment.start_surah,
+        currentAssignment.start_ayah || 1
+      );
+      setCurrentPage(startPage);
     }
-  }, [activeSection, selectedPortionIndex, currentAssignment?.start_surah]);
+  }, [activeSection, selectedPortionIndex, currentAssignment?.start_surah, currentAssignment?.start_ayah]);
 
-  // Load surah data when selected surah changes
+  // Load all surahs on the current page
   useEffect(() => {
-    if (!selectedSurahNum) return;
+    if (!currentPage) return;
+
+    const surahsOnPage = getSurahsOnPage(currentPage);
+
+    // Check which surahs we need to load (not already in cache)
+    const surahsToLoad = surahsOnPage.filter(s => !pageSurahsData.has(s));
+
+    if (surahsToLoad.length === 0) {
+      // All surahs already loaded
+      return;
+    }
 
     setSurahLoading(true);
-    getSurah(selectedSurahNum)
-      .then(setSurahData)
+
+    // Load all surahs in parallel
+    Promise.all(surahsToLoad.map(surahNum => getSurah(surahNum)))
+      .then(results => {
+        const newMap = new Map(pageSurahsData);
+        results.forEach((surahData, idx) => {
+          newMap.set(surahsToLoad[idx], surahData);
+        });
+        setPageSurahsData(newMap);
+      })
       .catch(console.error)
       .finally(() => setSurahLoading(false));
-  }, [selectedSurahNum]);
+  }, [currentPage]);
 
   const handleDeleteClass = async () => {
     if (!classData) return;
@@ -193,7 +330,7 @@ export default function Classroom() {
 
     try {
       await deleteClass(classData.id);
-      navigate('/classes');
+      navigate(getBackRoute());
     } catch (err) {
       console.error('Failed to delete class:', err);
     }
@@ -224,13 +361,14 @@ export default function Classroom() {
         end_surah: newPortionEnd,
         start_ayah: newPortionStartAyah,
         end_ayah: newPortionEndAyah,
+        student_id: newPortionStudentId || undefined,  // Convert null to undefined for API
       };
 
       await addClassAssignments(parseInt(id), [newAssignment]);
 
       // Reload class data
       const updatedClass = await getClass(parseInt(id));
-      setClassData(updatedClass.data);
+      setClassData(updatedClass);
 
       // Reset form and close modal
       setShowAddPortionModal(false);
@@ -238,6 +376,7 @@ export default function Classroom() {
       setNewPortionEnd(67);
       setNewPortionStartAyah(undefined);
       setNewPortionEndAyah(undefined);
+      setNewPortionStudentId(null);
     } catch (err) {
       console.error('Failed to add portion:', err);
     }
@@ -259,7 +398,7 @@ export default function Classroom() {
 
       // Reload class data
       const updatedClass = await getClass(parseInt(id));
-      setClassData(updatedClass.data);
+      setClassData(updatedClass);
 
       // Reset form and close modal
       setShowEditPortionModal(false);
@@ -289,7 +428,7 @@ export default function Classroom() {
         <h2 className="text-xl font-semibold text-slate-100 mb-2">Class not found</h2>
         <p className="text-slate-400 mb-6">The class you're looking for doesn't exist.</p>
         <button
-          onClick={() => navigate('/classes')}
+          onClick={() => navigate(getBackRoute())}
           className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors"
         >
           Back to Classes
@@ -411,7 +550,7 @@ export default function Classroom() {
   };
 
   // Check if word has any mistake (word-level or char-level)
-  const hasAnyMistake = (surahNum: number, ayahNumber: number, wordIndex: number): boolean => {
+  const _hasAnyMistake = (surahNum: number, ayahNumber: number, wordIndex: number): boolean => {
     return mistakes.some(
       (m) =>
         m.surah_number === surahNum &&
@@ -419,10 +558,11 @@ export default function Classroom() {
         m.word_index === wordIndex
     );
   };
+  void _hasAnyMistake; // Suppress unused warning
 
-  // Show popup when word is clicked
-  const handleWordClick = (e: React.MouseEvent, ayahNumber: number, wordIndex: number, wordText: string) => {
-    if (!selectedSurahNum) return;
+  // Show popup when word is clicked - Teachers only
+  const handleWordClick = (e: React.MouseEvent, surahNum: number, ayahNumber: number, wordIndex: number, wordText: string) => {
+    if (!isTeacher) return; // Students cannot mark mistakes
 
     // Get click position for popup
     const rect = (e.target as HTMLElement).getBoundingClientRect();
@@ -433,6 +573,7 @@ export default function Classroom() {
     setWordPopup({
       show: true,
       word: wordText,
+      surahNum,
       ayahNumber,
       wordIndex,
       position: {
@@ -446,11 +587,18 @@ export default function Classroom() {
   // Add mistake when user selects from popup
   // charIndex: undefined = whole word, number = specific character position in original word
   const handleAddMistake = async (mistakeText: string, charIndex?: number) => {
-    if (!selectedSurahNum || !wordPopup) return;
+    if (!wordPopup) return;
+
+    // Teachers must have a student selected
+    if (isTeacher && !selectedStudentId) {
+      console.error('Teacher must select a student first');
+      return;
+    }
 
     try {
       await addMistake({
-        surah_number: selectedSurahNum,
+        student_id: isTeacher ? selectedStudentId || undefined : undefined,
+        surah_number: wordPopup.surahNum,
         ayah_number: wordPopup.ayahNumber,
         word_index: wordPopup.wordIndex,
         word_text: mistakeText,
@@ -459,7 +607,7 @@ export default function Classroom() {
       });
 
       // Reload all mistakes with occurrence info to get fresh data
-      const updatedMistakes = await getMistakesWithOccurrences();
+      const updatedMistakes = await getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined);
       setMistakes(updatedMistakes || []);
     } catch (err) {
       console.error('Failed to add mistake:', err);
@@ -468,13 +616,13 @@ export default function Classroom() {
     setWordPopup(null);
   };
 
-  const handleWordRightClick = async (e: React.MouseEvent, ayahNumber: number, wordIndex: number) => {
+  const handleWordRightClick = async (e: React.MouseEvent, surahNum: number, ayahNumber: number, wordIndex: number) => {
     e.preventDefault();
-    if (!selectedSurahNum) return;
+    if (!isTeacher) return; // Students cannot remove mistakes
 
     const existingMistake = mistakes.find(
       (m) =>
-        m.surah_number === selectedSurahNum &&
+        m.surah_number === surahNum &&
         m.ayah_number === ayahNumber &&
         m.word_index === wordIndex
     );
@@ -484,7 +632,7 @@ export default function Classroom() {
     try {
       await removeMistake(existingMistake.id);
       // Reload all mistakes with occurrence info to get fresh data
-      const updatedMistakes = await getMistakesWithOccurrences();
+      const updatedMistakes = await getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined);
       setMistakes(updatedMistakes || []);
     } catch (err) {
       console.error('Failed to remove mistake:', err);
@@ -510,28 +658,15 @@ export default function Classroom() {
     }
   };
 
-  // Get list of surahs in the current assignment range
-  const getSurahsInRange = (assignment: Assignment): number[] => {
-    const surahs: number[] = [];
-    for (let i = assignment.start_surah; i <= assignment.end_surah; i++) {
-      surahs.push(i);
-    }
-    return surahs;
-  };
 
-  // Check if assignment spans multiple surahs
-  const isMultiSurah = currentAssignment && currentAssignment.start_surah !== currentAssignment.end_surah;
-
-  // Filter mistakes to only show those within the current surah and ayah range
+  // Filter mistakes to only show those within the current page's surahs
+  const surahsOnPage = getSurahsOnPage(currentPage);
   const currentMistakes = (mistakes || []).filter((m) => {
-    if (m.surah_number !== selectedSurahNum) return false;
-    // Only apply ayah filter if single surah with ayah range
-    if (currentAssignment?.start_surah === currentAssignment?.end_surah &&
-        currentAssignment?.start_ayah && currentAssignment?.end_ayah) {
-      return m.ayah_number >= currentAssignment.start_ayah &&
-             m.ayah_number <= currentAssignment.end_ayah;
-    }
-    return true;
+    // Check if mistake is in one of the surahs on this page
+    if (!surahsOnPage.includes(m.surah_number)) return false;
+    // Also check if the ayah is on the current page
+    const mistakePage = getPageNumber(m.surah_number, m.ayah_number);
+    return mistakePage === currentPage;
   });
 
   // Group consecutive word mistakes into phrases (adjacent words = 1 mistake)
@@ -592,27 +727,45 @@ export default function Classroom() {
   const mistakeGroups = groupConsecutiveMistakes(currentMistakes);
   const totalErrors = mistakeGroups.length;
 
-  // Filter ayahs based on assignment range (only for single-surah assignments)
-  const filteredAyahs = surahData?.ayahs.filter(ayah => {
-    if (currentAssignment?.start_surah === currentAssignment?.end_surah &&
-        currentAssignment?.start_ayah && currentAssignment?.end_ayah) {
-      return ayah.numberInSurah >= currentAssignment.start_ayah &&
-             ayah.numberInSurah <= currentAssignment.end_ayah;
-    }
-    return true;
-  }) || [];
+  // Get all surahs on the current page and their ayahs
+  const surahsOnCurrentPage = getSurahsOnPage(currentPage);
 
-  // Available sections for this class
-  const availableSections = (['hifz', 'sabqi', 'revision'] as SectionType[]).filter(
-    type => classData.assignments.some(a => a.type === type)
-  );
+  // Build page content: array of { surahNum, surahData, ayahs } for each surah on this page
+  const pageContent = surahsOnCurrentPage.map(surahNum => {
+    const surahData = pageSurahsData.get(surahNum);
+    if (!surahData) return null;
+
+    // Filter ayahs to only those on the current page
+    const filteredAyahs = surahData.ayahs.filter(ayah => {
+      const ayahPage = getPageNumber(surahNum, ayah.numberInSurah);
+      return ayahPage === currentPage;
+    });
+
+    return {
+      surahNum,
+      surahData,
+      ayahs: filteredAyahs
+    };
+  }).filter(Boolean) as { surahNum: number; surahData: SurahData; ayahs: AyahData[] }[];
+
+  // Check if all surahs are loaded
+  const allSurahsLoaded = surahsOnCurrentPage.every(s => pageSurahsData.has(s));
+
+  // Navigation helpers
+  const canGoPrev = currentPage > assignmentPageRange.minPage;
+  const canGoNext = currentPage < assignmentPageRange.maxPage;
+  const totalPagesInAssignment = assignmentPageRange.maxPage - assignmentPageRange.minPage + 1;
+  const currentPageInAssignment = currentPage - assignmentPageRange.minPage + 1;
+
+  // All section types - always show all three tabs so users can add portions to any
+  const availableSections: SectionType[] = ['hifz', 'sabqi', 'revision'];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/classes')}
+          onClick={() => navigate(getBackRoute())}
           className="w-10 h-10 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 flex items-center justify-center transition-colors"
         >
           <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -623,32 +776,119 @@ export default function Classroom() {
           <h1 className="text-2xl font-bold text-slate-100">
             Class - {classData.day}, {classData.date}
           </h1>
+          {/* Student selector for teachers */}
+          {isTeacher && classData.students && classData.students.length > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm text-slate-400">Marking mistakes for:</span>
+              <div className="relative">
+                <select
+                  value={selectedStudentId || ''}
+                  onChange={(e) => setSelectedStudentId(Number(e.target.value))}
+                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  {classData.students.map(s => (
+                    <option key={s.id} value={s.id} className="bg-slate-800 text-slate-100">
+                      {s.first_name} {s.last_name}
+                    </option>
+                  ))}
+                </select>
+                <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          )}
+          {isTeacher && (!classData.students || classData.students.length === 0) && (
+            <p className="text-sm text-amber-400 mt-2">No students in this class - cannot mark mistakes</p>
+          )}
         </div>
-        <button
-          onClick={() => setShowNotesEditor(!showNotesEditor)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors ${
-            classData.notes
-              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
-              : 'bg-slate-700/50 text-slate-400 border border-slate-600 hover:bg-slate-600/50'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          {classData.notes ? 'View Notes' : 'Add Notes'}
-        </button>
-        <button
-          onClick={handleDeleteClass}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          Delete Class
-        </button>
+
+        {/* Performance Dropdown - Per-student performance */}
+        {isTeacher && selectedStudentId && classData.students && (() => {
+          const selectedStudent = classData.students.find(s => s.id === selectedStudentId);
+          const studentPerf = selectedStudent?.performance;
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">Performance:</span>
+              <div className="relative">
+                <select
+                  value={studentPerf || ''}
+                  onChange={async (e) => {
+                    const newPerformance = e.target.value;
+                    setPerformanceSaving(true);
+                    try {
+                      await updateStudentPerformance(classData.id, selectedStudentId, newPerformance);
+                      // Update local state
+                      setClassData({
+                        ...classData,
+                        students: classData.students?.map(s =>
+                          s.id === selectedStudentId ? { ...s, performance: newPerformance || undefined } : s
+                        )
+                      });
+                    } catch (err) {
+                      console.error('Failed to update performance:', err);
+                    } finally {
+                      setPerformanceSaving(false);
+                    }
+                  }}
+                  disabled={performanceSaving}
+                  className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 ${
+                    studentPerf === 'Excellent'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : studentPerf === 'Very Good'
+                      ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                      : studentPerf === 'Good'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : studentPerf === 'Needs Work'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-slate-700/50 text-slate-400 border border-slate-600'
+                  }`}
+                >
+                  <option value="" className="bg-slate-800 text-slate-300">Not rated</option>
+                  <option value="Excellent" className="bg-slate-800 text-slate-100">Excellent</option>
+                  <option value="Very Good" className="bg-slate-800 text-slate-100">Very Good</option>
+                  <option value="Good" className="bg-slate-800 text-slate-100">Good</option>
+                  <option value="Needs Work" className="bg-slate-800 text-slate-100">Needs Work</option>
+                </select>
+                <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-current pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Notes button - View for all, Edit for teachers only */}
+        {(isTeacher || classData.notes) && (
+          <button
+            onClick={() => setShowNotesEditor(!showNotesEditor)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors ${
+              classData.notes
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
+                : 'bg-slate-700/50 text-slate-400 border border-slate-600 hover:bg-slate-600/50'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            {isTeacher ? (classData.notes ? 'View Notes' : 'Add Notes') : 'View Notes'}
+          </button>
+        )}
+        {/* Delete button - Teachers only */}
+        {isTeacher && (
+          <button
+            onClick={handleDeleteClass}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete Class
+          </button>
+        )}
       </div>
 
-      {/* Notes Editor */}
+      {/* Notes Editor/Viewer */}
       {showNotesEditor && (
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
@@ -656,7 +896,7 @@ export default function Classroom() {
               <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              Class Notes
+              Class Notes {!isTeacher && '(from your teacher)'}
             </h3>
             <button
               onClick={() => setShowNotesEditor(false)}
@@ -667,31 +907,39 @@ export default function Classroom() {
               </svg>
             </button>
           </div>
-          <textarea
-            value={notesText}
-            onChange={(e) => setNotesText(e.target.value)}
-            placeholder="Add observations, feedback, or reminders for this class..."
-            rows={4}
-            className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow"
-          />
-          <div className="flex justify-end gap-3 mt-3">
-            <button
-              onClick={() => {
-                setNotesText(classData.notes || '');
-                setShowNotesEditor(false);
-              }}
-              className="px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-700/50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveNotes}
-              disabled={notesSaving}
-              className="px-5 py-2 rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors disabled:opacity-50"
-            >
-              {notesSaving ? 'Saving...' : 'Save Notes'}
-            </button>
-          </div>
+          {isTeacher ? (
+            <>
+              <textarea
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                placeholder="Add observations, feedback, or reminders for this class..."
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow"
+              />
+              <div className="flex justify-end gap-3 mt-3">
+                <button
+                  onClick={() => {
+                    setNotesText(classData.notes || '');
+                    setShowNotesEditor(false);
+                  }}
+                  className="px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-700/50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={notesSaving}
+                  className="px-5 py-2 rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors disabled:opacity-50"
+                >
+                  {notesSaving ? 'Saving...' : 'Save Notes'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="px-4 py-3 rounded-xl border border-slate-600 bg-slate-800/50 text-slate-200">
+              {classData.notes || 'No notes for this class.'}
+            </div>
+          )}
         </div>
       )}
 
@@ -741,21 +989,23 @@ export default function Classroom() {
         })}
       </div>
 
-      {/* Add Portion Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => {
-            setNewPortionType(activeSection);
-            setShowAddPortionModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-slate-100 rounded-xl transition-colors border border-slate-600"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Add Portion to {SECTION_LABELS[activeSection].label}
-        </button>
-      </div>
+      {/* Add Portion Button - Teachers only */}
+      {isTeacher && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              setNewPortionType(activeSection);
+              setShowAddPortionModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-slate-100 rounded-xl transition-colors border border-slate-600"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Portion to {SECTION_LABELS[activeSection].label}
+          </button>
+        </div>
+      )}
 
       {/* Current Section Info */}
       {currentAssignment ? (
@@ -778,23 +1028,25 @@ export default function Classroom() {
                       >
                         Portion {index + 1}: {formatAssignmentRange(assignment)}
                       </button>
-                      <button
-                        onClick={() => {
-                          setEditAssignmentId(assignment.id);
-                          setEditPortionType(assignment.type);
-                          setEditPortionStart(assignment.start_surah);
-                          setEditPortionEnd(assignment.end_surah);
-                          setEditPortionStartAyah(assignment.start_ayah);
-                          setEditPortionEndAyah(assignment.end_ayah);
-                          setShowEditPortionModal(true);
-                        }}
-                        className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors"
-                        title="Edit portion"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                        </svg>
-                      </button>
+                      {isTeacher && (
+                        <button
+                          onClick={() => {
+                            setEditAssignmentId(assignment.id);
+                            setEditPortionType(assignment.type as SectionType);
+                            setEditPortionStart(assignment.start_surah);
+                            setEditPortionEnd(assignment.end_surah);
+                            setEditPortionStartAyah(assignment.start_ayah);
+                            setEditPortionEndAyah(assignment.end_ayah);
+                            setShowEditPortionModal(true);
+                          }}
+                          className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors"
+                          title="Edit portion"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -810,48 +1062,26 @@ export default function Classroom() {
                   <span className="text-sm font-medium text-slate-400">Current Portion:</span>
                   <span className="text-slate-200 font-medium">{formatAssignmentRange(currentAssignment)}</span>
                 </div>
-                <button
-                  onClick={() => {
-                    setEditAssignmentId(currentAssignment.id);
-                    setEditPortionType(currentAssignment.type);
-                    setEditPortionStart(currentAssignment.start_surah);
-                    setEditPortionEnd(currentAssignment.end_surah);
-                    setEditPortionStartAyah(currentAssignment.start_ayah);
-                    setEditPortionEndAyah(currentAssignment.end_ayah);
-                    setShowEditPortionModal(true);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-slate-200 transition-colors text-sm"
-                  title="Edit portion"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                  </svg>
-                  Edit
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Surah Navigation for Multi-Surah Assignments */}
-          {isMultiSurah && (
-            <div className="card p-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-400">Navigate Surahs:</span>
-                <div className="flex flex-wrap gap-2">
-                  {getSurahsInRange(currentAssignment).map((surahNum) => (
-                    <button
-                      key={surahNum}
-                      onClick={() => setSelectedSurahNum(surahNum)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        selectedSurahNum === surahNum
-                          ? 'bg-emerald-500 text-white shadow-md'
-                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                      }`}
-                    >
-                      {surahNum}. {getSurahName(surahNum)}
-                    </button>
-                  ))}
-                </div>
+                {isTeacher && (
+                  <button
+                    onClick={() => {
+                      setEditAssignmentId(currentAssignment.id);
+                      setEditPortionType(currentAssignment.type as SectionType);
+                      setEditPortionStart(currentAssignment.start_surah);
+                      setEditPortionEnd(currentAssignment.end_surah);
+                      setEditPortionStartAyah(currentAssignment.start_ayah);
+                      setEditPortionEndAyah(currentAssignment.end_ayah);
+                      setShowEditPortionModal(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-slate-200 transition-colors text-sm"
+                    title="Edit portion"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                    </svg>
+                    Edit
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -902,73 +1132,119 @@ export default function Classroom() {
             </div>
           </div>
 
-          {/* Quran Text */}
-          <div className="card p-8">
-            {surahLoading ? (
-              <div className="flex flex-col items-center justify-center py-20">
+          {/* Page Indicator */}
+          <div className="flex flex-col items-center py-2">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl font-bold text-emerald-400">{currentPageInAssignment}</span>
+              <span className="text-slate-500 text-xl">/</span>
+              <span className="text-xl text-slate-400">{totalPagesInAssignment}</span>
+            </div>
+            <span className="text-sm text-slate-500 mt-1">Page {currentPage} (Madani Mushaf)</span>
+          </div>
+
+          {/* Quran Text with Navigation Buttons on Sides (RTL: Next on left, Previous on right) */}
+          <div className="flex items-center gap-2 md:gap-4 justify-center">
+            {/* Next Page Button - LEFT side (RTL: forward = left) - Small & subtle */}
+            <button
+              onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
+              disabled={!canGoNext}
+              className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
+                canGoNext
+                  ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white'
+                  : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
+              }`}
+              title="Next Page"
+            >
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {/* Mushaf Page - Madani Mushaf aspect ratio 14:20 (width:height = 0.7), 15 lines per page - FIXED SIZE, NO SCROLLING */}
+            <div className="mushaf-page mx-auto overflow-hidden flex flex-col" style={{ aspectRatio: '14/20', height: '85vh' }}>
+              {/* Corner decorations */}
+              <span className="corner-tl">✦</span>
+              <span className="corner-tr">✦</span>
+              <span className="corner-bl">✦</span>
+              <span className="corner-br">✦</span>
+              {/* Edge decorations - top and bottom only */}
+              <span className="edge-top">❧ ✤ ❧ ✤ ❧ ✤ ❧</span>
+              <span className="edge-bottom">❧ ✤ ❧ ✤ ❧ ✤ ❧</span>
+              {/* Content - fills entire page height with vertical justification */}
+              <div ref={quranContainerRef} className="p-4 md:p-6 pt-8 pb-8 h-full flex flex-col">
+            {surahLoading || !allSurahsLoaded ? (
+              <div className="flex flex-col items-center justify-center py-20 flex-1">
                 <div className="spinner mb-4"></div>
-                <p className="text-slate-400">Loading Surah...</p>
+                <p className="text-slate-600">Loading Quran...</p>
               </div>
-            ) : surahData ? (
-              <div>
-                {/* Surah Header */}
-                <div className="text-center mb-8 pb-6 border-b border-slate-700/30">
-                  <h2 className="arabic text-3xl text-slate-100 mb-2">{surahData.name}</h2>
-                  <p className="text-slate-400">
-                    {surahData.englishName} • {surahData.englishNameTranslation}
-                    {!isMultiSurah && currentAssignment.start_ayah && (
-                      <span className="ml-2 text-emerald-400 font-medium">
-                        • Ayah {currentAssignment.start_ayah} - {currentAssignment.end_ayah}
-                      </span>
+            ) : pageContent.length > 0 ? (
+              <div ref={quranContentRef} style={{ lineHeight }}>
+                {pageContent.map(({ surahNum, surahData, ayahs }, surahIndex) => (
+                  <div key={surahNum}>
+                    {/* Surah Header - show for each surah on the page */}
+                    {/* Add extra top margin if this is not the first surah on the page (surah starts mid-page) */}
+                    {ayahs.some(a => a.numberInSurah === 1) && (
+                      <div className={`text-center mb-2 ${surahIndex > 0 ? 'mt-6' : ''}`}>
+                        <div className="surah-header-frame">
+                          <h2 className="font-amiri text-xl md:text-2xl text-emerald-800">{surahData.name}</h2>
+                        </div>
+                      </div>
                     )}
-                  </p>
-                </div>
 
-                {/* Bismillah */}
-                {selectedSurahNum !== 9 && selectedSurahNum !== 1 && (
-                  <p className="arabic text-2xl text-center text-emerald-400 mb-8 pb-6 border-b border-slate-700/30">
-                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                  </p>
-                )}
+                    {/* Bismillah - show if surah starts on this page and not surah 1 or 9 */}
+                    {surahNum !== 9 && surahNum !== 1 && ayahs.some(a => a.numberInSurah === 1) && (
+                      <p className="font-amiri text-base md:text-lg text-center text-emerald-700 mb-3 pb-1 border-b border-emerald-600/20">
+                        بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                      </p>
+                    )}
 
-                {/* Ayahs */}
-                <div className="arabic text-2xl leading-[2.8] text-slate-200 text-right">
-                  {filteredAyahs.map((ayah) => {
-                    // Strip Bismillah from first ayah (4 words) for surahs other than 1 and 9
-                    const shouldStripBismillah = ayah.numberInSurah === 1 && selectedSurahNum !== 1 && selectedSurahNum !== 9;
-                    const words = ayah.text.split(' ');
-                    const displayWords = shouldStripBismillah ? words.slice(4) : words;
-                    const wordOffset = shouldStripBismillah ? 4 : 0;
+                    {/* Surah name badge if not starting from ayah 1 */}
+                    {!ayahs.some(a => a.numberInSurah === 1) && surahIndex === 0 && (
+                      <div className="text-center mb-2">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs">
+                          {surahData.englishName} (continued)
+                        </span>
+                      </div>
+                    )}
 
-                    return (
-                    <span key={ayah.number} id={`ayah-${ayah.numberInSurah}`} className="inline transition-all rounded-lg">
-                      {displayWords.map((word, idx) => {
-                        const wordIndex = idx + wordOffset;
-                        const wordMistakeLevel = getWordMistakeLevel(selectedSurahNum!, ayah.numberInSurah, wordIndex);
-                        // Check for char-level mistakes: only explicit char_index
-                        const hasCharMistakes = mistakes.some(
-                          m => m.surah_number === selectedSurahNum &&
-                               m.ayah_number === ayah.numberInSurah &&
-                               m.word_index === wordIndex &&
+                    {/* Ayahs - Uthmani style with justification */}
+                    <div className="font-amiri text-lg md:text-xl text-slate-800 text-justify" dir="rtl" style={{ lineHeight }}>
+                      {ayahs.map((ayah) => {
+                        // Strip Bismillah from first ayah (4 words) for surahs other than 1 and 9
+                        const shouldStripBismillah = ayah.numberInSurah === 1 && surahNum !== 1 && surahNum !== 9;
+                        const words = ayah.text.split(' ');
+                        const displayWords = shouldStripBismillah ? words.slice(4) : words;
+                        const wordOffset = shouldStripBismillah ? 4 : 0;
+
+                        return (
+                        <span key={`${surahNum}-${ayah.number}`} id={`ayah-${surahNum}-${ayah.numberInSurah}`} className="inline transition-all rounded-lg">
+                          {displayWords.map((word, idx) => {
+                            const wordIndex = idx + wordOffset;
+                            const wordMistakeLevel = getWordMistakeLevel(surahNum, ayah.numberInSurah, wordIndex);
+                            // Check for char-level mistakes: only explicit char_index
+                            const hasCharMistakes = mistakes.some(
+                              m => m.surah_number === surahNum &&
+                                   m.ayah_number === ayah.numberInSurah &&
+                                   m.word_index === wordIndex &&
                                m.char_index !== undefined && m.char_index !== null
                         );
 
                         return (
                           <span
                             key={`${ayah.number}-${wordIndex}`}
-                            onClick={(e) => handleWordClick(e, ayah.numberInSurah, wordIndex, word)}
-                            onContextMenu={(e) => handleWordRightClick(e, ayah.numberInSurah, wordIndex)}
-                            className={`cursor-pointer hover:bg-slate-700/30 rounded px-0.5 transition-all inline-block ${
+                            onClick={(e) => handleWordClick(e, surahNum, ayah.numberInSurah, wordIndex, word)}
+                            onContextMenu={(e) => handleWordRightClick(e, surahNum, ayah.numberInSurah, wordIndex)}
+                            className={`${isTeacher ? 'cursor-pointer hover:bg-emerald-100' : ''} rounded px-0.5 transition-all inline-block ${
                               wordMistakeLevel === 1
-                                ? 'mistake-1'
+                                ? 'bg-amber-200 text-amber-900'
                                 : wordMistakeLevel === 2
-                                ? 'mistake-2'
+                                ? 'bg-blue-200 text-blue-900'
                                 : wordMistakeLevel === 3
-                                ? 'mistake-3'
+                                ? 'bg-orange-200 text-orange-900'
                                 : wordMistakeLevel === 4
-                                ? 'mistake-4'
+                                ? 'bg-purple-200 text-purple-900'
                                 : wordMistakeLevel === 5
-                                ? 'mistake-5'
+                                ? 'bg-red-200 text-red-900'
                                 : ''
                             }`}
                           >
@@ -976,7 +1252,7 @@ export default function Classroom() {
                               // Render each character separately - harakat stay visually attached
                               splitIntoRenderUnits(word).map((unit) => {
                                 const charMistakeLevel = getCharMistakeLevel(
-                                  selectedSurahNum!,
+                                  surahNum,
                                   ayah.numberInSurah,
                                   wordIndex,
                                   unit.index
@@ -986,27 +1262,27 @@ export default function Classroom() {
                                 const getCharStyle = () => {
                                   if (charMistakeLevel === 0) return '';
                                   if (unit.isHaraka) {
-                                    // Bright colored text for harakat (more visible)
+                                    // Bright colored text for harakat (more visible on white bg)
                                     return charMistakeLevel >= 5
-                                      ? 'text-red-400 font-bold'
+                                      ? 'text-red-600 font-bold'
                                       : charMistakeLevel >= 4
-                                      ? 'text-purple-400 font-bold'
+                                      ? 'text-purple-600 font-bold'
                                       : charMistakeLevel >= 3
-                                      ? 'text-orange-400 font-bold'
+                                      ? 'text-orange-600 font-bold'
                                       : charMistakeLevel >= 2
-                                      ? 'text-blue-400 font-bold'
-                                      : 'text-yellow-400 font-bold';
+                                      ? 'text-blue-600 font-bold'
+                                      : 'text-amber-600 font-bold';
                                   }
-                                  // Background highlight for letters
+                                  // Background highlight for letters (on white bg)
                                   return charMistakeLevel >= 5
-                                    ? 'mistake-5'
+                                    ? 'bg-red-200 text-red-900'
                                     : charMistakeLevel >= 4
-                                    ? 'mistake-4'
+                                    ? 'bg-purple-200 text-purple-900'
                                     : charMistakeLevel >= 3
-                                    ? 'mistake-3'
+                                    ? 'bg-orange-200 text-orange-900'
                                     : charMistakeLevel >= 2
-                                    ? 'mistake-2'
-                                    : 'mistake-1';
+                                    ? 'bg-blue-200 text-blue-900'
+                                    : 'bg-amber-200 text-amber-900';
                                 };
                                 return (
                                   <span
@@ -1022,26 +1298,46 @@ export default function Classroom() {
                             )}
                           </span>
                         );
-                      })}{' '}
-                      <span className="text-emerald-400 text-lg font-medium mx-2 select-none">
-                        ﴿{ayah.numberInSurah}﴾
-                      </span>{' '}
-                    </span>
-                  );
-                  })}
-                </div>
+                          })}
+                          <span className="text-emerald-600 text-sm md:text-base font-medium select-none">
+                            ﴿{ayah.numberInSurah}﴾
+                          </span>{' '}
+                        </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <p className="text-slate-100 font-medium mb-1">Failed to load Surah</p>
-                <p className="text-slate-400 text-sm">Please check your connection and try again</p>
+                <p className="text-slate-700 font-medium mb-1">Failed to load Surah</p>
+                <p className="text-slate-500 text-sm">Please check your connection and try again</p>
               </div>
             )}
+              </div>
+            </div>
+
+            {/* Previous Page Button - RIGHT side (RTL: backward = right) - Small & subtle */}
+            <button
+              onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
+              disabled={!canGoPrev}
+              className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
+                canGoPrev
+                  ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white'
+                  : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
+              }`}
+              title="Previous Page"
+            >
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
           {/* Class-Grouped Mistakes Summary */}
@@ -1372,12 +1668,44 @@ export default function Classroom() {
                   />
                 </div>
               </div>
+
+              {/* Student selector for per-student portions - only show for teachers with multiple students */}
+              {isTeacher && classData?.students && classData.students.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Assign to Student</label>
+                  <div className="relative">
+                    <select
+                      value={newPortionStudentId ?? 'all'}
+                      onChange={(e) => setNewPortionStudentId(e.target.value === 'all' ? null : Number(e.target.value))}
+                      className="w-full px-4 py-3 pr-10 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
+                    >
+                      <option value="all">All Students</option>
+                      {classData.students.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.first_name} {s.last_name} only
+                        </option>
+                      ))}
+                    </select>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {newPortionStudentId === null
+                      ? 'This portion will be visible to all students'
+                      : `Only ${classData.students.find(s => s.id === newPortionStudentId)?.first_name} will see this portion`}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
             <div className="p-6 bg-slate-800/50 border-t border-slate-700/30 flex gap-3">
               <button
-                onClick={() => setShowAddPortionModal(false)}
+                onClick={() => {
+                  setShowAddPortionModal(false);
+                  setNewPortionStudentId(null);
+                }}
                 className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 font-medium hover:bg-slate-700/30 transition-colors"
               >
                 Cancel
