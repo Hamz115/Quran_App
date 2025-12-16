@@ -256,10 +256,33 @@ When a word has character-level mistakes (letter or harakat), it switches to Uth
 3. Check if base letter has a mistake → use `letter-mistake-X` (highlights both)
 4. No mistake → render plain text
 
-#### Mistake Summary
-Displayed below Quran text:
-1. **"Mistakes in This Class"** - Made during current session
-2. **"Mistakes from Previous Classes"** - Historical, grouped by class date
+#### Mistake Summary Sections
+Displayed below Quran text with two separate cards:
+
+1. **"Mistakes in this class"** (Green border, emerald header)
+   - Shows mistakes where any occurrence has `class_id === currentClassId`
+   - These are mistakes recorded during the current session
+   - Count shows number of unique mistakes in this class
+
+2. **"Mistakes from previous classes"** (Gray border, slate header)
+   - Shows mistakes where any occurrence has `class_id !== currentClassId`
+   - Historical mistakes made in earlier classes
+   - Count shows number of unique mistakes from previous sessions
+
+**Important:** A mistake can appear in BOTH sections if it was made in a previous class AND again in the current class. The `error_count` displays the total across all occurrences.
+
+**Implementation:**
+```typescript
+// Mistakes that occurred in THIS class
+const mistakesInThisClass = currentMistakes.filter(m =>
+  m.occurrences?.some(o => o.class_id === currentClassId)
+);
+
+// Mistakes that have ANY occurrence in a PREVIOUS class
+const mistakesFromPrevious = currentMistakes.filter(m =>
+  m.occurrences?.some(o => o.class_id !== currentClassId)
+);
+```
 
 ---
 

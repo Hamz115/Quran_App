@@ -93,7 +93,7 @@ See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./CLASSES_AND
 
 ## Phase 4: Mushaf-Style Quran Display
 
-**Status:** In Progress
+**Status:** Complete
 
 ### Page-Based Navigation
 - Madani Mushaf page mapping (604 pages)
@@ -116,6 +116,76 @@ See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./CLASSES_AND
 - Individual performance rating per student per class
 - Stored in `class_students.performance` junction table
 - Dropdown selector in teacher classroom view
+
+See: [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
+
+---
+
+## Phase 5: QPC Font Rendering & Page Layout Fixes
+
+**Status:** Complete
+
+### QPC (Quran Printing Complex) Fonts
+- Page-specific fonts from King Fahd Glorious Quran Printing Complex
+- 604 individual font files (QCF_PXXX.woff2) - one per page
+- Glyph codes from Quran.com API v4 (code_v1 field)
+- Renders exactly like printed Madina Mushaf
+- Data source: `https://api.quran.com/api/v4/verses/by_page/{page}?words=true`
+- Font source: `https://github.com/mustafa0x/qpc-fonts` (mushaf-woff2)
+
+### Page Layout Fixes
+- Fixed line number issues on 20+ pages where ayahs appeared at wrong position
+- Pages fixed: 144, 534, 565, 568, 570, 576, 584-599
+- Line numbers in JSON control vertical position (`l` field: 0=top, 15=bottom, 16-18=overflow)
+- Pattern: Overflow ayahs moved from top (line 1-3) to bottom (line 16-18)
+
+### Font Overflow Fix (Page 586)
+- Some ayahs have glyph codes (>= 0xFC00) belonging to previous page's font
+- Solution: Load both current AND previous page fonts
+- Apply previous page font to overflow glyphs in QuranReader.tsx
+
+### Display Improvements
+- Aspect ratio 14/20 (matching real Mushaf proportions)
+- Max width 645px for page container
+- Font size: `clamp(16px, 3.5vw, 28px)` for most pages
+- Fixed text clipping by changing overflow:hidden to overflow:visible
+- Content padding: 5% top/bottom, 3% left/right
+
+### Decorative Border (Optional)
+- Border.png image with transparent center
+- Can be overlaid on mushaf page
+- Currently disabled but asset available in src/assets/
+
+See: [FONT_OVERFLOW_FIX_GUIDE.md](./FONT_OVERFLOW_FIX_GUIDE.md), [QPC_QURAN_RENDERING.md](./QPC_QURAN_RENDERING.md)
+
+---
+
+## Phase 6: Character-Level Mistake Tracking & Classroom Improvements
+
+**Status:** Complete
+
+### Character-Level Mistakes
+- Click word to open popup with: Whole Word, Letters, Harakat options
+- Letters and harakat displayed separately for precise marking
+- Shadda + following vowel grouped together
+- Mistakes stored with `char_index` (null = whole word, N = specific character)
+
+### Mistake Rendering Styles
+- **Whole word mistakes** (`mistake-X`): Background gradient + bottom border
+- **Letter mistakes** (`letter-mistake-X`): Same style as whole word (background highlight)
+- **Harakat mistakes** (`haraka-mistake-X`): Text color change only (no background)
+- Color levels: 1x amber, 2x blue, 3x orange, 4x purple, 5x+ red
+
+### Mistake Summary Sections
+- **"Mistakes in this class"**: Shows mistakes with occurrences in current class (green border)
+- **"Mistakes from previous classes"**: Shows mistakes with occurrences in other classes (gray border)
+- Same mistake can appear in BOTH sections if made in multiple classes
+- Count shows total error_count across all occurrences
+
+### Classroom UI Updates
+- Matches QuranReader styling (aspect ratio, font size, padding)
+- Mushaf page container with proper proportions
+- Character-level mistake popup with letter/harakat selection
 
 See: [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
 

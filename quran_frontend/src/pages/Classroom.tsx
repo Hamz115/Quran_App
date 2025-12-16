@@ -974,29 +974,69 @@ export default function Classroom() {
           </div>
 
           {/* Mistakes Summary */}
-          {currentMistakes.length > 0 && (
-            <div className="card p-6">
-              <h3 className="font-semibold text-slate-100 mb-4">Mistakes on this page</h3>
-              <div className="flex flex-wrap gap-2">
-                {currentMistakes.map((m) => {
-                  const getMistakeColor = (errorCount: number) => {
-                    if (errorCount >= 5) return 'bg-red-500/20 text-red-400 border-red-600/50';
-                    if (errorCount >= 4) return 'bg-purple-500/20 text-purple-400 border-purple-600/50';
-                    if (errorCount >= 3) return 'bg-orange-500/20 text-orange-400 border-orange-600/50';
-                    if (errorCount >= 2) return 'bg-blue-500/20 text-blue-400 border-blue-600/50';
-                    return 'bg-amber-500/20 text-amber-400 border-amber-600/50';
-                  };
-                  return (
-                    <div key={m.id} className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 border ${getMistakeColor(m.error_count)}`}>
-                      <span className="font-amiri text-lg">{m.word_text}</span>
-                      <span className="text-xs opacity-75">{m.surah_number}:{m.ayah_number}:{m.word_index + 1}</span>
-                      {m.error_count > 1 && <span className="text-xs px-1.5 py-0.5 rounded bg-white/10">{m.error_count}x</span>}
-                    </div>
-                  );
-                })}
+          {currentMistakes.length > 0 && (() => {
+            const currentClassId = classData?.id;
+
+            // Mistakes that occurred in THIS class (may also have previous occurrences)
+            const mistakesInThisClass = currentMistakes.filter(m =>
+              m.occurrences?.some(o => o.class_id === currentClassId)
+            );
+
+            // Mistakes that have ANY occurrence in a PREVIOUS class (even if also in this class)
+            const mistakesFromPrevious = currentMistakes.filter(m =>
+              m.occurrences?.some(o => o.class_id !== currentClassId)
+            );
+
+            const getMistakeColor = (errorCount: number) => {
+              if (errorCount >= 5) return 'bg-red-500/20 text-red-400 border-red-600/50';
+              if (errorCount >= 4) return 'bg-purple-500/20 text-purple-400 border-purple-600/50';
+              if (errorCount >= 3) return 'bg-orange-500/20 text-orange-400 border-orange-600/50';
+              if (errorCount >= 2) return 'bg-blue-500/20 text-blue-400 border-blue-600/50';
+              return 'bg-amber-500/20 text-amber-400 border-amber-600/50';
+            };
+
+            const renderMistake = (m: Mistake) => (
+              <div key={m.id} className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 border ${getMistakeColor(m.error_count)}`}>
+                <span className="font-amiri text-lg">{m.word_text}</span>
+                <span className="text-xs opacity-75">{m.surah_number}:{m.ayah_number}:{m.word_index + 1}</span>
+                {m.error_count > 1 && <span className="text-xs px-1.5 py-0.5 rounded bg-white/10">{m.error_count}x</span>}
               </div>
-            </div>
-          )}
+            );
+
+            return (
+              <div className="space-y-4">
+                {/* Mistakes in this class */}
+                {mistakesInThisClass.length > 0 && (
+                  <div className="card p-6 border-2 border-emerald-600/30">
+                    <h3 className="font-semibold text-emerald-400 mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Mistakes in this class ({mistakesInThisClass.length})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {mistakesInThisClass.map(renderMistake)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mistakes from previous classes */}
+                {mistakesFromPrevious.length > 0 && (
+                  <div className="card p-6 border border-slate-600/50">
+                    <h3 className="font-semibold text-slate-400 mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Mistakes from previous classes ({mistakesFromPrevious.length})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {mistakesFromPrevious.map(renderMistake)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </>
       ) : (
         <div className="card p-12 text-center">
