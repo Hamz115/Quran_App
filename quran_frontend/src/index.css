@@ -40,97 +40,35 @@ body {
   text-align-last: center; /* Center the last line of justified text */
 }
 
-/* Mushaf page styling with ornate border */
+/* Mushaf page styling - clean, no borders */
 .mushaf-page {
   position: relative;
   background: #fffef8;
-  border: 12px solid;
-  border-image: linear-gradient(
-    to bottom,
-    #047857 0%, #10b981 15%, #047857 20%,
-    #10b981 25%, #047857 30%, #10b981 70%,
-    #047857 75%, #10b981 80%, #047857 85%,
-    #10b981 100%
-  ) 1;
-  box-shadow:
-    inset 0 0 0 4px #047857,
-    inset 0 0 0 8px #d4f5e4,
-    inset 0 0 0 10px #047857,
-    0 6px 25px rgba(0, 0, 0, 0.2);
+  max-width: 645px;
+  width: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: visible;
 }
 
-/* Outer decorative frame */
-.mushaf-page::before {
-  content: '';
-  position: absolute;
-  inset: -16px;
-  border: 4px solid #10b981;
-  border-radius: 4px;
-  pointer-events: none;
+/* Allow text to display fully without clipping */
+.mushaf-page [dir="rtl"] {
+  overflow: visible;
 }
 
-/* Inner decorative line */
-.mushaf-page::after {
-  content: '';
-  position: absolute;
-  inset: 14px;
-  border: 2px solid #10b981;
-  border-radius: 2px;
-  pointer-events: none;
+.mushaf-page [dir="rtl"] > div {
+  overflow: visible;
 }
 
-/* Corner decorations */
+/* Hide decorative elements */
 .mushaf-page .corner-tl,
 .mushaf-page .corner-tr,
 .mushaf-page .corner-bl,
-.mushaf-page .corner-br {
-  position: absolute;
-  font-size: 20px;
-  color: #047857;
-  text-shadow: 0 1px 2px rgba(4, 120, 87, 0.3);
-  z-index: 20;
-  line-height: 1;
-}
-
-.mushaf-page .corner-tl { top: -6px; left: -6px; }
-.mushaf-page .corner-tr { top: -6px; right: -6px; }
-.mushaf-page .corner-bl { bottom: -6px; left: -6px; }
-.mushaf-page .corner-br { bottom: -6px; right: -6px; }
-
-/* Decorative edge patterns */
+.mushaf-page .corner-br,
 .mushaf-page .edge-top,
 .mushaf-page .edge-bottom,
 .mushaf-page .edge-left,
 .mushaf-page .edge-right {
-  position: absolute;
-  color: #10b981;
-  z-index: 15;
-  font-size: 10px;
-  letter-spacing: 4px;
-}
-
-.mushaf-page .edge-top {
-  top: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.mushaf-page .edge-bottom {
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.mushaf-page .edge-left {
-  left: -2px;
-  top: 50%;
-  transform: translateY(-50%) rotate(-90deg);
-}
-
-.mushaf-page .edge-right {
-  right: -2px;
-  top: 50%;
-  transform: translateY(-50%) rotate(90deg);
+  display: none;
 }
 
 /* Surah header frame */
@@ -221,6 +159,94 @@ body {
   border-bottom: 2px solid #ef4444;
   border-radius: 4px;
   padding: 0 2px;
+}
+
+/* Letter mistakes - same as regular mistakes (background highlight) */
+.letter-mistake-1 {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.2) 100%);
+  border-bottom: 2px solid #f59e0b;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.letter-mistake-2 {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.25) 100%);
+  border-bottom: 2px solid #3b82f6;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.letter-mistake-3 {
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.35) 0%, rgba(249, 115, 22, 0.25) 100%);
+  border-bottom: 2px solid #f97316;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.letter-mistake-4 {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.4) 0%, rgba(168, 85, 247, 0.3) 100%);
+  border-bottom: 2px solid #a855f7;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.letter-mistake-5 {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0.3) 100%);
+  border-bottom: 2px solid #ef4444;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+/* Character color highlighting - for harakat */
+.char-color-1 {
+  color: #f59e0b !important;
+  background-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.char-color-2 {
+  color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.char-color-3 {
+  color: #f97316 !important;
+  background-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+.char-color-4 {
+  color: #a855f7 !important;
+  background-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+.char-color-5 {
+  color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.char-mistake-5 {
+  border-bottom: 2px dashed #ef4444;
+  border-radius: 0;
+}
+
+/* Haraka mistake colors - text color only for layered rendering */
+.haraka-mistake-1 {
+  color: #d97706 !important; /* amber-600 - darker for light bg */
+}
+
+.haraka-mistake-2 {
+  color: #2563eb !important; /* blue-600 */
+}
+
+.haraka-mistake-3 {
+  color: #ea580c !important; /* orange-600 */
+}
+
+.haraka-mistake-4 {
+  color: #9333ea !important; /* purple-600 */
+}
+
+.haraka-mistake-5 {
+  color: #dc2626 !important; /* red-600 */
 }
 
 .spinner {

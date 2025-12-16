@@ -217,11 +217,44 @@ When a section has multiple portions, navigate between them:
 - **Color coding** by frequency:
   | Count | Color | CSS Class |
   |-------|-------|-----------|
-  | 1x | Amber | `bg-amber-200` |
-  | 2x | Blue | `bg-blue-200` |
-  | 3x | Orange | `bg-orange-200` |
-  | 4x | Purple | `bg-purple-200` |
-  | 5x+ | Red | `bg-red-200` |
+  | 1x | Amber | `mistake-1` |
+  | 2x | Blue | `mistake-2` |
+  | 3x | Orange | `mistake-3` |
+  | 4x | Purple | `mistake-4` |
+  | 5x+ | Red | `mistake-5` |
+
+#### Character-Level Mistake Rendering
+When a word has character-level mistakes (letter or harakat), it switches to Uthmani text rendering with colored highlighting:
+
+- **Letter mistake** (`letter-mistake-X`): Background highlight on letter + its harakat
+  - Uses gradient background + bottom border (same style as whole-word mistakes)
+  - Harakat attached to the letter are included in the highlight
+
+- **Harakat mistake** (`haraka-mistake-X`): Color change on letter + harakat together
+  - Uses text color change only (no background)
+  - Both the base letter and its harakat are colored together
+
+**CSS Classes:**
+```css
+/* Whole word / Letter mistakes - background highlight */
+.mistake-1, .letter-mistake-1 {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.2) 100%);
+  border-bottom: 2px solid #f59e0b;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+/* Harakat mistakes - text color only */
+.haraka-mistake-1 {
+  color: #d97706 !important;
+}
+```
+
+**Rendering Logic (Classroom.tsx):**
+1. Split word into groups (base letter + its following harakat)
+2. Check if any harakat in group has a mistake → use `haraka-mistake-X` (colors both)
+3. Check if base letter has a mistake → use `letter-mistake-X` (highlights both)
+4. No mistake → render plain text
 
 #### Mistake Summary
 Displayed below Quran text:
@@ -401,4 +434,4 @@ const [wordPopup, setWordPopup] = useState<WordPopupState | null>(null);
 
 ---
 
-*Last Updated: December 14, 2025*
+*Last Updated: December 16, 2025*

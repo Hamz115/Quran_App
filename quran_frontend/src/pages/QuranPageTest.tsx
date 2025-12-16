@@ -52,14 +52,26 @@ export default function QuranPageTest() {
   const [fontLoaded, setFontLoaded] = useState(false);
   const [surahStarts, setSurahStarts] = useState<Map<number, number>>(new Map()); // lineNumber -> surahNum
 
-  // Load QPC fonts from LOCAL files (OFFLINE)
+  // Toggle between local woff2 and CDN v4-hafs fonts for testing
+  const USE_V4_HAFS = false; // Set to true to test v4-hafs fonts (requires code_v2 glyph codes)
+
+  // Load QPC fonts - either from CDN (v4-hafs) or LOCAL files (woff2)
   useEffect(() => {
     const paddedPage = currentPage.toString().padStart(3, '0');
     const style = document.createElement('style');
+
+    // CDN v4-hafs: https://cdn.jsdelivr.net/gh/mustafa0x/qpc-fonts@master/mushaf-v4-hafs/QCF4_P{page}.ttf
+    // Local woff2: /fonts/qpc/QCF_P{page}.woff2
+    const fontUrl = USE_V4_HAFS
+      ? `https://cdn.jsdelivr.net/gh/mustafa0x/qpc-fonts@master/mushaf-v4-hafs/QCF4_P${paddedPage}.ttf`
+      : `/fonts/qpc/QCF_P${paddedPage}.woff2`;
+
+    const fontFormat = USE_V4_HAFS ? 'truetype' : 'woff2';
+
     style.textContent = `
       @font-face {
         font-family: 'QPC-Page-${currentPage}';
-        src: url('/fonts/qpc/QCF_P${paddedPage}.woff2') format('woff2');
+        src: url('${fontUrl}') format('${fontFormat}');
         font-display: swap;
       }
     `;
@@ -315,7 +327,7 @@ export default function QuranPageTest() {
         <div className="mt-4 p-4 bg-slate-800/30 rounded-lg text-xs text-slate-400">
           <p>Page: {currentPage} | Lines: {lineNumbers.length} | Total words: {Array.from(wordsByLine.values()).flat().length}</p>
           <p className="mt-1 text-emerald-400">
-            Using QPC V1 font (page-specific) with glyph codes from Quran.com API.
+            Font Source: {USE_V4_HAFS ? 'CDN v4-hafs (TTF)' : 'Local woff2'} |
             Each word is directly clickable - no coordinate guessing!
           </p>
         </div>
