@@ -44,3 +44,5 @@ npm-debug.log*
 # Cache
 .cache/
 .eslintcache
+
+CLAUDE.md

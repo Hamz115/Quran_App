@@ -153,16 +153,31 @@ Downloads all 604 QPC font files from CDN.
 | Word Data | 17 MB | 604 JSON files |
 | **Total** | **64 MB** | 1,208 files |
 
-## Surah Detection
+## Surah Detection & Display
 
 The system detects when a new surah starts on a page by checking:
 - `ayah === 1` (first ayah of surah)
 - `position === 1` (first word of ayah)
 - `char_type === 'word'` (actual word, not marker)
 
-When detected, it displays:
-- Surah name header (e.g., "سورة البقرة")
-- Bismillah (except for Surah 1 and 9)
+When detected, it displays (as styled Arabic text, not QPC glyphs):
+
+### Surah Header
+- Displays "سُورَةُ [name]" (e.g., "سُورَةُ البقرة")
+- Styled with emerald border and cream background
+- Uses Amiri font for proper Arabic rendering
+- Rendered ABOVE the first ayah line (no words replaced)
+
+### Bismillah
+- Displays "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ"
+- **Surah 1 (Al-Fatihah)**: No separate bismillah (it's already ayah 1)
+- **Surah 9 (At-Tawbah)**: No bismillah (unique exception)
+- **Surahs 2-114 (except 9)**: Bismillah displayed
+
+### Surah Dropdown Navigation
+- Dropdown selector in QuranReader header
+- Lists all 114 surahs with Arabic names
+- Selecting a surah navigates to its first page using `getPageNumber(surahNum, 1)`
 
 ## Benefits
 
@@ -178,9 +193,15 @@ When detected, it displays:
 2. **Page-Specific Fonts**: Must load new font for each page
 3. **No Text Search**: Glyph codes aren't searchable text
 
-## Future Improvements
+## Implementation Status
 
-- [ ] Add decorative borders (image-based corners/frames)
-- [ ] Implement in main QuranReader page
-- [ ] Add mistake marking integration with existing API
-- [ ] Cache fonts in browser for faster page switching
+- [x] QPC font rendering in QuranReader
+- [x] QPC font rendering in Classroom
+- [x] Surah headers and bismillah display
+- [x] Surah dropdown navigation
+- [x] Mistake marking integration
+- [x] Portion highlighting in Classroom
+
+---
+
+*Last Updated: December 17, 2025*

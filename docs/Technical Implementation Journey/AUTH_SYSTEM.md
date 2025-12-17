@@ -187,8 +187,26 @@ Provides: user, isAuthenticated, isVerified, login, signup, logout, refreshUser
 
 - **[TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)** - Full technical overview of the project
 - **[CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)** - Classes, assignments, mistake tracking system
-- **[PROJECT_CHANGELOG.md](./PROJECT_CHANGELOG.md)** - Chronological development history
+- **[PROJECT_CHANGELOG.md](../PROJECT_CHANGELOG.md)** - Chronological development history (main reference)
 
 ---
 
-*Last Updated: December 14, 2025*
+## Utility Scripts
+
+### Clear All Mistakes (Testing)
+```bash
+cd quran_backend
+python clear_mistakes.py
+```
+Removes all mistakes and mistake_occurrences while preserving users, classes, and assignments.
+
+### Create Test Users
+```bash
+cd quran_backend
+python create_test_users.py
+```
+Creates demo teacher and student accounts for testing.
+
+---
+
+*Last Updated: December 17, 2025*

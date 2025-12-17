@@ -1,6 +1,38 @@
 # QuranTrack - Project Changelog
 
-A chronological record of what has been built.
+A chronological record of what has been built. This is the main reference guide for the project.
+
+---
+
+## Documentation Directory
+
+```
+docs/
+├── PROJECT_CHANGELOG.md                    # This file - main reference guide
+│
+├── Architecture/                           # High-level design & planning docs
+│   ├── QuranTrack Academy_ Architecture Blueprint.md
+│   ├── Logical Architecture Blueprint_ User Identity & Relationships.md
+│   └── Quran Full App.md
+│
+├── Technical Implementation Journey/       # How features were built
+│   ├── TECHNICAL_DOCUMENTATION.md          # Full technical overview
+│   ├── AUTH_SYSTEM.md                      # Authentication & user roles
+│   ├── CLASSES_AND_MISTAKES.md             # Classes, assignments, mistakes
+│   └── QPC_QURAN_RENDERING.md              # QPC font rendering system
+│
+└── Guides/                                 # For AI/developers - troubleshooting
+    ├── FONT_OVERFLOW_FIX_GUIDE.md          # Fixing font overflow issues
+    └── PAGE_LAYOUT_FIX_GUIDE.md            # Fixing page layout issues
+```
+
+### What's in each folder:
+
+| Folder | Purpose | Audience |
+|--------|---------|----------|
+| **Architecture/** | System design, blueprints, planning | Planning phase |
+| **Technical Implementation Journey/** | How things were actually built, API docs | Developers |
+| **Guides/** | Troubleshooting guides for specific issues | AI assistants, developers |
 
 ---
 
@@ -16,7 +48,7 @@ A chronological record of what has been built.
 
 **Stack:** React + TypeScript frontend, FastAPI backend, Flutter mobile
 
-See: [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)
+See: [TECHNICAL_DOCUMENTATION.md](./Technical%20Implementation%20Journey/TECHNICAL_DOCUMENTATION.md)
 
 ---
 
@@ -53,7 +85,7 @@ See: [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)
 ### Admin Features
 - Clear all data endpoint (`DELETE /api/admin/clear-data`)
 
-See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md)
+See: [AUTH_SYSTEM.md](./Technical%20Implementation%20Journey/AUTH_SYSTEM.md)
 
 ---
 
@@ -87,7 +119,7 @@ See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md)
 - Teachers see which students attended each class
 - Privacy: Students never see other students in class or their mistakes
 
-See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
+See: [AUTH_SYSTEM.md](./Technical%20Implementation%20Journey/AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
 
 ---
 
@@ -117,7 +149,7 @@ See: [AUTH_SYSTEM.md](./AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./CLASSES_AND
 - Stored in `class_students.performance` junction table
 - Dropdown selector in teacher classroom view
 
-See: [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
+See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
 
 ---
 
@@ -156,7 +188,7 @@ See: [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
 - Can be overlaid on mushaf page
 - Currently disabled but asset available in src/assets/
 
-See: [FONT_OVERFLOW_FIX_GUIDE.md](./FONT_OVERFLOW_FIX_GUIDE.md), [QPC_QURAN_RENDERING.md](./QPC_QURAN_RENDERING.md)
+See: [FONT_OVERFLOW_FIX_GUIDE.md](./Guides/FONT_OVERFLOW_FIX_GUIDE.md), [QPC_QURAN_RENDERING.md](./Technical%20Implementation%20Journey/QPC_QURAN_RENDERING.md)
 
 ---
 
@@ -187,7 +219,44 @@ See: [FONT_OVERFLOW_FIX_GUIDE.md](./FONT_OVERFLOW_FIX_GUIDE.md), [QPC_QURAN_REND
 - Mushaf page container with proper proportions
 - Character-level mistake popup with letter/harakat selection
 
-See: [CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)
+See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+
+---
+
+## Phase 7: Quran Reader Enhancements & Portion Highlighting
+
+**Status:** Complete
+
+### Surah Dropdown Navigation
+- Added surah dropdown selector next to page number input
+- Lists all 114 surahs with Arabic names
+- Selecting a surah navigates to its first page
+- Uses `getPageNumber(surahNum, 1)` for page lookup
+
+### Surah Headers & Bismillah Display
+- **Surah headers** shown when a new surah starts on the page
+  - Displays "سُورَةُ [name]" (e.g., "سُورَةُ البقرة")
+  - Styled with emerald border and cream background
+  - Uses Amiri font for proper Arabic rendering
+- **Bismillah** shown below surah header for surahs 2-114
+  - Displays "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ"
+  - Surah 1 (Al-Fatihah): No separate bismillah (it's already ayah 1)
+  - Surah 9 (At-Tawbah): No bismillah (unique exception)
+- Headers are rendered ABOVE existing lines - no words replaced
+
+### Classroom Portion Highlighting
+- Words outside assigned portion are dimmed (opacity 0.25, slight blur)
+- Only words within the assigned surah/ayah range are fully visible and clickable
+- `isWordInPortion()` function checks if word falls within assignment range
+- Prevents accidental mistake marking on unassigned ayahs
+
+### Demo Users on Login Page
+- Added clickable buttons for all 17 demo accounts
+- Auto-fills email and password on click
+- Organized by role: Personal, Teachers, Students
+- Color-coded: Purple (personal), Emerald (teachers), Blue (students)
+
+See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
 
 ---
 

@@ -90,6 +90,147 @@ export default function Login() {
             Sign up
           </Link>
         </p>
+
+        {/* Demo Users */}
+        <div className="mt-8 p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
+          <p className="text-sm text-slate-400 mb-3 text-center">Demo Accounts (click to auto-fill)</p>
+          <p className="text-xs text-slate-500 mb-3 text-center">Password: Test123!</p>
+          <div className="space-y-2">
+            {/* Personal Accounts */}
+            <p className="text-xs text-purple-400 font-medium">Personal:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setIdentifier('hamzaferoze115@gmail.com'); setPassword('password12345'); }}
+                className="px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/30 transition-colors"
+              >
+                Hamza Feroze (T)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('hamzaferoze115+114@gmail.com'); setPassword('password12345'); }}
+                className="px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/30 transition-colors"
+              >
+                Hamza Reyal (S)
+              </button>
+            </div>
+
+            {/* Teachers */}
+            <p className="text-xs text-emerald-400 font-medium mt-3">Teachers:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setIdentifier('abdullah.q@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
+              >
+                Abdullah Q
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('tariq.jameel@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
+              >
+                Tariq Jameel
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('usman.farooq@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
+              >
+                Usman Farooq
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('maryam.s@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
+              >
+                Maryam S
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('khadijah.noor@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
+              >
+                Khadijah Noor
+              </button>
+            </div>
+
+            {/* Students */}
+            <p className="text-xs text-blue-400 font-medium mt-3">Students:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setIdentifier('ahmed.khan@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Ahmed Khan
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('yusuf.ali@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Yusuf Ali
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('omar.hassan@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Omar Hassan
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('ibrahim.m@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Ibrahim M
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('bilal.ahmad@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Bilal Ahmad
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('khalid.r@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Khalid R
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('zayd.malik@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Zayd Malik
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('mustafa.h@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Mustafa H
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('fatima.zahra@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Fatima Zahra
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIdentifier('aisha.begum@test.com'); setPassword('Test123!'); }}
+                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+              >
+                Aisha Begum
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

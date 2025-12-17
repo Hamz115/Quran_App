@@ -205,6 +205,33 @@ When a section has multiple portions, navigate between them:
 - RTL navigation (Next on left, Previous on right)
 - Multi-surah pages supported (Juz Amma)
 
+#### Portion Highlighting
+Words outside the assigned portion are dimmed to help teachers focus on the relevant ayahs:
+- **In-portion words**: Full opacity, clickable for mistake marking
+- **Out-of-portion words**: Dimmed (opacity 0.25), slight blur, not clickable
+
+**Implementation:**
+```typescript
+const isWordInPortion = (word: WordData): boolean => {
+  if (!currentAssignment) return true;
+  const { start_surah, start_ayah, end_surah, end_ayah } = currentAssignment;
+  const { surahNum, ayahNum } = word;
+
+  // Before start of portion
+  if (surahNum < start_surah) return false;
+  if (surahNum === start_surah && start_ayah && ayahNum < start_ayah) return false;
+
+  // After end of portion
+  if (surahNum > end_surah) return false;
+  if (surahNum === end_surah && end_ayah && ayahNum > end_ayah) return false;
+
+  return true;
+};
+
+// Applied as inline style
+const dimStyle = !inPortion ? { opacity: 0.25, filter: 'blur(0.5px)' } : {};
+```
+
 #### Mushaf Page Styling
 - White background (like real paper)
 - Green border (emerald-600)
@@ -320,6 +347,52 @@ Short surahs in Juz Amma share pages. Example page 603:
 - Al-Masad (111)
 
 The system loads all surahs on a page in parallel and displays them with proper headers.
+
+---
+
+## QuranReader Features
+
+### Surah Dropdown Navigation
+The QuranReader page includes a surah dropdown selector for quick navigation:
+- Located next to the page number input
+- Lists all 114 surahs with Arabic names
+- Selecting a surah navigates to its first page
+
+```typescript
+const SURAH_NAMES: Record<number, string> = {
+  1: 'الفاتحة', 2: 'البقرة', 3: 'آل عمران', ...
+};
+
+// On selection, navigate to surah's first page
+const page = getPageNumber(surahNum, 1);
+setCurrentPage(page);
+```
+
+### Surah Headers & Bismillah
+When a new surah starts on a page, the reader displays:
+
+1. **Surah Header** - Shown above the first ayah:
+   - Displays "سُورَةُ [name]" in Arabic
+   - Styled with emerald border and cream background
+   - Uses Amiri font for proper rendering
+
+2. **Bismillah** - Shown below surah header:
+   - Displays "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ"
+   - **Surah 1 (Al-Fatihah)**: No separate bismillah (it's ayah 1)
+   - **Surah 9 (At-Tawbah)**: No bismillah (unique exception)
+   - **Surahs 2-114 (except 9)**: Bismillah displayed
+
+**Important:** These headers are rendered ABOVE existing QPC glyph lines - no words are replaced.
+
+```typescript
+// Detect surahs starting on this page
+const surahsStartingOnPage = (): { surahNum: number; lineNum: number }[] => {
+  // Find words where ayahNum === 1 && wordPosition === 1
+};
+
+// Show bismillah for surahs 2-114 except 9
+const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
+```
 
 ---
 
@@ -453,8 +526,8 @@ const [wordPopup, setWordPopup] = useState<WordPopupState | null>(null);
 
 - [AUTH_SYSTEM.md](./AUTH_SYSTEM.md) - Authentication and user roles
 - [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md) - Full technical overview
-- [PROJECT_CHANGELOG.md](./PROJECT_CHANGELOG.md) - Development history
+- [PROJECT_CHANGELOG.md](../PROJECT_CHANGELOG.md) - Development history (main reference)
 
 ---
 
-*Last Updated: December 16, 2025*
+*Last Updated: December 17, 2025*

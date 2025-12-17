@@ -1,6 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getQuranPageWords, getMistakes, type QuranPageWord, type MistakeData } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import { getPageNumber } from '../data/quranPages';
+
+// Surah names in Arabic
+const SURAH_NAMES: Record<number, string> = {
+  1: 'الفاتحة', 2: 'البقرة', 3: 'آل عمران', 4: 'النساء', 5: 'المائدة',
+  6: 'الأنعام', 7: 'الأعراف', 8: 'الأنفال', 9: 'التوبة', 10: 'يونس',
+  11: 'هود', 12: 'يوسف', 13: 'الرعد', 14: 'إبراهيم', 15: 'الحجر',
+  16: 'النحل', 17: 'الإسراء', 18: 'الكهف', 19: 'مريم', 20: 'طه',
+  21: 'الأنبياء', 22: 'الحج', 23: 'المؤمنون', 24: 'النور', 25: 'الفرقان',
+  26: 'الشعراء', 27: 'النمل', 28: 'القصص', 29: 'العنكبوت', 30: 'الروم',
+  31: 'لقمان', 32: 'السجدة', 33: 'الأحزاب', 34: 'سبأ', 35: 'فاطر',
+  36: 'يس', 37: 'الصافات', 38: 'ص', 39: 'الزمر', 40: 'غافر',
+  41: 'فصلت', 42: 'الشورى', 43: 'الزخرف', 44: 'الدخان', 45: 'الجاثية',
+  46: 'الأحقاف', 47: 'محمد', 48: 'الفتح', 49: 'الحجرات', 50: 'ق',
+  51: 'الذاريات', 52: 'الطور', 53: 'النجم', 54: 'القمر', 55: 'الرحمن',
+  56: 'الواقعة', 57: 'الحديد', 58: 'المجادلة', 59: 'الحشر', 60: 'الممتحنة',
+  61: 'الصف', 62: 'الجمعة', 63: 'المنافقون', 64: 'التغابن', 65: 'الطلاق',
+  66: 'التحريم', 67: 'الملك', 68: 'القلم', 69: 'الحاقة', 70: 'المعارج',
+  71: 'نوح', 72: 'الجن', 73: 'المزمل', 74: 'المدثر', 75: 'القيامة',
+  76: 'الإنسان', 77: 'المرسلات', 78: 'النبأ', 79: 'النازعات', 80: 'عبس',
+  81: 'التكوير', 82: 'الانفطار', 83: 'المطففين', 84: 'الانشقاق', 85: 'البروج',
+  86: 'الطارق', 87: 'الأعلى', 88: 'الغاشية', 89: 'الفجر', 90: 'البلد',
+  91: 'الشمس', 92: 'الليل', 93: 'الضحى', 94: 'الشرح', 95: 'التين',
+  96: 'العلق', 97: 'القدر', 98: 'البينة', 99: 'الزلزلة', 100: 'العاديات',
+  101: 'القارعة', 102: 'التكاثر', 103: 'العصر', 104: 'الهمزة', 105: 'الفيل',
+  106: 'قريش', 107: 'الماعون', 108: 'الكوثر', 109: 'الكافرون', 110: 'النصر',
+  111: 'المسد', 112: 'الإخلاص', 113: 'الفلق', 114: 'الناس'
+};
 
 interface WordData {
   id: number;
@@ -184,6 +212,31 @@ export default function QuranReader() {
 
   const lineNumbers = Array.from(wordsByLine.keys()).sort((a, b) => a - b);
 
+  // Detect which surahs START on this page (ayah 1 appears)
+  const surahsStartingOnPage = (): { surahNum: number; lineNum: number }[] => {
+    const starts: { surahNum: number; lineNum: number }[] = [];
+    const seenSurahs = new Set<number>();
+
+    for (const lineNum of lineNumbers) {
+      const words = wordsByLine.get(lineNum) || [];
+      for (const word of words) {
+        if (word.ayahNum === 1 && word.wordPosition === 1 && !seenSurahs.has(word.surahNum)) {
+          starts.push({ surahNum: word.surahNum, lineNum });
+          seenSurahs.add(word.surahNum);
+        }
+      }
+    }
+    return starts;
+  };
+
+  const surahStarts = surahsStartingOnPage();
+
+  // Check if a line is the first line of a surah (ayah 1)
+  const getSurahStartForLine = (lineNum: number): number | null => {
+    const start = surahStarts.find(s => s.lineNum === lineNum);
+    return start ? start.surahNum : null;
+  };
+
   const handleJumpToPage = () => {
     const pageNum = parseInt(jumpToPage);
     if (pageNum && pageNum >= 1 && pageNum <= TOTAL_PAGES) {
@@ -255,6 +308,26 @@ export default function QuranReader() {
             />
             <span className="text-slate-400">/ {TOTAL_PAGES}</span>
           </div>
+
+          {/* Surah Dropdown */}
+          <select
+            value={surahs.length > 0 ? surahs[0] : ''}
+            onChange={(e) => {
+              const surahNum = parseInt(e.target.value);
+              if (surahNum >= 1 && surahNum <= 114) {
+                const page = getPageNumber(surahNum, 1);
+                setCurrentPage(page);
+              }
+            }}
+            className="px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
+          >
+            {Array.from({ length: 114 }, (_, i) => i + 1).map((num) => (
+              <option key={num} value={num}>
+                {num}. {SURAH_NAMES[num]}
+              </option>
+            ))}
+          </select>
 
           {/* Jump Button */}
           <button
@@ -363,9 +436,37 @@ export default function QuranReader() {
             >
               {lineNumbers.map((lineNum) => {
                 const words = wordsByLine.get(lineNum) || [];
+                const surahStarting = getSurahStartForLine(lineNum);
+                // Show bismillah for surahs 2-114 except surah 9 (At-Tawbah has no bismillah)
+                const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
 
                 return (
                   <div key={lineNum} className="flex-1 flex flex-col justify-center">
+                    {/* Surah Header - shown before the first ayah of a new surah */}
+                    {surahStarting && (
+                      <div
+                        className="text-center mb-1"
+                        style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
+                      >
+                        <div className="inline-block px-6 py-1 border-2 border-emerald-600 rounded-lg bg-emerald-50">
+                          <span className="text-emerald-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
+                            سُورَةُ {SURAH_NAMES[surahStarting]}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Bismillah - shown for surahs 2-114 except 9 */}
+                    {showBismillah && (
+                      <div
+                        className="text-center mb-1 text-slate-700"
+                        style={{
+                          fontFamily: "'Amiri Quran', 'Amiri', serif",
+                          fontSize: 'clamp(12px, 2vw, 18px)'
+                        }}
+                      >
+                        بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
+                      </div>
+                    )}
                     <div className="flex justify-center items-center text-slate-800 w-full">
                       {words.map((word) => {
                         const wordStyle = getWordStyle(word);

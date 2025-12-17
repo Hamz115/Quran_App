@@ -294,6 +294,29 @@ export default function Classroom() {
     return { minPage: startPage, maxPage: endPage };
   })();
 
+  // Check if a word is within the assigned portion
+  const isWordInPortion = (word: WordData): boolean => {
+    if (!currentAssignment) return true; // No assignment, show everything
+
+    const { start_surah, start_ayah, end_surah, end_ayah } = currentAssignment;
+    const startAyah = start_ayah || 1;
+    const endAyah = end_ayah || 286; // Default to full surah if not specified
+
+    // Check if word is within the surah/ayah range
+    const surah = word.surahNum;
+    const ayah = word.ayahNum;
+
+    // Before start
+    if (surah < start_surah) return false;
+    if (surah === start_surah && ayah < startAyah) return false;
+
+    // After end
+    if (surah > end_surah) return false;
+    if (surah === end_surah && ayah > endAyah) return false;
+
+    return true;
+  };
+
   // Initialize currentPage when assignment changes
   useEffect(() => {
     if (currentAssignment) {
@@ -910,19 +933,21 @@ export default function Classroom() {
                           {words.map((word) => {
                             const { wholeWordLevel, charMistakes, totalMistakes } = getWordMistakeInfo(word);
                             const hasCharMistakes = charMistakes.length > 0;
+                            const inPortion = isWordInPortion(word);
+                            const dimStyle = !inPortion ? { opacity: 0.25, filter: 'blur(0.5px)' } : {};
 
                             // Character-level mistakes: render with textUthmani (smaller), highlight char
                             if (hasCharMistakes && word.charType === 'word') {
                               return (
                                 <span
                                   key={word.id}
-                                  onClick={(e) => handleWordClick(e, word)}
-                                  onContextMenu={(e) => handleWordRightClick(e, word)}
-                                  className={`${isTeacher ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block align-middle ${
-                                    wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher ? 'hover:bg-emerald-200 rounded' : ''
+                                  onClick={(e) => inPortion && handleWordClick(e, word)}
+                                  onContextMenu={(e) => inPortion && handleWordRightClick(e, word)}
+                                  className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block align-middle ${
+                                    inPortion && wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher && inPortion ? 'hover:bg-emerald-200 rounded' : ''
                                   }`}
-                                  style={{ fontSize: '0.82em', fontWeight: 500, letterSpacing: '0.03em' }}
-                                  title={`${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}`}
+                                  style={{ fontSize: '0.82em', fontWeight: 500, letterSpacing: '0.03em', ...dimStyle }}
+                                  title={inPortion ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}` : 'Outside assigned portion'}
                                 >
                                   {renderWordWithColoredChar(word, charMistakes)}
                                 </span>
@@ -932,17 +957,20 @@ export default function Classroom() {
                             return (
                               <span
                                 key={word.id}
-                                onClick={(e) => handleWordClick(e, word)}
-                                onContextMenu={(e) => handleWordRightClick(e, word)}
-                                className={`${isTeacher ? 'cursor-pointer' : ''} transition-all rounded px-0.5 ${
+                                onClick={(e) => inPortion && handleWordClick(e, word)}
+                                onContextMenu={(e) => inPortion && handleWordRightClick(e, word)}
+                                className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all rounded px-0.5 ${
                                   word.charType === 'word'
-                                    ? wholeWordLevel > 0
+                                    ? inPortion && wholeWordLevel > 0
                                       ? `mistake-${wholeWordLevel}`
-                                      : isTeacher ? 'hover:bg-emerald-200' : ''
-                                    : 'text-emerald-700'
+                                      : isTeacher && inPortion ? 'hover:bg-emerald-200' : ''
+                                    : inPortion ? 'text-emerald-700' : ''
                                 }`}
+                                style={dimStyle}
                                 title={word.charType === 'word'
-                                  ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}`
+                                  ? inPortion
+                                    ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}`
+                                    : 'Outside assigned portion'
                                   : `Ayah ${word.ayahNum} end`
                                 }
                               >

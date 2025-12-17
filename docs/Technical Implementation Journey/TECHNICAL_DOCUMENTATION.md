@@ -579,8 +579,29 @@ flutter run
 
 - **[AUTH_SYSTEM.md](./AUTH_SYSTEM.md)** - Authentication system, JWT tokens, user roles, student management
 - **[CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)** - Classes, assignments, mistake tracking, page-based Quran display
-- **[PROJECT_CHANGELOG.md](./PROJECT_CHANGELOG.md)** - Chronological development history
+- **[PROJECT_CHANGELOG.md](../PROJECT_CHANGELOG.md)** - Chronological development history (main reference)
 
 ---
 
-*Last Updated: December 14, 2025*
+## Recent Updates (Phase 7)
+
+### QuranReader Enhancements
+- **Surah Dropdown**: Select any surah to navigate to its first page
+- **Surah Headers**: Displays "سُورَةُ [name]" when a new surah starts on a page
+- **Bismillah Display**: Shows bismillah for surahs 2-114 (except surah 9)
+
+### Classroom Enhancements
+- **Portion Highlighting**: Words outside assigned ayah range are dimmed (opacity 0.25)
+- Prevents accidental mistake marking on unassigned content
+
+### Login Page
+- **Demo User Buttons**: 17 clickable buttons to auto-fill demo account credentials
+- Organized by role: Personal, Teachers, Students
+
+### Utility Scripts
+- `clear_mistakes.py`: Clears all mistakes while preserving users/classes
+- `create_test_users.py`: Creates demo accounts for testing
+
+---
+
+*Last Updated: December 17, 2025*
