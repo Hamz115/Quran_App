@@ -126,6 +126,14 @@ body {
   @apply shadow-xl shadow-black/30 border-slate-600/50;
 }
 
+/* Tanbeeh - just underline, no background */
+.tanbeeh {
+  text-decoration: underline;
+  text-decoration-color: #06b6d4;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .mistake-1 {
   background: linear-gradient(180deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.2) 100%);
   border-bottom: 2px solid #f59e0b;

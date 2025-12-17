@@ -211,6 +211,82 @@ def init_app_db():
     except:
         pass  # Column already exists
 
+    # Migration: Add class_type column to classes for test classes
+    try:
+        conn.execute("ALTER TABLE classes ADD COLUMN class_type TEXT DEFAULT 'regular' CHECK(class_type IN ('regular', 'test'))")
+        conn.commit()
+    except:
+        pass  # Column already exists
+
+    # Migration: Add is_tanbeeh column to test_mistakes if it doesn't exist
+    try:
+        conn.execute("ALTER TABLE test_mistakes ADD COLUMN is_tanbeeh BOOLEAN DEFAULT 0")
+        conn.commit()
+    except:
+        pass  # Column already exists
+
+    # Create test-related tables
+    conn.executescript("""
+        -- Tests table (one per test class)
+        CREATE TABLE IF NOT EXISTS tests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class_id INTEGER NOT NULL UNIQUE,
+            student_id INTEGER NOT NULL,
+            total_score REAL,
+            max_score REAL DEFAULT 100,
+            status TEXT DEFAULT 'not_started' CHECK(status IN ('not_started', 'in_progress', 'completed')),
+            started_at TEXT,
+            completed_at TEXT,
+            FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+            FOREIGN KEY (student_id) REFERENCES users(id)
+        );
+
+        -- Test questions table
+        CREATE TABLE IF NOT EXISTS test_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            test_id INTEGER NOT NULL,
+            question_number INTEGER NOT NULL,
+            start_surah INTEGER,
+            start_ayah INTEGER,
+            end_surah INTEGER,
+            end_ayah INTEGER,
+            points_earned REAL,
+            points_possible REAL,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed', 'cancelled')),
+            started_at TEXT,
+            completed_at TEXT,
+            FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
+        );
+
+        -- Test mistakes table (links to global mistakes but tracks test-specific data)
+        CREATE TABLE IF NOT EXISTS test_mistakes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            test_id INTEGER NOT NULL,
+            question_id INTEGER NOT NULL,
+            mistake_id INTEGER,
+            surah_number INTEGER NOT NULL,
+            ayah_number INTEGER NOT NULL,
+            word_index INTEGER NOT NULL,
+            word_text TEXT NOT NULL,
+            char_index INTEGER,
+            is_tanbeeh BOOLEAN DEFAULT 0,
+            is_repeated BOOLEAN DEFAULT 0,
+            previous_error_count INTEGER DEFAULT 0,
+            points_deducted REAL NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,
+            FOREIGN KEY (question_id) REFERENCES test_questions(id) ON DELETE CASCADE,
+            FOREIGN KEY (mistake_id) REFERENCES mistakes(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tests_class ON tests(class_id);
+        CREATE INDEX IF NOT EXISTS idx_tests_student ON tests(student_id);
+        CREATE INDEX IF NOT EXISTS idx_test_questions_test ON test_questions(test_id);
+        CREATE INDEX IF NOT EXISTS idx_test_mistakes_test ON test_mistakes(test_id);
+        CREATE INDEX IF NOT EXISTS idx_test_mistakes_question ON test_mistakes(question_id);
+    """)
+    conn.commit()
+
     conn.close()
 
 
@@ -231,6 +307,7 @@ class ClassCreate(BaseModel):
     notes: Optional[str] = None
     student_ids: List[int] = []  # List of student user IDs to add to the class
     assignments: list[AssignmentCreate]  # Each assignment can have a student_id for per-student portions
+    class_type: str = "regular"  # "regular" or "test"
 
 
 class MistakeCreate(BaseModel):
@@ -245,6 +322,28 @@ class MistakeCreate(BaseModel):
 
 class ClassNotesUpdate(BaseModel):
     notes: Optional[str] = None
+
+
+# ============ TEST PYDANTIC MODELS ============
+
+class QuestionStart(BaseModel):
+    start_surah: int
+    start_ayah: int
+
+
+class QuestionEnd(BaseModel):
+    end_surah: int
+    end_ayah: int
+
+
+class TestMistakeCreate(BaseModel):
+    question_id: int
+    surah_number: int
+    ayah_number: int
+    word_index: int
+    word_text: str
+    char_index: Optional[int] = None
+    is_tanbeeh: bool = False  # True = warning (0.5 pts), False = full mistake (1+ pts)
 
 
 # ============ QURAN ENDPOINTS ============
@@ -446,14 +545,30 @@ def get_class(class_id: int, current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/classes")
 def create_class(data: ClassCreate, current_user: dict = Depends(get_current_verified_user)):
-    """Create a new class with assignments (Teacher only)"""
+    """Create a new class with assignments (Teacher only)
+
+    For test classes (class_type='test'):
+    - Only one student allowed
+    - A test record is automatically created
+    """
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
-    # Create the class with teacher_id
+    # Validate class_type
+    if data.class_type not in ("regular", "test"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="class_type must be 'regular' or 'test'")
+
+    # For test classes, enforce single student
+    if data.class_type == "test":
+        if len(data.student_ids) != 1:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Test classes must have exactly one student")
+
+    # Create the class with teacher_id and class_type
     cursor = conn.execute(
-        "INSERT INTO classes (date, day, notes, teacher_id, is_published) VALUES (?, ?, ?, ?, 0)",
-        (data.date, data.day, data.notes, teacher_id)
+        "INSERT INTO classes (date, day, notes, teacher_id, is_published, class_type) VALUES (?, ?, ?, ?, 0, ?)",
+        (data.date, data.day, data.notes, teacher_id, data.class_type)
     )
     class_id = cursor.lastrowid
 
@@ -477,10 +592,22 @@ def create_class(data: ClassCreate, current_user: dict = Depends(get_current_ver
                 (class_id, student_id)
             )
 
+    # For test classes, automatically create a test record
+    test_id = None
+    if data.class_type == "test":
+        cursor = conn.execute(
+            "INSERT INTO tests (class_id, student_id) VALUES (?, ?)",
+            (class_id, data.student_ids[0])
+        )
+        test_id = cursor.lastrowid
+
     conn.commit()
     conn.close()
 
-    return {"id": class_id, "message": "Class created"}
+    response = {"id": class_id, "message": "Class created"}
+    if test_id:
+        response["test_id"] = test_id
+    return response
 
 
 @app.patch("/api/classes/{class_id}/notes")
@@ -999,6 +1126,657 @@ def decrement_or_delete_mistake(mistake_id: int, current_user: dict = Depends(ge
     conn.commit()
     conn.close()
     return {"message": message, "error_count": new_count}
+
+
+# ============ TEST ENDPOINTS ============
+
+def calculate_points_deducted(previous_error_count: int, is_tanbeeh: bool = False) -> float:
+    """
+    Calculate points to deduct based on mistake type and history.
+
+    Tanbeeh (تنبيه) - Teacher warning, student self-corrected:
+    - Always 0.5 points regardless of history
+
+    Full Mistake - Teacher had to correct the student:
+    - New mistake (0 previous): 1 point
+    - 1x before: 2 points
+    - 2x before: 3 points
+    - 3x before: 4 points
+    - 4x+ before: 5 points (capped)
+    """
+    if is_tanbeeh:
+        return 0.5
+
+    # Full mistake: base 1 point + previous count (capped at 5 total)
+    if previous_error_count >= 4:
+        return 5.0
+    else:
+        return 1.0 + float(previous_error_count)
+
+
+@app.get("/api/tests/{test_id}")
+def get_test(test_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Get a test with its questions and current state (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify ownership via class
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id, c.date, c.day
+        FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this test")
+
+    test_dict = dict(test)
+
+    # Get questions for this test
+    cursor = conn.execute("""
+        SELECT * FROM test_questions WHERE test_id = ? ORDER BY question_number
+    """, (test_id,))
+    questions = [dict(q) for q in cursor.fetchall()]
+
+    # Get mistakes for each question
+    for q in questions:
+        cursor = conn.execute("""
+            SELECT * FROM test_mistakes WHERE question_id = ? ORDER BY id
+        """, (q["id"],))
+        q["mistakes"] = [dict(m) for m in cursor.fetchall()]
+
+    test_dict["questions"] = questions
+
+    # Get student info
+    cursor = conn.execute("""
+        SELECT id, student_id, first_name, last_name FROM users WHERE id = ?
+    """, (test_dict["student_id"],))
+    student = cursor.fetchone()
+    if student:
+        test_dict["student"] = dict(student)
+
+    conn.close()
+    return {"data": test_dict}
+
+
+@app.get("/api/classes/{class_id}/test")
+def get_test_by_class(class_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Get the test for a specific class (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Verify class ownership
+    cursor = conn.execute("SELECT teacher_id, class_type FROM classes WHERE id = ?", (class_id,))
+    cls = cursor.fetchone()
+
+    if not cls:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    if cls["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this class")
+
+    if cls["class_type"] != "test":
+        conn.close()
+        raise HTTPException(status_code=400, detail="This is not a test class")
+
+    # Get test
+    cursor = conn.execute("SELECT * FROM tests WHERE class_id = ?", (class_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found for this class")
+
+    test_dict = dict(test)
+
+    # Get questions
+    cursor = conn.execute("""
+        SELECT * FROM test_questions WHERE test_id = ? ORDER BY question_number
+    """, (test_dict["id"],))
+    questions = [dict(q) for q in cursor.fetchall()]
+
+    # Get mistakes for each question
+    for q in questions:
+        cursor = conn.execute("""
+            SELECT * FROM test_mistakes WHERE question_id = ? ORDER BY id
+        """, (q["id"],))
+        q["mistakes"] = [dict(m) for m in cursor.fetchall()]
+
+    test_dict["questions"] = questions
+
+    # Get student info
+    cursor = conn.execute("""
+        SELECT id, student_id, first_name, last_name FROM users WHERE id = ?
+    """, (test_dict["student_id"],))
+    student = cursor.fetchone()
+    if student:
+        test_dict["student"] = dict(student)
+
+    conn.close()
+    return {"data": test_dict}
+
+
+@app.patch("/api/tests/{test_id}/start")
+def start_test(test_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Start a test (status → in_progress)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify ownership
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if test["status"] != "not_started":
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Test is already {test['status']}")
+
+    # Start the test
+    started_at = datetime.now().isoformat()
+    conn.execute("""
+        UPDATE tests SET status = 'in_progress', started_at = ? WHERE id = ?
+    """, (started_at, test_id))
+
+    conn.commit()
+    conn.close()
+    return {"message": "Test started", "started_at": started_at}
+
+
+@app.patch("/api/tests/{test_id}/complete")
+def complete_test(test_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Complete a test - calculate final score"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify ownership
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if test["status"] != "in_progress":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Test is not in progress")
+
+    # Calculate total score: 100 - sum of all deductions
+    # points_earned in test_questions now stores deductions (we renamed its purpose)
+    cursor = conn.execute("""
+        SELECT COALESCE(SUM(points_earned), 0) as total_deductions
+        FROM test_questions WHERE test_id = ? AND status = 'completed'
+    """, (test_id,))
+    total_deductions = cursor.fetchone()["total_deductions"]
+
+    # Final score is 100 minus deductions, minimum 0
+    max_score = 100
+    total_score = max(0, max_score - total_deductions)
+
+    # Complete the test
+    completed_at = datetime.now().isoformat()
+    conn.execute("""
+        UPDATE tests SET status = 'completed', completed_at = ?, total_score = ?, max_score = ?
+        WHERE id = ?
+    """, (completed_at, total_score, max_score, test_id))
+
+    conn.commit()
+    conn.close()
+    return {
+        "message": "Test completed",
+        "total_score": total_score,
+        "max_score": max_score,
+        "total_deductions": total_deductions,
+        "completed_at": completed_at
+    }
+
+
+@app.post("/api/tests/{test_id}/questions/start")
+def start_question(test_id: int, data: QuestionStart, current_user: dict = Depends(get_current_verified_user)):
+    """Start a new question in the test"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if test["status"] != "in_progress":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Test is not in progress")
+
+    # Check for any in_progress question
+    cursor = conn.execute("""
+        SELECT id FROM test_questions WHERE test_id = ? AND status = 'in_progress'
+    """, (test_id,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Another question is already in progress")
+
+    # Get next question number
+    cursor = conn.execute("""
+        SELECT COALESCE(MAX(question_number), 0) + 1 as next_num FROM test_questions WHERE test_id = ?
+    """, (test_id,))
+    question_number = cursor.fetchone()["next_num"]
+
+    # Create the question
+    started_at = datetime.now().isoformat()
+    cursor = conn.execute("""
+        INSERT INTO test_questions (test_id, question_number, start_surah, start_ayah, status, started_at)
+        VALUES (?, ?, ?, ?, 'in_progress', ?)
+    """, (test_id, question_number, data.start_surah, data.start_ayah, started_at))
+    question_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return {
+        "id": question_id,
+        "question_number": question_number,
+        "start_surah": data.start_surah,
+        "start_ayah": data.start_ayah,
+        "status": "in_progress",
+        "started_at": started_at
+    }
+
+
+@app.patch("/api/tests/{test_id}/questions/{question_id}/end")
+def end_question(test_id: int, question_id: int, data: QuestionEnd, current_user: dict = Depends(get_current_verified_user)):
+    """End a question and calculate its score"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get question
+    cursor = conn.execute("""
+        SELECT * FROM test_questions WHERE id = ? AND test_id = ?
+    """, (question_id, test_id))
+    question = cursor.fetchone()
+
+    if not question:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    if question["status"] != "in_progress":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Question is not in progress")
+
+    # Get total deductions for this question (for display)
+    cursor = conn.execute("""
+        SELECT COALESCE(SUM(points_deducted), 0) as total_deducted
+        FROM test_mistakes WHERE question_id = ?
+    """, (question_id,))
+    total_deducted = cursor.fetchone()["total_deducted"]
+
+    # Complete the question - store deductions, not per-question score
+    # Final score will be calculated as 100 - total_deductions when test ends
+    completed_at = datetime.now().isoformat()
+    conn.execute("""
+        UPDATE test_questions
+        SET status = 'completed', end_surah = ?, end_ayah = ?, points_earned = ?, points_possible = ?, completed_at = ?
+        WHERE id = ?
+    """, (data.end_surah, data.end_ayah, total_deducted, 0, completed_at, question_id))
+
+    conn.commit()
+    conn.close()
+    return {
+        "id": question_id,
+        "status": "completed",
+        "end_surah": data.end_surah,
+        "end_ayah": data.end_ayah,
+        "points_deducted": total_deducted,
+        "completed_at": completed_at
+    }
+
+
+@app.patch("/api/tests/{test_id}/questions/{question_id}/cancel")
+def cancel_question(test_id: int, question_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Cancel a question (doesn't count toward score)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get question
+    cursor = conn.execute("""
+        SELECT * FROM test_questions WHERE id = ? AND test_id = ?
+    """, (question_id, test_id))
+    question = cursor.fetchone()
+
+    if not question:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    if question["status"] != "in_progress":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Question is not in progress")
+
+    # Delete mistakes for this question (don't add to global mistakes)
+    conn.execute("DELETE FROM test_mistakes WHERE question_id = ?", (question_id,))
+
+    # Mark as cancelled
+    conn.execute("""
+        UPDATE test_questions SET status = 'cancelled' WHERE id = ?
+    """, (question_id,))
+
+    conn.commit()
+    conn.close()
+    return {"message": "Question cancelled", "id": question_id}
+
+
+@app.post("/api/tests/{test_id}/mistakes")
+def add_test_mistake(test_id: int, data: TestMistakeCreate, current_user: dict = Depends(get_current_verified_user)):
+    """Record a mistake during a test - also adds to global mistake history"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Verify question is in progress
+    cursor = conn.execute("""
+        SELECT * FROM test_questions WHERE id = ? AND test_id = ? AND status = 'in_progress'
+    """, (data.question_id, test_id))
+    question = cursor.fetchone()
+
+    if not question:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Question not found or not in progress")
+
+    student_id = test["student_id"]
+
+    # Check if this mistake already exists in global mistakes for this student
+    if data.char_index is not None:
+        cursor = conn.execute("""
+            SELECT id, error_count FROM mistakes
+            WHERE student_id = ? AND surah_number = ? AND ayah_number = ? AND word_index = ? AND char_index = ?
+        """, (student_id, data.surah_number, data.ayah_number, data.word_index, data.char_index))
+    else:
+        cursor = conn.execute("""
+            SELECT id, error_count FROM mistakes
+            WHERE student_id = ? AND surah_number = ? AND ayah_number = ? AND word_index = ? AND char_index IS NULL
+        """, (student_id, data.surah_number, data.ayah_number, data.word_index))
+
+    existing = cursor.fetchone()
+
+    if existing:
+        # This is a repeated mistake
+        mistake_id = existing["id"]
+        previous_error_count = existing["error_count"]
+        is_repeated = True
+
+        # Increment global error count
+        conn.execute("UPDATE mistakes SET error_count = error_count + 1 WHERE id = ?", (mistake_id,))
+    else:
+        # This is a new mistake
+        previous_error_count = 0
+        is_repeated = False
+
+        # Create in global mistakes
+        cursor = conn.execute("""
+            INSERT INTO mistakes (student_id, surah_number, ayah_number, word_index, word_text, char_index, error_count)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        """, (student_id, data.surah_number, data.ayah_number, data.word_index, data.word_text, data.char_index))
+        mistake_id = cursor.lastrowid
+
+    # Record occurrence in the class
+    conn.execute("""
+        INSERT INTO mistake_occurrences (mistake_id, class_id) VALUES (?, ?)
+    """, (mistake_id, test["class_id"]))
+
+    # Calculate points to deduct (tanbeeh = 0.5, full mistake = 1+ based on history)
+    points_deducted = calculate_points_deducted(previous_error_count, data.is_tanbeeh)
+
+    # Record in test_mistakes
+    cursor = conn.execute("""
+        INSERT INTO test_mistakes (test_id, question_id, mistake_id, surah_number, ayah_number, word_index, word_text, char_index, is_tanbeeh, is_repeated, previous_error_count, points_deducted)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (test_id, data.question_id, mistake_id, data.surah_number, data.ayah_number, data.word_index, data.word_text, data.char_index, data.is_tanbeeh, is_repeated, previous_error_count, points_deducted))
+    test_mistake_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return {
+        "id": test_mistake_id,
+        "mistake_id": mistake_id,
+        "is_tanbeeh": data.is_tanbeeh,
+        "is_repeated": is_repeated,
+        "previous_error_count": previous_error_count,
+        "points_deducted": points_deducted
+    }
+
+
+@app.delete("/api/tests/{test_id}/mistakes/{test_mistake_id}")
+def remove_test_mistake(test_id: int, test_mistake_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Remove a mistake from the current test (also decrements global count)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get test mistake
+    cursor = conn.execute("""
+        SELECT tm.*, tq.status as question_status FROM test_mistakes tm
+        JOIN test_questions tq ON tm.question_id = tq.id
+        WHERE tm.id = ? AND tm.test_id = ?
+    """, (test_mistake_id, test_id))
+    test_mistake = cursor.fetchone()
+
+    if not test_mistake:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test mistake not found")
+
+    if test_mistake["question_status"] != "in_progress":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Cannot remove mistake from completed question")
+
+    # Decrement global mistake count
+    mistake_id = test_mistake["mistake_id"]
+    cursor = conn.execute("SELECT error_count FROM mistakes WHERE id = ?", (mistake_id,))
+    mistake = cursor.fetchone()
+
+    if mistake:
+        if mistake["error_count"] <= 1:
+            # Delete the mistake entirely
+            conn.execute("DELETE FROM mistakes WHERE id = ?", (mistake_id,))
+        else:
+            # Decrement
+            conn.execute("UPDATE mistakes SET error_count = error_count - 1 WHERE id = ?", (mistake_id,))
+
+        # Delete the most recent occurrence
+        conn.execute("""
+            DELETE FROM mistake_occurrences
+            WHERE id = (SELECT id FROM mistake_occurrences WHERE mistake_id = ? ORDER BY occurred_at DESC LIMIT 1)
+        """, (mistake_id,))
+
+    # Delete test mistake
+    conn.execute("DELETE FROM test_mistakes WHERE id = ?", (test_mistake_id,))
+
+    conn.commit()
+    conn.close()
+    return {"message": "Test mistake removed"}
+
+
+@app.get("/api/tests/{test_id}/results")
+def get_test_results(test_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Get detailed test results (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id, c.date, c.day FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    test_dict = dict(test)
+
+    # Get student info
+    cursor = conn.execute("""
+        SELECT id, student_id, first_name, last_name FROM users WHERE id = ?
+    """, (test_dict["student_id"],))
+    student = cursor.fetchone()
+    if student:
+        test_dict["student"] = dict(student)
+
+    # Get questions with their mistakes
+    cursor = conn.execute("""
+        SELECT * FROM test_questions WHERE test_id = ? ORDER BY question_number
+    """, (test_id,))
+    questions = []
+    for q in cursor.fetchall():
+        q_dict = dict(q)
+
+        # Get mistakes for this question
+        cursor2 = conn.execute("""
+            SELECT * FROM test_mistakes WHERE question_id = ? ORDER BY created_at
+        """, (q_dict["id"],))
+        q_dict["mistakes"] = [dict(m) for m in cursor2.fetchall()]
+
+        questions.append(q_dict)
+
+    test_dict["questions"] = questions
+
+    conn.close()
+    return {"data": test_dict}
+
+
+@app.get("/api/tests/{test_id}/mistakes")
+def get_test_mistakes(test_id: int, current_user: dict = Depends(get_current_verified_user)):
+    """Get all mistakes for a test (Teacher only)"""
+    teacher_id = int(current_user["sub"])
+    conn = get_app_db()
+
+    # Get test and verify
+    cursor = conn.execute("""
+        SELECT t.*, c.teacher_id FROM tests t
+        JOIN classes c ON t.class_id = c.id
+        WHERE t.id = ?
+    """, (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test["teacher_id"] != teacher_id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    cursor = conn.execute("""
+        SELECT tm.*, tq.question_number FROM test_mistakes tm
+        JOIN test_questions tq ON tm.question_id = tq.id
+        WHERE tm.test_id = ?
+        ORDER BY tq.question_number, tm.created_at
+    """, (test_id,))
+    mistakes = [dict(m) for m in cursor.fetchall()]
+
+    conn.close()
+    return {"data": mistakes}
 
 
 # ============ STATS ENDPOINT ============

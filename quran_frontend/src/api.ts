@@ -280,6 +280,7 @@ export interface ClassData {
   performance?: string;
   teacher_id: number;
   is_published: boolean;
+  class_type: 'regular' | 'test';  // Class type
   assignments: ClassAssignment[];
   students?: ClassStudent[];  // Only included for teachers
 }
@@ -302,6 +303,7 @@ export async function createClass(classData: {
   day: string;
   notes?: string;
   student_ids: number[];  // List of student user IDs
+  class_type?: 'regular' | 'test';  // Class type (defaults to 'regular')
   assignments: {
     type: string;
     start_surah: number;
@@ -310,7 +312,7 @@ export async function createClass(classData: {
     end_ayah?: number;
     student_id?: number;  // Which student this assignment is for (null = all students)
   }[];
-}) {
+}): Promise<{ id: number; message: string; test_id?: number }> {
   const res = await authFetch(`${API_BASE}/classes`, {
     method: 'POST',
     body: JSON.stringify(classData),
@@ -504,4 +506,214 @@ export async function restoreBackup(filename: string) {
   }
 
   return res.json();
+}
+
+// ============ TESTS ============
+
+export interface TestQuestion {
+  id: number;
+  test_id: number;
+  question_number: number;
+  start_surah?: number;
+  start_ayah?: number;
+  end_surah?: number;
+  end_ayah?: number;
+  points_earned?: number;
+  points_possible?: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  started_at?: string;
+  completed_at?: string;
+  mistakes?: TestMistake[];
+}
+
+export interface TestMistake {
+  id: number;
+  test_id: number;
+  question_id: number;
+  mistake_id?: number;
+  surah_number: number;
+  ayah_number: number;
+  word_index: number;
+  word_text: string;
+  char_index?: number;
+  is_tanbeeh: boolean;
+  is_repeated: boolean;
+  previous_error_count: number;
+  points_deducted: number;
+  created_at: string;
+  question_number?: number;
+}
+
+export interface TestData {
+  id: number;
+  class_id: number;
+  student_id: number;
+  total_score?: number;
+  max_score: number;
+  status: 'not_started' | 'in_progress' | 'completed';
+  started_at?: string;
+  completed_at?: string;
+  questions: TestQuestion[];
+  student?: {
+    id: number;
+    student_id: string;
+    first_name: string;
+    last_name: string;
+  };
+  date?: string;
+  day?: string;
+}
+
+export async function getTest(testId: number): Promise<TestData> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to get test');
+  }
+  const data = await res.json();
+  return data.data;
+}
+
+export async function getTestByClass(classId: number): Promise<TestData> {
+  const res = await authFetch(`${API_BASE}/classes/${classId}/test`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to get test for class');
+  }
+  const data = await res.json();
+  return data.data;
+}
+
+export async function startTest(testId: number): Promise<{ message: string; started_at: string }> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/start`, {
+    method: 'PATCH',
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to start test');
+  }
+  return res.json();
+}
+
+export async function completeTest(testId: number): Promise<{
+  message: string;
+  total_score: number;
+  max_score: number;
+  completed_at: string;
+}> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/complete`, {
+    method: 'PATCH',
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to complete test');
+  }
+  return res.json();
+}
+
+export async function startQuestion(testId: number, startSurah: number, startAyah: number): Promise<TestQuestion> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/questions/start`, {
+    method: 'POST',
+    body: JSON.stringify({ start_surah: startSurah, start_ayah: startAyah }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to start question');
+  }
+  return res.json();
+}
+
+export async function endQuestion(
+  testId: number,
+  questionId: number,
+  endSurah: number,
+  endAyah: number
+): Promise<{
+  id: number;
+  status: string;
+  end_surah: number;
+  end_ayah: number;
+  points_earned: number;
+  points_possible: number;
+  total_deducted: number;
+  completed_at: string;
+}> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/questions/${questionId}/end`, {
+    method: 'PATCH',
+    body: JSON.stringify({ end_surah: endSurah, end_ayah: endAyah }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to end question');
+  }
+  return res.json();
+}
+
+export async function cancelQuestion(testId: number, questionId: number): Promise<{ message: string; id: number }> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/questions/${questionId}/cancel`, {
+    method: 'PATCH',
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to cancel question');
+  }
+  return res.json();
+}
+
+export async function addTestMistake(testId: number, mistake: {
+  question_id: number;
+  surah_number: number;
+  ayah_number: number;
+  word_index: number;
+  word_text: string;
+  char_index?: number;
+  is_tanbeeh?: boolean;  // True = warning (0.5 pts), False = full mistake (1+ pts)
+}): Promise<{
+  id: number;
+  mistake_id: number;
+  is_tanbeeh: boolean;
+  is_repeated: boolean;
+  previous_error_count: number;
+  points_deducted: number;
+}> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/mistakes`, {
+    method: 'POST',
+    body: JSON.stringify(mistake),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to add test mistake');
+  }
+  return res.json();
+}
+
+export async function removeTestMistake(testId: number, testMistakeId: number): Promise<{ message: string }> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/mistakes/${testMistakeId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to remove test mistake');
+  }
+  return res.json();
+}
+
+export async function getTestResults(testId: number): Promise<TestData> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/results`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to get test results');
+  }
+  const data = await res.json();
+  return data.data;
+}
+
+export async function getTestMistakes(testId: number): Promise<TestMistake[]> {
+  const res = await authFetch(`${API_BASE}/tests/${testId}/mistakes`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to get test mistakes');
+  }
+  const data = await res.json();
+  return data.data;
 }

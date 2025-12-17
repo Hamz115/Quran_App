@@ -152,6 +152,7 @@ Contains application data.
 | **performance** | TEXT | Class rating: 'Excellent', 'Very Good', 'Good', 'Needs Work' |
 | **teacher_id** | INTEGER | Foreign key to users (class owner) |
 | **is_published** | BOOLEAN | Default false; when true, students can see class |
+| **class_type** | TEXT | `'regular'` (default) or `'test'` |
 | created_at | TEXT | Timestamp |
 | updated_at | TEXT | Timestamp |
 | device_id | TEXT | For sync identification |
@@ -208,6 +209,51 @@ This table tracks WHEN a mistake was made in WHICH class, enabling:
 - Tracking repeated mistakes across classes
 - Historical analysis of when mistakes were made
 - Identifying if a mistake was made in current class vs previous
+
+#### Table: `tests`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key |
+| class_id | INTEGER | Foreign key to classes (UNIQUE) |
+| student_id | INTEGER | Foreign key to users |
+| total_score | REAL | Final test score |
+| max_score | REAL | Maximum possible score (default 100) |
+| status | TEXT | `'not_started'`, `'in_progress'`, or `'completed'` |
+| started_at | TEXT | Timestamp when test started |
+| completed_at | TEXT | Timestamp when test completed |
+
+#### Table: `test_questions`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key |
+| test_id | INTEGER | Foreign key to tests |
+| question_number | INTEGER | Question order (1, 2, 3...) |
+| start_surah | INTEGER | Starting surah number |
+| start_ayah | INTEGER | Starting ayah number |
+| end_surah | INTEGER | Ending surah number |
+| end_ayah | INTEGER | Ending ayah number |
+| points_earned | REAL | Calculated score for this question |
+| points_possible | REAL | Max points for this question |
+| status | TEXT | `'pending'`, `'in_progress'`, `'completed'`, or `'cancelled'` |
+| started_at | TEXT | Timestamp when question started |
+| completed_at | TEXT | Timestamp when question completed |
+
+#### Table: `test_mistakes`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key |
+| test_id | INTEGER | Foreign key to tests |
+| question_id | INTEGER | Foreign key to test_questions |
+| mistake_id | INTEGER | Foreign key to mistakes (links to global mistake) |
+| surah_number | INTEGER | Surah where mistake occurred |
+| ayah_number | INTEGER | Ayah number |
+| word_index | INTEGER | Word position in ayah |
+| word_text | TEXT | The Arabic word |
+| char_index | INTEGER | Character position (null = whole word) |
+| is_repeated | BOOLEAN | True if student made this mistake before |
+| previous_error_count | INTEGER | Number of times made before this test |
+| points_deducted | REAL | Points deducted for this mistake |
+| created_at | TEXT | Timestamp |
 
 ---
 
@@ -277,6 +323,37 @@ Base URL: `http://localhost:8000/api`
   "class_id": 3          // optional: links occurrence to class
 }
 ```
+
+### Test Endpoints (Authenticated - Teacher Only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/tests/{test_id}` | Get test with all questions |
+| GET | `/tests/by-class/{class_id}` | Get test by class ID |
+| PATCH | `/tests/{test_id}/start` | Start test (status → in_progress) |
+| PATCH | `/tests/{test_id}/complete` | Complete test, calculate final score |
+| POST | `/tests/{test_id}/questions/start` | Start new question |
+| PATCH | `/tests/{test_id}/questions/{q_id}/end` | End question with end ayah |
+| PATCH | `/tests/{test_id}/questions/{q_id}/cancel` | Cancel question |
+| GET | `/tests/{test_id}/mistakes` | Get all mistakes for test |
+| POST | `/tests/{test_id}/mistakes` | Record mistake during test |
+| DELETE | `/tests/{test_id}/mistakes/{m_id}` | Remove mistake |
+| GET | `/tests/{test_id}/results` | Get detailed results |
+
+**Test Scoring Logic (Out of 100):**
+
+Final Score = 100 - Total Deductions (minimum 0)
+
+| Mistake Type | Previous Errors | Points Deducted |
+|-------------|-----------------|-----------------|
+| Tanbeeh (تنبيه) | Any | -0.5 |
+| Full Mistake | 0 (new) | -1.0 |
+| Full Mistake | 1 | -2.0 |
+| Full Mistake | 2 | -3.0 |
+| Full Mistake | 3 | -4.0 |
+| Full Mistake | 4+ | -5.0 (capped) |
+
+**Tanbeeh**: Teacher warning where student self-corrects (always -0.5)
 
 ### Stats Endpoint
 
@@ -419,6 +496,22 @@ Teachers can rate each class after completion:
 Each class can have multiple portions:
 - Example: Hifz could have Surah 92:12-21 AND Surah 93:1-5
 - Portion navigation allows switching between them
+
+### 8. Test Classes
+Special class type for formal assessments:
+- Single student per test (enforced)
+- Single test portion (no Hifz/Sabqi/Revision tabs)
+- Question-by-question flow with start/end ayah selection
+- Test Control Panel replaces section tabs
+- **Scoring out of 100**: Final Score = 100 - Deductions
+- **Tanbeeh (تنبيه)**: Teacher warning, -0.5 pts (student self-corrects)
+- **Full Mistakes**: -1 to -5 pts based on previous error count
+- Results view with:
+  - Percentage score display
+  - Per-question breakdown
+  - Mistake location (surah:ayah)
+  - Tanbeeh vs full mistake indicators
+- Test mistakes save to global mistake history
 
 ---
 
@@ -579,11 +672,32 @@ flutter run
 
 - **[AUTH_SYSTEM.md](./AUTH_SYSTEM.md)** - Authentication system, JWT tokens, user roles, student management
 - **[CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)** - Classes, assignments, mistake tracking, page-based Quran display
+- **[TEST_SYSTEM.md](./TEST_SYSTEM.md)** - Test classes, scoring logic, question flow
 - **[PROJECT_CHANGELOG.md](../PROJECT_CHANGELOG.md)** - Chronological development history (main reference)
 
 ---
 
-## Recent Updates (Phase 7)
+## Recent Updates (Phase 8)
+
+### Test Classes
+- **Class Type Toggle**: Regular vs Test class selection in creation modal
+- **Test Badge**: Cyan "TEST" badge shown in classes table
+- **Single Student Enforcement**: Test classes only allow one student
+- **Scoring System**: Points deducted based on mistake history (0.5-4 pts)
+- **Question Flow**: Start question → mark mistakes → end question → repeat
+- **Test Results**: Per-question breakdown with mistake details
+- **Global Integration**: Test mistakes save to global mistake history
+
+### Database Changes
+- Added `class_type` column to `classes` table
+- New tables: `tests`, `test_questions`, `test_mistakes`
+
+### API Endpoints
+- 11 new test-related endpoints for test management, questions, mistakes, and results
+
+---
+
+## Previous Updates (Phase 7)
 
 ### QuranReader Enhancements
 - **Surah Dropdown**: Select any surah to navigate to its first page

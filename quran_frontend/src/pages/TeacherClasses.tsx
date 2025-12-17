@@ -72,6 +72,7 @@ export default function TeacherClasses() {
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [creating, setCreating] = useState(false);
+  const [classType, setClassType] = useState<'regular' | 'test'>('regular');
 
   // Notes modal state
   const [showNotesModal, setShowNotesModal] = useState(false);
@@ -141,15 +142,22 @@ export default function TeacherClasses() {
   }, []);
 
   const toggleStudent = (id: number) => {
-    setSelectedStudents(prev =>
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    );
+    if (classType === 'test') {
+      // Test classes only allow one student - toggle to this student only
+      setSelectedStudents(prev => prev.includes(id) ? [] : [id]);
+    } else {
+      // Regular classes allow multiple students
+      setSelectedStudents(prev =>
+        prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+      );
+    }
   };
 
   const resetModal = () => {
     setShowNewClassModal(false);
     setModalStep(1);
     setSelectedStudents([]);
+    setClassType('regular');
     setPortionMode('same');
     setActiveStudentId(null);
     setHifzConfig({ enabled: true, portions: [createDefaultPortion()] });
@@ -248,14 +256,15 @@ export default function TeacherClasses() {
         date: today.toISOString().split('T')[0],
         day: days[today.getDay()],
         student_ids: selectedStudents,
+        class_type: classType,
         assignments
       });
 
       if (result.id) {
         resetModal();
         window.location.href = `/teacher/classes/${result.id}`;
-      } else if (result.detail) {
-        alert('Error: ' + result.detail);
+      } else if ('detail' in result) {
+        alert('Error: ' + (result as { detail: string }).detail);
       }
     } catch (err) {
       console.error('Error creating class:', err);
@@ -717,8 +726,17 @@ export default function TeacherClasses() {
                       </div>
 
                       {/* Date - only show on first row of class */}
-                      <div className="text-slate-200 text-sm">
-                        {isFirstOfClass ? `${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}` : ''}
+                      <div className="text-slate-200 text-sm flex items-center gap-1.5">
+                        {isFirstOfClass ? (
+                          <>
+                            {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}`}
+                            {cls.class_type === 'test' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
+                                Test
+                              </span>
+                            )}
+                          </>
+                        ) : null}
                       </div>
 
                       {/* Day - only show on first row of class */}
@@ -906,8 +924,57 @@ export default function TeacherClasses() {
               {modalStep === 1 ? (
                 /* Step 1: Select Students */
                 <div className="space-y-4">
+                  {/* Class Type Toggle */}
+                  <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <label className="block text-sm font-medium text-slate-300 mb-3">
+                      Class Type
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setClassType('regular')}
+                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                          classType === 'regular'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500'
+                            : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                          Regular Class
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">Normal recitation session</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClassType('test');
+                          // Test classes only allow one student - if multiple selected, keep first
+                          if (selectedStudents.length > 1) {
+                            setSelectedStudents([selectedStudents[0]]);
+                          }
+                        }}
+                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                          classType === 'test'
+                            ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
+                            : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Test
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">Scored assessment (1 student)</p>
+                      </button>
+                    </div>
+                  </div>
+
                   <label className="block text-sm font-medium text-slate-300">
-                    Select students for this class
+                    {classType === 'test' ? 'Select student for this test' : 'Select students for this class'}
                   </label>
                   {students.length === 0 ? (
                     <div className="p-6 bg-slate-700/30 rounded-xl text-center">
@@ -953,14 +1020,19 @@ export default function TeacherClasses() {
               ) : (
                 /* Step 2: Configure Portions */
                 <div className="space-y-4">
-                  <div className="p-3 bg-slate-700/50 rounded-lg">
+                  <div className="p-3 bg-slate-700/50 rounded-lg flex items-center gap-2">
                     <p className="text-sm text-slate-400">
-                      Class with: <span className="text-emerald-400 font-medium">{selectedStudentNames}</span>
+                      {classType === 'test' ? 'Test' : 'Class'} with: <span className={`font-medium ${classType === 'test' ? 'text-cyan-400' : 'text-emerald-400'}`}>{selectedStudentNames}</span>
                     </p>
+                    {classType === 'test' && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
+                        Test
+                      </span>
+                    )}
                   </div>
 
-                  {/* Portion Mode Toggle - only show if multiple students selected */}
-                  {selectedStudents.length > 1 && (
+                  {/* Portion Mode Toggle - only show if multiple students selected AND not a test */}
+                  {selectedStudents.length > 1 && classType !== 'test' && (
                     <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                       <label className="block text-sm font-medium text-slate-300 mb-3">
                         How do you want to assign portions?
@@ -995,8 +1067,8 @@ export default function TeacherClasses() {
                     </div>
                   )}
 
-                  {/* Per-student tabs - show when in per-student mode */}
-                  {portionMode === 'per-student' && selectedStudents.length > 1 && (
+                  {/* Per-student tabs - show when in per-student mode (not for tests) */}
+                  {portionMode === 'per-student' && selectedStudents.length > 1 && classType !== 'test' && (
                     <div className="flex gap-2 overflow-x-auto pb-2">
                       {selectedStudents.map(studentId => {
                         const student = students.find(s => s.id === studentId);
@@ -1032,13 +1104,219 @@ export default function TeacherClasses() {
                   )}
 
                   <p className="text-sm text-slate-300">
-                    {portionMode === 'per-student' && selectedStudents.length > 1
-                      ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
-                      : 'Select the Quran portions for this class (you can also add/edit later):'}
+                    {classType === 'test'
+                      ? 'Select the portion range for this test:'
+                      : portionMode === 'per-student' && selectedStudents.length > 1
+                        ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
+                        : 'Select the Quran portions for this class (you can also add/edit later):'}
                   </p>
 
                   <div className="space-y-3">
-                    {portionMode === 'same' ? (
+                    {classType === 'test' ? (
+                      /* Test mode - simplified single portion selector */
+                      <div className="p-4 rounded-xl border-2 border-cyan-500 bg-cyan-500/5">
+                        <div className="mb-4">
+                          <h3 className="font-semibold text-slate-100">Test Portion</h3>
+                          <p className="text-sm text-slate-500">Select the ayah range the student will be tested on</p>
+                        </div>
+
+                        {/* Mode Toggle - Page (default) or Surah */}
+                        <div className="flex gap-2 mb-4">
+                          <button
+                            type="button"
+                            onClick={() => setHifzConfig({
+                              ...hifzConfig,
+                              portions: hifzConfig.portions.map((p, i) => i === 0 ? { ...p, mode: 'page' } : p)
+                            })}
+                            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                              hifzConfig.portions[0]?.mode === 'page'
+                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                                : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                            }`}
+                          >
+                            By Page
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHifzConfig({
+                              ...hifzConfig,
+                              portions: hifzConfig.portions.map((p, i) => i === 0 ? { ...p, mode: 'surah' } : p)
+                            })}
+                            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                              hifzConfig.portions[0]?.mode === 'surah'
+                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                                : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                            }`}
+                          >
+                            By Surah
+                          </button>
+                        </div>
+
+                        {hifzConfig.portions[0]?.mode === 'page' ? (
+                          /* Page-based selection */
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-slate-400 mb-1">From Page</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max={TOTAL_PAGES}
+                                value={hifzConfig.portions[0]?.startPage || 560}
+                                onChange={(e) => {
+                                  const newStart = Math.min(Math.max(1, parseInt(e.target.value) || 1), TOTAL_PAGES);
+                                  const startRange = getPageRange(newStart);
+                                  const endPage = Math.max(newStart, hifzConfig.portions[0]?.endPage || newStart);
+                                  const endRange = getPageRange(endPage);
+                                  setHifzConfig({
+                                    ...hifzConfig,
+                                    portions: [{
+                                      ...hifzConfig.portions[0],
+                                      startPage: newStart,
+                                      endPage,
+                                      startSurah: startRange.startSurah,
+                                      endSurah: endRange.endSurah,
+                                      startAyah: String(startRange.startAyah),
+                                      endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
+                                    }]
+                                  });
+                                }}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-400 mb-1">To Page</label>
+                              <input
+                                type="number"
+                                min={hifzConfig.portions[0]?.startPage || 1}
+                                max={TOTAL_PAGES}
+                                value={hifzConfig.portions[0]?.endPage || 560}
+                                onChange={(e) => {
+                                  const startPage = hifzConfig.portions[0]?.startPage || 560;
+                                  const newEnd = Math.min(Math.max(startPage, parseInt(e.target.value) || startPage), TOTAL_PAGES);
+                                  const endRange = getPageRange(newEnd);
+                                  setHifzConfig({
+                                    ...hifzConfig,
+                                    portions: [{
+                                      ...hifzConfig.portions[0],
+                                      endPage: newEnd,
+                                      endSurah: endRange.endSurah,
+                                      endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
+                                    }]
+                                  });
+                                }}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          /* Surah-based selection */
+                          <>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-slate-400 mb-1">From Surah</label>
+                                <select
+                                  value={hifzConfig.portions[0]?.startSurah || 67}
+                                  onChange={(e) => {
+                                    const newStart = parseInt(e.target.value);
+                                    const portion = hifzConfig.portions[0];
+                                    setHifzConfig({
+                                      ...hifzConfig,
+                                      portions: [{
+                                        ...portion,
+                                        startSurah: newStart,
+                                        endSurah: newStart > (portion?.endSurah || 67) ? newStart : (portion?.endSurah || 67),
+                                        startAyah: '',
+                                        endAyah: ''
+                                      }]
+                                    });
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                >
+                                  {surahList.map((surah) => (
+                                    <option key={surah.number} value={surah.number}>
+                                      {surah.number}. {surah.englishName}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-slate-400 mb-1">To Surah</label>
+                                <select
+                                  value={hifzConfig.portions[0]?.endSurah || 67}
+                                  onChange={(e) => {
+                                    const portion = hifzConfig.portions[0];
+                                    setHifzConfig({
+                                      ...hifzConfig,
+                                      portions: [{
+                                        ...portion,
+                                        endSurah: parseInt(e.target.value),
+                                        startAyah: '',
+                                        endAyah: ''
+                                      }]
+                                    });
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                >
+                                  {surahList.filter(s => s.number >= (hifzConfig.portions[0]?.startSurah || 1)).map((surah) => (
+                                    <option key={surah.number} value={surah.number}>
+                                      {surah.number}. {surah.englishName}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Ayah range - only if same surah */}
+                            {hifzConfig.portions[0]?.startSurah === hifzConfig.portions[0]?.endSurah && (
+                              <div className="grid grid-cols-2 gap-3 mt-3">
+                                <div>
+                                  <label className="block text-xs text-slate-400 mb-1">From Ayah (optional)</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={surahList.find(s => s.number === hifzConfig.portions[0]?.startSurah)?.numberOfAyahs || 286}
+                                    placeholder="All"
+                                    value={hifzConfig.portions[0]?.startAyah || ''}
+                                    onChange={(e) => {
+                                      const portion = hifzConfig.portions[0];
+                                      setHifzConfig({
+                                        ...hifzConfig,
+                                        portions: [{ ...portion, startAyah: e.target.value }]
+                                      });
+                                    }}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-slate-400 mb-1">To Ayah (optional)</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={surahList.find(s => s.number === hifzConfig.portions[0]?.endSurah)?.numberOfAyahs || 286}
+                                    placeholder="All"
+                                    value={hifzConfig.portions[0]?.endAyah || ''}
+                                    onChange={(e) => {
+                                      const portion = hifzConfig.portions[0];
+                                      setHifzConfig({
+                                        ...hifzConfig,
+                                        portions: [{ ...portion, endAyah: e.target.value }]
+                                      });
+                                    }}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {hifzConfig.portions[0]?.startSurah !== hifzConfig.portions[0]?.endSurah && (
+                              <p className="text-xs text-slate-500 italic mt-2">
+                                Note: Ayah range only applies when start and end surah are the same
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ) : portionMode === 'same' ? (
                       <>
                         <PortionSelector
                           label="Hifz (New Memorization)"
@@ -1111,9 +1389,9 @@ export default function TeacherClasses() {
                   <button
                     disabled={selectedStudents.length === 0}
                     onClick={() => setModalStep(2)}
-                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-emerald-600 hover:bg-emerald-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
                   >
-                    Next: Choose Portions
+                    {classType === 'test' ? 'Next: Test Portion' : 'Next: Choose Portions'}
                   </button>
                 </>
               ) : (
@@ -1127,7 +1405,7 @@ export default function TeacherClasses() {
                   <button
                     onClick={handleCreateClass}
                     disabled={creating}
-                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-emerald-600 hover:bg-emerald-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
                   >
                     {creating ? (
                       <>
@@ -1138,7 +1416,7 @@ export default function TeacherClasses() {
                         Creating...
                       </>
                     ) : (
-                      'Start Class'
+                      classType === 'test' ? 'Start Test' : 'Start Class'
                     )}
                   </button>
                 </>
