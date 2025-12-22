@@ -522,6 +522,66 @@ const [wordPopup, setWordPopup] = useState<WordPopupState | null>(null);
 
 ---
 
+## Smart Portion Suggestions
+
+### Overview
+The Smart Suggestions system automatically recommends the next portions for a student based on their progress in previous classes. This helps teachers quickly set up new classes without manually tracking where each student left off.
+
+### How It Works
+| Portion Type | Suggestion Logic |
+|--------------|------------------|
+| **Hifz** | Continues from last Hifz ending ayah (next ayah in same surah, or next surah if completed) |
+| **Sabqi** | Last class's Hifz portion becomes the new Sabqi |
+| **Manzil** | Continues cycling through memorized surahs |
+
+### API Endpoint
+```
+GET /api/students/{student_id}/suggested-portions
+```
+
+**Response:**
+```json
+{
+  "hifz": {
+    "start_surah": 67,
+    "end_surah": 67,
+    "start_ayah": 16,
+    "end_ayah": null,
+    "surah_name": "الملك",
+    "note": "Continues from last Hifz (ended at 67:15)"
+  },
+  "sabqi": {
+    "start_surah": 67,
+    "end_surah": 67,
+    "start_ayah": 1,
+    "end_ayah": 15,
+    "surah_name": "الملك",
+    "note": "Last Hifz portion"
+  },
+  "manzil": {
+    "start_surah": 78,
+    "end_surah": 78,
+    "start_ayah": null,
+    "end_ayah": null,
+    "surah_name": "النبأ",
+    "note": "Continues Manzil cycle"
+  },
+  "last_class": {
+    "id": 42,
+    "date": "2025-12-20",
+    "day": "Saturday"
+  }
+}
+```
+
+### Frontend Integration
+- **TeacherClasses.tsx**: Smart Suggestions Panel in Step 2 of new class modal
+- Fetch suggestions when student is selected
+- "Apply" button auto-fills portion fields
+- Shows last class info for context
+
+---
+
 ## Related Documentation
 
 - [AUTH_SYSTEM.md](./AUTH_SYSTEM.md) - Authentication and user roles
@@ -530,4 +590,4 @@ const [wordPopup, setWordPopup] = useState<WordPopupState | null>(null);
 
 ---
 
-*Last Updated: December 17, 2025*
+*Last Updated: December 22, 2025*

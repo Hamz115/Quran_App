@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance } from '../api';
-import type { StudentListItem, ClassData } from '../api';
+import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
+import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
 
 const surahNames: Record<number, string> = {
@@ -92,6 +92,10 @@ export default function TeacherClasses() {
   // Portion configuration mode: 'same' for all students, 'per-student' for individual
   const [portionMode, setPortionMode] = useState<'same' | 'per-student'>('same');
   const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
+
+  // Suggestions state - keyed by student ID
+  const [suggestions, setSuggestions] = useState<Record<number, SuggestedPortions>>({});
+  const [loadingSuggestions, setLoadingSuggestions] = useState<Record<number, boolean>>({});
 
   // Portion configuration - shared (for 'same' mode) or per-student (for 'per-student' mode)
   // Default to page mode with page 560 (Surah Al-Mulk starts on page 560)
@@ -205,6 +209,75 @@ export default function TeacherClasses() {
       },
     }));
   };
+
+  // Fetch suggestions for a student
+  const fetchSuggestionsForStudent = async (studentId: number) => {
+    if (suggestions[studentId] || loadingSuggestions[studentId]) return;
+
+    setLoadingSuggestions(prev => ({ ...prev, [studentId]: true }));
+    try {
+      const data = await getSuggestedPortions(studentId);
+      setSuggestions(prev => ({ ...prev, [studentId]: data }));
+    } catch (err) {
+      console.error('Failed to fetch suggestions:', err);
+    } finally {
+      setLoadingSuggestions(prev => ({ ...prev, [studentId]: false }));
+    }
+  };
+
+  // Apply suggestion to portion config
+  const applySuggestion = (
+    type: 'hifz' | 'sabqi' | 'manzil',
+    studentId?: number
+  ) => {
+    const studentSuggestions = studentId ? suggestions[studentId] : suggestions[selectedStudents[0]];
+    if (!studentSuggestions) return;
+
+    const suggestion = type === 'manzil' ? studentSuggestions.manzil : studentSuggestions[type];
+    if (!suggestion) return;
+
+    const newPortion: SinglePortion = {
+      id: Date.now(),
+      mode: 'surah',
+      startPage: 1,
+      endPage: 1,
+      startSurah: suggestion.start_surah,
+      endSurah: suggestion.end_surah,
+      startAyah: suggestion.start_ayah?.toString() || '',
+      endAyah: suggestion.end_ayah?.toString() || '',
+    };
+
+    const portionType = type === 'manzil' ? 'revision' : type;
+
+    if (portionMode === 'per-student' && studentId) {
+      // Update per-student config
+      setPerStudentConfigs(prev => ({
+        ...prev,
+        [studentId]: {
+          ...prev[studentId],
+          [portionType]: { enabled: true, portions: [newPortion] },
+        },
+      }));
+    } else {
+      // Update shared config
+      if (portionType === 'hifz') {
+        setHifzConfig({ enabled: true, portions: [newPortion] });
+      } else if (portionType === 'sabqi') {
+        setSabqiConfig({ enabled: true, portions: [newPortion] });
+      } else {
+        setRevisionConfig({ enabled: true, portions: [newPortion] });
+      }
+    }
+  };
+
+  // Auto-fetch suggestions when students are selected
+  useEffect(() => {
+    if (modalStep === 2 && selectedStudents.length > 0) {
+      selectedStudents.forEach(studentId => {
+        fetchSuggestionsForStudent(studentId);
+      });
+    }
+  }, [modalStep, selectedStudents]);
 
   const handleCreateClass = async () => {
     setCreating(true);
@@ -660,15 +733,6 @@ export default function TeacherClasses() {
             }
           });
 
-          // Get short day name
-          const getShortDay = (day: string) => {
-            const dayMap: Record<string, string> = {
-              'Sunday': 'Sun', 'Monday': 'Mon', 'Tuesday': 'Tue',
-              'Wednesday': 'Wed', 'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat'
-            };
-            return dayMap[day] || day.slice(0, 3);
-          };
-
           return (
             <div key={monthKey} className="card overflow-hidden">
               {/* Month Header */}
@@ -679,141 +743,42 @@ export default function TeacherClasses() {
                 </div>
               </div>
 
-              {/* Table Header */}
-              <div className="grid grid-cols-[60px_70px_60px_minmax(100px,1fr)_1fr_1fr_1fr_70px_70px_50px_50px] gap-2 px-6 py-3 border-b border-slate-700/50 text-xs font-medium text-slate-500 uppercase tracking-wider">
-                <div>Week</div>
-                <div>Date</div>
-                <div>Day</div>
-                <div>Student</div>
-                <div className="text-emerald-400">Hifz</div>
-                <div className="text-cyan-400">Sabqi</div>
-                <div className="text-slate-300">Manzil</div>
-                <div>Perf.</div>
-                <div>Status</div>
-                <div>Notes</div>
-                <div></div>
-              </div>
-
-              {/* Class Rows - One row per student */}
-              <div className="divide-y divide-slate-700/30">
-                {expandedRows.map((row) => {
-                  const { cls, student, isFirstOfClass, isLastOfClass, studentCount } = row;
+              {/* Class Cards */}
+              <div className="space-y-4 p-4">
+                {monthClasses.map((cls) => {
                   const classDate = new Date(cls.date);
                   const weekNum = getWeekOfMonth(cls.date);
-                  const rowKey = student ? `${cls.id}-${student.id}` : `${cls.id}-no-student`;
+                  const students = cls.students || [];
 
                   return (
                     <div
-                      key={rowKey}
-                      onClick={() => {
-                        // Include student_id in URL if clicking on a specific student row
-                        const url = student
-                          ? `/teacher/classes/${cls.id}?student=${student.id}`
-                          : `/teacher/classes/${cls.id}`;
-                        window.location.href = url;
-                      }}
-                      className={`grid grid-cols-[60px_70px_60px_minmax(100px,1fr)_1fr_1fr_1fr_70px_70px_50px_50px] gap-2 px-6 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors items-center ${
-                        !isLastOfClass && studentCount > 1 ? 'border-b border-slate-700/20' : ''
-                      }`}
+                      key={cls.id}
+                      className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-colors"
                     >
-                      {/* Week - only show on first row of class */}
-                      <div>
-                        {isFirstOfClass ? (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-medium">
+                      {/* Class Header */}
+                      <div className="flex items-center justify-between px-5 py-3 bg-slate-800/80 border-b border-slate-700/50">
+                        <div className="flex items-center gap-4">
+                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-bold">
                             W{weekNum}
                           </span>
-                        ) : null}
-                      </div>
-
-                      {/* Date - only show on first row of class */}
-                      <div className="text-slate-200 text-sm flex items-center gap-1.5">
-                        {isFirstOfClass ? (
-                          <>
-                            {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}`}
-                            {cls.class_type === 'test' && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
-                                Test
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-200 font-medium">
+                                {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
                               </span>
-                            )}
-                          </>
-                        ) : null}
-                      </div>
-
-                      {/* Day - only show on first row of class */}
-                      <div className="text-slate-400 text-sm">
-                        {isFirstOfClass ? getShortDay(cls.day) : ''}
-                      </div>
-
-                      {/* Student */}
-                      <div className="min-w-0">
-                        {student ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
-                              {student.first_name[0]}
-                            </span>
-                            <span className="truncate">{student.first_name} {student.last_name}</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-600 text-sm">No students</span>
-                        )}
-                      </div>
-
-                      {/* Hifz - filtered by student */}
-                      <div className="text-emerald-400 min-w-0">
-                        {getPortionDisplay(cls, 'hifz', student?.id)}
-                      </div>
-
-                      {/* Sabqi - filtered by student */}
-                      <div className="text-cyan-400 min-w-0">
-                        {getPortionDisplay(cls, 'sabqi', student?.id)}
-                      </div>
-
-                      {/* Manzil - filtered by student */}
-                      <div className="text-slate-300 min-w-0">
-                        {getPortionDisplay(cls, 'revision', student?.id)}
-                      </div>
-
-                      {/* Performance - per student */}
-                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                        {student ? (
-                          <div className="relative">
-                            <select
-                              value={student.performance || ''}
-                              onChange={async (e) => {
-                                await updateStudentPerformance(cls.id, student.id, e.target.value);
-                                const updated = await getClasses();
-                                setClasses(updated);
-                              }}
-                              className={`appearance-none text-[10px] font-medium pl-1.5 pr-4 py-0.5 rounded cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                                student.performance === 'Excellent'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : student.performance === 'Very Good'
-                                  ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
-                                  : student.performance === 'Good'
-                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                  : student.performance === 'Needs Work'
-                                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                  : 'bg-slate-700/50 text-slate-500 border border-slate-600'
-                              }`}
-                            >
-                              <option value="" className="bg-slate-800 text-slate-300">—</option>
-                              <option value="Excellent" className="bg-slate-800 text-slate-100">A+</option>
-                              <option value="Very Good" className="bg-slate-800 text-slate-100">A</option>
-                              <option value="Good" className="bg-slate-800 text-slate-100">B</option>
-                              <option value="Needs Work" className="bg-slate-800 text-slate-100">C</option>
-                            </select>
-                            <svg className="absolute right-0.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-current pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
+                              {cls.class_type === 'test' && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
+                                  Test
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-0.5">
+                              {students.length} student{students.length !== 1 ? 's' : ''}
+                            </div>
                           </div>
-                        ) : (
-                          <span className="text-slate-600">—</span>
-                        )}
-                      </div>
-
-                      {/* Status - only show on first row */}
-                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                        {isFirstOfClass ? (
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {/* Status Toggle */}
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
@@ -821,21 +786,15 @@ export default function TeacherClasses() {
                               const updated = await getClasses();
                               setClasses(updated);
                             }}
-                            className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
                               cls.is_published
                                 ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
                                 : 'bg-slate-600/50 text-slate-400 hover:bg-slate-600/70'
                             }`}
-                            title={cls.is_published ? 'Click to unpublish' : 'Click to publish'}
                           >
                             {cls.is_published ? 'Live' : 'Draft'}
                           </button>
-                        ) : null}
-                      </div>
-
-                      {/* Notes - only show on first row */}
-                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                        {isFirstOfClass ? (
+                          {/* Notes Button */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -843,41 +802,118 @@ export default function TeacherClasses() {
                               setNotesText(cls.notes || '');
                               setShowNotesModal(true);
                             }}
-                            className={`p-1.5 rounded transition-colors ${
-                              cls.notes
-                                ? 'text-amber-400 hover:bg-amber-500/20'
-                                : 'text-slate-500 hover:bg-slate-700/50'
-                            }`}
-                            title={cls.notes ? 'View/Edit notes' : 'Add notes'}
+                            className="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors"
+                            title="Edit notes"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                        ) : null}
-                      </div>
-
-                      {/* Delete - only show on first row */}
-                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                        {isFirstOfClass ? (
+                          {/* Delete Button */}
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (confirm('Delete this class?')) {
+                              if (confirm('Are you sure you want to delete this class?')) {
                                 await deleteClass(cls.id);
                                 const updated = await getClasses();
                                 setClasses(updated);
                               }
                             }}
-                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
-                            title="Delete"
+                            className="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors"
+                            title="Delete class"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
-                        ) : null}
+                        </div>
                       </div>
+
+                      {/* Portions Section */}
+                      <div className="p-4">
+                        {students.length === 0 ? (
+                          <div className="text-center py-4 text-slate-500">No students assigned</div>
+                        ) : (
+                          <div className="space-y-4">
+                            {students.map((student) => (
+                              <div
+                                key={student.id}
+                                onClick={() => {
+                                  window.location.href = `/teacher/classes/${cls.id}?student=${student.id}`;
+                                }}
+                                className="bg-slate-900/50 rounded-lg p-4 cursor-pointer hover:bg-slate-900/80 transition-colors"
+                              >
+                                {/* Student Header */}
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
+                                      {student.first_name[0]}
+                                    </span>
+                                    <span className="text-slate-200 font-medium">{student.first_name} {student.last_name}</span>
+                                  </div>
+                                  {/* Performance Dropdown */}
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <select
+                                      value={student.performance || ''}
+                                      onChange={async (e) => {
+                                        await updateStudentPerformance(cls.id, student.id, e.target.value);
+                                        const updated = await getClasses();
+                                        setClasses(updated);
+                                      }}
+                                      className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
+                                        student.performance === 'Excellent'
+                                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                          : student.performance === 'Very Good'
+                                          ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                                          : student.performance === 'Good'
+                                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                          : student.performance === 'Needs Work'
+                                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                          : 'bg-slate-700/50 text-slate-400 border border-slate-600'
+                                      }`}
+                                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }}
+                                    >
+                                      <option value="" className="bg-slate-800">Select...</option>
+                                      <option value="Excellent" className="bg-slate-800">Excellent</option>
+                                      <option value="Very Good" className="bg-slate-800">Very Good</option>
+                                      <option value="Good" className="bg-slate-800">Good</option>
+                                      <option value="Needs Work" className="bg-slate-800">Needs Work</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Portions Grid - Each type on its own row */}
+                                <div className="space-y-2">
+                                  {/* Hifz Row */}
+                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                                    <span className="text-xs font-semibold text-emerald-400 w-16 flex-shrink-0">HIFZ</span>
+                                    <span className="text-sm text-emerald-300">{getPortionDisplay(cls, 'hifz', student.id)}</span>
+                                  </div>
+                                  {/* Sabqi Row */}
+                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
+                                    <span className="text-xs font-semibold text-cyan-400 w-16 flex-shrink-0">SABQI</span>
+                                    <span className="text-sm text-cyan-300">{getPortionDisplay(cls, 'sabqi', student.id)}</span>
+                                  </div>
+                                  {/* Manzil Row */}
+                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-500/5 border border-slate-500/10">
+                                    <span className="text-xs font-semibold text-slate-400 w-16 flex-shrink-0">MANZIL</span>
+                                    <span className="text-sm text-slate-300">{getPortionDisplay(cls, 'revision', student.id)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notes Section (if has notes) */}
+                      {cls.notes && (
+                        <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/30">
+                          <p className="text-xs text-slate-400">
+                            <span className="font-medium text-slate-500">Notes:</span> {cls.notes}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1110,6 +1146,105 @@ export default function TeacherClasses() {
                         ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
                         : 'Select the Quran portions for this class (you can also add/edit later):'}
                   </p>
+
+                  {/* Smart Suggestions Panel */}
+                  {classType !== 'test' && (() => {
+                    const targetStudentId = portionMode === 'per-student' ? activeStudentId : selectedStudents[0];
+                    const studentSuggestions = targetStudentId ? suggestions[targetStudentId] : null;
+                    const isLoading = targetStudentId ? loadingSuggestions[targetStudentId] : false;
+
+                    if (!targetStudentId) return null;
+
+                    return (
+                      <div className="p-4 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-xl border border-purple-500/20">
+                        <div className="flex items-center gap-2 mb-3">
+                          <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          <span className="text-sm font-medium text-purple-300">Smart Suggestions</span>
+                          {studentSuggestions?.last_class && (
+                            <span className="text-xs text-slate-500">
+                              (based on {studentSuggestions.last_class.day}, {studentSuggestions.last_class.date})
+                            </span>
+                          )}
+                        </div>
+
+                        {isLoading ? (
+                          <div className="text-sm text-slate-400 flex items-center gap-2">
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Loading suggestions...
+                          </div>
+                        ) : studentSuggestions ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            {/* Hifz Suggestion */}
+                            {studentSuggestions.hifz && (
+                              <button
+                                type="button"
+                                onClick={() => applySuggestion('hifz', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
+                                className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors text-left"
+                              >
+                                <div className="text-xs font-medium text-emerald-400 mb-1">HIFZ</div>
+                                <div className="text-sm text-emerald-300">{studentSuggestions.hifz.surah_name || `Surah ${studentSuggestions.hifz.start_surah}`}</div>
+                                {studentSuggestions.hifz.start_ayah && (
+                                  <div className="text-xs text-emerald-400/70">
+                                    Ayah {studentSuggestions.hifz.start_ayah}-{studentSuggestions.hifz.end_ayah}
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-slate-500 mt-1">{studentSuggestions.hifz.note}</div>
+                              </button>
+                            )}
+
+                            {/* Sabqi Suggestion */}
+                            {studentSuggestions.sabqi && (
+                              <button
+                                type="button"
+                                onClick={() => applySuggestion('sabqi', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
+                                className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 transition-colors text-left"
+                              >
+                                <div className="text-xs font-medium text-cyan-400 mb-1">SABQI</div>
+                                <div className="text-sm text-cyan-300">{studentSuggestions.sabqi.surah_name || `Surah ${studentSuggestions.sabqi.start_surah}`}</div>
+                                {studentSuggestions.sabqi.start_ayah && (
+                                  <div className="text-xs text-cyan-400/70">
+                                    Ayah {studentSuggestions.sabqi.start_ayah}-{studentSuggestions.sabqi.end_ayah}
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-slate-500 mt-1">{studentSuggestions.sabqi.note}</div>
+                              </button>
+                            )}
+
+                            {/* Manzil Suggestion */}
+                            {studentSuggestions.manzil && (
+                              <button
+                                type="button"
+                                onClick={() => applySuggestion('manzil', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
+                                className="p-2 rounded-lg bg-slate-500/10 border border-slate-500/30 hover:bg-slate-500/20 transition-colors text-left"
+                              >
+                                <div className="text-xs font-medium text-slate-400 mb-1">MANZIL</div>
+                                <div className="text-sm text-slate-300">{studentSuggestions.manzil.surah_name || `Surah ${studentSuggestions.manzil.start_surah}`}</div>
+                                {studentSuggestions.manzil.start_ayah && (
+                                  <div className="text-xs text-slate-400/70">
+                                    Ayah {studentSuggestions.manzil.start_ayah}-{studentSuggestions.manzil.end_ayah}
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-slate-500 mt-1">{studentSuggestions.manzil.note}</div>
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-400">
+                            No previous classes found for this student. Start with default portions.
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-slate-500 mt-2">
+                          Click a suggestion to auto-fill the portion. You can modify it afterward.
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-3">
                     {classType === 'test' ? (

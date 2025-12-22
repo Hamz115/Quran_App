@@ -208,6 +208,37 @@ export async function removeStudent(studentId: string): Promise<{ message: strin
   return res.json();
 }
 
+// ============ PORTION SUGGESTIONS ============
+
+export interface PortionSuggestion {
+  start_surah: number;
+  end_surah: number;
+  start_ayah: number | null;
+  end_ayah: number | null;
+  surah_name: string | null;
+  note: string;
+}
+
+export interface SuggestedPortions {
+  hifz: PortionSuggestion | null;
+  sabqi: PortionSuggestion | null;
+  manzil: PortionSuggestion | null;
+  last_class: {
+    id: number;
+    date: string;
+    day: string;
+  } | null;
+}
+
+export async function getSuggestedPortions(studentId: number): Promise<SuggestedPortions> {
+  const res = await authFetch(`${API_BASE}/students/${studentId}/suggested-portions`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to get suggestions');
+  }
+  return res.json();
+}
+
 // ============ TEACHERS (for students) ============
 
 export async function getMyTeachers(): Promise<TeacherListItem[]> {
@@ -536,8 +567,8 @@ export interface TestMistake {
   word_index: number;
   word_text: string;
   char_index?: number;
-  is_tanbeeh: boolean;
-  is_repeated: boolean;
+  is_tanbeeh: number;  // 0 or 1 from SQLite
+  is_repeated: number;  // 0 or 1 from SQLite
   previous_error_count: number;
   points_deducted: number;
   created_at: string;

@@ -342,6 +342,39 @@ See: [TEST_SYSTEM.md](./Technical%20Implementation%20Journey/TEST_SYSTEM.md)
 
 ---
 
+## Phase 9: UI Improvements & Smart Suggestions
+
+**Status:** Complete
+
+### Teacher Classes Card Layout
+- Redesigned from compact table to card-based layout
+- Each class shown as a card with header (week, date, day, status)
+- Each student displayed with portions on separate rows (Hifz, Sabqi, Manzil)
+- Better visual hierarchy and readability
+
+### Smart Portion Suggestions
+- Automatic portion recommendations based on student progress
+- **Hifz**: Continues from where student left off in last class
+- **Sabqi**: Last class's Hifz becomes new Sabqi
+- **Manzil**: Continues cycling through memorized surahs
+- New endpoint: `GET /api/students/{student_id}/suggested-portions`
+- Smart Suggestions Panel in new class modal (Step 2)
+
+### Test Mode Improvements
+- Live mistake summary during test questions
+- Current question mistakes displayed in real-time
+- Completed questions summary with per-question breakdown
+- Tanbeeh no longer highlights words globally (only shows in test results)
+
+### UI Fixes
+- Performance dropdown shows "Excellent/Very Good/Good/Needs Work" (not letter grades)
+- Manzil column text no longer wraps to two lines
+- Mistakes from previous classes grouped by day (Saturday, Wednesday, etc.)
+
+See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+
+---
+
 ## Running the Project
 
 **Backend:**

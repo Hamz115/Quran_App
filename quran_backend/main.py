@@ -876,6 +876,189 @@ def remove_student_from_class(class_id: int, student_id: int, current_user: dict
     return {"message": "Student removed from class"}
 
 
+# ============ PROGRESS SUGGESTION ENDPOINT ============
+
+@app.get("/api/students/{student_id}/suggested-portions")
+def get_suggested_portions(
+    student_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get suggested portions for a student based on their last class.
+
+    Logic:
+    - Hifz: Continue from where they left off (next surah/ayah after last hifz)
+    - Sabqi: Last class's Hifz becomes this class's Sabqi
+    - Manzil: Continue cycling through older portions
+
+    Returns suggested start_surah, end_surah, start_ayah, end_ayah for each type.
+    """
+    # Only teachers can get suggestions
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can get suggestions")
+
+    conn = get_app_db()
+
+    # Get student's most recent class with assignments
+    cursor = conn.execute("""
+        SELECT c.id, c.date, c.day
+        FROM classes c
+        JOIN class_students cs ON cs.class_id = c.id
+        WHERE cs.student_id = ? AND c.class_type = 'regular'
+        ORDER BY c.date DESC, c.id DESC
+        LIMIT 1
+    """, (student_id,))
+    last_class = cursor.fetchone()
+
+    suggestions = {
+        "hifz": None,
+        "sabqi": None,
+        "manzil": None,
+        "last_class": None
+    }
+
+    if not last_class:
+        conn.close()
+        # No previous class - return default starting point (Al-Mulk)
+        suggestions["hifz"] = {
+            "start_surah": 67,
+            "end_surah": 67,
+            "start_ayah": 1,
+            "end_ayah": 30,
+            "surah_name": "Al-Mulk",
+            "note": "No previous classes found - starting from Al-Mulk"
+        }
+        return suggestions
+
+    suggestions["last_class"] = {
+        "id": last_class["id"],
+        "date": last_class["date"],
+        "day": last_class["day"]
+    }
+
+    # Get assignments from last class for this student
+    cursor = conn.execute("""
+        SELECT type, start_surah, end_surah, start_ayah, end_ayah
+        FROM assignments
+        WHERE class_id = ? AND (student_id IS NULL OR student_id = ?)
+        ORDER BY type
+    """, (last_class["id"], student_id))
+    last_assignments = cursor.fetchall()
+
+    # Parse last assignments
+    last_hifz = None
+    last_sabqi = None
+    last_manzil = None
+
+    for a in last_assignments:
+        if a["type"] == "hifz":
+            last_hifz = dict(a)
+        elif a["type"] == "sabqi":
+            last_sabqi = dict(a)
+        elif a["type"] == "revision":
+            last_manzil = dict(a)
+
+    # Get surah info for name lookup
+    quran_conn = get_quran_db()
+
+    def get_surah_info(surah_num):
+        cursor = quran_conn.execute(
+            "SELECT number, name, englishName, numberOfAyahs FROM surahs WHERE number = ?",
+            (surah_num,)
+        )
+        return cursor.fetchone()
+
+    def get_next_surah(surah_num):
+        """Get the next surah number (wraps around at 114 -> 1)"""
+        return (surah_num % 114) + 1
+
+    # HIFZ suggestion: Continue from where they left off
+    if last_hifz:
+        last_end_surah = last_hifz["end_surah"]
+        last_end_ayah = last_hifz["end_ayah"]
+        surah_info = get_surah_info(last_end_surah)
+
+        if last_end_ayah and surah_info and last_end_ayah < surah_info["numberOfAyahs"]:
+            # Continue in same surah
+            suggestions["hifz"] = {
+                "start_surah": last_end_surah,
+                "end_surah": last_end_surah,
+                "start_ayah": last_end_ayah + 1,
+                "end_ayah": min(last_end_ayah + 10, surah_info["numberOfAyahs"]),  # Suggest ~10 ayahs
+                "surah_name": surah_info["englishName"] if surah_info else None,
+                "note": f"Continue from ayah {last_end_ayah + 1}"
+            }
+        else:
+            # Move to next surah
+            next_surah = get_next_surah(last_end_surah)
+            next_surah_info = get_surah_info(next_surah)
+            suggestions["hifz"] = {
+                "start_surah": next_surah,
+                "end_surah": next_surah,
+                "start_ayah": 1,
+                "end_ayah": min(10, next_surah_info["numberOfAyahs"]) if next_surah_info else 10,
+                "surah_name": next_surah_info["englishName"] if next_surah_info else None,
+                "note": f"Start new surah after completing {surah_info['englishName'] if surah_info else 'previous'}"
+            }
+
+    # SABQI suggestion: Last Hifz becomes Sabqi
+    if last_hifz:
+        surah_info = get_surah_info(last_hifz["start_surah"])
+        suggestions["sabqi"] = {
+            "start_surah": last_hifz["start_surah"],
+            "end_surah": last_hifz["end_surah"],
+            "start_ayah": last_hifz["start_ayah"],
+            "end_ayah": last_hifz["end_ayah"],
+            "surah_name": surah_info["englishName"] if surah_info else None,
+            "note": "Last Hifz portion for recent review"
+        }
+
+    # MANZIL suggestion: Continue from where last Manzil ended, or use last Sabqi
+    if last_manzil:
+        last_end_surah = last_manzil["end_surah"]
+        last_end_ayah = last_manzil["end_ayah"]
+        surah_info = get_surah_info(last_end_surah)
+
+        if last_end_ayah and surah_info and last_end_ayah < surah_info["numberOfAyahs"]:
+            # Continue in same surah
+            suggestions["manzil"] = {
+                "start_surah": last_end_surah,
+                "end_surah": last_end_surah,
+                "start_ayah": last_end_ayah + 1,
+                "end_ayah": surah_info["numberOfAyahs"],
+                "surah_name": surah_info["englishName"] if surah_info else None,
+                "note": f"Continue Manzil from ayah {last_end_ayah + 1}"
+            }
+        else:
+            # Move to next surah for manzil
+            next_surah = get_next_surah(last_end_surah)
+            next_surah_info = get_surah_info(next_surah)
+            suggestions["manzil"] = {
+                "start_surah": next_surah,
+                "end_surah": next_surah,
+                "start_ayah": 1,
+                "end_ayah": next_surah_info["numberOfAyahs"] if next_surah_info else None,
+                "surah_name": next_surah_info["englishName"] if next_surah_info else None,
+                "note": f"Next Manzil surah"
+            }
+    elif last_sabqi:
+        # If no manzil before, suggest last sabqi as new manzil
+        surah_info = get_surah_info(last_sabqi["start_surah"])
+        suggestions["manzil"] = {
+            "start_surah": last_sabqi["start_surah"],
+            "end_surah": last_sabqi["end_surah"],
+            "start_ayah": last_sabqi["start_ayah"],
+            "end_ayah": last_sabqi["end_ayah"],
+            "surah_name": surah_info["englishName"] if surah_info else None,
+            "note": "Last Sabqi moving to Manzil rotation"
+        }
+
+    quran_conn.close()
+    conn.close()
+
+    return suggestions
+
+
 # ============ MISTAKES ENDPOINTS ============
 
 @app.get("/api/mistakes")
@@ -1585,24 +1768,31 @@ def add_test_mistake(test_id: int, data: TestMistakeCreate, current_user: dict =
         previous_error_count = existing["error_count"]
         is_repeated = True
 
-        # Increment global error count
-        conn.execute("UPDATE mistakes SET error_count = error_count + 1 WHERE id = ?", (mistake_id,))
+        # Only increment global error count for FULL mistakes, NOT for Tanbeeh
+        # Tanbeeh = student self-corrected, so shouldn't count against them
+        if not data.is_tanbeeh:
+            conn.execute("UPDATE mistakes SET error_count = error_count + 1 WHERE id = ?", (mistake_id,))
     else:
         # This is a new mistake
         previous_error_count = 0
         is_repeated = False
 
-        # Create in global mistakes
-        cursor = conn.execute("""
-            INSERT INTO mistakes (student_id, surah_number, ayah_number, word_index, word_text, char_index, error_count)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
-        """, (student_id, data.surah_number, data.ayah_number, data.word_index, data.word_text, data.char_index))
-        mistake_id = cursor.lastrowid
+        # Only create global mistake record for FULL mistakes, NOT for Tanbeeh
+        # Tanbeeh = student self-corrected, so shouldn't be highlighted on Quran page
+        if not data.is_tanbeeh:
+            cursor = conn.execute("""
+                INSERT INTO mistakes (student_id, surah_number, ayah_number, word_index, word_text, char_index, error_count)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (student_id, data.surah_number, data.ayah_number, data.word_index, data.word_text, data.char_index))
+            mistake_id = cursor.lastrowid
+        else:
+            mistake_id = None  # Tanbeeh doesn't create a global mistake
 
-    # Record occurrence in the class
-    conn.execute("""
-        INSERT INTO mistake_occurrences (mistake_id, class_id) VALUES (?, ?)
-    """, (mistake_id, test["class_id"]))
+    # Record occurrence in the class (only for full mistakes)
+    if mistake_id is not None:
+        conn.execute("""
+            INSERT INTO mistake_occurrences (mistake_id, class_id) VALUES (?, ?)
+        """, (mistake_id, test["class_id"]))
 
     # Calculate points to deduct (tanbeeh = 0.5, full mistake = 1+ based on history)
     points_deducted = calculate_points_deducted(previous_error_count, data.is_tanbeeh)

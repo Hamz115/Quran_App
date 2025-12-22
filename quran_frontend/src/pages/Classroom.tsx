@@ -57,6 +57,33 @@ interface WordData {
 
 type SectionType = 'hifz' | 'sabqi' | 'revision';
 
+// Surah names in Arabic (same as QuranReader)
+const SURAH_NAMES: Record<number, string> = {
+  1: 'الفاتحة', 2: 'البقرة', 3: 'آل عمران', 4: 'النساء', 5: 'المائدة',
+  6: 'الأنعام', 7: 'الأعراف', 8: 'الأنفال', 9: 'التوبة', 10: 'يونس',
+  11: 'هود', 12: 'يوسف', 13: 'الرعد', 14: 'إبراهيم', 15: 'الحجر',
+  16: 'النحل', 17: 'الإسراء', 18: 'الكهف', 19: 'مريم', 20: 'طه',
+  21: 'الأنبياء', 22: 'الحج', 23: 'المؤمنون', 24: 'النور', 25: 'الفرقان',
+  26: 'الشعراء', 27: 'النمل', 28: 'القصص', 29: 'العنكبوت', 30: 'الروم',
+  31: 'لقمان', 32: 'السجدة', 33: 'الأحزاب', 34: 'سبأ', 35: 'فاطر',
+  36: 'يس', 37: 'الصافات', 38: 'ص', 39: 'الزمر', 40: 'غافر',
+  41: 'فصلت', 42: 'الشورى', 43: 'الزخرف', 44: 'الدخان', 45: 'الجاثية',
+  46: 'الأحقاف', 47: 'محمد', 48: 'الفتح', 49: 'الحجرات', 50: 'ق',
+  51: 'الذاريات', 52: 'الطور', 53: 'النجم', 54: 'القمر', 55: 'الرحمن',
+  56: 'الواقعة', 57: 'الحديد', 58: 'المجادلة', 59: 'الحشر', 60: 'الممتحنة',
+  61: 'الصف', 62: 'الجمعة', 63: 'المنافقون', 64: 'التغابن', 65: 'الطلاق',
+  66: 'التحريم', 67: 'الملك', 68: 'القلم', 69: 'الحاقة', 70: 'المعارج',
+  71: 'نوح', 72: 'الجن', 73: 'المزمل', 74: 'المدثر', 75: 'القيامة',
+  76: 'الإنسان', 77: 'المرسلات', 78: 'النبأ', 79: 'النازعات', 80: 'عبس',
+  81: 'التكوير', 82: 'الانفطار', 83: 'المطففين', 84: 'الانشقاق', 85: 'البروج',
+  86: 'الطارق', 87: 'الأعلى', 88: 'الغاشية', 89: 'الفجر', 90: 'البلد',
+  91: 'الشمس', 92: 'الليل', 93: 'الضحى', 94: 'الشرح', 95: 'التين',
+  96: 'العلق', 97: 'القدر', 98: 'البينة', 99: 'الزلزلة', 100: 'العاديات',
+  101: 'القارعة', 102: 'التكاثر', 103: 'العصر', 104: 'الهمزة', 105: 'الفيل',
+  106: 'قريش', 107: 'الماعون', 108: 'الكوثر', 109: 'الكافرون', 110: 'النصر',
+  111: 'المسد', 112: 'الإخلاص', 113: 'الفلق', 114: 'الناس'
+};
+
 const SECTION_LABELS: Record<SectionType, { label: string; color: string; bgColor: string; borderColor: string }> = {
   hifz: { label: 'Memorization (Hifz)', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', borderColor: 'border-emerald-600/50' },
   sabqi: { label: 'Sabqi (Recent)', color: 'text-blue-400', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-600/50' },
@@ -768,6 +795,31 @@ export default function Classroom() {
   const lineNumbers = Array.from(wordsByLine.keys()).sort((a, b) => a - b);
   const availableSections: SectionType[] = ['hifz', 'sabqi', 'revision'];
 
+  // Detect which surahs START on this page (ayah 1 appears)
+  const surahsStartingOnPage = (): { surahNum: number; lineNum: number }[] => {
+    const starts: { surahNum: number; lineNum: number }[] = [];
+    const seenSurahs = new Set<number>();
+
+    for (const lineNum of lineNumbers) {
+      const words = wordsByLine.get(lineNum) || [];
+      for (const word of words) {
+        if (word.ayahNum === 1 && word.wordPosition === 1 && !seenSurahs.has(word.surahNum)) {
+          starts.push({ surahNum: word.surahNum, lineNum });
+          seenSurahs.add(word.surahNum);
+        }
+      }
+    }
+    return starts;
+  };
+
+  const surahStarts = surahsStartingOnPage();
+
+  // Check if a line is the first line of a surah (ayah 1)
+  const getSurahStartForLine = (lineNum: number): number | null => {
+    const start = surahStarts.find(s => s.lineNum === lineNum);
+    return start ? start.surahNum : null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1014,18 +1066,67 @@ export default function Classroom() {
                 )}
               </div>
 
-              {/* Completed Questions Summary */}
+              {/* Current Question Mistakes (Live) */}
+              {currentQuestion && testMode === 'in_progress' && currentQuestion.mistakes && currentQuestion.mistakes.length > 0 && (
+                <div className="pt-3 border-t border-slate-700">
+                  <p className="text-xs text-slate-500 mb-2">
+                    Current Question Mistakes ({currentQuestion.mistakes.length}):
+                  </p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {currentQuestion.mistakes.map((m, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs bg-slate-800/50 rounded px-2 py-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-slate-500">{m.surah_number}:{m.ayah_number}</span>
+                          <span className="font-amiri text-sm">{stripQuranMarks(m.word_text)}</span>
+                          {m.is_tanbeeh === 1 && <span className="text-cyan-400 text-[10px]">(تنبيه)</span>}
+                        </span>
+                        <span className={`font-medium ${m.is_tanbeeh === 1 ? 'text-cyan-400' : 'text-red-400'}`}>
+                          -{m.points_deducted.toFixed(1)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-right text-xs text-red-400 mt-1 font-medium">
+                    Total: -{currentQuestion.mistakes.reduce((sum, m) => sum + m.points_deducted, 0).toFixed(1)} pts
+                  </div>
+                </div>
+              )}
+
+              {/* Completed Questions Summary with Mistakes */}
               {testData.questions && testData.questions.filter(q => q.status === 'completed').length > 0 && (
                 <div className="pt-3 border-t border-slate-700">
                   <p className="text-xs text-slate-500 mb-2">Completed Questions:</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-3">
                     {testData.questions.filter(q => q.status === 'completed').map(q => (
-                      <span key={q.id} className={`text-xs px-2 py-1 rounded ${
-                        (q.points_earned || 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' :
-                        (q.points_earned || 0) < 3 ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        Q{q.question_number}: -{q.points_earned?.toFixed(1) || '0'} pts
-                      </span>
+                      <div key={q.id} className="bg-slate-800/30 rounded-lg p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-slate-300">
+                            Q{q.question_number}: {q.start_surah}:{q.start_ayah} → {q.end_surah}:{q.end_ayah}
+                          </span>
+                          <span className={`text-xs font-medium ${
+                            (q.points_earned || 0) === 0 ? 'text-emerald-400' :
+                            (q.points_earned || 0) < 3 ? 'text-amber-400' : 'text-red-400'
+                          }`}>
+                            {(q.points_earned || 0) === 0 ? 'Perfect!' : `-${q.points_earned?.toFixed(1)} pts`}
+                          </span>
+                        </div>
+                        {q.mistakes && q.mistakes.length > 0 && (
+                          <div className="space-y-0.5 pl-2 border-l border-slate-600">
+                            {q.mistakes.map((m, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-[10px]">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="text-slate-500">{m.surah_number}:{m.ayah_number}</span>
+                                  <span className="font-amiri text-xs">{stripQuranMarks(m.word_text)}</span>
+                                  {m.is_tanbeeh === 1 && <span className="text-cyan-400">(تنبيه)</span>}
+                                </span>
+                                <span className={`${m.is_tanbeeh === 1 ? 'text-cyan-400' : 'text-red-400'}`}>
+                                  -{m.points_deducted.toFixed(1)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1269,9 +1370,37 @@ export default function Classroom() {
                 >
                   {lineNumbers.map((lineNum) => {
                     const words = wordsByLine.get(lineNum) || [];
+                    const surahStarting = getSurahStartForLine(lineNum);
+                    // Show bismillah for surahs 2-114 except surah 9 (At-Tawbah has no bismillah)
+                    const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
 
                     return (
                       <div key={lineNum} className="flex-1 flex flex-col justify-center">
+                        {/* Surah Header - shown before the first ayah of a new surah */}
+                        {surahStarting && (
+                          <div
+                            className="text-center mb-1"
+                            style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
+                          >
+                            <div className="inline-block px-6 py-1 border-2 border-emerald-600 rounded-lg bg-emerald-50">
+                              <span className="text-emerald-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
+                                سُورَةُ {SURAH_NAMES[surahStarting]}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {/* Bismillah - shown for surahs 2-114 except 9 */}
+                        {showBismillah && (
+                          <div
+                            className="text-center mb-1 text-slate-700"
+                            style={{
+                              fontFamily: "'Amiri Quran', 'Amiri', serif",
+                              fontSize: 'clamp(12px, 2vw, 18px)'
+                            }}
+                          >
+                            بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
+                          </div>
+                        )}
                         <div className="flex justify-center items-center text-slate-800 w-full overflow-hidden">
                           {words.map((word) => {
                             const { wholeWordLevel, charMistakes, totalMistakes } = getWordMistakeInfo(word);
@@ -1406,20 +1535,68 @@ export default function Classroom() {
                   </div>
                 )}
 
-                {/* Mistakes from previous classes */}
-                {mistakesFromPrevious.length > 0 && (
-                  <div className="card p-6 border border-slate-600/50">
-                    <h3 className="font-semibold text-slate-400 mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Mistakes from previous classes ({mistakesFromPrevious.length})
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {mistakesFromPrevious.map(renderMistake)}
+                {/* Mistakes from previous classes - grouped by day */}
+                {mistakesFromPrevious.length > 0 && (() => {
+                  // Group mistakes by class day
+                  const mistakesByDay: { [key: string]: { day: string; date: string; class_id: number; mistakes: Mistake[] }[] } = {};
+
+                  mistakesFromPrevious.forEach(m => {
+                    m.occurrences?.filter(o => o.class_id !== currentClassId).forEach(o => {
+                      const key = `${o.class_day}-${o.class_date}`;
+                      if (!mistakesByDay[key]) {
+                        mistakesByDay[key] = [];
+                      }
+                      // Check if this class_id entry exists
+                      let classEntry = mistakesByDay[key].find(e => e.class_id === o.class_id);
+                      if (!classEntry) {
+                        classEntry = { day: o.class_day, date: o.class_date, class_id: o.class_id, mistakes: [] };
+                        mistakesByDay[key].push(classEntry);
+                      }
+                      // Add mistake if not already there
+                      if (!classEntry.mistakes.find(em => em.id === m.id)) {
+                        classEntry.mistakes.push(m);
+                      }
+                    });
+                  });
+
+                  // Sort by date (most recent first)
+                  const sortedDays = Object.keys(mistakesByDay).sort((a, b) => {
+                    const dateA = mistakesByDay[a][0]?.date || '';
+                    const dateB = mistakesByDay[b][0]?.date || '';
+                    return dateB.localeCompare(dateA);
+                  });
+
+                  return (
+                    <div className="card p-6 border border-slate-600/50">
+                      <h3 className="font-semibold text-slate-400 mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Mistakes from previous classes
+                      </h3>
+                      <div className="space-y-4">
+                        {sortedDays.map(dayKey => {
+                          const entries = mistakesByDay[dayKey];
+                          const { day, date } = entries[0];
+                          const allMistakes = entries.flatMap(e => e.mistakes);
+                          // Remove duplicates
+                          const uniqueMistakes = allMistakes.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
+
+                          return (
+                            <div key={dayKey} className="border-l-2 border-slate-600 pl-4">
+                              <h4 className="text-sm font-medium text-slate-300 mb-2">
+                                {day} <span className="text-slate-500 text-xs">({date})</span>
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {uniqueMistakes.map(renderMistake)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             );
           })()}
