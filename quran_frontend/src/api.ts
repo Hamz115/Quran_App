@@ -291,6 +291,11 @@ export interface ClassStudent {
   first_name: string;
   last_name: string;
   performance?: string;  // Per-student performance for this class
+  mistake_counts?: {  // Mistakes per portion type
+    hifz: number;
+    sabqi: number;
+    revision: number;
+  };
 }
 
 export interface ClassAssignment {

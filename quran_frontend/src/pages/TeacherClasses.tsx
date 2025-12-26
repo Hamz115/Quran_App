@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
@@ -80,11 +80,29 @@ export default function TeacherClasses() {
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
 
-  // Auto-open modal if ?new=1 is in URL
+  // Filter state - current month selected by default
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedStudentFilter, setSelectedStudentFilter] = useState<number | null>(null);
+
+  // Auto-open modal if ?new=1 is in URL, and pre-select student if ?student=ID
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       setShowNewClassModal(true);
-      // Remove the query param from URL
+
+      // Pre-select student if provided in URL and skip to step 2
+      const studentId = searchParams.get('student');
+      if (studentId) {
+        const id = Number(studentId);
+        if (!isNaN(id)) {
+          setSelectedStudents([id]);
+          setModalStep(2); // Skip to portion selection since student is already selected
+        }
+      }
+
+      // Remove the query params from URL
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
@@ -347,7 +365,69 @@ export default function TeacherClasses() {
     }
   };
 
-  const groupedClasses = groupByMonth(classes);
+  // Get all unique months from classes (for tabs)
+  const allMonths = useMemo(() => {
+    const months = new Set<string>();
+    classes.forEach(cls => {
+      const date = new Date(cls.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      months.add(monthKey);
+    });
+    return Array.from(months).sort((a, b) => b.localeCompare(a)); // Newest first
+  }, [classes]);
+
+  // Get recent months for tabs (last 4 months that have classes, or current month)
+  const recentMonths = useMemo(() => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Always include current month even if no classes
+    const months = new Set([currentMonth]);
+    allMonths.slice(0, 4).forEach(m => months.add(m));
+
+    return Array.from(months).sort((a, b) => b.localeCompare(a)).slice(0, 4);
+  }, [allMonths]);
+
+  // Filter classes by selected month and student
+  const filteredClasses = useMemo(() => {
+    let result = classes;
+
+    // Filter by student if selected
+    if (selectedStudentFilter) {
+      result = result.filter(c =>
+        c.students?.some(s => s.id === selectedStudentFilter)
+      );
+    }
+
+    // Filter by month
+    if (selectedMonth) {
+      result = result.filter(c => c.date.startsWith(selectedMonth));
+    }
+
+    return result;
+  }, [classes, selectedStudentFilter, selectedMonth]);
+
+  // Count classes per month (for badges)
+  const classCountByMonth = useMemo(() => {
+    const counts: Record<string, number> = {};
+    let classesToCount = classes;
+
+    // If student filter is active, count only that student's classes
+    if (selectedStudentFilter) {
+      classesToCount = classes.filter(c =>
+        c.students?.some(s => s.id === selectedStudentFilter)
+      );
+    }
+
+    classesToCount.forEach(cls => {
+      const date = new Date(cls.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      counts[monthKey] = (counts[monthKey] || 0) + 1;
+    });
+    return counts;
+  }, [classes, selectedStudentFilter]);
+
+  const groupedClasses = groupByMonth(filteredClasses);
   const sortedMonths = Object.keys(groupedClasses).sort((a, b) => b.localeCompare(a));
 
   const selectedStudentNames = selectedStudents
@@ -658,6 +738,84 @@ export default function TeacherClasses() {
         </button>
       </div>
 
+      {/* Filter Bar */}
+      <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+        {/* Row 1: Students */}
+        <div className="flex items-center gap-3">
+          <span className="text-slate-400 text-sm font-medium w-16">Student</span>
+          <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
+            <button
+              onClick={() => setSelectedStudentFilter(null)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                selectedStudentFilter === null
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              All
+            </button>
+            {students.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSelectedStudentFilter(s.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedStudentFilter === s.id
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                {s.first_name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2: Months */}
+        <div className="flex items-center gap-3">
+          <span className="text-slate-400 text-sm font-medium w-16">Month</span>
+          <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
+            {recentMonths.map(month => {
+              const count = classCountByMonth[month] || 0;
+              const isSelected = selectedMonth === month;
+              return (
+                <button
+                  key={month}
+                  onClick={() => setSelectedMonth(month)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white shadow-lg'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {getMonthLabel(month)}
+                  <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                    isSelected ? 'bg-emerald-500' : 'bg-slate-600'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* Older months dropdown if there are more */}
+            {allMonths.length > 4 && (
+              <select
+                value={!recentMonths.includes(selectedMonth) ? selectedMonth : ''}
+                onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+                className="bg-slate-700 text-slate-300 rounded-full px-4 py-2 text-sm border-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">Older...</option>
+                {allMonths.filter(m => !recentMonths.includes(m)).map(month => (
+                  <option key={month} value={month}>
+                    {getMonthLabel(month)} ({classCountByMonth[month] || 0})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Classes grouped by month */}
       {sortedMonths.length > 0 ? (
         sortedMonths.map(monthKey => {
@@ -887,17 +1045,44 @@ export default function TeacherClasses() {
                                   {/* Hifz Row */}
                                   <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                                     <span className="text-xs font-semibold text-emerald-400 w-16 flex-shrink-0">HIFZ</span>
-                                    <span className="text-sm text-emerald-300">{getPortionDisplay(cls, 'hifz', student.id)}</span>
+                                    <span className="text-sm text-emerald-300 flex-1">{getPortionDisplay(cls, 'hifz', student.id)}</span>
+                                    {(student.mistake_counts?.hifz ?? 0) > 0 && (
+                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                        (student.mistake_counts?.hifz ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
+                                        : (student.mistake_counts?.hifz ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
+                                        : 'bg-emerald-500/20 text-emerald-400'
+                                      }`}>
+                                        {student.mistake_counts?.hifz} {student.mistake_counts?.hifz === 1 ? 'mistake' : 'mistakes'}
+                                      </span>
+                                    )}
                                   </div>
                                   {/* Sabqi Row */}
                                   <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
                                     <span className="text-xs font-semibold text-cyan-400 w-16 flex-shrink-0">SABQI</span>
-                                    <span className="text-sm text-cyan-300">{getPortionDisplay(cls, 'sabqi', student.id)}</span>
+                                    <span className="text-sm text-cyan-300 flex-1">{getPortionDisplay(cls, 'sabqi', student.id)}</span>
+                                    {(student.mistake_counts?.sabqi ?? 0) > 0 && (
+                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                        (student.mistake_counts?.sabqi ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
+                                        : (student.mistake_counts?.sabqi ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
+                                        : 'bg-cyan-500/20 text-cyan-400'
+                                      }`}>
+                                        {student.mistake_counts?.sabqi} {student.mistake_counts?.sabqi === 1 ? 'mistake' : 'mistakes'}
+                                      </span>
+                                    )}
                                   </div>
                                   {/* Manzil Row */}
                                   <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-500/5 border border-slate-500/10">
                                     <span className="text-xs font-semibold text-slate-400 w-16 flex-shrink-0">MANZIL</span>
-                                    <span className="text-sm text-slate-300">{getPortionDisplay(cls, 'revision', student.id)}</span>
+                                    <span className="text-sm text-slate-300 flex-1">{getPortionDisplay(cls, 'revision', student.id)}</span>
+                                    {(student.mistake_counts?.revision ?? 0) > 0 && (
+                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                        (student.mistake_counts?.revision ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
+                                        : (student.mistake_counts?.revision ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
+                                        : 'bg-slate-500/20 text-slate-400'
+                                      }`}>
+                                        {student.mistake_counts?.revision} {student.mistake_counts?.revision === 1 ? 'mistake' : 'mistakes'}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -929,8 +1114,30 @@ export default function TeacherClasses() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <p className="text-lg text-slate-300 font-medium">No classes yet</p>
-          <p className="text-slate-500 mt-1">Start your first class to begin tracking</p>
+          {classes.length === 0 ? (
+            <>
+              <p className="text-lg text-slate-300 font-medium">No classes yet</p>
+              <p className="text-slate-500 mt-1">Start your first class to begin tracking</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg text-slate-300 font-medium">No classes found</p>
+              <p className="text-slate-500 mt-1">
+                No classes in {getMonthLabel(selectedMonth)}
+                {selectedStudentFilter && ` for ${students.find(s => s.id === selectedStudentFilter)?.first_name || 'this student'}`}
+              </p>
+              <button
+                onClick={() => {
+                  setSelectedStudentFilter(null);
+                  const now = new Date();
+                  setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+                }}
+                className="mt-4 text-emerald-400 hover:text-emerald-300 text-sm"
+              >
+                Clear filters
+              </button>
+            </>
+          )}
         </div>
       )}
 

@@ -465,7 +465,7 @@ def get_all_classes(
             )
         class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
 
-        # For teacher view, include list of students in the class with their performance
+        # For teacher view, include list of students in the class with their performance and mistake counts per portion
         if show_teacher_view and is_teacher:
             students_cursor = conn.execute(
                 """SELECT u.id, u.student_id, u.first_name, u.last_name, cs.performance
@@ -474,7 +474,51 @@ def get_all_classes(
                    WHERE cs.class_id = ?""",
                 (class_dict["id"],)
             )
-            class_dict["students"] = [dict(s) for s in students_cursor.fetchall()]
+            students_list = []
+            for s in students_cursor.fetchall():
+                student_dict = dict(s)
+
+                # Get mistake counts per portion type for this student in this class
+                mistake_counts = {"hifz": 0, "sabqi": 0, "revision": 0}
+
+                # Get this student's assignments for this class
+                for assignment in class_dict["assignments"]:
+                    # Check if assignment applies to this student (null = all, or matches student_id)
+                    if assignment.get("student_id") is None or assignment.get("student_id") == student_dict["id"]:
+                        portion_type = assignment.get("type", "hifz")
+                        start_surah = assignment.get("start_surah", 1)
+                        end_surah = assignment.get("end_surah", start_surah)
+                        start_ayah = assignment.get("start_ayah")
+                        end_ayah = assignment.get("end_ayah")
+
+                        # Count mistakes in this portion range
+                        # Build query based on ayah constraints
+                        if start_ayah and end_ayah and start_surah == end_surah:
+                            # Same surah with ayah range
+                            mistake_cursor = conn.execute(
+                                """SELECT COUNT(*) as count FROM mistake_occurrences mo
+                                   JOIN mistakes m ON mo.mistake_id = m.id
+                                   WHERE mo.class_id = ? AND m.student_id = ?
+                                   AND m.surah_number = ? AND m.ayah_number >= ? AND m.ayah_number <= ?""",
+                                (class_dict["id"], student_dict["id"], start_surah, start_ayah, end_ayah)
+                            )
+                        else:
+                            # Full surah range
+                            mistake_cursor = conn.execute(
+                                """SELECT COUNT(*) as count FROM mistake_occurrences mo
+                                   JOIN mistakes m ON mo.mistake_id = m.id
+                                   WHERE mo.class_id = ? AND m.student_id = ?
+                                   AND m.surah_number >= ? AND m.surah_number <= ?""",
+                                (class_dict["id"], student_dict["id"], start_surah, end_surah)
+                            )
+
+                        mistake_row = mistake_cursor.fetchone()
+                        if mistake_row and mistake_row["count"]:
+                            mistake_counts[portion_type] += mistake_row["count"]
+
+                student_dict["mistake_counts"] = mistake_counts
+                students_list.append(student_dict)
+            class_dict["students"] = students_list
 
         classes.append(class_dict)
 
@@ -894,7 +938,8 @@ def get_suggested_portions(
     Returns suggested start_surah, end_surah, start_ayah, end_ayah for each type.
     """
     # Only teachers can get suggestions
-    if current_user["role"] != "teacher":
+    is_teacher = current_user.get("is_verified", False)
+    if not is_teacher:
         raise HTTPException(status_code=403, detail="Only teachers can get suggestions")
 
     conn = get_app_db()
@@ -968,9 +1013,9 @@ def get_suggested_portions(
         )
         return cursor.fetchone()
 
-    def get_next_surah(surah_num):
-        """Get the next surah number (wraps around at 114 -> 1)"""
-        return (surah_num % 114) + 1
+    def get_prev_surah(surah_num):
+        """Get the previous surah number (going upwards in memorization, wraps 1 -> 114)"""
+        return surah_num - 1 if surah_num > 1 else 114
 
     # HIFZ suggestion: Continue from where they left off
     if last_hifz:
@@ -989,15 +1034,15 @@ def get_suggested_portions(
                 "note": f"Continue from ayah {last_end_ayah + 1}"
             }
         else:
-            # Move to next surah
-            next_surah = get_next_surah(last_end_surah)
-            next_surah_info = get_surah_info(next_surah)
+            # Move to previous surah (upwards memorization - lower surah numbers)
+            prev_surah = get_prev_surah(last_end_surah)
+            prev_surah_info = get_surah_info(prev_surah)
             suggestions["hifz"] = {
-                "start_surah": next_surah,
-                "end_surah": next_surah,
+                "start_surah": prev_surah,
+                "end_surah": prev_surah,
                 "start_ayah": 1,
-                "end_ayah": min(10, next_surah_info["numberOfAyahs"]) if next_surah_info else 10,
-                "surah_name": next_surah_info["englishName"] if next_surah_info else None,
+                "end_ayah": min(10, prev_surah_info["numberOfAyahs"]) if prev_surah_info else 10,
+                "surah_name": prev_surah_info["englishName"] if prev_surah_info else None,
                 "note": f"Start new surah after completing {surah_info['englishName'] if surah_info else 'previous'}"
             }
 
@@ -1013,44 +1058,52 @@ def get_suggested_portions(
             "note": "Last Hifz portion for recent review"
         }
 
-    # MANZIL suggestion: Continue from where last Manzil ended, or use last Sabqi
+    # MANZIL suggestion: Larger portion (3 surahs) for revision
+    # Manzil should cover more content than Hifz/Sabqi
+    MANZIL_SURAH_COUNT = 3  # Suggest 3 surahs for revision
+
     if last_manzil:
         last_end_surah = last_manzil["end_surah"]
-        last_end_ayah = last_manzil["end_ayah"]
-        surah_info = get_surah_info(last_end_surah)
+        # Move to next batch of surahs (going upwards/backwards)
+        start_surah = get_prev_surah(last_end_surah)
+        # Go back 3 surahs for manzil range
+        end_surah = start_surah
+        for _ in range(MANZIL_SURAH_COUNT - 1):
+            end_surah = get_prev_surah(end_surah)
 
-        if last_end_ayah and surah_info and last_end_ayah < surah_info["numberOfAyahs"]:
-            # Continue in same surah
-            suggestions["manzil"] = {
-                "start_surah": last_end_surah,
-                "end_surah": last_end_surah,
-                "start_ayah": last_end_ayah + 1,
-                "end_ayah": surah_info["numberOfAyahs"],
-                "surah_name": surah_info["englishName"] if surah_info else None,
-                "note": f"Continue Manzil from ayah {last_end_ayah + 1}"
-            }
-        else:
-            # Move to next surah for manzil
-            next_surah = get_next_surah(last_end_surah)
-            next_surah_info = get_surah_info(next_surah)
-            suggestions["manzil"] = {
-                "start_surah": next_surah,
-                "end_surah": next_surah,
-                "start_ayah": 1,
-                "end_ayah": next_surah_info["numberOfAyahs"] if next_surah_info else None,
-                "surah_name": next_surah_info["englishName"] if next_surah_info else None,
-                "note": f"Next Manzil surah"
-            }
-    elif last_sabqi:
-        # If no manzil before, suggest last sabqi as new manzil
-        surah_info = get_surah_info(last_sabqi["start_surah"])
+        # Swap if needed (start should be higher number for display)
+        if start_surah < end_surah:
+            start_surah, end_surah = end_surah, start_surah
+
+        start_info = get_surah_info(start_surah)
+        end_info = get_surah_info(end_surah)
         suggestions["manzil"] = {
-            "start_surah": last_sabqi["start_surah"],
-            "end_surah": last_sabqi["end_surah"],
-            "start_ayah": last_sabqi["start_ayah"],
-            "end_ayah": last_sabqi["end_ayah"],
-            "surah_name": surah_info["englishName"] if surah_info else None,
-            "note": "Last Sabqi moving to Manzil rotation"
+            "start_surah": start_surah,
+            "end_surah": end_surah,
+            "start_ayah": 1,
+            "end_ayah": None,  # Full surahs
+            "surah_name": f"{start_info['englishName'] if start_info else ''} - {end_info['englishName'] if end_info else ''}",
+            "note": f"Manzil: {MANZIL_SURAH_COUNT} surahs for revision"
+        }
+    elif last_sabqi:
+        # If no manzil before, start manzil from 3 surahs before last sabqi
+        start_surah = get_prev_surah(last_sabqi["end_surah"])
+        end_surah = start_surah
+        for _ in range(MANZIL_SURAH_COUNT - 1):
+            end_surah = get_prev_surah(end_surah)
+
+        if start_surah < end_surah:
+            start_surah, end_surah = end_surah, start_surah
+
+        start_info = get_surah_info(start_surah)
+        end_info = get_surah_info(end_surah)
+        suggestions["manzil"] = {
+            "start_surah": start_surah,
+            "end_surah": end_surah,
+            "start_ayah": 1,
+            "end_ayah": None,
+            "surah_name": f"{start_info['englishName'] if start_info else ''} - {end_info['englishName'] if end_info else ''}",
+            "note": f"Starting Manzil rotation ({MANZIL_SURAH_COUNT} surahs)"
         }
 
     quran_conn.close()
