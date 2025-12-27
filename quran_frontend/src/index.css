@@ -236,26 +236,67 @@ body {
   border-radius: 0;
 }
 
-/* Haraka mistake colors - text color only for layered rendering */
+/* Haraka mistake colors - bright color with STRONG glow + larger size for visibility */
 .haraka-mistake-1 {
-  color: #d97706 !important; /* amber-600 - darker for light bg */
+  color: #fbbf24 !important; /* amber-400 - very bright yellow */
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 6px #fbbf24,
+    0 0 10px #fbbf24,
+    0 0 15px #f59e0b,
+    0 0 20px #f59e0b;
 }
 
 .haraka-mistake-2 {
-  color: #2563eb !important; /* blue-600 */
+  color: #60a5fa !important; /* blue-400 */
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 6px #60a5fa,
+    0 0 10px #60a5fa,
+    0 0 15px #3b82f6,
+    0 0 20px #3b82f6;
 }
 
 .haraka-mistake-3 {
-  color: #ea580c !important; /* orange-600 */
+  color: #fb923c !important; /* orange-400 */
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 6px #fb923c,
+    0 0 10px #fb923c,
+    0 0 15px #f97316,
+    0 0 20px #f97316;
 }
 
 .haraka-mistake-4 {
-  color: #9333ea !important; /* purple-600 */
+  color: #c084fc !important; /* purple-400 */
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 6px #c084fc,
+    0 0 10px #c084fc,
+    0 0 15px #a855f7,
+    0 0 20px #a855f7;
 }
 
 .haraka-mistake-5 {
-  color: #dc2626 !important; /* red-600 */
+  color: #f87171 !important; /* red-400 */
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 6px #f87171,
+    0 0 10px #f87171,
+    0 0 15px #ef4444,
+    0 0 20px #ef4444;
 }
+
 
 .spinner {
   @apply border-4 border-slate-700 border-t-emerald-500 rounded-full w-10 h-10 animate-spin;

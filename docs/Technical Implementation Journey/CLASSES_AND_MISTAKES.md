@@ -257,9 +257,11 @@ When a word has character-level mistakes (letter or harakat), it switches to Uth
   - Uses gradient background + bottom border (same style as whole-word mistakes)
   - Harakat attached to the letter are included in the highlight
 
-- **Harakat mistake** (`haraka-mistake-X`): Color change on letter + harakat together
-  - Uses text color change only (no background)
-  - Both the base letter and its harakat are colored together
+- **Harakat mistake** (`haraka-mistake-X`): Bright color + glow effect on harakat ONLY
+  - Harakat (diacritical mark) is colored separately from the base letter
+  - Uses bright color + strong text-shadow glow for visibility
+  - Larger font size (1.3em) and bold weight to make small harakat visible
+  - Base letter remains unchanged - only the harakat is highlighted
 
 **CSS Classes:**
 ```css
@@ -271,17 +273,31 @@ When a word has character-level mistakes (letter or harakat), it switches to Uth
   padding: 0 2px;
 }
 
-/* Harakat mistakes - text color only */
+/* Harakat mistakes - bright color with glow effect (harakat only, not base letter) */
 .haraka-mistake-1 {
-  color: #d97706 !important;
+  color: #fbbf24 !important; /* amber-400 - very bright yellow */
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 6px #fbbf24,
+    0 0 10px #fbbf24,
+    0 0 15px #f59e0b,
+    0 0 20px #f59e0b;
 }
 ```
 
 **Rendering Logic (Classroom.tsx):**
 1. Split word into groups (base letter + its following harakat)
-2. Check if any harakat in group has a mistake → use `haraka-mistake-X` (colors both)
-3. Check if base letter has a mistake → use `letter-mistake-X` (highlights both)
+2. Check if any harakat in group has a mistake → render base letter plain, harakat with `haraka-mistake-X` class
+3. Check if base letter has a mistake → use `letter-mistake-X` (highlights letter + harakat together)
 4. No mistake → render plain text
+
+**Why this approach for harakat:**
+- Harakat are combining characters with zero width but full line-height
+- Using background-color on harakat creates an ugly vertical line
+- Using text-shadow glow creates a visible highlight around the harakat shape only
+- Larger font-size makes the small diacritical marks more visible
 
 #### Mistake Summary Sections
 Displayed below Quran text with two separate cards:

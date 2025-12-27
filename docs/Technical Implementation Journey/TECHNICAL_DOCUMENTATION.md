@@ -460,10 +460,13 @@ Final Score = 100 - Total Deductions (minimum 0)
 - Students can only see their own mistakes (privacy enforced)
 
 ### 2. Word-Level vs Character-Level Mistakes
-- **Word-level:** `char_index = null` - entire word is highlighted
-- **Character-level:** `char_index = N` - specific letter/harakat highlighted
-  - Used for harakat (diacritical marks) mistakes
-  - Allows tracking if student struggles with specific vowel marks
+- **Word-level:** `char_index = null` - entire word is highlighted with background gradient
+- **Letter-level:** `char_index = N` (base letter) - letter + its harakat highlighted with background
+- **Harakat-level:** `char_index = N` (diacritical mark) - ONLY the harakat is highlighted
+  - Uses bright color + glow effect (text-shadow) for visibility
+  - Base letter remains unchanged - only the diacritical mark glows
+  - Larger font-size (1.3em) and bold to make small marks visible
+  - Allows precise tracking of vowel mark mistakes (fatha, damma, kasra, etc.)
 
 ### 3. Mistake Color Coding
 | Count | Color | Meaning |

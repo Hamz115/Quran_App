@@ -478,14 +478,17 @@ export default function Classroom() {
       const baseMistakeLevel = charMistakeMap.get(group.baseIndex);
       const harakatWithMistakes = group.harakat.filter(h => h.mistakeLevel);
 
-      // If any HARAKA has a mistake, color BOTH letter AND harakat together (no box)
+      // If any HARAKA has a mistake, color ONLY the mistaken harakat (glow effect)
       if (harakatWithMistakes.length > 0) {
-        const maxLevel = Math.max(...harakatWithMistakes.map(h => h.mistakeLevel || 0));
-        const harakatStr = group.harakat.map(h => h.char).join('');
-
         return (
-          <span key={group.baseIndex} className={`haraka-mistake-${maxLevel}`}>
-            {group.base}{harakatStr}
+          <span key={group.baseIndex}>
+            {group.base}
+            {group.harakat.map((h, i) => {
+              if (h.mistakeLevel) {
+                return <span key={i} className={`haraka-mistake-${h.mistakeLevel}`}>{h.char}</span>;
+              }
+              return h.char;
+            })}
           </span>
         );
       }

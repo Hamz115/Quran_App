@@ -375,6 +375,40 @@ See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AN
 
 ---
 
+## Phase 10: Harakat Highlighting Enhancement
+
+**Status:** Complete
+
+### Harakat-Only Highlighting with Glow Effect
+- **Problem:** Previous harakat highlighting colored both the base letter AND the harakat together, making it unclear which specific mark had the error
+- **Solution:** Harakat (diacritical marks) are now highlighted SEPARATELY from the base letter
+- **Visual Effect:** Bright color + multi-layer text-shadow glow creates a visible halo around the harakat only
+
+### CSS Implementation
+- Bright amber/yellow color (#fbbf24) for harakat text
+- Larger font-size (1.3em) to make small diacritical marks visible
+- Bold font-weight for better visibility
+- Multi-layer text-shadow glow effect:
+  - White inner glow (0 0 3px #fff)
+  - Yellow outer glow (0 0 6-20px amber colors)
+- No background-color (which would create vertical lines due to zero-width combining characters)
+
+### React Rendering Logic Update
+- Base letter rendered as plain text (no styling)
+- Only the harakat span receives the `haraka-mistake-X` class
+- Structure: `<span>ك<span class="haraka-mistake-1">َ</span></span>`
+- This ensures the glow only appears around the diacritical mark
+
+### Why Glow Instead of Background
+- Harakat are combining characters with zero width but full line-height
+- Using `background-color` on harakat creates an ugly vertical bar
+- Using `text-shadow` glow creates a visible highlight around the harakat shape only
+- The glow effect is visually appealing and clearly indicates the mistake location
+
+See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+
+---
+
 ## Running the Project
 
 **Backend:**
