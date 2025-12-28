@@ -1418,10 +1418,10 @@ export default function Classroom() {
                                   key={word.id}
                                   onClick={(e) => inPortion && handleWordClick(e, word)}
                                   onContextMenu={(e) => inPortion && handleWordRightClick(e, word)}
-                                  className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block align-middle ${
+                                  className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block ${
                                     inPortion && wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher && inPortion ? 'hover:bg-emerald-200 rounded' : ''
                                   }`}
-                                  style={{ fontSize: '0.82em', fontWeight: 500, letterSpacing: '0.03em', ...dimStyle }}
+                                  style={{ fontSize: '0.85em', fontWeight: 400, letterSpacing: '0.02em', lineHeight: 1, position: 'relative', top: '-0.3em', ...dimStyle }}
                                   title={inPortion ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}` : 'Outside assigned portion'}
                                 >
                                   {renderWordWithColoredChar(word, charMistakes)}
