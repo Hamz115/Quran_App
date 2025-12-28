@@ -319,6 +319,11 @@ export interface ClassData {
   class_type: 'regular' | 'test';  // Class type
   assignments: ClassAssignment[];
   students?: ClassStudent[];  // Only included for teachers
+  mistake_counts?: {  // Only included for students
+    hifz: number;
+    sabqi: number;
+    revision: number;
+  };
 }
 
 export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {

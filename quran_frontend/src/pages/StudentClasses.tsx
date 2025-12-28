@@ -25,11 +25,11 @@ interface Teacher {
 
 const getPerformanceStyle = (perf: string | null) => {
   switch (perf) {
-    case 'Excellent': return 'bg-emerald-500/20 text-emerald-400';
-    case 'Very Good': return 'bg-teal-500/20 text-teal-400';
-    case 'Good': return 'bg-amber-500/20 text-amber-400';
-    case 'Needs Work': return 'bg-red-500/20 text-red-400';
-    default: return 'bg-slate-600/50 text-slate-400';
+    case 'Excellent': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+    case 'Very Good': return 'bg-teal-500/20 text-teal-400 border border-teal-500/30';
+    case 'Good': return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    case 'Needs Work': return 'bg-red-500/20 text-red-400 border border-red-500/30';
+    default: return 'bg-slate-600/50 text-slate-400 border border-slate-600';
   }
 };
 
@@ -121,17 +121,8 @@ export default function StudentClasses() {
         display = `${startName} to ${endName}`;
       }
 
-      return <div key={i} className="text-sm">{display}{i < portions.length - 1 ? ', ' : ''}</div>;
+      return <span key={i}>{display}{i < portions.length - 1 ? ', ' : ''}</span>;
     });
-  };
-
-  // Get short day name
-  const getShortDay = (day: string) => {
-    const dayMap: Record<string, string> = {
-      'Sunday': 'Sun', 'Monday': 'Mon', 'Tuesday': 'Tue',
-      'Wednesday': 'Wed', 'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat'
-    };
-    return dayMap[day] || day.slice(0, 3);
   };
 
   return (
@@ -159,20 +150,8 @@ export default function StudentClasses() {
                 </div>
               </div>
 
-              {/* Table Header */}
-              <div className="grid grid-cols-[60px_70px_60px_1fr_1fr_1fr_80px_50px] gap-3 px-6 py-3 border-b border-slate-700/50 text-xs font-medium text-slate-500 uppercase tracking-wider">
-                <div>Week</div>
-                <div>Date</div>
-                <div>Day</div>
-                <div className="text-emerald-400">Hifz</div>
-                <div className="text-cyan-400">Sabqi</div>
-                <div className="text-slate-300">Manzil</div>
-                <div>Perf.</div>
-                <div>Notes</div>
-              </div>
-
-              {/* Class Rows */}
-              <div className="divide-y divide-slate-700/30">
+              {/* Class Cards */}
+              <div className="space-y-4 p-4">
                 {monthClasses.map(cls => {
                   const classDate = new Date(cls.date);
                   const weekNum = getWeekOfMonth(cls.date);
@@ -181,72 +160,113 @@ export default function StudentClasses() {
                     <div
                       key={cls.id}
                       onClick={() => window.location.href = `/student/classes/${cls.id}`}
-                      className="grid grid-cols-[60px_70px_60px_1fr_1fr_1fr_80px_50px] gap-3 px-6 py-4 hover:bg-slate-800/50 cursor-pointer transition-colors items-center"
+                      className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden hover:border-emerald-500/30 cursor-pointer transition-all hover:shadow-lg hover:shadow-emerald-500/5"
                     >
-                      {/* Week */}
-                      <div>
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-medium">
-                          W{weekNum}
-                        </span>
-                      </div>
-
-                      {/* Date */}
-                      <div className="text-slate-200 text-sm">
-                        {String(classDate.getDate()).padStart(2, '0')}/{String(classDate.getMonth() + 1).padStart(2, '0')}
-                      </div>
-
-                      {/* Day */}
-                      <div className="text-slate-400 text-sm">
-                        {getShortDay(cls.day)}
-                      </div>
-
-                      {/* Hifz */}
-                      <div className="text-emerald-400 min-w-0">
-                        {getPortionDisplay(cls, 'hifz')}
-                      </div>
-
-                      {/* Sabqi */}
-                      <div className="text-cyan-400 min-w-0">
-                        {getPortionDisplay(cls, 'sabqi')}
-                      </div>
-
-                      {/* Manzil (Revision) */}
-                      <div className="text-slate-300 min-w-0">
-                        {getPortionDisplay(cls, 'revision')}
-                      </div>
-
-                      {/* Performance */}
-                      <div>
-                        {cls.performance ? (
-                          <span className={`text-xs font-medium px-2.5 py-1 rounded ${getPerformanceStyle(cls.performance)}`}>
-                            {cls.performance === 'Very Good' ? 'V.Good' : cls.performance}
+                      {/* Class Header */}
+                      <div className="flex items-center justify-between px-5 py-3 bg-slate-800/80 border-b border-slate-700/50">
+                        <div className="flex items-center gap-4">
+                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-bold">
+                            W{weekNum}
                           </span>
-                        ) : (
-                          <span className="text-slate-600">—</span>
-                        )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-200 font-medium">
+                                {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
+                              </span>
+                              {cls.class_type === 'test' && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
+                                  Test
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-0.5">
+                              with {teacherName}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {/* Performance Badge */}
+                          {cls.performance && (
+                            <span className={`text-xs font-medium px-3 py-1.5 rounded-lg ${getPerformanceStyle(cls.performance)}`}>
+                              {cls.performance}
+                            </span>
+                          )}
+                          {/* Notes Button */}
+                          {cls.notes && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNotesText(cls.notes || '');
+                                setNotesDate(cls.date);
+                                setShowNotesModal(true);
+                              }}
+                              className="p-2 rounded-lg hover:bg-amber-500/20 text-amber-400 transition-colors"
+                              title="View notes"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Notes */}
-                      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                        {cls.notes ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNotesText(cls.notes || '');
-                              setNotesDate(cls.date);
-                              setShowNotesModal(true);
-                            }}
-                            className="p-1.5 rounded text-amber-400 hover:bg-amber-500/20 transition-colors"
-                            title="View notes"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </button>
-                        ) : (
-                          <span className="text-slate-600">—</span>
-                        )}
+                      {/* Portions Section */}
+                      <div className="p-4">
+                        <div className="space-y-2">
+                          {/* Hifz Row */}
+                          <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                            <span className="text-xs font-semibold text-emerald-400 w-16 flex-shrink-0">HIFZ</span>
+                            <span className="text-sm text-emerald-300 flex-1">{getPortionDisplay(cls, 'hifz')}</span>
+                            {(cls.mistake_counts?.hifz ?? 0) > 0 && (
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                (cls.mistake_counts?.hifz ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
+                                : (cls.mistake_counts?.hifz ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-emerald-500/20 text-emerald-400'
+                              }`}>
+                                {cls.mistake_counts?.hifz} {cls.mistake_counts?.hifz === 1 ? 'mistake' : 'mistakes'}
+                              </span>
+                            )}
+                          </div>
+                          {/* Sabqi Row */}
+                          <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
+                            <span className="text-xs font-semibold text-cyan-400 w-16 flex-shrink-0">SABQI</span>
+                            <span className="text-sm text-cyan-300 flex-1">{getPortionDisplay(cls, 'sabqi')}</span>
+                            {(cls.mistake_counts?.sabqi ?? 0) > 0 && (
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                (cls.mistake_counts?.sabqi ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
+                                : (cls.mistake_counts?.sabqi ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-cyan-500/20 text-cyan-400'
+                              }`}>
+                                {cls.mistake_counts?.sabqi} {cls.mistake_counts?.sabqi === 1 ? 'mistake' : 'mistakes'}
+                              </span>
+                            )}
+                          </div>
+                          {/* Manzil Row */}
+                          <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-500/5 border border-slate-500/10">
+                            <span className="text-xs font-semibold text-slate-400 w-16 flex-shrink-0">MANZIL</span>
+                            <span className="text-sm text-slate-300 flex-1">{getPortionDisplay(cls, 'revision')}</span>
+                            {(cls.mistake_counts?.revision ?? 0) > 0 && (
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                (cls.mistake_counts?.revision ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
+                                : (cls.mistake_counts?.revision ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-slate-500/20 text-slate-400'
+                              }`}>
+                                {cls.mistake_counts?.revision} {cls.mistake_counts?.revision === 1 ? 'mistake' : 'mistakes'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Notes Preview (if has notes) */}
+                      {cls.notes && (
+                        <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/30">
+                          <p className="text-xs text-slate-400 truncate">
+                            <span className="font-medium text-amber-400/80">📝 Note:</span> {cls.notes}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

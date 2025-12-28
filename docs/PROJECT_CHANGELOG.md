@@ -405,6 +405,40 @@ See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AN
 - Using `text-shadow` glow creates a visible highlight around the harakat shape only
 - The glow effect is visually appealing and clearly indicates the mistake location
 
+### Uthmani Text Alignment
+When a word has character-level mistakes, it renders using Uthmani Unicode text instead of QPC glyphs. To ensure visual alignment:
+- **fontSize**: 0.85em (matches QPC glyph size)
+- **fontWeight**: 400 (normal, matching QPC rendering)
+- **top**: -0.3em (relative positioning to align baselines)
+- QPC and Uthmani fonts have different vertical positioning, so the offset is required
+
+### Student Classes UI Redesign
+The Student "My Classes" page was completely redesigned to match the Teacher Classes view:
+
+**Old Design (Table Layout):**
+- Simple table with columns: Week, Date, Day, Hifz, Sabqi, Manzil, Performance, Notes
+- Cramped layout, no visual hierarchy
+- No mistake counts displayed
+
+**New Design (Card Layout):**
+- Month grouping header with class count
+- Individual class cards with:
+  - Week badge (W1, W2, etc.)
+  - Date, day, and teacher name
+  - Performance badge (Excellent/Very Good/Good/Needs Work)
+- Each portion type on its own colored row:
+  - **HIFZ** - Emerald green
+  - **SABQI** - Cyan
+  - **MANZIL** - Gray
+- Mistake counts per portion (read-only)
+- Notes preview with modal for full text
+- Hover effects and clickable cards
+
+### Backend Changes for Student View
+- API now returns `mistake_counts` object for students (previously only for teachers)
+- API now returns student's `performance` rating from `class_students` table
+- Mistake counts computed per portion type (hifz, sabqi, revision)
+
 See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
 
 ---

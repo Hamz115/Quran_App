@@ -519,6 +519,51 @@ def get_all_classes(
                 student_dict["mistake_counts"] = mistake_counts
                 students_list.append(student_dict)
             class_dict["students"] = students_list
+        else:
+            # For student view, add mistake counts directly to class object
+            # Also add student's performance
+            perf_cursor = conn.execute(
+                "SELECT performance FROM class_students WHERE class_id = ? AND student_id = ?",
+                (class_dict["id"], user_id)
+            )
+            perf_row = perf_cursor.fetchone()
+            if perf_row:
+                class_dict["performance"] = perf_row["performance"]
+
+            mistake_counts = {"hifz": 0, "sabqi": 0, "revision": 0}
+
+            for assignment in class_dict["assignments"]:
+                portion_type = assignment.get("type", "hifz")
+                start_surah = assignment.get("start_surah", 1)
+                end_surah = assignment.get("end_surah", start_surah)
+                start_ayah = assignment.get("start_ayah")
+                end_ayah = assignment.get("end_ayah")
+
+                # Count mistakes in this portion range
+                if start_ayah and end_ayah and start_surah == end_surah:
+                    # Same surah with ayah range
+                    mistake_cursor = conn.execute(
+                        """SELECT COUNT(*) as count FROM mistake_occurrences mo
+                           JOIN mistakes m ON mo.mistake_id = m.id
+                           WHERE mo.class_id = ? AND m.student_id = ?
+                           AND m.surah_number = ? AND m.ayah_number >= ? AND m.ayah_number <= ?""",
+                        (class_dict["id"], user_id, start_surah, start_ayah, end_ayah)
+                    )
+                else:
+                    # Full surah range
+                    mistake_cursor = conn.execute(
+                        """SELECT COUNT(*) as count FROM mistake_occurrences mo
+                           JOIN mistakes m ON mo.mistake_id = m.id
+                           WHERE mo.class_id = ? AND m.student_id = ?
+                           AND m.surah_number >= ? AND m.surah_number <= ?""",
+                        (class_dict["id"], user_id, start_surah, end_surah)
+                    )
+
+                mistake_row = mistake_cursor.fetchone()
+                if mistake_row and mistake_row["count"]:
+                    mistake_counts[portion_type] += mistake_row["count"]
+
+            class_dict["mistake_counts"] = mistake_counts
 
         classes.append(class_dict)
 

@@ -680,7 +680,29 @@ flutter run
 
 ---
 
-## Recent Updates (Phase 8)
+## Recent Updates (Phase 10)
+
+### Harakat Highlighting Enhancement
+- **Harakat-Only Glow**: Harakat mistakes now highlighted separately from base letter
+- **CSS Glow Effect**: Bright color + text-shadow glow instead of background-color
+- **No Vertical Line**: Solved the issue of background-color creating vertical bars on zero-width combining characters
+- **Visibility**: Larger font-size (1.3em) and bold weight for small diacritical marks
+
+### Uthmani Text Alignment
+- **Baseline Alignment**: Uthmani text aligned with QPC glyphs using relative positioning
+- **Sizing**: fontSize 0.85em, fontWeight 400 to match QPC rendering
+- **Vertical Shift**: top: -0.3em to align baselines
+
+### Student Classes UI Redesign
+- **Card Layout**: Redesigned from table to card-based layout matching Teacher view
+- **Portions Display**: Each portion type (Hifz, Sabqi, Manzil) on its own colored row
+- **Mistake Counts**: Students now see their own mistake counts per portion
+- **Performance Badge**: Read-only badge showing teacher's rating
+- **Backend Update**: API now returns `mistake_counts` and `performance` for student view
+
+---
+
+## Previous Updates (Phase 8)
 
 ### Test Classes
 - **Class Type Toggle**: Regular vs Test class selection in creation modal
@@ -721,4 +743,4 @@ flutter run
 
 ---
 
-*Last Updated: December 17, 2025*
+*Last Updated: December 28, 2025*

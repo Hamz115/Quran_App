@@ -299,6 +299,24 @@ When a word has character-level mistakes (letter or harakat), it switches to Uth
 - Using text-shadow glow creates a visible highlight around the harakat shape only
 - Larger font-size makes the small diacritical marks more visible
 
+**Uthmani Text Alignment:**
+When rendering character-level mistakes, the word switches from QPC glyphs to Uthmani Unicode text. To ensure visual alignment with surrounding QPC-rendered words:
+
+```css
+style={{
+  fontSize: '0.85em',
+  fontWeight: 400,
+  letterSpacing: '0.02em',
+  lineHeight: 1,
+  position: 'relative',
+  top: '-0.3em'  /* Align with QPC baseline */
+}}
+```
+
+- **fontSize: 0.85em** - Matches visual size of QPC glyphs
+- **fontWeight: 400** - Normal weight to match QPC rendering
+- **top: -0.3em** - Shifts text up to align baselines (QPC and Uthmani have different vertical positioning)
+
 #### Mistake Summary Sections
 Displayed below Quran text with two separate cards:
 
@@ -598,6 +616,70 @@ GET /api/students/{student_id}/suggested-portions
 
 ---
 
+## Student Classes UI (My Classes)
+
+### Card-Based Layout
+The Student "My Classes" view was redesigned to match the Teacher Classes layout:
+
+**Before:** Simple table with columns (Week, Date, Day, Hifz, Sabqi, Manzil, Perf, Notes) - cramped, no mistake counts
+
+**After:** Card-based layout with:
+- Month grouping header with class count
+- Individual class cards with visual hierarchy
+- Week badge (W1, W2, etc.)
+- Date, day, and teacher name
+- Performance badge (Excellent/Very Good/Good/Needs Work)
+- Each portion on its own colored row:
+  - **HIFZ** - Emerald green row
+  - **SABQI** - Cyan row
+  - **MANZIL** - Gray row
+- Mistake counts per portion (read-only)
+- Notes preview with modal for full text
+
+### Backend Changes
+Added mistake counts and performance to student class API response:
+
+```python
+# In get_all_classes() - student view branch
+else:
+    # For student view, add mistake counts directly to class object
+    perf_cursor = conn.execute(
+        "SELECT performance FROM class_students WHERE class_id = ? AND student_id = ?",
+        (class_dict["id"], user_id)
+    )
+    perf_row = perf_cursor.fetchone()
+    if perf_row:
+        class_dict["performance"] = perf_row["performance"]
+
+    mistake_counts = {"hifz": 0, "sabqi": 0, "revision": 0}
+    # ... count mistakes per portion type
+    class_dict["mistake_counts"] = mistake_counts
+```
+
+### TypeScript Interface Update
+```typescript
+export interface ClassData {
+  // ... existing fields
+  mistake_counts?: {  // Only included for students
+    hifz: number;
+    sabqi: number;
+    revision: number;
+  };
+}
+```
+
+### Key Differences from Teacher View
+| Feature | Teacher View | Student View |
+|---------|--------------|--------------|
+| Performance | Dropdown selector | Read-only badge |
+| Publish toggle | Yes (Live/Draft) | No |
+| Delete button | Yes | No |
+| Notes | Editable | View only |
+| Mistake counts | Per student | Own mistakes |
+| Student filter | Yes | N/A (only own classes) |
+
+---
+
 ## Related Documentation
 
 - [AUTH_SYSTEM.md](./AUTH_SYSTEM.md) - Authentication and user roles
@@ -606,4 +688,4 @@ GET /api/students/{student_id}/suggested-portions
 
 ---
 
-*Last Updated: December 22, 2025*
+*Last Updated: December 28, 2025*
