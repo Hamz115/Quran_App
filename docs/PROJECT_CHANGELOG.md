@@ -24,7 +24,8 @@ docs/
 │
 └── Guides/                                 # For AI/developers - troubleshooting
     ├── FONT_OVERFLOW_FIX_GUIDE.md          # Fixing font overflow issues
-    └── PAGE_LAYOUT_FIX_GUIDE.md            # Fixing page layout issues
+    ├── PAGE_LAYOUT_FIX_GUIDE.md            # Fixing page layout issues
+    └── SEEDING_DATABASE.md                 # Database seeding script guide
 ```
 
 ### What's in each folder:
@@ -440,6 +441,78 @@ The Student "My Classes" page was completely redesigned to match the Teacher Cla
 - Mistake counts computed per portion type (hifz, sabqi, revision)
 
 See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+
+---
+
+## Phase 11: Database Seeding
+
+**Status:** Complete
+
+### Seeding Script
+- Created `seed_database.py` for populating test data
+- Generates ~57 weeks of realistic class data (Dec 2025 - Dec 2026)
+- Creates classes, assignments, mistakes, and teacher-student relationships
+
+### Data Configuration
+- 6 teachers with assigned students (11 students total)
+- Mix of group and individual classes
+- 2 class days per week per teacher
+
+### Teacher Assignments
+| Teacher | Days | Students |
+|---------|------|----------|
+| Hamza Feroze | Sat, Wed | Hamza Reyal |
+| Abdullah Qureshi | Mon, Thu | Ahmed, Yusuf, Omar |
+| Tariq Jameel | Tue, Sat | Ibrahim, Bilal |
+| Usman Farooq | Sun, Wed | Khalid, Zayd |
+| Maryam Siddiqui | Mon, Fri | Mustafa, Fatima |
+| Khadijah Noor | Tue, Thu | Aisha |
+
+### Student Progression
+- Each student memorizes 1 page per class (Hifz)
+- Sabqi: 3 pages (recent review)
+- Manzil: 10 pages (cycling revision)
+- Different starting points: some from Juz Amma (backwards), some from beginning (forwards), some from middle
+
+### Realistic Features
+- **Performance distribution**: 35% Excellent, 40% Very Good, 23% Good, 2% Needs Work
+- **Mistake percentage based on performance**: Excellent (0-10%), Very Good (10-20%), Good (20-30%), Needs Work (30-50%)
+- **Mistake types**: 70% whole word, 20% letter, 10% harakat
+- **Repeated mistakes tracked**: Same mistake in multiple classes increments error_count
+- **Contextual teacher notes**: Every class has notes based on performance level
+
+### Data Volume
+| Table | Approximate Rows |
+|-------|------------------|
+| classes | ~672 |
+| class_students | ~900 |
+| assignments | ~2,700 |
+| mistakes | ~5,000-8,000 |
+| mistake_occurrences | ~12,000-18,000 |
+
+See: [SEEDING_DATABASE.md](./Guides/SEEDING_DATABASE.md)
+
+---
+
+## Phase 11.1: Bug Fixes & UI Improvements
+
+**Status:** Complete
+
+### Bug Fixes
+- **word_index off by one**: JSON `p` field is 1-based, frontend expects 0-based. Fixed in seeding script.
+- **char_index for whole word mistakes**: Changed from `-1` to `null` so frontend correctly identifies whole word mistakes and renders with QPC glyphs (not Uthmani text).
+- **"Classes This Week" calculation**: Added missing upper bound (`<= endOfWeek`) to date filter in TeacherDashboard.
+
+### UI Improvements
+- **Month filtering for StudentClasses**: Added month tabs (same as TeacherClasses) so students can filter classes by month instead of scrolling through all.
+- **Complete surah names**: Added all 114 surah names to StudentClasses, TeacherClasses, and StudentDashboard. Now displays "Ya-Sin" instead of "Surah 36", "Ar-Rahman" instead of "Surah 55", etc.
+
+### Files Modified
+- `quran_backend/seed_database.py` - word_index and char_index fixes
+- `quran_frontend/src/pages/TeacherDashboard.tsx` - Classes This Week fix
+- `quran_frontend/src/pages/StudentClasses.tsx` - Month filtering, complete surah names
+- `quran_frontend/src/pages/TeacherClasses.tsx` - Complete surah names
+- `quran_frontend/src/pages/StudentDashboard.tsx` - Complete surah names
 
 ---
 
