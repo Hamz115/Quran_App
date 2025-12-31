@@ -277,10 +277,10 @@
                 <h1 class="hero-title">QuranTrack</h1>
                 <div class="hero-subtitle">QuranTrack is a Quran memorization and recitation tracking application designed for teachers (Ustadh/Ustadha) who conduct Hifz (memorization) classes. The app provides a digital platform to track student progress, mark mistakes during recitation sessions, and maintain detailed class records. The application uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to render Quran pages pixel-perfect, exactly matching the printed Madani Mushaf. Each of the 604 pages has its own dedicated font file for perfect glyph accuracy. The system supports word-level and character-level mistake tracking with color-coded severity based on error frequency. The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Data is stored in SQLite databases - a read-only Quran database bundled with the apps and a read-write application database for users, classes, and mistakes. JWT-based authentication with role-based access control (Teacher vs Student) manages user permissions.</div>
                 <div class="hero-stats">
-                    <div class="stat"><div class="stat-value">1351</div><div class="stat-label">Files</div></div>
+                    <div class="stat"><div class="stat-value">1353</div><div class="stat-label">Files</div></div>
                     <div class="stat"><div class="stat-value">81</div><div class="stat-label">Folders</div></div>
-                    <div class="stat"><div class="stat-value">15</div><div class="stat-label">Commits</div></div>
-                    <div class="stat"><div class="stat-value">1</div><div class="stat-label">Updates</div></div>
+                    <div class="stat"><div class="stat-value">16</div><div class="stat-label">Commits</div></div>
+                    <div class="stat"><div class="stat-value">2</div><div class="stat-label">Updates</div></div>
                 </div>
             </div>
             <div class="section-header">
@@ -1099,12 +1099,24 @@
             
     <div class="git-stats">
         <div class="git-stat"><div class="git-stat-label">Branch</div><div class="git-stat-value">🌿 main</div></div>
-        <div class="git-stat"><div class="git-stat-label">Last Commit</div><div class="git-stat-value"><code>297ee1a</code></div></div>
-        <div class="git-stat"><div class="git-stat-label">Total Commits</div><div class="git-stat-value">15</div></div>
+        <div class="git-stat"><div class="git-stat-label">Last Commit</div><div class="git-stat-value"><code>4b2dbf4</code></div></div>
+        <div class="git-stat"><div class="git-stat-label">Total Commits</div><div class="git-stat-value">16</div></div>
         <div class="git-stat"><div class="git-stat-label">Contributors</div><div class="git-stat-value">1</div></div>
     </div><div class="commits-section"><div class="commits-title">Recent Commits</div><div class="commits-list">
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--primary)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add PROJECT_MAP.md and interactive HTML documentation</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 31, 2025</span>
+                        <span>🔖 4b2dbf4</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--secondary)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Add database seeding script, month filtering, and bug fixes</div>
                     <div class="commit-meta">
@@ -1116,7 +1128,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--secondary)"></div>
+                <div class="commit-dot" style="background:var(--accent)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Redesign Student Classes UI with card layout and mistake counts</div>
                     <div class="commit-meta">
@@ -1128,7 +1140,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--accent)"></div>
+                <div class="commit-dot" style="background:var(--success)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Fine-tune Uthmani text alignment to match QPC glyph rendering</div>
                     <div class="commit-meta">
@@ -1140,7 +1152,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--success)"></div>
+                <div class="commit-dot" style="background:var(--warning)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Enhance harakat highlighting with glow effect (harakat-only, not base letter)</div>
                     <div class="commit-meta">
@@ -1152,7 +1164,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--warning)"></div>
+                <div class="commit-dot" style="background:var(--primary)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Add class filtering, mistake counts per portion, and auto-select student</div>
                     <div class="commit-meta">
@@ -1164,7 +1176,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--primary)"></div>
+                <div class="commit-dot" style="background:var(--secondary)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Add smart portion suggestions, card layout, and UI improvements</div>
                     <div class="commit-meta">
@@ -1176,7 +1188,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--secondary)"></div>
+                <div class="commit-dot" style="background:var(--accent)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Add Test Class feature with scoring, Tanbeeh, and results display</div>
                     <div class="commit-meta">
@@ -1188,7 +1200,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--accent)"></div>
+                <div class="commit-dot" style="background:var(--success)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Add surah dropdown, headers, bismillah, portion highlighting, and reorganize docs</div>
                     <div class="commit-meta">
@@ -1200,7 +1212,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--success)"></div>
+                <div class="commit-dot" style="background:var(--warning)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Add mistake summary sections and update documentation</div>
                     <div class="commit-meta">
@@ -1212,7 +1224,7 @@
                 </div>
             </div>
             <div class="commit-card">
-                <div class="commit-dot" style="background:var(--warning)"></div>
+                <div class="commit-dot" style="background:var(--primary)"></div>
                 <div class="commit-info">
                     <div class="commit-message">Fix Quran page layout, add character-level mistake highlighting</div>
                     <div class="commit-meta">
@@ -1242,7 +1254,17 @@
                 <div class="update-header">
                     <div class="update-date">December 31, 2025 <span class="update-badge">Latest</span></div>
                     <div class="update-commit"></div>
-                </div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Initial project map created with 1351 files across 81 folders.</p></div></div></div>
+                </div><div class="update-section"><div class="update-section-title added">✚ Added</div><div class="update-files"><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">PROJECT_MAP.md</span><span class="update-file-desc">This documentation file</span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">PROJECT_MAP.html</span><span class="update-file-desc">Interactive HTML viewer</span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">Total files: 1351 → 1353</span><span class="update-file-desc"></span></div></div></div><div class="update-section"><div class="update-section-title updated">◐ Updated</div><div class="update-files"><div class="update-file"><span class="update-file-icon updated">~</span><span class="update-file-path">Git History</span><span class="update-file-desc">Added commit 4b2dbf4</span></div></div></div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Updated project map after initial commit. ---</p></div></div>
+        <div class="update-item ">
+            <div class="update-card">
+                <div class="update-header">
+                    <div class="update-date">December 31, 2025 <span class="update-badge" style="background: linear-gradient(135deg, var(--success), var(--accent));">Initial</span></div>
+                    <div class="update-commit"></div>
+                </div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Initial project map created with 1351 files across 81 folders.
+• `quran_backend/` — FastAPI backend with auth module
+• `quran_frontend/` — React + TypeScript web app
+• `quran_mobile/` — Flutter mobile app
+• `docs/` — Project documentation</p></div></div></div>
         </div>
     </main>
 
