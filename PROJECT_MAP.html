@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ QuranTrack</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #6366f1; --secondary: #8b5cf6; --accent: #06b6d4;
+            --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+            --bg-body: #0f0f1a; --bg-card: #1a1a2e; --bg-card-hover: #252538;
+            --bg-input: rgba(255,255,255,0.05);
+            --text: #f1f5f9; --text-secondary: #94a3b8; --text-muted: #64748b;
+            --border: rgba(255,255,255,0.08); --shadow: rgba(0,0,0,0.3);
+        }
+        .light-mode {
+            --bg-body: #f8fafc; --bg-card: #ffffff; --bg-card-hover: #f1f5f9;
+            --bg-input: rgba(0,0,0,0.03);
+            --text: #1e293b; --text-secondary: #475569; --text-muted: #64748b;
+            --border: rgba(0,0,0,0.08); --shadow: rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-body); color: var(--text);
+            min-height: 100vh; transition: all 0.3s;
+        }
+        .bg-gradient {
+            position: fixed; inset: 0; z-index: -1;
+            background: radial-gradient(ellipse at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 50%);
+        }
+        .bg-grid {
+            position: fixed; inset: 0; z-index: -1; opacity: 0.3;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+        
+        /* Navbar */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 70px;
+            background: var(--bg-card); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; padding: 0 32px; z-index: 1000;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; margin-right: 40px; }
+        .logo-icon {
+            width: 42px; height: 42px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 4px 15px rgba(99,102,241,0.3);
+        }
+        .logo-text { font-size: 1.2rem; font-weight: 700; }
+        .nav-tabs { display: flex; gap: 4px; flex: 1; }
+        .nav-tab {
+            padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;
+            color: var(--text-secondary); cursor: pointer; border: none; background: transparent;
+            display: flex; align-items: center; gap: 6px; transition: all 0.2s;
+        }
+        .nav-tab:hover { color: var(--text); background: var(--bg-input); }
+        .nav-tab.active {
+            color: white; background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 4px 15px rgba(99,102,241,0.3);
+        }
+        .nav-right { display: flex; align-items: center; gap: 12px; }
+        .search-input {
+            width: 180px; padding: 10px 14px 10px 36px;
+            background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); font-size: 14px; outline: none;
+        }
+        .search-input:focus { border-color: var(--primary); width: 240px; }
+        .search-box { position: relative; }
+        .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .theme-btn {
+            width: 42px; height: 42px; border-radius: 8px; background: var(--bg-input);
+            border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .theme-btn:hover { border-color: var(--primary); }
+        
+        /* Main */
+        .main { padding-top: 70px; min-height: 100vh; }
+        .tab-content { display: none; padding: 32px 40px; max-width: 1400px; margin: 0 auto; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+        
+        /* Hero */
+        .hero { text-align: center; padding: 50px 40px 40px; }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px;
+            font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;
+        }
+        .hero-badge-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .hero-title {
+            font-size: 2.75rem; font-weight: 700; margin-bottom: 14px;
+            background: linear-gradient(135deg, var(--text), var(--primary), var(--secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle { font-size: 1rem; color: var(--text-secondary); max-width: 700px; margin: 0 auto 28px; line-height: 1.7; }
+        .hero-subtitle ol, .hero-subtitle ul { text-align: left; margin: 16px 0; padding-left: 28px; }
+        .hero-subtitle li { margin-bottom: 10px; }
+        .hero-stats { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .stat { text-align: center; padding: 14px 22px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; }
+        .stat-value { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        
+        /* Section */
+        .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .section-title { font-size: 1.3rem; font-weight: 600; }
+        .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        
+        /* Tech Grid */
+        .tech-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+        .tech-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; transition: all 0.2s; }
+        .tech-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+        .tech-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .tech-card-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .tech-card-icon.lang { background: rgba(99,102,241,0.15); }
+        .tech-card-icon.fw { background: rgba(139,92,246,0.15); }
+        .tech-card-icon.tool { background: rgba(6,182,212,0.15); }
+        .tech-card-icon.db { background: rgba(245,158,11,0.15); }
+        .tech-card-title { font-weight: 600; font-size: 14px; }
+        .tech-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tech-tag { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; background: var(--bg-input); border: 1px solid var(--border); }
+        .tech-tag.lang { color: var(--primary); border-color: rgba(99,102,241,0.3); }
+        .tech-tag.fw { color: var(--secondary); border-color: rgba(139,92,246,0.3); }
+        .tech-tag.tool { color: var(--accent); border-color: rgba(6,182,212,0.3); }
+        .tech-tag.db { color: var(--warning); border-color: rgba(245,158,11,0.3); }
+        .tech-empty { color: var(--text-muted); font-size: 13px; font-style: italic; }
+        
+        /* Architecture */
+        .arch-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; overflow-x: auto; margin-bottom: 40px; }
+        .arch-box pre { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.5; color: var(--accent); margin: 0; }
+        
+        /* FILES - 2 Column Grid, No Collapse */
+        .files-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .file-box {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 20px; transition: all 0.2s;
+        }
+        .file-box:hover { border-color: var(--primary); box-shadow: 0 8px 30px var(--shadow); }
+        .file-box.folder { border-left: 4px solid var(--primary); }
+        .file-box.source { border-left: 4px solid var(--success); }
+        .file-box.config { border-left: 4px solid var(--secondary); }
+        .file-box.doc { border-left: 4px solid var(--accent); }
+        .file-box.noise { border-left: 4px solid var(--text-muted); opacity: 0.7; }
+        .file-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+        .file-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+        .file-icon.folder { background: rgba(99,102,241,0.15); }
+        .file-icon.python { background: rgba(34,197,94,0.15); }
+        .file-icon.js { background: rgba(234,179,8,0.15); }
+        .file-icon.ts { background: rgba(6,182,212,0.15); }
+        .file-icon.config { background: rgba(139,92,246,0.15); }
+        .file-icon.doc { background: rgba(6,182,212,0.15); }
+        .file-icon.noise { background: rgba(100,116,139,0.15); }
+        .file-icon.other { background: rgba(148,163,184,0.15); }
+        .file-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .file-path { font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
+        .file-badge { font-size: 9px; padding: 2px 7px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+        .file-badge.new { background: rgba(34,197,94,0.2); color: var(--success); }
+        .file-badge.updated { background: rgba(245,158,11,0.2); color: var(--warning); }
+        .file-section { margin-top: 14px; }
+        .file-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+        .file-purpose { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+        .file-list { color: var(--text-secondary); font-size: 13px; }
+        .file-list li { padding: 3px 0; display: flex; align-items: flex-start; gap: 6px; }
+        .file-list li::before { content: '→'; color: var(--primary); flex-shrink: 0; }
+        .file-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .file-tag { padding: 4px 10px; border-radius: 5px; font-size: 11px; font-family: monospace; }
+        .file-tag.func { background: rgba(6,182,212,0.12); color: var(--accent); }
+        .file-tag.cls { background: rgba(139,92,246,0.12); color: var(--secondary); }
+        .file-integrates { display: flex; flex-wrap: wrap; gap: 6px; }
+        .file-link { padding: 4px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; color: var(--primary); cursor: pointer; }
+        .file-link:hover { background: rgba(99,102,241,0.1); }
+        
+        /* Docs Tab */
+        .docs-grid { display: grid; gap: 20px; }
+        .doc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+        .doc-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        .doc-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba(6,182,212,0.15); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .doc-title { font-weight: 600; }
+        .doc-path { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+        .doc-content { padding: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.7; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: inherit; }
+        .doc-content code { background: var(--bg-input); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+        
+        /* Git Tab */
+        .git-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+        .git-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+        .git-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .git-stat-value { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .git-stat-value code { background: var(--bg-input); padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .commits-section { margin-bottom: 32px; }
+        .commits-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 14px; font-weight: 500; }
+        .commits-list { display: flex; flex-direction: column; gap: 12px; }
+        .commit-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; gap: 14px; }
+        .commit-card:hover { border-color: var(--primary); }
+        .commit-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .commit-info { flex: 1; }
+        .commit-message { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+        .commit-meta { font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 14px; }
+        .commit-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .commit-file { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-family: monospace; }
+        .commit-file.added { background: rgba(34,197,94,0.12); color: var(--success); }
+        .commit-file.modified { background: rgba(245,158,11,0.12); color: var(--warning); }
+        .commit-file.deleted { background: rgba(239,68,68,0.12); color: var(--danger); }
+        .contributors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .contributor { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+        .contributor-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: 600; color: white; }
+        .contributor-name { font-weight: 600; font-size: 14px; }
+        .contributor-commits { font-size: 12px; color: var(--text-muted); }
+        
+        /* Updates Tab */
+        .updates-timeline { position: relative; padding-left: 28px; }
+        .updates-timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        .update-item { position: relative; padding-bottom: 28px; }
+        .update-item::before { content: ''; position: absolute; left: -28px; top: 4px; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); border: 3px solid var(--bg-body); }
+        .update-item.old::before { background: var(--text-muted); }
+        .update-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+        .update-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+        .update-date { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+        .update-badge { font-size: 10px; padding: 3px 10px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 4px; color: white; font-weight: 600; }
+        .update-commit { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+        .update-section { margin-bottom: 12px; }
+        .update-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .update-section-title.added { color: var(--success); }
+        .update-section-title.updated { color: var(--warning); }
+        .update-section-title.removed { color: var(--danger); }
+        .update-files { display: flex; flex-direction: column; gap: 4px; }
+        .update-file { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-input); border-radius: 6px; font-size: 13px; }
+        .update-file-icon { font-size: 12px; }
+        .update-file-icon.added { color: var(--success); }
+        .update-file-icon.updated { color: var(--warning); }
+        .update-file-icon.removed { color: var(--danger); }
+        .update-file-path { font-family: monospace; font-size: 12px; }
+        .update-file-desc { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+        
+        .empty { text-align: center; padding: 40px; color: var(--text-muted); }
+        .hidden { display: none !important; }
+        
+        @media (max-width: 1100px) { .files-grid, .tech-grid { grid-template-columns: 1fr; } .git-stats { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .navbar { padding: 0 16px; } .nav-tabs { display: none; } .tab-content { padding: 20px 16px; } .hero-title { font-size: 2rem; } .git-stats { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body class="light-mode">
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">🗺️</div>
+            <span class="logo-text">Project Map</span>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="overview">📋 Overview</button>
+            <button class="nav-tab" data-tab="files">📂 Files</button>
+            <button class="nav-tab" data-tab="docs">📚 Docs</button>
+            <button class="nav-tab" data-tab="git">🔀 Git</button>
+            <button class="nav-tab" data-tab="updates">📜 Updates</button>
+        </div>
+        <div class="nav-right">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="Search..." id="searchInput">
+            </div>
+            <button class="theme-btn" id="themeBtn">🌙</button>
+        </div>
+    </nav>
+
+    <main class="main">
+        <!-- OVERVIEW -->
+        <div class="tab-content active" id="tab-overview">
+            <div class="hero">
+                <div class="hero-badge"><span class="hero-badge-dot"></span> Last updated: 2025-12-31</div>
+                <h1 class="hero-title">QuranTrack</h1>
+                <div class="hero-subtitle">QuranTrack is a Quran memorization and recitation tracking application designed for teachers (Ustadh/Ustadha) who conduct Hifz (memorization) classes. The app provides a digital platform to track student progress, mark mistakes during recitation sessions, and maintain detailed class records. The application uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to render Quran pages pixel-perfect, exactly matching the printed Madani Mushaf. Each of the 604 pages has its own dedicated font file for perfect glyph accuracy. The system supports word-level and character-level mistake tracking with color-coded severity based on error frequency. The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Data is stored in SQLite databases - a read-only Quran database bundled with the apps and a read-write application database for users, classes, and mistakes. JWT-based authentication with role-based access control (Teacher vs Student) manages user permissions.</div>
+                <div class="hero-stats">
+                    <div class="stat"><div class="stat-value">1351</div><div class="stat-label">Files</div></div>
+                    <div class="stat"><div class="stat-value">81</div><div class="stat-label">Folders</div></div>
+                    <div class="stat"><div class="stat-value">15</div><div class="stat-label">Commits</div></div>
+                    <div class="stat"><div class="stat-value">1</div><div class="stat-label">Updates</div></div>
+                </div>
+            </div>
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--primary), var(--secondary));">🛠️</div>
+                <h2 class="section-title">Tech Stack</h2>
+            </div>
+            <div class="tech-grid"><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon lang">💻</div><span class="tech-card-title">Languages</span></div><div class="tech-tags"><span class="tech-tag lang">Python 3.x</span><span class="tech-tag lang">TypeScript</span><span class="tech-tag lang">JavaScript</span><span class="tech-tag lang">Dart</span><span class="tech-tag lang">Kotlin</span><span class="tech-tag lang">Java</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon fw">⚡</div><span class="tech-card-title">Frameworks</span></div><div class="tech-tags"><span class="tech-tag fw">FastAPI</span><span class="tech-tag fw">React 18</span><span class="tech-tag fw">Flutter</span><span class="tech-tag fw">Tailwind CSS</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon tool">🔧</div><span class="tech-card-title">Tools</span></div><div class="tech-tags"><span class="tech-tag tool">Vite</span><span class="tech-tag tool">SQLite</span><span class="tech-tag tool">Riverpod (Flutter state management)</span><span class="tech-tag tool">JWT</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon db">🗄️</div><span class="tech-card-title">Databases</span></div><div class="tech-tags"><span class="tech-tag db">SQLite (quran.db read-only</span><span class="tech-tag db">app.db read-write)</span></div></div></div>
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #ec4899, #f97316);">🏗️</div>
+                <h2 class="section-title">Architecture</h2>
+            </div>
+            <div class="arch-box"><pre>                    +------------------+
+                    |   React Frontend |
+                    |  (quran_frontend)|
+                    +--------+---------+
+                             |
+                             | HTTP/REST
+                             v
++------------------+   +-------------+   +------------------+
+| Flutter Mobile   |--&gt;|   FastAPI   |&lt;--| QPC Fonts (604)  |
+| (quran_mobile)   |   |  Backend    |   | page-specific    |
++------------------+   +------+------+   +------------------+
+                             |
+              +--------------+--------------+
+              |                             |
+       +------v------+              +-------v------+
+       |  quran.db   |              |   app.db     |
+       | (read-only) |              | (read-write) |
+       | Quran text  |              | Users/Classes|
+       +-------------+              +--------------+</pre></div>
+        </div>
+
+        <!-- FILES -->
+        <div class="tab-content" id="tab-files">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--success), var(--accent));">📂</div>
+                <h2 class="section-title">Directory Structure</h2>
+            </div>
+            <div class="files-grid">
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_backend/ </div>
+                    <div class="file-path">quran_backend</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">FastAPI Python backend serving REST APIs for the web and mobile apps.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides all API endpoints for authentication, classes, mistakes, and Quran data</li><li>Manages two SQLite databases (quran.db and app.db)</li><li>Serves QPC word data from JSON files for each Quran page</li><li>Handles JWT authentication with access/refresh tokens</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">main.py </div>
+                    <div class="file-path">quran_backend/main.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main FastAPI application with all API endpoint definitions.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Initializes FastAPI app with CORS middleware for frontend/mobile access</li><li>Creates database tables on startup with migration support</li><li>Defines all REST endpoints for classes, mistakes, tests, and Quran data</li><li>Implements role-based access control (teacher vs student views)</li><li>Handles test class functionality with scoring and tanbeeh (warnings)</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">init_app_db()</span><span class="file-tag func">get_quran_page_words(page_number)</span><span class="file-tag func">get_all_classes()</span><span class="file-tag func">create_class()</span><span class="file-tag func">addMistake()</span><span class="file-tag func">get_suggested_portions()</span></div></div>
+            <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">ClassCreate</span></div></div>
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">auth/routes.py</span><span class="file-link">auth/dependencies.py</span><span class="file-link">quran-pages/*.js</span></div></div>
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">auth/routes.py </div>
+                    <div class="file-path">quran_backend/auth/routes.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication and student management API endpoints.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Handles user signup with role selection (teacher/student)</li><li>Implements login with email or username support</li><li>Manages JWT token refresh and rotation</li><li>Provides student lookup, add, and remove for teachers</li><li>Lists teachers for students</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">signup()</span><span class="file-tag func">login()</span><span class="file-tag func">refresh_tokens()</span><span class="file-tag func">lookup_student()</span><span class="file-tag func">add_student()</span><span class="file-tag func">get_my_students()</span><span class="file-tag func">get_my_teachers()</span></div></div>
+            
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">auth/models.py</span><span class="file-link">auth/utils.py</span><span class="file-link">auth/dependencies.py</span></div></div>
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">auth/models.py </div>
+                    <div class="file-path">quran_backend/auth/models.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Pydantic request/response models for authentication.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines request validation schemas for signup, login, token refresh</li><li>Defines response schemas for user data and auth tokens</li><li>Enforces field validation (email format, username pattern, password length)</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">SignupRequest</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">auth/dependencies.py </div>
+                    <div class="file-path">quran_backend/auth/dependencies.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">FastAPI dependency injection for authentication.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Extracts and validates JWT from Authorization header</li><li>Provides `get_current_user` dependency for authenticated routes</li><li>Provides `get_current_verified_user` for teacher-only routes</li><li>Provides `get_optional_user` for routes that work with/without auth</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">get_current_user()</span><span class="file-tag func">get_current_verified_user()</span><span class="file-tag func">get_optional_user()</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">auth/utils.py </div>
+                    <div class="file-path">quran_backend/auth/utils.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication utility functions for password hashing and JWT.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Hashes passwords with bcrypt</li><li>Generates TeamViewer-style student IDs (STU-XXXXXX)</li><li>Creates and decodes JWT access/refresh tokens</li><li>Generates email verification tokens</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">hash_password()</span><span class="file-tag func">generate_student_id()</span><span class="file-tag func">create_access_token()</span><span class="file-tag func">decode_token()</span><span class="file-tag func">create_user_token_data()</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">create_test_users.py </div>
+                    <div class="file-path">quran_backend/create_test_users.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Script to seed the database with test users for development.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Creates 10 student accounts with Muslim names</li><li>Creates 5 teacher accounts (verified)</li><li>All accounts use password &quot;Test123!&quot;</li><li>Generates unique student IDs for each user</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">clear_mistakes.py </div>
+                    <div class="file-path">quran_backend/clear_mistakes.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Utility script to clear all mistakes from the database for testing.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Deletes all records from mistake_occurrences table</li><li>Deletes all records from mistakes table</li><li>Preserves users, classes, and assignments</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_backend/quran-pages/ </div>
+                    <div class="file-path">quran_backend/quran-pages</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Contains 604 JSON files with QPC word data for each Quran page.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores word-by-word data including glyph codes, line numbers, surah/ayah info</li><li>Each file (page_001.json to page_604.json) contains an array of word objects</li><li>Words include `c1` field for QPC glyph rendering</li><li>Line numbers (`l` field) control vertical positioning on the page</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_frontend/ </div>
+                    <div class="file-path">quran_frontend</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">React + TypeScript web frontend with Tailwind CSS styling.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides web interface for teachers and students</li><li>Renders Quran pages with QPC fonts for pixel-perfect display</li><li>Implements mistake tracking with character-level precision</li><li>Supports test class creation and scoring</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/api.ts </div>
+                    <div class="file-path">quran_frontend/src/api.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">API client layer with all backend communication functions.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Manages access/refresh token storage in localStorage</li><li>Implements automatic token refresh on 401 responses</li><li>Provides typed functions for all API endpoints</li><li>Handles authentication, classes, mistakes, tests, and stats</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">signup()</span><span class="file-tag func">getClasses()</span><span class="file-tag func">getMistakes()</span><span class="file-tag func">getTest()</span><span class="file-tag func">getSuggestedPortions()</span></div></div>
+            <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">ClassData</span></div></div>
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/App.tsx </div>
+                    <div class="file-path">quran_frontend/src/App.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main React application with routing configuration.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Sets up React Router with protected routes</li><li>Wraps app in AuthProvider for authentication context</li><li>Defines teacher routes (require verification)</li><li>Defines student routes (any authenticated user)</li></ul></div>
+            
+            
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">contexts/AuthContext</span><span class="file-link">components/Layout</span><span class="file-link">pages/*</span></div></div>
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/contexts/AuthContext.tsx </div>
+                    <div class="file-path">quran_frontend/src/contexts/AuthContext.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">React context for authentication state management.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides user state and authentication methods to entire app</li><li>Checks for existing session on mount</li><li>Exposes login, signup, logout, and refreshUser functions</li><li>Tracks isAuthenticated and isVerified states</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">login()</span><span class="file-tag func">signup()</span><span class="file-tag func">logout()</span><span class="file-tag func">refreshUser()</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/components/Layout.tsx </div>
+                    <div class="file-path">quran_frontend/src/components/Layout.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main layout component with navigation and role switcher.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Renders navbar with QuranTrack branding</li><li>Provides tab navigation based on current role (teacher/student)</li><li>Shows role switcher for verified users (teachers)</li><li>Displays user profile dropdown with logout</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/components/ProtectedRoute.tsx </div>
+                    <div class="file-path">quran_frontend/src/components/ProtectedRoute.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Route guard component for authentication.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Shows loading spinner while checking auth</li><li>Redirects to login if not authenticated</li><li>Shows verification required message if route needs verified user</li><li>Renders children if all checks pass</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/QuranReader.tsx </div>
+                    <div class="file-path">quran_frontend/src/pages/QuranReader.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Quran page viewer with QPC font rendering and mistake display.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Loads QPC words from API for current page</li><li>Dynamically loads page-specific QPC fonts</li><li>Displays mistakes with color-coded severity (amber to red)</li><li>Supports page navigation and surah dropdown</li><li>Handles surah headers and bismillah display</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/Classroom.tsx </div>
+                    <div class="file-path">quran_frontend/src/pages/Classroom.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class session view for conducting lessons and marking mistakes.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays class with portions (Hifz, Sabqi, Revision)</li><li>Allows teachers to mark word/character-level mistakes</li><li>Shows word popup for mistake details and removal</li><li>Supports test mode with question flow and scoring</li><li>Manages per-student performance ratings</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/TeacherDashboard.tsx </div>
+                    <div class="file-path">quran_frontend/src/pages/TeacherDashboard.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Teacher&#x27;s main dashboard with student roster and quick stats.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays total students, classes this week, and other stats</li><li>Shows student roster with add/remove functionality</li><li>Provides quick actions to start new class</li><li>Links to Quran page test tool</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_frontend/public/fonts/qpc/ </div>
+                    <div class="file-path">quran_frontend/public/fonts/qpc</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Contains 604 QPC font files for Quran page rendering.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores WOFF2 font files (QCF_P001.woff2 to QCF_P604.woff2)</li><li>Each font contains glyphs specific to that page</li><li>Fonts are loaded dynamically based on current page</li><li>Total size approximately 48MB</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_mobile/ </div>
+                    <div class="file-path">quran_mobile</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter mobile application for Android/iOS.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides native mobile experience for QuranTrack</li><li>Supports offline-first with local SQLite database</li><li>Syncs data with backend when online</li><li>Uses Riverpod for state management</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/main.dart </div>
+                    <div class="file-path">quran_mobile/lib/main.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter app entry point with navigation setup.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Initializes Flutter bindings and system UI style</li><li>Wraps app in ProviderScope for Riverpod</li><li>Configures Material theme matching web dark theme</li><li>Sets up bottom navigation with 4 screens</li><li>DashboardScreen — Overview and stats</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/config/constants.dart </div>
+                    <div class="file-path">quran_mobile/lib/config/constants.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">App-wide constants and configuration values.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines API base URLs for emulator and physical device</li><li>Stores database names and sync settings</li><li>Contains section type constants (hifz, sabqi, revision)</li><li>Maps surah numbers to English names</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/database/database_helper.dart </div>
+                    <div class="file-path">quran_mobile/lib/core/database/database_helper.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">SQLite database initialization and access.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Manages singleton database instances</li><li>Copies bundled quran.db from assets on first run</li><li>Creates app.db schema with migrations</li><li>Provides separate getters for Quran and App databases</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">_initQuranDatabase()</span><span class="file-tag func">_createAppDatabase()</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/network/api_client.dart </div>
+                    <div class="file-path">quran_mobile/lib/core/network/api_client.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">HTTP client for backend API communication.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Wraps Dio HTTP client with base configuration</li><li>Persists custom API URL in SharedPreferences</li><li>Provides typed methods for REST operations</li><li>Implements sync pull/push endpoints</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">get()</span><span class="file-tag func">syncPull()</span><span class="file-tag func">setBaseUrl()</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/providers/providers.dart </div>
+                    <div class="file-path">quran_mobile/lib/presentation/providers/providers.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Riverpod providers for state management.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines providers for repositories and services</li><li>Implements ClassesNotifier and MistakesNotifier state classes</li><li>Provides family providers for single entities</li><li>Handles web mock data for development</li></ul></div>
+            
+            <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">classesProvider</span></div></div>
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_mobile/lib/data/models/ </div>
+                    <div class="file-path">quran_mobile/lib/data/models</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Dart model classes for data entities.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_mobile/lib/data/repositories/ </div>
+                    <div class="file-path">quran_mobile/lib/data/repositories</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Repository classes for data access abstraction.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">quran_mobile/lib/presentation/screens/ </div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">UI screens for the mobile app.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">docs/ </div>
+                    <div class="file-path">docs</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Project documentation organized by category.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Contains all project documentation in organized subfolders</li><li>Main entry point is PROJECT_CHANGELOG.md</li><li>Architecture docs for system design and planning</li><li>Technical implementation details for developers</li><li>Troubleshooting guides for AI assistants</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/PROJECT_CHANGELOG.md </div>
+                    <div class="file-path">docs/PROJECT_CHANGELOG.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main reference guide and chronological record of what has been built.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all development phases (Foundation, Multi-User, Classes &amp; Mistakes, etc.)</li><li>Provides a directory map of all documentation</li><li>Links to detailed implementation docs</li><li>Tracks feature completion status</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">docs/Architecture/ </div>
+                    <div class="file-path">docs/Architecture</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">High-level system design and planning documents.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Contains architecture blueprints created during planning</li><li>Documents user identity and relationships design</li><li>Provides system overview diagrams</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md </div>
+                    <div class="file-path">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main architecture blueprint for the application.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines overall system architecture</li><li>Documents component relationships</li><li>Outlines data flow between frontend, backend, and databases</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md </div>
+                    <div class="file-path">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">User identity and relationship system design.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents teacher-student relationships</li><li>Defines user roles and permissions</li><li>Explains class-student associations</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Quran Full App.md </div>
+                    <div class="file-path">docs/Architecture/Quran Full App.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full application overview and feature planning.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive app feature documentation</li><li>Planning document for all app capabilities</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/ </div>
+                    <div class="file-path">docs/Technical Implementation Journey</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Detailed documentation of how features were actually built.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides implementation details for developers</li><li>Documents API endpoints and data models</li><li>Explains complex features like QPC rendering and test scoring</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md </div>
+                    <div class="file-path">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full technical overview of the system.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive technical documentation</li><li>API reference and data models</li><li>Database schema documentation</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/AUTH_SYSTEM.md </div>
+                    <div class="file-path">docs/Technical Implementation Journey/AUTH_SYSTEM.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents JWT authentication flow (signup, login, refresh)</li><li>Explains user roles (Teacher = verified, Student = unverified)</li><li>Documents Student ID generation (STU-XXXXXX format)</li><li>Lists all auth-related API endpoints</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md </div>
+                    <div class="file-path">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class and mistake tracking system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents class creation and management</li><li>Explains assignment types (Hifz, Sabqi, Revision)</li><li>Details mistake tracking (word-level and character-level)</li><li>Covers mistake occurrence tracking per class</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md </div>
+                    <div class="file-path">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">QPC font rendering system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains QPC (Quran Printing Complex) font system</li><li>Documents page-specific font loading (604 fonts)</li><li>Covers glyph codes and line number system</li><li>Details overflow ayah handling with previous page fonts</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/TEST_SYSTEM.md </div>
+                    <div class="file-path">docs/Technical Implementation Journey/TEST_SYSTEM.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Test class and scoring system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents test class creation workflow</li><li>Explains question flow (start/end question)</li><li>Details scoring system with tanbeeh (warnings)</li><li>Covers repeated mistake detection and point deduction</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box folder">
+            <div class="file-header">
+                <div class="file-icon folder">📂</div>
+                <div>
+                    <div class="file-title">docs/Guides/ </div>
+                    <div class="file-path">docs/Guides</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Troubleshooting guides for AI assistants and developers.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides specific fix guides for common issues</li><li>Written for AI assistants working on the codebase</li><li>Step-by-step instructions with code examples</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md </div>
+                    <div class="file-path">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing Quran page layout issues.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains the `l` (line number) field in page JSON</li><li>Documents how to fix ayah positioning issues</li><li>Provides Python script for batch fixes</li><li>Includes common issue symptoms and solutions</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md </div>
+                    <div class="file-path">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing font overflow issues on page boundaries.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains overflow glyph codes (&gt; 0xFC00)</li><li>Documents previous page font loading requirement</li><li>Provides troubleshooting steps</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Guides/SEEDING_DATABASE.md </div>
+                    <div class="file-path">docs/Guides/SEEDING_DATABASE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for seeding the database with test data.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the create_test_users.py script</li><li>Lists all test accounts created</li><li>Explains password and student ID format</li></ul></div>
+            
+            
+            
+        </div></div>
+        </div>
+
+        <!-- DOCS -->
+        <div class="tab-content" id="tab-docs">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--accent), var(--primary));">📚</div>
+                <h2 class="section-title">Documentation</h2>
+            </div>
+            <div class="docs-grid"><div class="files-grid">
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📖</div>
+                <div>
+                    <div class="file-title">README.md</div>
+                    <div class="file-path">README.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main project documentation and introduction.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Introduces QuranTrack as a Quran memorization tracking app</li><li>Explains features for teachers (conduct classes, track mistakes, manage students)</li><li>Explains features for students (view progress, review mistakes)</li><li>Documents the tech stack (React, FastAPI, Flutter)</li><li>Links to detailed documentation in the docs/ folder</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📜</div>
+                <div>
+                    <div class="file-title">docs/PROJECT_CHANGELOG.md</div>
+                    <div class="file-path">docs/PROJECT_CHANGELOG.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main reference guide and chronological record of what has been built.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all development phases (Foundation, Multi-User, Classes &amp; Mistakes, etc.)</li><li>Provides a directory map of all documentation</li><li>Links to detailed implementation docs</li><li>Tracks feature completion status</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">🏗️</div>
+                <div>
+                    <div class="file-title">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md</div>
+                    <div class="file-path">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main architecture blueprint for the application.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines overall system architecture</li><li>Documents component relationships</li><li>Outlines data flow between frontend, backend, and databases</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">🏗️</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md</div>
+                    <div class="file-path">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">User identity and relationship system design.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents teacher-student relationships</li><li>Defines user roles and permissions</li><li>Explains class-student associations</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">🏗️</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Quran Full App.md</div>
+                    <div class="file-path">docs/Architecture/Quran Full App.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full application overview and feature planning.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive app feature documentation</li><li>Planning document for all app capabilities</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full technical overview of the system.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive technical documentation</li><li>API reference and data models</li><li>Database schema documentation</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/AUTH_SYSTEM.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/AUTH_SYSTEM.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents JWT authentication flow (signup, login, refresh)</li><li>Explains user roles (Teacher = verified, Student = unverified)</li><li>Documents Student ID generation (STU-XXXXXX format)</li><li>Lists all auth-related API endpoints</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class and mistake tracking system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents class creation and management</li><li>Explains assignment types (Hifz, Sabqi, Revision)</li><li>Details mistake tracking (word-level and character-level)</li><li>Covers mistake occurrence tracking per class</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">QPC font rendering system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains QPC (Quran Printing Complex) font system</li><li>Documents page-specific font loading (604 fonts)</li><li>Covers glyph codes and line number system</li><li>Details overflow ayah handling with previous page fonts</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/TEST_SYSTEM.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/TEST_SYSTEM.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Test class and scoring system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents test class creation workflow</li><li>Explains question flow (start/end question)</li><li>Details scoring system with tanbeeh (warnings)</li><li>Covers repeated mistake detection and point deduction</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📋</div>
+                <div>
+                    <div class="file-title">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md</div>
+                    <div class="file-path">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing Quran page layout issues.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains the `l` (line number) field in page JSON</li><li>Documents how to fix ayah positioning issues</li><li>Provides Python script for batch fixes</li><li>Includes common issue symptoms and solutions</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📋</div>
+                <div>
+                    <div class="file-title">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md</div>
+                    <div class="file-path">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing font overflow issues on page boundaries.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains overflow glyph codes (&gt; 0xFC00)</li><li>Documents previous page font loading requirement</li><li>Provides troubleshooting steps</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📋</div>
+                <div>
+                    <div class="file-title">docs/Guides/SEEDING_DATABASE.md</div>
+                    <div class="file-path">docs/Guides/SEEDING_DATABASE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for seeding the database with test data.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the create_test_users.py script</li><li>Lists all test accounts created</li><li>Explains password and student ID format</li></ul></div>
+        </div></div></div>
+        </div>
+
+        <!-- GIT -->
+        <div class="tab-content" id="tab-git">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--warning), var(--danger));">🔀</div>
+                <h2 class="section-title">Git History</h2>
+            </div>
+            
+    <div class="git-stats">
+        <div class="git-stat"><div class="git-stat-label">Branch</div><div class="git-stat-value">🌿 main</div></div>
+        <div class="git-stat"><div class="git-stat-label">Last Commit</div><div class="git-stat-value"><code>297ee1a</code></div></div>
+        <div class="git-stat"><div class="git-stat-label">Total Commits</div><div class="git-stat-value">15</div></div>
+        <div class="git-stat"><div class="git-stat-label">Contributors</div><div class="git-stat-value">1</div></div>
+    </div><div class="commits-section"><div class="commits-title">Recent Commits</div><div class="commits-list">
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--primary)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add database seeding script, month filtering, and bug fixes</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 30, 2025</span>
+                        <span>🔖 297ee1a</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--secondary)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Redesign Student Classes UI with card layout and mistake counts</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 28, 2025</span>
+                        <span>🔖 40c5dc2</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--accent)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Fine-tune Uthmani text alignment to match QPC glyph rendering</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 28, 2025</span>
+                        <span>🔖 81c1cb6</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--success)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Enhance harakat highlighting with glow effect (harakat-only, not base letter)</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 27, 2025</span>
+                        <span>🔖 88527c5</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--warning)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add class filtering, mistake counts per portion, and auto-select student</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 26, 2025</span>
+                        <span>🔖 f9659ee</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--primary)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add smart portion suggestions, card layout, and UI improvements</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 22, 2025</span>
+                        <span>🔖 7627654</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--secondary)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add Test Class feature with scoring, Tanbeeh, and results display</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 17, 2025</span>
+                        <span>🔖 8a73686</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--accent)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add surah dropdown, headers, bismillah, portion highlighting, and reorganize docs</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 17, 2025</span>
+                        <span>🔖 bd66185</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--success)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Add mistake summary sections and update documentation</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 16, 2025</span>
+                        <span>🔖 65febbc</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div>
+            <div class="commit-card">
+                <div class="commit-dot" style="background:var(--warning)"></div>
+                <div class="commit-info">
+                    <div class="commit-message">Fix Quran page layout, add character-level mistake highlighting</div>
+                    <div class="commit-meta">
+                        <span>👤 Hamza Feroze</span>
+                        <span>📅 December 16, 2025</span>
+                        <span>🔖 5b20318</span>
+                    </div>
+                    <div class="commit-files"></div>
+                </div>
+            </div></div></div><div class="commits-title" style="margin-top:28px">Top Contributors</div><div class="contributors-grid">
+            <div class="contributor">
+                <div class="contributor-avatar">HF</div>
+                <div><div class="contributor-name">Hamza Feroze</div><div class="contributor-commits">15 commits</div></div>
+            </div></div>
+        </div>
+
+        <!-- UPDATES -->
+        <div class="tab-content" id="tab-updates">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, var(--success), var(--primary));">📜</div>
+                <h2 class="section-title">Update History</h2>
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">Changes tracked each time the Project Map was updated</p>
+            <div class="updates-timeline">
+        <div class="update-item ">
+            <div class="update-card">
+                <div class="update-header">
+                    <div class="update-date">December 31, 2025 <span class="update-badge">Latest</span></div>
+                    <div class="update-commit"></div>
+                </div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Initial project map created with 1351 files across 81 folders.</p></div></div></div>
+        </div>
+    </main>
+
+    <script>
+        const themeBtn = document.getElementById('themeBtn');
+        let isDark = false;
+        themeBtn.addEventListener('click', () => {
+            isDark = !isDark;
+            document.body.classList.toggle('light-mode', !isDark);
+            themeBtn.textContent = isDark ? '☀️' : '🌙';
+        });
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+        document.getElementById('searchInput').addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.file-box, .doc-card, .commit-card, .update-item').forEach(el => {
+                el.style.display = q && !el.textContent.toLowerCase().includes(q) ? 'none' : '';
+            });
+        });
+    </script>
+</body>
+</html>
