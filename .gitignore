@@ -45,7 +45,5 @@ npm-debug.log*
 .cache/
 .eslintcache
 
-CLAUDE.md
-
 # Claude temp files
 tmpclaude-*
