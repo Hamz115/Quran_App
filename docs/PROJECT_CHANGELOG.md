@@ -11,21 +11,25 @@ docs/
 ├── PROJECT_CHANGELOG.md                    # This file - main reference guide
 │
 ├── Architecture/                           # High-level design & planning docs
-│   ├── QuranTrack Academy_ Architecture Blueprint.md
-│   ├── Logical Architecture Blueprint_ User Identity & Relationships.md
-│   └── Quran Full App.md
+│   ├── QuranTrack_Academy_Architecture_Blueprint.md
+│   ├── Logical_Architecture_Blueprint_User_Identity_And_Relationships.md
+│   ├── Quran_Full_App.md
+│   └── Supabase_Migration_Architecture.md  # Supabase cloud migration design
 │
 ├── Technical Implementation Journey/       # How features were built
-│   ├── TECHNICAL_DOCUMENTATION.md          # Full technical overview
-│   ├── AUTH_SYSTEM.md                      # Authentication & user roles
-│   ├── CLASSES_AND_MISTAKES.md             # Classes, assignments, mistakes
-│   ├── QPC_QURAN_RENDERING.md              # QPC font rendering system
-│   └── TEST_SYSTEM.md                      # Test classes and scoring
+│   ├── Technical_Documentation.md          # Full technical overview
+│   ├── Auth_System.md                      # Authentication & user roles
+│   ├── Classes_And_Mistakes.md             # Classes, assignments, mistakes
+│   ├── Qpc_Quran_Rendering.md              # QPC font rendering system
+│   ├── Test_System.md                      # Test classes and scoring
+│   └── Supabase Implementation/            # Supabase cloud setup
+│       ├── Implementation_Journey.md       # Step-by-step setup record
+│       └── Supabase_Reference.md           # Full schema & policy reference
 │
 └── Guides/                                 # For AI/developers - troubleshooting
-    ├── FONT_OVERFLOW_FIX_GUIDE.md          # Fixing font overflow issues
-    ├── PAGE_LAYOUT_FIX_GUIDE.md            # Fixing page layout issues
-    └── SEEDING_DATABASE.md                 # Database seeding script guide
+    ├── Font_Overflow_Fix_Guide.md          # Fixing font overflow issues
+    ├── Page_Layout_Fix_Guide.md            # Fixing page layout issues
+    └── Seeding_Database.md                 # Database seeding script guide
 ```
 
 ### What's in each folder:
@@ -50,7 +54,7 @@ docs/
 
 **Stack:** React + TypeScript frontend, FastAPI backend, Flutter mobile
 
-See: [TECHNICAL_DOCUMENTATION.md](./Technical%20Implementation%20Journey/TECHNICAL_DOCUMENTATION.md)
+See: [Technical_Documentation.md](./Technical%20Implementation%20Journey/Technical_Documentation.md)
 
 ---
 
@@ -87,7 +91,7 @@ See: [TECHNICAL_DOCUMENTATION.md](./Technical%20Implementation%20Journey/TECHNIC
 ### Admin Features
 - Clear all data endpoint (`DELETE /api/admin/clear-data`)
 
-See: [AUTH_SYSTEM.md](./Technical%20Implementation%20Journey/AUTH_SYSTEM.md)
+See: [Auth_System.md](./Technical%20Implementation%20Journey/Auth_System.md)
 
 ---
 
@@ -121,7 +125,7 @@ See: [AUTH_SYSTEM.md](./Technical%20Implementation%20Journey/AUTH_SYSTEM.md)
 - Teachers see which students attended each class
 - Privacy: Students never see other students in class or their mistakes
 
-See: [AUTH_SYSTEM.md](./Technical%20Implementation%20Journey/AUTH_SYSTEM.md), [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+See: [Auth_System.md](./Technical%20Implementation%20Journey/Auth_System.md), [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_And_Mistakes.md)
 
 ---
 
@@ -151,7 +155,7 @@ See: [AUTH_SYSTEM.md](./Technical%20Implementation%20Journey/AUTH_SYSTEM.md), [C
 - Stored in `class_students.performance` junction table
 - Dropdown selector in teacher classroom view
 
-See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_And_Mistakes.md)
 
 ---
 
@@ -190,7 +194,7 @@ See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AN
 - Can be overlaid on mushaf page
 - Currently disabled but asset available in src/assets/
 
-See: [FONT_OVERFLOW_FIX_GUIDE.md](./Guides/FONT_OVERFLOW_FIX_GUIDE.md), [QPC_QURAN_RENDERING.md](./Technical%20Implementation%20Journey/QPC_QURAN_RENDERING.md)
+See: [Font_Overflow_Fix_Guide.md](./Guides/Font_Overflow_Fix_Guide.md), [Qpc_Quran_Rendering.md](./Technical%20Implementation%20Journey/Qpc_Quran_Rendering.md)
 
 ---
 
@@ -221,7 +225,7 @@ See: [FONT_OVERFLOW_FIX_GUIDE.md](./Guides/FONT_OVERFLOW_FIX_GUIDE.md), [QPC_QUR
 - Mushaf page container with proper proportions
 - Character-level mistake popup with letter/harakat selection
 
-See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_And_Mistakes.md)
 
 ---
 
@@ -258,7 +262,7 @@ See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AN
 - Organized by role: Personal, Teachers, Students
 - Color-coded: Purple (personal), Emerald (teachers), Blue (students)
 
-See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_And_Mistakes.md)
 
 ---
 
@@ -339,7 +343,7 @@ See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AN
 - Tanbeeh does NOT increment global error_count
 - Ensures accountability across regular classes and tests
 
-See: [TEST_SYSTEM.md](./Technical%20Implementation%20Journey/TEST_SYSTEM.md)
+See: [Test_System.md](./Technical%20Implementation%20Journey/Test_System.md)
 
 ---
 
@@ -372,7 +376,7 @@ See: [TEST_SYSTEM.md](./Technical%20Implementation%20Journey/TEST_SYSTEM.md)
 - Manzil column text no longer wraps to two lines
 - Mistakes from previous classes grouped by day (Saturday, Wednesday, etc.)
 
-See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_And_Mistakes.md)
 
 ---
 
@@ -440,7 +444,7 @@ The Student "My Classes" page was completely redesigned to match the Teacher Cla
 - API now returns student's `performance` rating from `class_students` table
 - Mistake counts computed per portion type (hifz, sabqi, revision)
 
-See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AND_MISTAKES.md)
+See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_And_Mistakes.md)
 
 ---
 
@@ -490,7 +494,7 @@ See: [CLASSES_AND_MISTAKES.md](./Technical%20Implementation%20Journey/CLASSES_AN
 | mistakes | ~5,000-8,000 |
 | mistake_occurrences | ~12,000-18,000 |
 
-See: [SEEDING_DATABASE.md](./Guides/SEEDING_DATABASE.md)
+See: [Seeding_Database.md](./Guides/Seeding_Database.md)
 
 ---
 
@@ -513,6 +517,76 @@ See: [SEEDING_DATABASE.md](./Guides/SEEDING_DATABASE.md)
 - `quran_frontend/src/pages/StudentClasses.tsx` - Month filtering, complete surah names
 - `quran_frontend/src/pages/TeacherClasses.tsx` - Complete surah names
 - `quran_frontend/src/pages/StudentDashboard.tsx` - Complete surah names
+
+---
+
+## Phase 12: Supabase Cloud Migration
+
+**Status:** In Progress
+
+### 18 January 2026 - Architecture Planning
+
+Discussed the need for cloud sync to enable students to connect from anywhere (not just same WiFi network).
+
+**Problem Identified:**
+- Current FastAPI + SQLite setup only works on local network
+- Students cannot sync from home or school
+- Need a cost-effective cloud solution
+
+**Options Evaluated:**
+| Option | Pros | Cons | Decision |
+|--------|------|------|----------|
+| Traditional Cloud DB | Full control | Expensive, requires server maintenance | ❌ |
+| S3 + Tiny Server | Cheap storage | Still needs server code | ❌ |
+| Google Drive | Free | Complex OAuth, not designed for DB | ❌ |
+| **Supabase** | Free tier, built-in auth, realtime, auto-API | None significant | ✅ Chosen |
+
+**Architecture Document Created:**
+- [Supabase_Migration_Architecture.md](./Architecture/Supabase_Migration_Architecture.md)
+
+---
+
+### 19 January 2026 - Database Setup
+
+Set up Supabase project and created all database objects.
+
+**Supabase Project:**
+- Project ID: `qwfnbkkegbhwxxjvyhzl`
+- Region: Asia Pacific
+- API keys stored securely by Hamza
+
+**Database Tables Created (7):**
+| Table | Purpose |
+|-------|---------|
+| `profiles` | User profiles (extends auth.users) |
+| `teacher_students` | Teacher-student relationships |
+| `classes` | Class sessions |
+| `class_students` | Students in each class |
+| `assignments` | Hifz, Sabqi, Revision portions |
+| `mistakes` | Global mistakes per student |
+| `mistake_occurrences` | When mistakes occurred |
+
+**Row Level Security (RLS):**
+- Enabled on all 7 tables
+- 14 security policies created
+- Security Advisor: 0 errors, 0 warnings
+
+**Database Triggers Created (4):**
+- `on_auth_user_created` - Auto-create profile on signup
+- `update_profiles_updated_at` - Auto-update timestamp
+- `update_classes_updated_at` - Auto-update timestamp
+- `update_mistakes_updated_at` - Auto-update timestamp
+
+**Database Functions Created (2):**
+- `handle_new_user()` - Creates profile from auth signup
+- `update_updated_at()` - Updates timestamp on row changes
+
+**Saved SQL Queries in Supabase:**
+1. QuranTrack Supabase Schema
+2. QuranTrack Row-Level Security Policies
+3. Auto-create Profiles & Update Timestamps
+
+See: [Implementation_Journey.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Implementation_Journey.md), [Supabase_Reference.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Supabase_Reference.md)
 
 ---
 

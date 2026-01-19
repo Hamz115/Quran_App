@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuranTrack Architecture: Migration to Supabase</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-cyan: #06b6d4;
+            --border-color: #475569;
+        }
+
+        .light-mode {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #cbd5e1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 280px;
+            height: calc(100vh - 60px);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-link {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .sidebar-link:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .sidebar-link.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 280px;
+            margin-top: 60px;
+            padding: 2rem 3rem;
+            max-width: 1200px;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 4rem;
+            scroll-margin-top: 80px;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title .icon {
+            font-size: 1.5rem;
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Diagrams */
+        .diagram {
+            background: var(--bg-tertiary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        .diagram pre {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: var(--text-primary);
+            white-space: pre;
+        }
+
+        /* Architecture Diagrams (Visual) */
+        .arch-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border-radius: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .arch-row {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .arch-box {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            min-width: 180px;
+            text-align: center;
+            position: relative;
+        }
+
+        .arch-box.supabase {
+            border-color: var(--accent-green);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--bg-secondary) 100%);
+        }
+
+        .arch-box.app {
+            border-color: var(--accent-blue);
+        }
+
+        .arch-box.database {
+            border-color: var(--accent-purple);
+        }
+
+        .arch-box.local {
+            border-color: var(--accent-orange);
+        }
+
+        .arch-box-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-box-content {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-arrow {
+            display: flex;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-green {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .badge-red {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+
+        .badge-blue {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .badge-orange {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-orange);
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: #1e1e1e;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .code-block code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            color: #d4d4d4;
+        }
+
+        .code-block .keyword { color: #569cd6; }
+        .code-block .string { color: #ce9178; }
+        .code-block .comment { color: #6a9955; }
+        .code-block .function { color: #dcdcaa; }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .comparison-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .comparison-card.current {
+            border-color: var(--accent-red);
+        }
+
+        .comparison-card.proposed {
+            border-color: var(--accent-green);
+        }
+
+        .comparison-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-card-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        /* Flow diagrams */
+        .flow {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .flow-number {
+            width: 28px;
+            height: 28px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .flow-content {
+            flex: 1;
+        }
+
+        .flow-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .flow-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Cost table */
+        .cost-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--bg-secondary) 100%);
+            border: 2px solid var(--accent-green);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .cost-amount {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent-green);
+        }
+
+        .cost-label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .checklist li:last-child {
+            border-bottom: none;
+        }
+
+        .check-icon {
+            color: var(--accent-green);
+            font-size: 1.25rem;
+        }
+
+        .cross-icon {
+            color: var(--accent-red);
+            font-size: 1.25rem;
+        }
+
+        /* Summary boxes */
+        .summary-box {
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+
+        .summary-box.warning {
+            border-left-color: var(--accent-orange);
+        }
+
+        .summary-box.success {
+            border-left-color: var(--accent-green);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                display: none;
+            }
+            .main {
+                margin-left: 0;
+            }
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Print */
+        @media print {
+            .nav, .sidebar {
+                display: none;
+            }
+            .main {
+                margin: 0;
+                padding: 1rem;
+            }
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-title">QuranTrack Architecture</div>
+        <div class="nav-controls">
+            <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Overview</div>
+            <a href="#summary" class="sidebar-link">Executive Summary</a>
+            <a href="#current" class="sidebar-link">Current Architecture</a>
+            <a href="#problems" class="sidebar-link">Problems</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Proposed Solution</div>
+            <a href="#supabase" class="sidebar-link">Why Supabase</a>
+            <a href="#new-arch" class="sidebar-link">New Architecture</a>
+            <a href="#comparison" class="sidebar-link">Before vs After</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Technical Details</div>
+            <a href="#auth" class="sidebar-link">Authentication</a>
+            <a href="#sync" class="sidebar-link">Real-Time Sync</a>
+            <a href="#offline" class="sidebar-link">Offline Support</a>
+            <a href="#security" class="sidebar-link">Security (RLS)</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Implementation</div>
+            <a href="#cost" class="sidebar-link">Cost Analysis</a>
+            <a href="#migration" class="sidebar-link">Migration Plan</a>
+            <a href="#files" class="sidebar-link">File Changes</a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Executive Summary -->
+        <section id="summary" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">📋</span>
+                Executive Summary
+            </h1>
+
+            <div class="summary-box success">
+                <strong>Goal:</strong> Replace the FastAPI backend with Supabase to enable standalone desktop app distribution, mobile sync, and real-time updates — all for $0/month.
+            </div>
+
+            <div class="comparison-grid">
+                <div class="comparison-card current">
+                    <div class="comparison-card-header">
+                        <span class="badge badge-red">Current</span>
+                        <span class="comparison-card-title">FastAPI Backend</span>
+                    </div>
+                    <ul class="checklist">
+                        <li><span class="cross-icon">✗</span> Requires server running</li>
+                        <li><span class="cross-icon">✗</span> Mobile needs same network</li>
+                        <li><span class="cross-icon">✗</span> No real-time sync</li>
+                        <li><span class="cross-icon">✗</span> Cloud hosting costs money</li>
+                        <li><span class="cross-icon">✗</span> Custom auth code to maintain</li>
+                    </ul>
+                </div>
+                <div class="comparison-card proposed">
+                    <div class="comparison-card-header">
+                        <span class="badge badge-green">Proposed</span>
+                        <span class="comparison-card-title">Supabase</span>
+                    </div>
+                    <ul class="checklist">
+                        <li><span class="check-icon">✓</span> No server needed</li>
+                        <li><span class="check-icon">✓</span> Mobile works anywhere</li>
+                        <li><span class="check-icon">✓</span> Real-time sync built-in</li>
+                        <li><span class="check-icon">✓</span> Free tier is plenty</li>
+                        <li><span class="check-icon">✓</span> Auth handled by Supabase</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Current Architecture -->
+        <section id="current" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">🏗️</span>
+                Current Architecture
+            </h1>
+
+            <p>QuranTrack currently uses a three-tier architecture where all components run on the same machine:</p>
+
+            <div class="arch-diagram">
+                <div class="arch-row">
+                    <div class="arch-box app">
+                        <div class="arch-box-title">React Frontend</div>
+                        <div class="arch-box-content">Pages, Components, API calls</div>
+                    </div>
+                    <div class="arch-box app">
+                        <div class="arch-box-title">Flutter Mobile</div>
+                        <div class="arch-box-content">Requires same WiFi network</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓ HTTP Requests ↓</div>
+                <div class="arch-row">
+                    <div class="arch-box" style="border-color: var(--accent-red);">
+                        <div class="arch-box-title">FastAPI Backend</div>
+                        <div class="arch-box-content">
+                            Auth endpoints<br>
+                            Class endpoints<br>
+                            Mistake endpoints<br>
+                            <strong>Must be running!</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓ SQLite ↓</div>
+                <div class="arch-row">
+                    <div class="arch-box database">
+                        <div class="arch-box-title">app.db</div>
+                        <div class="arch-box-content">Users, Classes, Mistakes</div>
+                    </div>
+                    <div class="arch-box database">
+                        <div class="arch-box-title">quran.db</div>
+                        <div class="arch-box-content">Quran text (read-only)</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-subtitle">Technology Stack</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Technology</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Frontend</td>
+                            <td>React + TypeScript + Tailwind</td>
+                            <td><code>quran_frontend/</code></td>
+                        </tr>
+                        <tr>
+                            <td>Backend</td>
+                            <td>FastAPI (Python)</td>
+                            <td><code>quran_backend/</code></td>
+                        </tr>
+                        <tr>
+                            <td>Mobile</td>
+                            <td>Flutter + Dart + Riverpod</td>
+                            <td><code>quran_mobile/</code></td>
+                        </tr>
+                        <tr>
+                            <td>Database</td>
+                            <td>SQLite</td>
+                            <td><code>quran_backend/</code></td>
+                        </tr>
+                        <tr>
+                            <td>Auth</td>
+                            <td>Custom JWT (PyJWT + bcrypt)</td>
+                            <td><code>quran_backend/auth/</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Problems -->
+        <section id="problems" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">⚠️</span>
+                Problems with Current Architecture
+            </h1>
+
+            <div class="card">
+                <div class="card-title">1. Distribution Challenge</div>
+                <p>Can't easily distribute as standalone app. Users need to:</p>
+                <div class="comparison-grid">
+                    <div class="comparison-card current">
+                        <strong>Current (Complex)</strong>
+                        <ol style="margin-top: 0.5rem; padding-left: 1.5rem; color: var(--text-secondary);">
+                            <li>Install Python</li>
+                            <li>Install dependencies</li>
+                            <li>Run: <code>python main.py</code></li>
+                            <li>Run: <code>npm run dev</code></li>
+                            <li>Keep both running</li>
+                        </ol>
+                    </div>
+                    <div class="comparison-card proposed">
+                        <strong>Desired (Simple)</strong>
+                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">
+                            Double-click <code>QuranTrack.exe</code><br><br>
+                            That's it.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">2. Mobile Connectivity</div>
+                <p>Mobile app can't connect without complex setup:</p>
+                <ul style="margin-top: 0.5rem; padding-left: 1.5rem; color: var(--text-secondary);">
+                    <li>Same WiFi network (home only)</li>
+                    <li>ngrok tunnel (complex, unreliable)</li>
+                    <li>Deploy to cloud (expensive)</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">3. No Real-Time Sync</div>
+                <p>When teacher publishes a class, student doesn't know until they manually refresh.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">4. Cost for Multi-User</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Users</th>
+                                <th>Cost (Self-Hosted)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>10</td><td>$0 (localhost)</td></tr>
+                            <tr><td>100</td><td>$20-50/month (VPS)</td></tr>
+                            <tr><td>1,000</td><td>$50-100/month</td></tr>
+                            <tr><td>10,000</td><td>$100-200/month</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Why Supabase -->
+        <section id="supabase" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">🚀</span>
+                Why Supabase?
+            </h1>
+
+            <p>Supabase is a Backend-as-a-Service (BaaS) that provides everything we need:</p>
+
+            <div class="arch-diagram">
+                <div class="arch-row">
+                    <div class="arch-box supabase" style="min-width: 400px;">
+                        <div class="arch-box-title" style="color: var(--accent-green); font-size: 1.25rem;">SUPABASE</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                            <div class="arch-box-content" style="text-align: left;">
+                                <strong>Auth</strong><br>
+                                • Signup/Login<br>
+                                • JWT tokens<br>
+                                • Token refresh
+                            </div>
+                            <div class="arch-box-content" style="text-align: left;">
+                                <strong>Database</strong><br>
+                                • PostgreSQL<br>
+                                • REST API<br>
+                                • Row Level Security
+                            </div>
+                            <div class="arch-box-content" style="text-align: left;">
+                                <strong>Realtime</strong><br>
+                                • WebSocket<br>
+                                • Subscriptions<br>
+                                • Instant updates
+                            </div>
+                            <div class="arch-box-content" style="text-align: left;">
+                                <strong>Storage</strong><br>
+                                • File uploads<br>
+                                • (Optional)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-subtitle">What Supabase Replaces</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Current Component</th>
+                            <th>Supabase Replacement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>auth/routes.py</code> (signup, login)</td>
+                            <td><span class="badge badge-green">Supabase Auth</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>auth/utils.py</code> (JWT, bcrypt)</td>
+                            <td><span class="badge badge-green">Supabase Auth</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>main.py</code> API endpoints</td>
+                            <td><span class="badge badge-green">Auto-generated REST API</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>app.db</code> (users, classes)</td>
+                            <td><span class="badge badge-green">Supabase PostgreSQL</span></td>
+                        </tr>
+                        <tr>
+                            <td>Manual polling</td>
+                            <td><span class="badge badge-green">Supabase Realtime</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-subtitle">What Stays Local</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>quran.db</code></td>
+                            <td>Read-only Quran text, never changes, bundled with app</td>
+                        </tr>
+                        <tr>
+                            <td><code>quran-pages/*.json</code></td>
+                            <td>QPC word data, never changes, bundled with app</td>
+                        </tr>
+                        <tr>
+                            <td><code>fonts/qpc/*.woff2</code></td>
+                            <td>604 QPC fonts, never change, bundled with app</td>
+                        </tr>
+                        <tr>
+                            <td>Local SQLite cache</td>
+                            <td>Offline support - cached classes/mistakes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- New Architecture -->
+        <section id="new-arch" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">✨</span>
+                New Architecture
+            </h1>
+
+            <div class="arch-diagram">
+                <div class="arch-row">
+                    <div class="arch-box supabase" style="min-width: 300px;">
+                        <div class="arch-box-title" style="color: var(--accent-green);">SUPABASE (Cloud)</div>
+                        <div class="arch-box-content">
+                            Auth • Database • Realtime
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↕ HTTPS + WebSocket ↕</div>
+                <div class="arch-row">
+                    <div class="arch-box app">
+                        <div class="arch-box-title">Desktop App</div>
+                        <div class="arch-box-content">
+                            Electron + React<br>
+                            Supabase JS Client<br>
+                            Local SQLite cache
+                        </div>
+                    </div>
+                    <div class="arch-box app">
+                        <div class="arch-box-title">Android App</div>
+                        <div class="arch-box-content">
+                            Flutter<br>
+                            Supabase Flutter SDK<br>
+                            Local SQLite cache
+                        </div>
+                    </div>
+                    <div class="arch-box app">
+                        <div class="arch-box-title">iOS App</div>
+                        <div class="arch-box-content">
+                            Flutter<br>
+                            Supabase Flutter SDK<br>
+                            Local SQLite cache
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓ Bundled Files ↓</div>
+                <div class="arch-row">
+                    <div class="arch-box local">
+                        <div class="arch-box-title">Bundled Data</div>
+                        <div class="arch-box-content">
+                            quran.db • QPC fonts • Page JSONs
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box success">
+                <strong>Key Change:</strong> The FastAPI backend is eliminated. All three platforms (Desktop, Android, iOS) talk directly to Supabase. The Quran data is bundled locally and works offline.
+            </div>
+        </section>
+
+        <!-- Comparison -->
+        <section id="comparison" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">⚖️</span>
+                Before vs After
+            </h1>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Aspect</th>
+                            <th>Before (FastAPI)</th>
+                            <th>After (Supabase)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Server Required</td>
+                            <td><span class="badge badge-red">Yes (FastAPI must run)</span></td>
+                            <td><span class="badge badge-green">No (Supabase hosted)</span></td>
+                        </tr>
+                        <tr>
+                            <td>Mobile Connectivity</td>
+                            <td><span class="badge badge-red">Same network only</span></td>
+                            <td><span class="badge badge-green">Works anywhere</span></td>
+                        </tr>
+                        <tr>
+                            <td>Real-time Updates</td>
+                            <td><span class="badge badge-red">None (manual refresh)</span></td>
+                            <td><span class="badge badge-green">Instant via WebSocket</span></td>
+                        </tr>
+                        <tr>
+                            <td>Auth Code</td>
+                            <td><span class="badge badge-orange">500+ lines (custom)</span></td>
+                            <td><span class="badge badge-green">0 lines (handled)</span></td>
+                        </tr>
+                        <tr>
+                            <td>Monthly Cost</td>
+                            <td><span class="badge badge-orange">$20-100 (if cloud)</span></td>
+                            <td><span class="badge badge-green">$0 (free tier)</span></td>
+                        </tr>
+                        <tr>
+                            <td>Offline Support</td>
+                            <td><span class="badge badge-orange">Mobile only</span></td>
+                            <td><span class="badge badge-green">All platforms</span></td>
+                        </tr>
+                        <tr>
+                            <td>Security Model</td>
+                            <td><span class="badge badge-orange">App-level checks</span></td>
+                            <td><span class="badge badge-green">Database-level RLS</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Authentication -->
+        <section id="auth" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">🔐</span>
+                Authentication Flow
+            </h1>
+
+            <h3 class="section-subtitle">Signup Flow</h3>
+            <div class="flow">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-content">
+                        <div class="flow-title">User fills signup form</div>
+                        <div class="flow-desc">Email, password, name, role (teacher/student)</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-content">
+                        <div class="flow-title">App calls Supabase Auth</div>
+                        <div class="flow-desc"><code>supabase.auth.signUp({ email, password, options: { data: { name, role } } })</code></div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Supabase creates user</div>
+                        <div class="flow-desc">User added to auth.users, trigger creates profile in profiles table</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Session returned</div>
+                        <div class="flow-desc">Contains access_token (JWT), refresh_token, user object</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Tokens auto-managed</div>
+                        <div class="flow-desc">Supabase client handles storage and refresh automatically</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-subtitle">Code Comparison</h3>
+            <div class="comparison-grid">
+                <div class="comparison-card current">
+                    <strong>Before (Custom)</strong>
+                    <div class="code-block">
+                        <code><span class="comment">// Frontend calls YOUR backend</span>
+<span class="keyword">const</span> response = <span class="keyword">await</span> <span class="function">fetch</span>(
+  <span class="string">'http://localhost:8000/api/auth/signup'</span>,
+  {
+    method: <span class="string">'POST'</span>,
+    body: JSON.<span class="function">stringify</span>({
+      email, password, role
+    })
+  }
+);
+<span class="comment">// Your Python code handles JWT</span></code>
+                    </div>
+                </div>
+                <div class="comparison-card proposed">
+                    <strong>After (Supabase)</strong>
+                    <div class="code-block">
+                        <code><span class="comment">// Frontend calls Supabase directly</span>
+<span class="keyword">const</span> { data, error } = <span class="keyword">await</span> supabase
+  .auth
+  .<span class="function">signUp</span>({
+    email: <span class="string">'user@example.com'</span>,
+    password: <span class="string">'password123'</span>,
+    options: {
+      data: { name, role }
+    }
+  });
+<span class="comment">// Supabase handles EVERYTHING</span></code>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Real-Time Sync -->
+        <section id="sync" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">⚡</span>
+                Real-Time Sync
+            </h1>
+
+            <p>When teacher publishes a class, student's app updates <strong>instantly</strong> via WebSocket:</p>
+
+            <div class="flow">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Teacher clicks "Publish"</div>
+                        <div class="flow-desc">Updates class in Supabase: <code>is_published = true</code></div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Supabase Realtime detects change</div>
+                        <div class="flow-desc">Database trigger fires on UPDATE</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Find all subscribers</div>
+                        <div class="flow-desc">Student's app is subscribed to classes table</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-content">
+                        <div class="flow-title">Push via WebSocket</div>
+                        <div class="flow-desc">Student's app receives the change immediately</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-content">
+                        <div class="flow-title">UI updates instantly!</div>
+                        <div class="flow-desc">"New class available!" - no refresh needed</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-subtitle">Subscription Code</h3>
+            <div class="comparison-grid">
+                <div class="comparison-card" style="border-color: var(--accent-blue);">
+                    <strong>Desktop (React/TypeScript)</strong>
+                    <div class="code-block">
+                        <code><span class="keyword">const</span> channel = supabase
+  .<span class="function">channel</span>(<span class="string">'my-classes'</span>)
+  .<span class="function">on</span>(
+    <span class="string">'postgres_changes'</span>,
+    {
+      event: <span class="string">'*'</span>,
+      schema: <span class="string">'public'</span>,
+      table: <span class="string">'classes'</span>
+    },
+    (payload) => {
+      console.<span class="function">log</span>(<span class="string">'Update!'</span>, payload);
+      <span class="function">fetchClasses</span>();
+    }
+  )
+  .<span class="function">subscribe</span>();</code>
+                    </div>
+                </div>
+                <div class="comparison-card" style="border-color: var(--accent-cyan);">
+                    <strong>Mobile (Flutter/Dart)</strong>
+                    <div class="code-block">
+                        <code><span class="keyword">final</span> channel = supabase
+  .<span class="function">channel</span>(<span class="string">'my-classes'</span>);
+
+channel
+  .<span class="function">onPostgresChanges</span>(
+    event: PostgresChangeEvent.all,
+    schema: <span class="string">'public'</span>,
+    table: <span class="string">'classes'</span>,
+    callback: (payload) {
+      <span class="function">print</span>(<span class="string">'Update!'</span>);
+      ref.<span class="function">invalidate</span>(classesProvider);
+    },
+  )
+  .<span class="function">subscribe</span>();</code>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Offline Support -->
+        <section id="offline" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">📴</span>
+                Offline Support
+            </h1>
+
+            <div class="arch-diagram">
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <strong>App Offline Flow</strong>
+                </div>
+                <div class="arch-row">
+                    <div class="arch-box" style="min-width: 250px;">
+                        <div class="arch-box-title">Is Online?</div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 4rem;">
+                    <div style="text-align: center;">
+                        <div class="arch-arrow">↓ YES ↓</div>
+                        <div class="arch-box" style="border-color: var(--accent-green);">
+                            <div class="arch-box-title">Supabase</div>
+                            <div class="arch-box-content">
+                                Fetch from cloud<br>
+                                Update local cache
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="arch-arrow">↓ NO ↓</div>
+                        <div class="arch-box" style="border-color: var(--accent-orange);">
+                            <div class="arch-box-title">Local SQLite</div>
+                            <div class="arch-box-content">
+                                Read from cache<br>
+                                Queue writes for later
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <strong>Bundled data always works offline:</strong> quran.db, QPC fonts, and page JSONs are bundled with the app and never require internet.
+            </div>
+        </section>
+
+        <!-- Security -->
+        <section id="security" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">🛡️</span>
+                Security: Row Level Security
+            </h1>
+
+            <p>Row Level Security (RLS) means security is enforced at the <strong>database level</strong>, not the app level:</p>
+
+            <div class="comparison-grid">
+                <div class="comparison-card current">
+                    <div class="comparison-card-header">
+                        <span class="badge badge-red">Without RLS</span>
+                    </div>
+                    <p>App code checks permissions:</p>
+                    <div class="code-block">
+                        <code><span class="keyword">if</span> (user.id === mistake.student_id) {
+  <span class="comment">// Allow access</span>
+}
+<span class="comment">// But what if someone bypasses</span>
+<span class="comment">// the app and calls API directly?</span>
+<span class="comment">// DATA LEAKS! 😱</span></code>
+                    </div>
+                </div>
+                <div class="comparison-card proposed">
+                    <div class="comparison-card-header">
+                        <span class="badge badge-green">With RLS</span>
+                    </div>
+                    <p>Database enforces permissions:</p>
+                    <div class="code-block">
+                        <code><span class="keyword">CREATE POLICY</span> <span class="string">"Students see own"</span>
+<span class="keyword">ON</span> mistakes <span class="keyword">FOR SELECT</span>
+<span class="keyword">USING</span> (auth.<span class="function">uid</span>() = student_id);
+
+<span class="comment">-- Even direct API calls are blocked!</span>
+<span class="comment">-- Database returns: [] ✅</span></code>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-subtitle">Key RLS Policies</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Table</th>
+                            <th>Policy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>classes</td>
+                            <td>Teachers see own classes; Students see published classes they're in</td>
+                        </tr>
+                        <tr>
+                            <td>mistakes</td>
+                            <td>Students see own mistakes; Teachers see their students' mistakes</td>
+                        </tr>
+                        <tr>
+                            <td>teacher_students</td>
+                            <td>Teachers can manage their own relationships</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Cost Analysis -->
+        <section id="cost" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">💰</span>
+                Cost Analysis
+            </h1>
+
+            <div class="cost-card">
+                <div class="cost-amount">$0</div>
+                <div class="cost-label">per month on Supabase Free Tier</div>
+            </div>
+
+            <h3 class="section-subtitle">Supabase Free Tier Includes</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Free Tier Limit</th>
+                            <th>QuranTrack Needs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Database</td>
+                            <td>500 MB</td>
+                            <td>~20 MB</td>
+                        </tr>
+                        <tr>
+                            <td>Auth Users</td>
+                            <td>50,000 MAU</td>
+                            <td>~500</td>
+                        </tr>
+                        <tr>
+                            <td>Bandwidth</td>
+                            <td>5 GB</td>
+                            <td>~100 MB</td>
+                        </tr>
+                        <tr>
+                            <td>Realtime Connections</td>
+                            <td>200 concurrent</td>
+                            <td>~10-50</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-subtitle">Cost Comparison</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Users</th>
+                            <th>Self-Hosted VPS</th>
+                            <th>Supabase</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>100</td>
+                            <td>$20-50/month</td>
+                            <td><span class="badge badge-green">$0/month</span></td>
+                        </tr>
+                        <tr>
+                            <td>1,000</td>
+                            <td>$50-100/month</td>
+                            <td><span class="badge badge-green">$0/month</span></td>
+                        </tr>
+                        <tr>
+                            <td>10,000</td>
+                            <td>$100-200/month</td>
+                            <td><span class="badge badge-blue">$25/month (Pro)</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Migration Plan -->
+        <section id="migration" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">📋</span>
+                Migration Plan
+            </h1>
+
+            <div class="card">
+                <div class="card-title">Phase 1: Setup Supabase (1 day)</div>
+                <ul class="checklist">
+                    <li><span class="check-icon">□</span> Create Supabase project</li>
+                    <li><span class="check-icon">□</span> Create database tables</li>
+                    <li><span class="check-icon">□</span> Configure RLS policies</li>
+                    <li><span class="check-icon">□</span> Test auth flow in dashboard</li>
+                    <li><span class="check-icon">□</span> Get project URL and anon key</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Phase 2: Update Desktop App (3-5 days)</div>
+                <ul class="checklist">
+                    <li><span class="check-icon">□</span> Install @supabase/supabase-js</li>
+                    <li><span class="check-icon">□</span> Create lib/supabase.ts</li>
+                    <li><span class="check-icon">□</span> Rewrite AuthContext</li>
+                    <li><span class="check-icon">□</span> Rewrite api.ts</li>
+                    <li><span class="check-icon">□</span> Add real-time subscriptions</li>
+                    <li><span class="check-icon">□</span> Add local SQLite cache</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Phase 3: Update Mobile App (3-5 days)</div>
+                <ul class="checklist">
+                    <li><span class="check-icon">□</span> Add supabase_flutter to pubspec.yaml</li>
+                    <li><span class="check-icon">□</span> Initialize Supabase in main.dart</li>
+                    <li><span class="check-icon">□</span> Rewrite api_client.dart</li>
+                    <li><span class="check-icon">□</span> Update providers</li>
+                    <li><span class="check-icon">□</span> Ensure offline queue works</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Phase 4: Data Migration (1 day)</div>
+                <ul class="checklist">
+                    <li><span class="check-icon">□</span> Export existing users from app.db</li>
+                    <li><span class="check-icon">□</span> Import to Supabase</li>
+                    <li><span class="check-icon">□</span> Export classes/mistakes</li>
+                    <li><span class="check-icon">□</span> Verify data integrity</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Phase 5: Testing & Deployment (2-3 days)</div>
+                <ul class="checklist">
+                    <li><span class="check-icon">□</span> Test desktop → mobile sync</li>
+                    <li><span class="check-icon">□</span> Test offline mode</li>
+                    <li><span class="check-icon">□</span> Test real-time updates</li>
+                    <li><span class="check-icon">□</span> Build Electron installer</li>
+                    <li><span class="check-icon">□</span> Build mobile APK/IPA</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- File Changes -->
+        <section id="files" class="section fade-in">
+            <h1 class="section-title">
+                <span class="icon">📁</span>
+                File Changes Summary
+            </h1>
+
+            <h3 class="section-subtitle">Files to DELETE (Backend)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>quran_backend/main.py</code></td>
+                            <td>API replaced by Supabase</td>
+                        </tr>
+                        <tr>
+                            <td><code>quran_backend/auth/*</code></td>
+                            <td>Auth handled by Supabase</td>
+                        </tr>
+                        <tr>
+                            <td><code>quran_backend/app.db</code></td>
+                            <td>Data migrated to Supabase</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-subtitle">Files to KEEP (Bundle with App)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>quran_backend/quran.db</code></td>
+                            <td>Bundle with app (read-only Quran text)</td>
+                        </tr>
+                        <tr>
+                            <td><code>quran_backend/quran-pages/*</code></td>
+                            <td>Bundle with app (QPC word data)</td>
+                        </tr>
+                        <tr>
+                            <td><code>quran_frontend/public/fonts/qpc/*</code></td>
+                            <td>Bundle with app (QPC fonts)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-subtitle">Files to UPDATE (Frontend)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>src/lib/supabase.ts</code></td>
+                            <td><span class="badge badge-blue">NEW</span> Supabase client init</td>
+                        </tr>
+                        <tr>
+                            <td><code>src/api.ts</code></td>
+                            <td><span class="badge badge-orange">REWRITE</span> Use Supabase</td>
+                        </tr>
+                        <tr>
+                            <td><code>src/contexts/AuthContext.tsx</code></td>
+                            <td><span class="badge badge-orange">REWRITE</span> Use Supabase Auth</td>
+                        </tr>
+                        <tr>
+                            <td><code>package.json</code></td>
+                            <td><span class="badge badge-green">UPDATE</span> Add @supabase/supabase-js</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-subtitle">Files to UPDATE (Mobile)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>lib/core/supabase/supabase_client.dart</code></td>
+                            <td><span class="badge badge-blue">NEW</span> Supabase client</td>
+                        </tr>
+                        <tr>
+                            <td><code>lib/core/network/api_client.dart</code></td>
+                            <td><span class="badge badge-orange">REWRITE</span> Use Supabase</td>
+                        </tr>
+                        <tr>
+                            <td><code>lib/main.dart</code></td>
+                            <td><span class="badge badge-green">UPDATE</span> Init Supabase</td>
+                        </tr>
+                        <tr>
+                            <td><code>pubspec.yaml</code></td>
+                            <td><span class="badge badge-green">UPDATE</span> Add supabase_flutter</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer style="margin-top: 4rem; padding: 2rem; text-align: center; color: var(--text-secondary); border-top: 1px solid var(--border-color);">
+            <p>QuranTrack Architecture Documentation</p>
+            <p>Generated: January 18, 2026</p>
+        </footer>
+    </main>
+
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        // Load saved theme
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+        }
+
+        // Active sidebar link
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.sidebar-link');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Smooth scroll
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector(link.getAttribute('href'));
+                target.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>

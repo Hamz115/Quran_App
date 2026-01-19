@@ -46,3 +46,6 @@ npm-debug.log*
 .eslintcache
 
 CLAUDE.md
+
+# Claude temp files
+tmpclaude-*

@@ -44,6 +44,7 @@ QuranTrack uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to
 | Frontend | React + TypeScript + Tailwind CSS |
 | Backend | FastAPI (Python) + SQLite |
 | Mobile | Flutter (Dart) |
+| Cloud Sync | Supabase (PostgreSQL + Auth + Realtime) |
 
 ## Project Structure
 
