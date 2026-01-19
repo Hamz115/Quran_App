@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await login(identifier, password);
+      await login(email, password);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -48,14 +48,14 @@ export default function Login() {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Email or Username
+              Email
             </label>
             <input
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
-              placeholder="Enter email or username"
+              placeholder="Enter your email"
               required
             />
           </div>
@@ -101,14 +101,14 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => { setIdentifier('hamzaferoze115@gmail.com'); setPassword('password12345'); }}
+                onClick={() => { setEmail('hamzaferoze115@gmail.com'); setPassword('password12345'); }}
                 className="px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/30 transition-colors"
               >
                 Hamza Feroze (T)
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('hamzaferoze115+114@gmail.com'); setPassword('password12345'); }}
+                onClick={() => { setEmail('hamzaferoze115+114@gmail.com'); setPassword('password12345'); }}
                 className="px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/30 transition-colors"
               >
                 Hamza Reyal (S)
@@ -120,35 +120,35 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => { setIdentifier('abdullah.q@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('abdullah.q@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
               >
                 Abdullah Q
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('tariq.jameel@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('tariq.jameel@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
               >
                 Tariq Jameel
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('usman.farooq@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('usman.farooq@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
               >
                 Usman Farooq
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('maryam.s@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('maryam.s@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
               >
                 Maryam S
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('khadijah.noor@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('khadijah.noor@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
               >
                 Khadijah Noor
@@ -160,70 +160,70 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => { setIdentifier('ahmed.khan@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('ahmed.khan@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Ahmed Khan
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('yusuf.ali@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('yusuf.ali@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Yusuf Ali
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('omar.hassan@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('omar.hassan@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Omar Hassan
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('ibrahim.m@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('ibrahim.m@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Ibrahim M
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('bilal.ahmad@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('bilal.ahmad@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Bilal Ahmad
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('khalid.r@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('khalid.r@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Khalid R
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('zayd.malik@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('zayd.malik@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Zayd Malik
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('mustafa.h@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('mustafa.h@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Mustafa H
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('fatima.zahra@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('fatima.zahra@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Fatima Zahra
               </button>
               <button
                 type="button"
-                onClick={() => { setIdentifier('aisha.begum@test.com'); setPassword('Test123!'); }}
+                onClick={() => { setEmail('aisha.begum@test.com'); setPassword('Test123!'); }}
                 className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
               >
                 Aisha Begum

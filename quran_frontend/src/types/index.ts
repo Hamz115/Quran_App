@@ -1,12 +1,15 @@
+// Type definitions for QuranTrack
+// IDs are strings (UUIDs) for Supabase entities, numbers for local Quran data
+
 export interface Student {
-  id: number;
+  id: string;  // UUID
   name: string;
   createdAt: string;
 }
 
 export interface Assignment {
-  id: number;
-  sessionId: number;
+  id: string;  // UUID
+  sessionId: string;
   type: 'hifz' | 'sabqi' | 'revision';
   startSurah: number;
   endSurah: number;
@@ -15,8 +18,8 @@ export interface Assignment {
 }
 
 export interface Session {
-  id: number;
-  studentId: number;
+  id: string;  // UUID
+  studentId: string;
   date: string;
   day: string;
   notes: string;
@@ -24,8 +27,8 @@ export interface Session {
 }
 
 export interface Mistake {
-  id: number;
-  studentId: number;
+  id: string;  // UUID
+  studentId: string;
   surahNumber: number;
   ayahNumber: number;
   wordIndex: number;
@@ -34,6 +37,7 @@ export interface Mistake {
   lastError: string;
 }
 
+// Quran data types (local - still use numbers)
 export interface Surah {
   number: number;
   name: string;
@@ -52,14 +56,14 @@ export interface Ayah {
 
 // Auth types
 export interface User {
-  id: number;
+  id: string;  // UUID from Supabase
   student_id: string;
   username: string;
   email: string;
   first_name: string;
   last_name: string;
-  role?: 'teacher' | 'student';  // Optional - derived from is_verified
-  is_verified: boolean;  // true = teacher, false = student
+  role?: 'teacher' | 'student';
+  is_verified: boolean;
   created_at: string;
 }
 
@@ -77,7 +81,7 @@ export interface TokenResponse {
 }
 
 export interface StudentListItem {
-  id: number;
+  id: string;  // UUID
   student_id: string;
   first_name: string;
   last_name: string;
@@ -85,7 +89,7 @@ export interface StudentListItem {
 }
 
 export interface TeacherListItem {
-  id: number;
+  id: string;  // UUID
   first_name: string;
   last_name: string;
   added_at: string;

@@ -24,7 +24,8 @@ docs/
 │   ├── Test_System.md                      # Test classes and scoring
 │   └── Supabase Implementation/            # Supabase cloud setup
 │       ├── Implementation_Journey.md       # Step-by-step setup record
-│       └── Supabase_Reference.md           # Full schema & policy reference
+│       ├── Supabase_Reference.md           # Full schema & policy reference
+│       └── Supabase_Frontend_Integration_Reference.md  # Frontend integration code
 │
 └── Guides/                                 # For AI/developers - troubleshooting
     ├── Font_Overflow_Fix_Guide.md          # Fixing font overflow issues
@@ -587,6 +588,51 @@ Set up Supabase project and created all database objects.
 3. Auto-create Profiles & Update Timestamps
 
 See: [Implementation_Journey.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Implementation_Journey.md), [Supabase_Reference.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Supabase_Reference.md)
+
+---
+
+### 19 January 2026 - Frontend Integration
+
+Integrated Supabase into the React frontend.
+
+**Package Installed:**
+- `@supabase/supabase-js` - Supabase JavaScript client
+
+**New Files Created:**
+| File | Purpose |
+|------|---------|
+| `.env.local` | Supabase credentials (not committed) |
+| `.env.example` | Template for credentials |
+| `src/lib/supabase.ts` | Supabase client initialization |
+| `src/lib/database.types.ts` | TypeScript types for Supabase tables |
+| `src/lib/supabase-api.ts` | Student, class, mistake API functions |
+| `src/lib/quran-api.ts` | Local Quran data API (FastAPI) |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `AuthContext.tsx` | Complete rewrite for Supabase Auth |
+| `Login.tsx` | Email-only login (no username) |
+| `types/index.ts` | Changed IDs from `number` to `string` (UUIDs) |
+| `api.ts` | Facade re-exporting from new modules |
+
+**Migration Status:**
+| Component | Status |
+|-----------|--------|
+| Authentication | ✅ Migrated to Supabase Auth |
+| Students API | ✅ Migrated to Supabase |
+| Classes API | ✅ Migrated to Supabase |
+| Mistakes API | ✅ Migrated to Supabase |
+| Quran Data | ⏸️ Stays with local FastAPI |
+| Tests API | ⏸️ Still uses FastAPI |
+| Backup API | ⏸️ Still uses FastAPI |
+
+**Architecture:**
+- **Supabase** handles: Auth, profiles, teacher-student relationships, classes, mistakes
+- **FastAPI** handles: Quran text data (quran.db), page JSON files, QPC fonts
+- **Hybrid approach** allows cloud sync for user data while keeping Quran data local
+
+See: [Supabase_Frontend_Integration_Reference.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Supabase_Frontend_Integration_Reference.md)
 
 ---
 
