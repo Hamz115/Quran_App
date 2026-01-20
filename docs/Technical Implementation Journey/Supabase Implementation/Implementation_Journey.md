@@ -479,12 +479,81 @@ if (user.role === 'teacher') {
 
 ---
 
+## Step 18: Auth Timeout Mechanism (20 January 2026)
+
+Added timeout protection to prevent infinite hangs during Supabase auth operations.
+
+**Problem Discovered:**
+- Supabase JS client would sometimes hang indefinitely on `signInWithPassword()`
+- Direct API calls worked fine (~868ms latency)
+- Issue was internal to the Supabase client, possibly due to session state conflicts
+
+**Solution:**
+Added a multi-layered timeout mechanism:
+
+1. **Timeout Wrapper Function:**
+```typescript
+const SESSION_TIMEOUT_MS = 10000; // 10 seconds for cloud latency
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), ms)
+    ),
+  ]);
+}
+```
+
+2. **Clear-Before-Login Pattern:**
+```typescript
+const login = async (email: string, password: string) => {
+  // Clear any existing session first to avoid client locks
+  await supabase.auth.signOut({ scope: 'local' });
+  clearSupabaseStorage();
+
+  // Now attempt login with timeout
+  const { error } = await withTimeout(
+    supabase.auth.signInWithPassword({ email, password }),
+    SESSION_TIMEOUT_MS
+  );
+  // ...
+};
+```
+
+3. **Corrupted Storage Recovery:**
+```typescript
+function clearSupabaseStorage() {
+  const keys = Object.keys(localStorage).filter(
+    k => k.includes('sb-') || k.includes('supabase')
+  );
+  keys.forEach(k => localStorage.removeItem(k));
+}
+```
+
+**Why Clear-Before-Login Works:**
+- The Supabase JS client maintains internal state
+- If previous session data is corrupted or locked, new auth operations can hang
+- Clearing localStorage and signing out locally resets the client state
+- Fresh login then works without conflicts
+
+**Files Modified:**
+- `src/contexts/AuthContext.tsx` - Added timeout mechanism and clear-before-login pattern
+
+**Result:**
+- ✅ Auth operations no longer hang indefinitely
+- ✅ User sees "Login timed out. Please try again." if server is slow
+- ✅ Corrupted sessions automatically recovered on next login attempt
+
+---
+
 ## Next Steps (Pending)
 
 1. **Mobile Integration** - Update Flutter app to use Supabase client
 2. **Realtime Setup** - Enable realtime subscriptions for instant updates
 3. **Migrate Remaining Functions** - Tests, portion suggestions, etc.
 4. **Create Demo Accounts in Supabase** - Add test users to Supabase for development
+5. **Local-First Architecture** - Implement optimistic updates to improve perceived speed
 
 ---
 

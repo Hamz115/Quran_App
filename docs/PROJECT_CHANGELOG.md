@@ -744,6 +744,37 @@ Fixed issue where teachers were being routed to Student View instead of Teacher 
 - "Teacher Account" badge shown correctly in dropdown
 - "Upgrade to Teacher" only shown for actual students
 
+### 20 January 2026 - Auth Timeout Mechanism
+
+Added timeout protection to prevent infinite hangs during Supabase auth operations.
+
+**Problem:** Supabase JS client would sometimes hang indefinitely on `signInWithPassword()` even though direct API calls worked fine.
+
+**Solution:** Multi-layered protection:
+1. **Timeout Wrapper** - All auth operations wrapped with 10-second timeout
+2. **Clear-Before-Login** - Sign out locally and clear localStorage before attempting login
+3. **Corrupted Storage Recovery** - Auto-clear Supabase localStorage on timeout
+
+**Key Code:**
+```typescript
+const login = async (email: string, password: string) => {
+  // Clear any existing session first to avoid client locks
+  await supabase.auth.signOut({ scope: 'local' });
+  clearSupabaseStorage();
+
+  // Attempt login with timeout
+  const { error } = await withTimeout(
+    supabase.auth.signInWithPassword({ email, password }),
+    SESSION_TIMEOUT_MS
+  );
+};
+```
+
+**Result:**
+- Auth operations no longer hang indefinitely
+- User sees "Login timed out. Please try again." message if slow
+- Corrupted sessions auto-recovered on retry
+
 ---
 
 ## Running the Project

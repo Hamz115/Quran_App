@@ -25,6 +25,28 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Session timeout in milliseconds - if getSession takes longer, assume corrupted
+// Note: 10 seconds to account for cloud latency (Supabase is in Asia Pacific)
+const SESSION_TIMEOUT_MS = 10000;
+
+// Helper to add timeout to a promise
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), ms)
+    ),
+  ]);
+}
+
+// Clear corrupted Supabase localStorage entries
+function clearSupabaseStorage() {
+  console.log('AuthContext: Clearing corrupted Supabase storage...');
+  const keys = Object.keys(localStorage).filter(k => k.includes('sb-') || k.includes('supabase'));
+  keys.forEach(k => localStorage.removeItem(k));
+  console.log('AuthContext: Cleared', keys.length, 'storage entries');
+}
+
 // Fetch profile from profiles table and map to User type
 async function fetchUserProfile(userId: string): Promise<User | null> {
   const { data, error } = await supabase
@@ -65,10 +87,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    // Get initial session
-    console.log('AuthContext: Starting getSession...');
-    supabase.auth.getSession()
-      .then(async ({ data: { session }, error }) => {
+    // Get initial session with timeout protection
+    async function initSession() {
+      console.log('AuthContext: Starting getSession...');
+
+      try {
+        // Add timeout to detect stuck/corrupted sessions
+        const { data: { session }, error } = await withTimeout(
+          supabase.auth.getSession(),
+          SESSION_TIMEOUT_MS
+        );
+
         console.log('AuthContext: getSession completed', { hasSession: !!session, error });
 
         if (!isMounted) {
@@ -86,7 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           console.log('AuthContext: Fetching profile for user:', session.user.id);
           try {
-            const profile = await fetchUserProfile(session.user.id);
+            const profile = await withTimeout(
+              fetchUserProfile(session.user.id),
+              SESSION_TIMEOUT_MS
+            );
             if (isMounted) {
               setUser(profile);
               console.log('AuthContext: Profile loaded:', profile?.email);
@@ -98,13 +130,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isMounted) {
           setIsLoading(false);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('AuthContext: getSession failed:', err);
+
+        // If timeout, clear corrupted storage and let user re-login
+        if (err instanceof Error && err.message === 'TIMEOUT') {
+          console.warn('AuthContext: Session fetch timed out - clearing corrupted storage');
+          clearSupabaseStorage();
+        }
+
         if (isMounted) {
           setIsLoading(false);
         }
-      });
+      }
+    }
+
+    initSession();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -141,15 +182,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // Clear any existing session first to avoid client locks
+      // This is a quick local operation - don't timeout
+      console.log('AuthContext: Clearing existing session before login...');
+      await supabase.auth.signOut({ scope: 'local' });
+      clearSupabaseStorage();
 
-    if (error) {
-      throw new Error(error.message);
+      console.log('AuthContext: Attempting login for', email);
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        SESSION_TIMEOUT_MS
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      console.log('AuthContext: Login successful');
+      // User state will be updated by onAuthStateChange listener
+    } catch (err) {
+      if (err instanceof Error && err.message === 'TIMEOUT') {
+        console.error('AuthContext: Login timed out after', SESSION_TIMEOUT_MS, 'ms');
+        // Clear potentially corrupted storage on timeout
+        clearSupabaseStorage();
+        throw new Error('Login timed out. Please try again.');
+      }
+      throw err;
     }
-    // User state will be updated by onAuthStateChange listener
   };
 
   const signup = async (data: {
@@ -160,21 +219,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
     role: 'teacher' | 'student';
   }) => {
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          name: `${data.first_name} ${data.last_name}`,
-          role: data.role,
-        },
-      },
-    });
+    try {
+      // Clear any existing session first
+      console.log('AuthContext: Clearing existing session before signup...');
+      await supabase.auth.signOut({ scope: 'local' });
+      clearSupabaseStorage();
 
-    if (error) {
-      throw new Error(error.message);
+      console.log('AuthContext: Attempting signup for', data.email);
+      const { error } = await withTimeout(
+        supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              name: `${data.first_name} ${data.last_name}`,
+              role: data.role,
+            },
+          },
+        }),
+        SESSION_TIMEOUT_MS
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      console.log('AuthContext: Signup successful');
+      // User state will be updated by onAuthStateChange listener
+    } catch (err) {
+      if (err instanceof Error && err.message === 'TIMEOUT') {
+        console.error('AuthContext: Signup timed out after', SESSION_TIMEOUT_MS, 'ms');
+        clearSupabaseStorage();
+        throw new Error('Signup timed out. Please try again.');
+      }
+      throw err;
     }
-    // User state will be updated by onAuthStateChange listener
   };
 
   const logout = async () => {
