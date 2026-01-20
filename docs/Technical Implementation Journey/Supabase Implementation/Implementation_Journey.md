@@ -628,13 +628,107 @@ const logout = async () => {
 
 ---
 
+## Step 20: Local-First Caching (20 January 2026)
+
+Implemented local-first architecture for instant page loading.
+
+**Problem:**
+- Supabase is in Asia Pacific, ~1-2 second latency from Middle East
+- Every page load waited for network request
+- Perceived as slow despite correct data
+
+**Solution:**
+Stale-while-revalidate caching pattern:
+
+1. **On page load:**
+   - Check localStorage cache for data
+   - If cached, return immediately (instant UI)
+   - If stale (>5 min), fetch fresh in background
+   - Update cache for next visit
+
+2. **On write operations:**
+   - Invalidate relevant cache entries
+   - Next read fetches fresh data
+
+**Implementation:**
+
+Created `src/lib/cache.ts`:
+```typescript
+// Cache configuration
+const STALE_TIME_MS = 5 * 60 * 1000;  // 5 minutes
+const MAX_AGE_MS = 60 * 60 * 1000;    // 1 hour
+
+// Stale-while-revalidate helper
+export async function cacheFirst<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  onUpdate?: (data: T) => void
+): Promise<T> {
+  const cached = getFromCache<T>(key);
+
+  if (cached !== null) {
+    if (isCacheStale(key)) {
+      // Refresh in background (don't await)
+      fetcher().then(fresh => {
+        saveToCache(key, fresh);
+        if (onUpdate) onUpdate(fresh);
+      });
+    }
+    return cached;  // Return immediately
+  }
+
+  // No cache - fetch from network
+  const fresh = await fetcher();
+  saveToCache(key, fresh);
+  return fresh;
+}
+```
+
+Modified `src/lib/supabase-api.ts`:
+```typescript
+// Before: Always waits for network
+export async function getClasses() {
+  const { data } = await supabase.from('classes').select('*');
+  return data;
+}
+
+// After: Returns cached data instantly, refreshes in background
+export async function getClasses() {
+  return cacheFirst('classes:teacher', () => fetchClassesFromSupabase());
+}
+```
+
+**Cached Functions:**
+- `getClasses()` - Teacher and student class lists
+- `getMyStudents()` - Teacher's student list
+- `getMyTeachers()` - Student's teacher list
+
+**Cache Invalidation:**
+- `createClass()` → invalidates `classes:*`
+- `deleteClass()` → invalidates `classes:*`
+- `addStudent()` → invalidates `students`
+- `removeStudent()` → invalidates `students`
+
+**Files Created:**
+- `src/lib/cache.ts` - Generic cache utilities
+
+**Files Modified:**
+- `src/lib/supabase-api.ts` - Added caching to read functions, invalidation to write functions
+
+**Result:**
+- ✅ Pages load instantly from cache
+- ✅ Fresh data arrives within 1-2 seconds
+- ✅ Write operations invalidate cache correctly
+- ✅ Offline-capable (reads from cache if network fails)
+
+---
+
 ## Next Steps (Pending)
 
 1. **Mobile Integration** - Update Flutter app to use Supabase client
 2. **Realtime Setup** - Enable realtime subscriptions for instant updates
 3. **Migrate Remaining Functions** - Tests, portion suggestions, etc.
 4. **Create Demo Accounts in Supabase** - Add test users to Supabase for development
-5. **Local-First Architecture** - Implement optimistic updates to improve perceived speed
 
 ---
 

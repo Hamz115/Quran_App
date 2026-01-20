@@ -792,6 +792,30 @@ Fixed app freezing when navigating quickly between pages.
 - `Classroom.tsx` - isMounted pattern on 5 useEffects
 - `QuranReader.tsx` - isMounted pattern on data loading
 
+### 20 January 2026 - Local-First Caching
+
+Implemented local-first architecture for instant page loading.
+
+**Problem:** Supabase cloud latency (~1-2s) made pages feel slow.
+
+**Solution:** Stale-while-revalidate caching:
+1. Return cached data instantly from localStorage
+2. Fetch fresh data in background if stale (>5 min)
+3. Update cache for next visit
+
+**Cached Functions:**
+- `getClasses()` - Teacher/student class lists
+- `getMyStudents()` - Teacher's student list
+- `getMyTeachers()` - Student's teacher list
+
+**New Files:**
+- `src/lib/cache.ts` - Generic cache utilities
+
+**Result:**
+- Pages load instantly from cache
+- Fresh data arrives in background
+- Works offline (reads from cache)
+
 ---
 
 ## Running the Project

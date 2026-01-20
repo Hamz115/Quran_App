@@ -1,13 +1,24 @@
 // Supabase API functions for QuranTrack
 // Handles: Students, Classes, Mistakes
 // Uses Supabase client with RLS for security
+// Uses local-first caching for instant loading
 
 import { supabase } from './supabase';
+import { cacheFirst, invalidateCache, saveToCache, getFromCache } from './cache';
 import type { StudentListItem, StudentLookup, TeacherListItem } from '../types';
+
+// Cache keys
+const CACHE_KEYS = {
+  STUDENTS: 'students',
+  TEACHERS: 'teachers',
+  CLASSES_TEACHER: 'classes:teacher',
+  CLASSES_STUDENT: 'classes:student',
+} as const;
 
 // ============ STUDENTS (Teacher functions) ============
 
-export async function getMyStudents(): Promise<StudentListItem[]> {
+// Internal fetcher (no cache)
+async function fetchStudentsFromSupabase(): Promise<StudentListItem[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -38,6 +49,11 @@ export async function getMyStudents(): Promise<StudentListItem[]> {
       added_at: row.created_at,
     };
   });
+}
+
+// Cached version - returns instantly if cached, refreshes in background
+export async function getMyStudents(): Promise<StudentListItem[]> {
+  return cacheFirst(CACHE_KEYS.STUDENTS, fetchStudentsFromSupabase);
 }
 
 export async function lookupStudent(email: string): Promise<StudentLookup> {
@@ -100,6 +116,9 @@ export async function addStudent(email: string): Promise<{ message: string }> {
     throw new Error(error.message);
   }
 
+  // Invalidate cache so next fetch gets fresh data
+  invalidateCache(CACHE_KEYS.STUDENTS);
+
   return { message: 'Student added successfully' };
 }
 
@@ -117,12 +136,16 @@ export async function removeStudent(studentId: string): Promise<{ message: strin
     throw new Error(error.message);
   }
 
+  // Invalidate cache
+  invalidateCache(CACHE_KEYS.STUDENTS);
+
   return { message: 'Student removed successfully' };
 }
 
 // ============ TEACHERS (Student functions) ============
 
-export async function getMyTeachers(): Promise<TeacherListItem[]> {
+// Internal fetcher (no cache)
+async function fetchTeachersFromSupabase(): Promise<TeacherListItem[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -150,6 +173,11 @@ export async function getMyTeachers(): Promise<TeacherListItem[]> {
       added_at: row.created_at,
     };
   });
+}
+
+// Cached version
+export async function getMyTeachers(): Promise<TeacherListItem[]> {
+  return cacheFirst(CACHE_KEYS.TEACHERS, fetchTeachersFromSupabase);
 }
 
 // ============ CLASSES ============
@@ -195,22 +223,12 @@ export interface ClassData {
   };
 }
 
-export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
+// Internal fetcher for classes (no cache)
+async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<ClassData[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Get user's role from profile if not specified
-  let userRole = role;
-  if (!userRole) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    userRole = profile?.role as 'teacher' | 'student';
-  }
-
-  if (userRole === 'teacher') {
+  if (role === 'teacher') {
     // Teachers see their own classes
     const { data, error } = await supabase
       .from('classes')
@@ -243,6 +261,38 @@ export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassDat
     if (error) throw new Error(error.message);
     return mapClassData(data ?? [], false);
   }
+}
+
+// Cached version - instant loading from cache, background refresh
+export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
+  // Get role from cache or profile if not specified
+  let userRole = role;
+  if (!userRole) {
+    // Try to get from cached profile first
+    const cachedProfile = getFromCache<{ role: string }>('profile');
+    if (cachedProfile) {
+      userRole = cachedProfile.role as 'teacher' | 'student';
+    } else {
+      // Fallback to fetching from Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      userRole = profile?.role as 'teacher' | 'student';
+
+      // Cache the profile role
+      if (profile) {
+        saveToCache('profile', { role: profile.role });
+      }
+    }
+  }
+
+  const cacheKey = userRole === 'teacher' ? CACHE_KEYS.CLASSES_TEACHER : CACHE_KEYS.CLASSES_STUDENT;
+  return cacheFirst(cacheKey, () => fetchClassesFromSupabase(userRole!));
 }
 
 export async function getClass(classId: string): Promise<ClassData> {
@@ -371,6 +421,9 @@ export async function createClass(classData: {
     if (assignmentsError) throw new Error(assignmentsError.message);
   }
 
+  // Invalidate classes cache
+  invalidateCache('classes');
+
   return { id: newClass.id, message: 'Class created successfully' };
 }
 
@@ -381,6 +434,10 @@ export async function deleteClass(classId: string): Promise<{ message: string }>
     .eq('id', classId);
 
   if (error) throw new Error(error.message);
+
+  // Invalidate classes cache
+  invalidateCache('classes');
+
   return { message: 'Class deleted successfully' };
 }
 
