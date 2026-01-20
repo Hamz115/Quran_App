@@ -47,6 +47,7 @@ Complete reference for all Supabase database objects in QuranTrack.
 |----------|---------|---------|
 | `handle_new_user()` | Create profile on signup | `on_auth_user_created` |
 | `update_updated_at()` | Auto-update timestamp | Multiple tables |
+| `is_class_teacher(uuid)` | Check if user owns a class (bypasses RLS) | Used in policies |
 
 ### Triggers Summary
 
@@ -314,15 +315,11 @@ USING (
 ```sql
 CREATE POLICY "Teachers can manage class students"
 ON class_students FOR ALL
-USING (
-    EXISTS (
-        SELECT 1 FROM classes c
-        WHERE c.id = class_students.class_id
-        AND c.teacher_id = auth.uid()
-    )
-);
+USING (public.is_class_teacher(class_id));
 ```
 **Effect:** Teachers can manage student assignments for their own classes.
+
+**Note:** This policy uses the `is_class_teacher()` SECURITY DEFINER function instead of a direct subquery to avoid RLS infinite recursion. The original policy queried `classes`, but `classes` has a policy that queries `class_students`, creating a circular dependency.
 
 #### 2. "Students can view own class associations"
 ```sql
@@ -476,6 +473,39 @@ $$ LANGUAGE plpgsql;
 **Behavior:**
 - Sets `updated_at` to current timestamp
 - Returns the modified row
+
+---
+
+### is_class_teacher(uuid)
+
+Checks if the current user is the teacher of a given class. Uses SECURITY DEFINER to bypass RLS and prevent infinite recursion.
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_class_teacher(p_class_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.classes
+    WHERE id = p_class_id
+    AND teacher_id = auth.uid()
+  )
+$$;
+
+-- Grant execute to authenticated users
+GRANT EXECUTE ON FUNCTION public.is_class_teacher(uuid) TO authenticated;
+```
+
+**Behavior:**
+- Returns `true` if `auth.uid()` matches the `teacher_id` of the specified class
+- Returns `false` otherwise
+
+**SECURITY DEFINER:** Runs with the privileges of the function owner (bypasses RLS). This is necessary to break the circular dependency between `classes` and `class_students` RLS policies.
+
+**Why This Exists:**
+The original `class_students` policy used a subquery to check `classes.teacher_id`. But `classes` has a policy that checks `class_students`. This created infinite recursion. By using a SECURITY DEFINER function, we bypass RLS within the function and break the cycle.
 
 ---
 
@@ -712,15 +742,29 @@ USING (
 -- CLASS_STUDENTS TABLE POLICIES
 -- =====================================================
 
+-- NOTE: Uses SECURITY DEFINER function to avoid RLS infinite recursion
+-- (classes policy queries class_students, class_students policy queries classes)
+
+-- First, create the helper function
+CREATE OR REPLACE FUNCTION public.is_class_teacher(p_class_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.classes
+    WHERE id = p_class_id
+    AND teacher_id = auth.uid()
+  )
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_class_teacher(uuid) TO authenticated;
+
+-- Then create the policy using the function
 CREATE POLICY "Teachers can manage class students"
 ON class_students FOR ALL
-USING (
-    EXISTS (
-        SELECT 1 FROM classes c
-        WHERE c.id = class_students.class_id
-        AND c.teacher_id = auth.uid()
-    )
-);
+USING (public.is_class_teacher(class_id));
 
 CREATE POLICY "Students can view own class associations"
 ON class_students FOR SELECT

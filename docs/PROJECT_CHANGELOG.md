@@ -578,9 +578,10 @@ Set up Supabase project and created all database objects.
 - `update_classes_updated_at` - Auto-update timestamp
 - `update_mistakes_updated_at` - Auto-update timestamp
 
-**Database Functions Created (2):**
+**Database Functions Created (3):**
 - `handle_new_user()` - Creates profile from auth signup
 - `update_updated_at()` - Updates timestamp on row changes
+- `is_class_teacher(uuid)` - Check class ownership (SECURITY DEFINER, bypasses RLS)
 
 **Saved SQL Queries in Supabase:**
 1. QuranTrack Supabase Schema
@@ -633,6 +634,94 @@ Integrated Supabase into the React frontend.
 - **Hybrid approach** allows cloud sync for user data while keeping Quran data local
 
 See: [Supabase_Frontend_Integration_Reference.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Supabase_Frontend_Integration_Reference.md)
+
+---
+
+### 20 January 2026 - RLS Infinite Recursion Fix
+
+During testing, discovered and fixed a critical RLS policy bug.
+
+**Problem:**
+- App stuck on "Loading..." screen after login
+- Console error: `"infinite recursion detected in policy for relation 'class_students'"`
+
+**Root Cause:**
+Circular dependency between two RLS policies:
+1. `classes` policy queried `class_students` table
+2. `class_students` policy queried `classes` table
+→ Infinite recursion loop
+
+**Solution:**
+Created a `SECURITY DEFINER` function to break the cycle:
+
+```sql
+-- Function bypasses RLS to check class ownership
+CREATE OR REPLACE FUNCTION public.is_class_teacher(p_class_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.classes
+    WHERE id = p_class_id
+    AND teacher_id = auth.uid()
+  )
+$$;
+
+-- New policy uses function instead of subquery
+CREATE POLICY "Teachers can manage class students"
+ON public.class_students FOR ALL
+USING (public.is_class_teacher(class_id));
+```
+
+**New Database Function:**
+| Function | Purpose |
+|----------|---------|
+| `is_class_teacher(uuid)` | Check class ownership without triggering RLS |
+
+**Testing Results:**
+- ✅ Login successful
+- ✅ Auth state changes properly (INITIAL_SESSION → SIGNED_IN)
+- ✅ Dashboard loads correctly
+- ✅ No RLS recursion errors
+
+See: [Implementation_Journey.md](./Technical%20Implementation%20Journey/Supabase%20Implementation/Implementation_Journey.md)
+
+### 20 January 2026 - Race Condition Fix
+
+Fixed a race condition causing app to freeze when navigating quickly between pages.
+
+**Problem:** Clicking rapidly between pages (My Classes → My Dashboard) caused infinite loading state.
+
+**Cause:** API calls continued after component unmount, corrupting state.
+
+**Solution:** Added `isMounted` cleanup pattern to all page components:
+- `StudentDashboard.tsx`
+- `StudentClasses.tsx`
+- `TeacherDashboard.tsx`
+- `TeacherClasses.tsx`
+
+### 20 January 2026 - localStorage Corruption Fix
+
+Fixed critical issue where Supabase client hung indefinitely on `getSession()`.
+
+**Problem:** App stuck on "Loading..." forever despite valid session token in localStorage.
+
+**Diagnosis:**
+1. Fresh Supabase client with memory storage → `getSession()` works instantly (1ms)
+2. Same client with localStorage → times out after 5 seconds
+3. Direct API fetch → 200 OK
+4. Conclusion: localStorage data corrupted
+
+**Solution:** Clear Supabase localStorage entries:
+```javascript
+Object.keys(localStorage)
+  .filter(k => k.includes('sb-'))
+  .forEach(k => localStorage.removeItem(k));
+```
+
+**Prevention:** Added error handling and `isMounted` cleanup to AuthContext.tsx.
 
 ---
 

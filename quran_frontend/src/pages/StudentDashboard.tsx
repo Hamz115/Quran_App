@@ -64,6 +64,9 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Track if component is still mounted to prevent state updates after unmount
+    let isMounted = true;
+
     // Always get student-specific data (classes attended, own mistakes)
     // This works for both regular students AND teachers who are also students
     async function loadData() {
@@ -73,16 +76,27 @@ export default function StudentDashboard() {
           getClasses('student'),  // Get classes where enrolled as student
           getMyTeachers()
         ]);
-        setStats(statsData);
-        setClasses(classesData);
-        setTeachers(teachersData);
+
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setStats(statsData);
+          setClasses(classesData);
+          setTeachers(teachersData);
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     loadData();
+
+    // Cleanup function - runs when component unmounts
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) {

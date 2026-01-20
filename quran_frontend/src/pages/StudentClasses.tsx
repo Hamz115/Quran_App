@@ -81,21 +81,31 @@ export default function StudentClasses() {
   const [notesDate, setNotesDate] = useState('');
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       try {
         const [classesData, teachersData] = await Promise.all([
           getClasses('student'),
           getMyTeachers()
         ]);
-        setClasses(classesData);
-        setTeachers(teachersData);
+        if (isMounted) {
+          setClasses(classesData);
+          setTeachers(teachersData);
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Failed to load data:', err);
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Get all unique months from classes (for tabs)

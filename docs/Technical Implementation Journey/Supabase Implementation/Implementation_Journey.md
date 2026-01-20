@@ -250,12 +250,185 @@ Verified all changes compile without errors.
 
 ---
 
+## Step 13: RLS Infinite Recursion Fix (20 January 2026)
+
+During testing, discovered a critical RLS policy bug causing infinite recursion.
+
+**Problem Discovered:**
+- App stuck on "Loading..." screen after login
+- Browser console showed: `"infinite recursion detected in policy for relation 'class_students'"`
+
+**Root Cause:**
+Two RLS policies created a circular dependency:
+1. `classes` table policy "Students can view their classes" queried `class_students` table
+2. `class_students` table policy "Teachers can manage class students" queried `classes` table
+
+When PostgreSQL evaluated the `class_students` policy, it triggered the `classes` policy, which triggered `class_students` again → infinite loop.
+
+**Solution:**
+Created a `SECURITY DEFINER` function to break the recursion cycle:
+
+```sql
+-- Function that bypasses RLS to check class ownership
+CREATE OR REPLACE FUNCTION public.is_class_teacher(p_class_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.classes
+    WHERE id = p_class_id
+    AND teacher_id = auth.uid()
+  )
+$$;
+
+-- Drop the problematic policy
+DROP POLICY "Teachers can manage class students" ON public.class_students;
+
+-- Create new policy using the function (no recursion)
+CREATE POLICY "Teachers can manage class students"
+ON public.class_students FOR ALL
+USING (public.is_class_teacher(class_id));
+
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION public.is_class_teacher(uuid) TO authenticated;
+```
+
+**Why SECURITY DEFINER Works:**
+- `SECURITY DEFINER` functions run with the privileges of the function owner (postgres)
+- This bypasses RLS checks within the function
+- The function can query `classes` directly without triggering the `classes` RLS policy
+- Breaks the circular dependency while maintaining security
+
+**Testing Results:**
+- ✅ Login successful - no more infinite loading
+- ✅ Auth state changes properly (INITIAL_SESSION → SIGNED_IN)
+- ✅ Student dashboard loads correctly
+- ✅ User profile displays properly
+- ✅ No console errors
+
+---
+
+## Step 14: Frontend Integration Verified (20 January 2026)
+
+Full integration testing completed successfully.
+
+**Test Results:**
+- Auth flow: ✅ Working
+- Session persistence: ✅ Working
+- Profile fetch: ✅ Working
+- Dashboard loading: ✅ Working
+
+**Technical Notes:**
+- Cleared stale localStorage to fix initial loading issue
+- Demo accounts from Login.tsx won't work (they're from old SQLite database)
+- Real Supabase accounts must be created via signup or dashboard
+
+---
+
+## Step 15: Race Condition Fix (20 January 2026)
+
+Added cleanup handlers to prevent state updates on unmounted components.
+
+**Problem Discovered:**
+- Clicking quickly between pages (My Classes → My Dashboard) caused app to freeze
+- All pages showed "Loading..." indefinitely
+- Even sign out stopped working
+- No console errors visible
+
+**Root Cause:**
+When navigating quickly:
+1. Component A starts loading data (API calls to Supabase)
+2. User navigates to Component B before API returns
+3. Component A unmounts but API calls still pending
+4. API returns, tries to update state on unmounted component
+5. State gets corrupted, app freezes
+
+**Solution:**
+Added `isMounted` flag pattern to all page components:
+
+```typescript
+useEffect(() => {
+  let isMounted = true;
+
+  async function loadData() {
+    try {
+      const data = await getClasses('student');
+      if (isMounted) {
+        setClasses(data);
+        setLoading(false);
+      }
+    } catch (err) {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }
+  }
+  loadData();
+
+  return () => {
+    isMounted = false;  // Cleanup on unmount
+  };
+}, []);
+```
+
+**Files Modified:**
+- `src/pages/StudentDashboard.tsx`
+- `src/pages/StudentClasses.tsx`
+- `src/pages/TeacherDashboard.tsx`
+- `src/pages/TeacherClasses.tsx`
+
+---
+
+## Step 16: localStorage Corruption Fix (20 January 2026)
+
+Diagnosed and fixed a critical issue where the Supabase client hung indefinitely on `getSession()`.
+
+**Problem Discovered:**
+- App stuck on "Loading..." forever after successful login
+- Session token existed in localStorage (`sb-qwfnbkkegbhwxxjvyhzl-auth-token`)
+- Token was NOT expired (49 minutes remaining)
+- No console errors visible
+- Network requests to Supabase API never appeared
+
+**Diagnosis Process:**
+1. Created fresh Supabase client with memory storage → `getSession()` completed instantly (1ms)
+2. Same client with localStorage → `getSession()` timed out after 5 seconds
+3. Direct fetch to Supabase API → 200 OK response
+4. Conclusion: localStorage data was corrupted, causing Supabase client to hang
+
+**Solution:**
+Clear all Supabase-related localStorage entries:
+
+```javascript
+// Clear corrupted localStorage
+const keys = Object.keys(localStorage).filter(k => k.includes('sb-') || k.includes('supabase'));
+keys.forEach(k => localStorage.removeItem(k));
+```
+
+After clearing, the app worked immediately and login created a fresh, valid session.
+
+**Prevention:**
+Added better error handling and logging to AuthContext.tsx:
+- Try-catch around `getSession()` call
+- `isMounted` cleanup pattern to prevent orphaned promises
+- Detailed logging for debugging auth issues
+
+**Technical Notes:**
+- The Supabase JS client can hang if localStorage contains malformed session data
+- This can happen if browser crashes during session save or during debugging
+- The session token looked valid (parseable JSON, correct structure) but something internal caused the hang
+- Using memory storage bypasses the issue but loses session persistence
+
+---
+
 ## Next Steps (Pending)
 
-1. **Testing** - Full integration testing with Supabase backend
-2. **Mobile Integration** - Update Flutter app to use Supabase client
-3. **Realtime Setup** - Enable realtime subscriptions for instant updates
-4. **Migrate Remaining Functions** - Tests, portion suggestions, etc.
+1. **Mobile Integration** - Update Flutter app to use Supabase client
+2. **Realtime Setup** - Enable realtime subscriptions for instant updates
+3. **Migrate Remaining Functions** - Tests, portion suggestions, etc.
+4. **Create Demo Accounts in Supabase** - Add test users to Supabase for development
 
 ---
 

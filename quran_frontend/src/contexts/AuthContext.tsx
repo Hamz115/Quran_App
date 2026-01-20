@@ -63,34 +63,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state on mount and listen for changes
   useEffect(() => {
+    let isMounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
-        setUser(profile);
-      }
-      setIsLoading(false);
-    });
+    console.log('AuthContext: Starting getSession...');
+    supabase.auth.getSession()
+      .then(async ({ data: { session }, error }) => {
+        console.log('AuthContext: getSession completed', { hasSession: !!session, error });
+
+        if (!isMounted) {
+          console.log('AuthContext: Component unmounted, skipping state update');
+          return;
+        }
+
+        if (error) {
+          console.error('AuthContext: getSession error:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        setSession(session);
+        if (session?.user) {
+          console.log('AuthContext: Fetching profile for user:', session.user.id);
+          try {
+            const profile = await fetchUserProfile(session.user.id);
+            if (isMounted) {
+              setUser(profile);
+              console.log('AuthContext: Profile loaded:', profile?.email);
+            }
+          } catch (profileError) {
+            console.error('AuthContext: Profile fetch error:', profileError);
+          }
+        }
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('AuthContext: getSession failed:', err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event);
+        console.log('Auth state changed:', event, { hasSession: !!session });
+
+        if (!isMounted) return;
+
         setSession(session);
 
         if (session?.user) {
-          const profile = await fetchUserProfile(session.user.id);
-          setUser(profile);
+          try {
+            const profile = await fetchUserProfile(session.user.id);
+            if (isMounted) {
+              setUser(profile);
+            }
+          } catch (profileError) {
+            console.error('AuthContext: Profile fetch in onAuthStateChange error:', profileError);
+          }
         } else {
           setUser(null);
         }
 
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

@@ -26,7 +26,32 @@ export default function TeacherDashboard() {
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    loadData();
+    let isMounted = true;
+
+    async function loadInitialData() {
+      try {
+        const [studentsData, classesData] = await Promise.all([
+          getMyStudents(),
+          getClasses()
+        ]);
+        if (isMounted) {
+          setStudents(studentsData);
+          setClasses(classesData);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadInitialData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   async function loadData() {
