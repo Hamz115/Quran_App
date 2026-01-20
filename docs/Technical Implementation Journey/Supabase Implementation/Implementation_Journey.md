@@ -547,6 +547,87 @@ function clearSupabaseStorage() {
 
 ---
 
+## Step 19: Rapid Navigation Fix (20 January 2026)
+
+Fixed app freezing when navigating quickly between pages.
+
+**Problem Discovered:**
+- Clicking quickly between pages (Dashboard → Classes → Classroom) caused app to freeze
+- All pages showed "Loading..." indefinitely
+- Sign out stopped working
+- Console showed "component unmounted" messages
+
+**Root Cause:**
+Async operations completing after component unmount corrupted React state:
+1. Component A starts async data fetch (Supabase query)
+2. User navigates to Component B before fetch completes
+3. Component A unmounts but async operation continues
+4. Operation completes, tries to setState on unmounted component
+5. State corruption → app freezes
+
+**Solution:**
+Three-part fix:
+
+1. **15-Second Stuck Timer (Nuclear Option):**
+```typescript
+// In AuthContext - auto-recover if loading hangs
+stuckTimer = setTimeout(() => {
+  if (isMounted && isLoading) {
+    console.error('STUCK - triggering emergency reset');
+    clearSupabaseStorage();
+    window.location.reload();
+  }
+}, 15000);
+```
+
+2. **isMounted Cleanup Pattern:**
+Added to all page components with async data loading:
+```typescript
+useEffect(() => {
+  let isMounted = true;
+
+  async function loadData() {
+    const data = await fetchFromSupabase();
+    if (isMounted) {  // Only update if still mounted
+      setData(data);
+    }
+  }
+  loadData();
+
+  return () => { isMounted = false; };
+}, []);
+```
+
+3. **Optimistic Logout:**
+```typescript
+const logout = async () => {
+  // Clear state IMMEDIATELY (UI responds instantly)
+  setUser(null);
+  setSession(null);
+
+  // Then try signOut with timeout (non-blocking)
+  try {
+    await withTimeout(supabase.auth.signOut(), 5000);
+  } catch {
+    clearSupabaseStorage(); // Force cleanup if hung
+  }
+};
+```
+
+**Files Modified:**
+- `src/contexts/AuthContext.tsx` - Stuck timer, optimistic logout, emergency reset
+- `src/lib/supabase.ts` - Centralized clearSupabaseStorage and resetSupabaseAndReload
+- `src/pages/Classroom.tsx` - Added isMounted to 5 useEffects
+- `src/pages/QuranReader.tsx` - Added isMounted to data loading
+
+**Result:**
+- ✅ App never freezes permanently (15-second auto-recovery)
+- ✅ Logout works instantly (optimistic update)
+- ✅ Navigation doesn't corrupt state (isMounted pattern)
+- ✅ Emergency reset available for manual recovery
+
+---
+
 ## Next Steps (Pending)
 
 1. **Mobile Integration** - Update Flutter app to use Supabase client

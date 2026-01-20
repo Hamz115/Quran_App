@@ -775,6 +775,23 @@ const login = async (email: string, password: string) => {
 - User sees "Login timed out. Please try again." message if slow
 - Corrupted sessions auto-recovered on retry
 
+### 20 January 2026 - Rapid Navigation Fix
+
+Fixed app freezing when navigating quickly between pages.
+
+**Problem:** Clicking quickly between pages caused async operations to complete after component unmount, corrupting React state and freezing the app.
+
+**Solution:**
+1. **15-second stuck timer** - Auto page reload with cleared storage if loading hangs
+2. **isMounted cleanup** - All async data loading in Classroom.tsx and QuranReader.tsx properly cancelled on unmount
+3. **Optimistic logout** - State cleared immediately so logout never hangs
+
+**Files Modified:**
+- `AuthContext.tsx` - Stuck timer, optimistic logout
+- `supabase.ts` - Centralized reset functions
+- `Classroom.tsx` - isMounted pattern on 5 useEffects
+- `QuranReader.tsx` - isMounted pattern on data loading
+
 ---
 
 ## Running the Project
