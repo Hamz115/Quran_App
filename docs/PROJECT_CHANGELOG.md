@@ -723,6 +723,27 @@ Object.keys(localStorage)
 
 **Prevention:** Added error handling and `isMounted` cleanup to AuthContext.tsx.
 
+### 20 January 2026 - Role-Based Routing Fix
+
+Fixed issue where teachers were being routed to Student View instead of Teacher View.
+
+**Problems:**
+1. Dashboard.tsx redirected based on `isVerified` instead of `user.role`
+2. Teacher routes required `requireVerified` prop (which was FALSE for everyone)
+3. Layout.tsx role switcher only showed for verified users
+4. User dropdown showed "Verified Student" and "Upgrade to Teacher" for teachers
+
+**Files Modified:**
+- `Dashboard.tsx` - Redirect based on `user.role` instead of `isVerified`
+- `App.tsx` - Removed `requireVerified` from teacher routes
+- `Layout.tsx` - Show role switcher for teachers, correct badge based on role
+
+**Result:**
+- Teachers now correctly see Teacher Dashboard on login
+- Teacher/Student toggle visible in header for teachers
+- "Teacher Account" badge shown correctly in dropdown
+- "Upgrade to Teacher" only shown for actual students
+
 ---
 
 ## Running the Project

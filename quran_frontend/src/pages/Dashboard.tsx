@@ -4,18 +4,18 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { isVerified, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading) {
-      // Redirect based on role
-      if (isVerified) {
+    if (!isLoading && user) {
+      // Redirect based on user role
+      if (user.role === 'teacher') {
         navigate('/teacher', { replace: true });
       } else {
         navigate('/student', { replace: true });
       }
     }
-  }, [isVerified, isLoading, navigate]);
+  }, [user, isLoading, navigate]);
 
   return (
     <div className="flex items-center justify-center h-64">

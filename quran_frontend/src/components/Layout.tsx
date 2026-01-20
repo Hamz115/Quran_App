@@ -7,7 +7,7 @@ type UserRole = 'teacher' | 'student';
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isVerified, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [role, setRole] = useState<UserRole>('student');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -88,8 +88,8 @@ export default function Layout() {
 
           {/* User Menu & Role Switcher */}
           <div className="flex items-center gap-4">
-            {/* Role Switcher - only show if verified */}
-            {isVerified && (
+            {/* Role Switcher - only show for teachers (they can view as student too) */}
+            {user?.role === 'teacher' && (
               <div className="flex items-center bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
                 <button
                   onClick={() => handleRoleSwitch('teacher')}
@@ -167,26 +167,26 @@ export default function Layout() {
                           </svg>
                         </button>
                       </div>
-                      {isVerified ? (
-                        <span className="inline-flex items-center gap-1 mt-2 text-xs text-emerald-400">
+                      {user?.role === 'teacher' ? (
+                        <span className="inline-flex items-center gap-1 mt-2 text-xs text-blue-400">
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
-                          Verified Teacher
+                          Teacher Account
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 mt-2 text-xs text-purple-400">
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
-                          Verified Student
+                          Student Account
                         </span>
                       )}
                     </div>
 
                     {/* Menu Items */}
                     <div className="p-2">
-                      {!isVerified && (
+                      {user?.role === 'student' && (
                         <button
                           onClick={() => {
                             setShowUserMenu(false);

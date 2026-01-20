@@ -35,31 +35,10 @@ function App() {
             {/* Default dashboard */}
             <Route index element={<Dashboard />} />
 
-            {/* Teacher Routes (require verification) */}
-            <Route
-              path="teacher"
-              element={
-                <ProtectedRoute requireVerified>
-                  <TeacherDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="teacher/classes"
-              element={
-                <ProtectedRoute requireVerified>
-                  <TeacherClasses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="teacher/classes/:id"
-              element={
-                <ProtectedRoute requireVerified>
-                  <Classroom />
-                </ProtectedRoute>
-              }
-            />
+            {/* Teacher Routes */}
+            <Route path="teacher" element={<TeacherDashboard />} />
+            <Route path="teacher/classes" element={<TeacherClasses />} />
+            <Route path="teacher/classes/:id" element={<Classroom />} />
 
             {/* Student Routes */}
             <Route path="student" element={<StudentDashboard />} />

@@ -423,6 +423,62 @@ Added better error handling and logging to AuthContext.tsx:
 
 ---
 
+## Step 17: Role-Based Routing Fix (20 January 2026)
+
+Fixed issue where teachers were incorrectly routed to Student View.
+
+**Problem Discovered:**
+- Both teacher accounts showed Student View after login
+- Role switcher (Teacher/Student toggle) not visible
+- Dropdown showed "Verified Student" and "Upgrade to Teacher" for teachers
+
+**Root Cause:**
+The code was using `isVerified` (from `user.is_verified` field) instead of `user.role`:
+- `Dashboard.tsx` redirected based on `isVerified` not `user.role`
+- `App.tsx` teacher routes had `requireVerified` prop
+- `Layout.tsx` showed role switcher only when `isVerified === true`
+- All accounts had `is_verified: FALSE` in Supabase
+
+**Solution:**
+Changed all checks from `isVerified` to `user.role`:
+
+```typescript
+// Dashboard.tsx - Redirect based on role
+if (user.role === 'teacher') {
+  navigate('/teacher', { replace: true });
+} else {
+  navigate('/student', { replace: true });
+}
+
+// Layout.tsx - Show role switcher for teachers
+{user?.role === 'teacher' && (
+  <div className="flex items-center...">
+    <button onClick={() => handleRoleSwitch('teacher')}>Teacher</button>
+    <button onClick={() => handleRoleSwitch('student')}>Student</button>
+  </div>
+)}
+
+// Layout.tsx - Show correct badge
+{user?.role === 'teacher' ? (
+  <span>Teacher Account</span>
+) : (
+  <span>Student Account</span>
+)}
+```
+
+**Files Modified:**
+- `src/pages/Dashboard.tsx` - Use `user.role` for redirect
+- `src/App.tsx` - Remove `requireVerified` from teacher routes
+- `src/components/Layout.tsx` - Use `user.role` for switcher visibility and badge
+
+**Result:**
+- ✅ Teachers now see Teacher Dashboard on login
+- ✅ Teacher/Student toggle visible in header
+- ✅ "Teacher Account" badge in dropdown
+- ✅ "Upgrade to Teacher" only for students
+
+---
+
 ## Next Steps (Pending)
 
 1. **Mobile Integration** - Update Flutter app to use Supabase client
