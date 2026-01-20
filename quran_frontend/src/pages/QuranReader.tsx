@@ -143,10 +143,14 @@ export default function QuranReader() {
 
   // Load words from backend API
   useEffect(() => {
+    let isMounted = true;
+
     const loadPageWords = async () => {
       setLoading(true);
       try {
         const words = await getQuranPageWords(currentPage);
+
+        if (!isMounted) return;
 
         const lineMap = new Map<number, WordData[]>();
         const surahSet = new Set<number>();
@@ -177,35 +181,41 @@ export default function QuranReader() {
       } catch (err) {
         console.error('Failed to load page words:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     loadPageWords();
+
+    return () => { isMounted = false; };
   }, [currentPage]);
 
   // Load mistakes for surahs on current page
-  const loadMistakes = useCallback(async () => {
+  useEffect(() => {
     if (!user || surahs.length === 0) return;
 
-    setMistakesLoading(true);
-    try {
-      const allMistakes: MistakeData[] = [];
-      for (const surahNum of surahs) {
-        const surahMistakes = await getMistakes(surahNum);
-        allMistakes.push(...surahMistakes);
-      }
-      setMistakes(allMistakes);
-    } catch (err) {
-      console.error('Failed to load mistakes:', err);
-    } finally {
-      setMistakesLoading(false);
-    }
-  }, [user, surahs]);
+    let isMounted = true;
 
-  useEffect(() => {
+    const loadMistakes = async () => {
+      setMistakesLoading(true);
+      try {
+        const allMistakes: MistakeData[] = [];
+        for (const surahNum of surahs) {
+          const surahMistakes = await getMistakes(surahNum);
+          allMistakes.push(...surahMistakes);
+        }
+        if (isMounted) setMistakes(allMistakes);
+      } catch (err) {
+        console.error('Failed to load mistakes:', err);
+      } finally {
+        if (isMounted) setMistakesLoading(false);
+      }
+    };
+
     loadMistakes();
-  }, [loadMistakes]);
+
+    return () => { isMounted = false; };
+  }, [user, surahs]);
 
   const canGoNext = currentPage < TOTAL_PAGES;
   const canGoPrev = currentPage > 1;

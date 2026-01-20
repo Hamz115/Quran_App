@@ -238,10 +238,14 @@ export default function Classroom() {
 
   // Load page words from backend
   useEffect(() => {
+    let isMounted = true;
+
     const loadPageWords = async () => {
       setPageLoading(true);
       try {
         const words = await getQuranPageWords(currentPage);
+
+        if (!isMounted) return;
 
         const lineMap = new Map<number, WordData[]>();
 
@@ -267,19 +271,24 @@ export default function Classroom() {
       } catch (err) {
         console.error('Failed to load page words:', err);
       } finally {
-        setPageLoading(false);
+        if (isMounted) setPageLoading(false);
       }
     };
 
     loadPageWords();
+
+    return () => { isMounted = false; };
   }, [currentPage]);
 
   // Load class data
   useEffect(() => {
     if (!id) return;
+    let isMounted = true;
+
     setLoading(true);
     getClass(Number(id))
       .then((data) => {
+        if (!isMounted) return;
         setClassData(data);
         setNotesText(data.notes || '');
         if (data.assignments.length > 0) {
@@ -291,12 +300,20 @@ export default function Classroom() {
         }
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => { isMounted = false; };
   }, [id, isTeacher, preSelectedStudentId]);
 
   // Load surah list
   useEffect(() => {
-    getSurahs().then(setSurahList).catch(console.error);
+    let isMounted = true;
+    getSurahs()
+      .then(data => { if (isMounted) setSurahList(data); })
+      .catch(console.error);
+    return () => { isMounted = false; };
   }, []);
 
   // Load mistakes
@@ -306,17 +323,21 @@ export default function Classroom() {
       return;
     }
 
+    let isMounted = true;
     getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined)
-      .then(data => setMistakes(data || []))
+      .then(data => { if (isMounted) setMistakes(data || []); })
       .catch(console.error);
+    return () => { isMounted = false; };
   }, [isTeacher, selectedStudentId]);
 
   // Load test data for test classes
   useEffect(() => {
     if (!classData || classData.class_type !== 'test') return;
 
+    let isMounted = true;
     getTestByClass(classData.id)
       .then(data => {
+        if (!isMounted) return;
         setTestData(data);
         // Find current in-progress question
         const inProgressQ = data.questions?.find(q => q.status === 'in_progress');
@@ -326,6 +347,7 @@ export default function Classroom() {
         }
       })
       .catch(console.error);
+    return () => { isMounted = false; };
   }, [classData?.id, classData?.class_type]);
 
   // Get assignments for active section (or all assignments for test class)
