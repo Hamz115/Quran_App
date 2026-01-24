@@ -816,6 +816,41 @@ Implemented local-first architecture for instant page loading.
 - Fresh data arrives in background
 - Works offline (reads from cache)
 
+### 24 January 2026 - Local-First Sync with app.db
+
+Implemented true local-first architecture with app.db as primary storage and Supabase sync.
+
+**Architecture:**
+```
+Frontend → FastAPI → app.db (instant)
+                ↓ background
+            Supabase (cloud sync)
+```
+
+**Why:**
+- localStorage cache can be cleared by browser
+- app.db is persistent, proper database
+- True offline support
+
+**New Backend Files:**
+- `sync_service.py` - Push/pull sync with Supabase
+- `.env.example` - Environment variable template
+
+**New Frontend Files:**
+- `src/lib/local-api.ts` - API for local operations
+
+**New Endpoints:**
+- `POST /api/local/classes` - Create class locally (instant)
+- `GET /api/local/classes` - Get classes from app.db
+- `POST /api/local/mistakes` - Add mistake locally
+- `POST /api/sync` - Trigger background sync
+- `GET /api/sync/status` - Check pending/synced count
+
+**Setup:**
+1. Copy `.env.example` to `.env` in quran_backend/
+2. Add your Supabase URL and service key
+3. Install: `pip install -r requirements.txt`
+
 ---
 
 ## Running the Project

@@ -17,10 +17,14 @@ Tables synced:
 
 import os
 import sqlite3
-import asyncio
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env")
+
 from supabase import create_client, Client
 
 # Database paths
