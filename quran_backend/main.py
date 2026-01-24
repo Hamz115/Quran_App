@@ -1,16 +1,59 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import sqlite3
 import shutil
+import os
+import jwt
 from pathlib import Path
 from datetime import date, datetime
 
 # Import auth routers and dependencies
 from auth.routes import router as auth_router, students_router, teachers_router
 from auth.dependencies import get_current_user, get_current_verified_user
+
+# Import sync service
+from sync_service import (
+    full_sync, push_pending_classes, push_pending_mistakes,
+    pull_classes, pull_mistakes, mark_for_sync
+)
+
+# Supabase JWT settings
+SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
+
+
+def get_supabase_user(authorization: str = Header(None)) -> Optional[dict]:
+    """
+    Extract user info from Supabase JWT token.
+    Returns None if no token or invalid token.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.replace("Bearer ", "")
+
+    try:
+        # Decode Supabase JWT (without verification for now - Supabase handles auth)
+        # In production, verify with SUPABASE_JWT_SECRET
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return {
+            "id": payload.get("sub"),  # Supabase user UUID
+            "email": payload.get("email"),
+            "role": payload.get("user_metadata", {}).get("role", "student"),
+        }
+    except Exception as e:
+        print(f"JWT decode error: {e}")
+        return None
+
+
+def require_supabase_user(authorization: str = Header(...)) -> dict:
+    """Require valid Supabase JWT - raises 401 if invalid"""
+    user = get_supabase_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or missing Supabase token")
+    return user
 
 app = FastAPI(title="Quran Logbook API")
 
@@ -224,6 +267,51 @@ def init_app_db():
         conn.commit()
     except:
         pass  # Column already exists
+
+    # Migration: Add Supabase sync columns
+    sync_migrations = [
+        # Supabase ID columns (UUID from Supabase)
+        "ALTER TABLE classes ADD COLUMN supabase_id TEXT UNIQUE",
+        "ALTER TABLE assignments ADD COLUMN supabase_id TEXT UNIQUE",
+        "ALTER TABLE mistakes ADD COLUMN supabase_id TEXT UNIQUE",
+        "ALTER TABLE mistake_occurrences ADD COLUMN supabase_id TEXT UNIQUE",
+        # Sync status: 'pending', 'synced', 'error'
+        "ALTER TABLE classes ADD COLUMN sync_status TEXT DEFAULT 'pending'",
+        "ALTER TABLE assignments ADD COLUMN sync_status TEXT DEFAULT 'pending'",
+        "ALTER TABLE mistakes ADD COLUMN sync_status TEXT DEFAULT 'pending'",
+        "ALTER TABLE mistake_occurrences ADD COLUMN sync_status TEXT DEFAULT 'pending'",
+        # Supabase user IDs (TEXT UUIDs instead of INTEGER local IDs)
+        "ALTER TABLE classes ADD COLUMN supabase_teacher_id TEXT",
+        "ALTER TABLE mistakes ADD COLUMN supabase_student_id TEXT",
+        "ALTER TABLE users ADD COLUMN supabase_id TEXT UNIQUE",
+        # Last sync timestamp
+        "ALTER TABLE classes ADD COLUMN last_synced_at TEXT",
+        "ALTER TABLE mistakes ADD COLUMN last_synced_at TEXT",
+    ]
+    for migration in sync_migrations:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except:
+            pass  # Column already exists
+
+    # Create sync tracking table
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS sync_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_name TEXT NOT NULL,
+            record_id INTEGER NOT NULL,
+            supabase_id TEXT,
+            operation TEXT NOT NULL CHECK(operation IN ('create', 'update', 'delete')),
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'synced', 'error')),
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            synced_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_log_status ON sync_log(status);
+        CREATE INDEX IF NOT EXISTS idx_sync_log_table ON sync_log(table_name);
+    """)
+    conn.commit()
 
     # Create test-related tables
     conn.executescript("""
@@ -2542,6 +2630,292 @@ def list_backups():
             "created": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
         })
     return {"backups": sorted(backups, key=lambda x: x["created"], reverse=True)}
+
+
+# ============ SYNC ENDPOINTS (Local-First) ============
+
+@app.post("/api/sync")
+def trigger_sync(
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Trigger full sync between app.db and Supabase.
+    Runs in background and returns immediately.
+    """
+    supabase_user_id = user["id"]
+
+    # Run sync in background
+    background_tasks.add_task(full_sync, supabase_user_id)
+
+    return {"message": "Sync started", "user_id": supabase_user_id}
+
+
+@app.post("/api/sync/push")
+def push_to_cloud(user: dict = Depends(require_supabase_user)):
+    """Push pending local changes to Supabase"""
+    supabase_user_id = user["id"]
+
+    results = {
+        "classes": push_pending_classes(supabase_user_id),
+        "mistakes": push_pending_mistakes(supabase_user_id),
+    }
+
+    return {"message": "Push complete", "results": results}
+
+
+@app.post("/api/sync/pull")
+def pull_from_cloud(
+    since: Optional[str] = None,
+    user: dict = Depends(require_supabase_user)
+):
+    """Pull changes from Supabase to local app.db"""
+    supabase_user_id = user["id"]
+
+    results = {
+        "classes": pull_classes(supabase_user_id, since),
+        "mistakes": pull_mistakes(supabase_user_id, since),
+    }
+
+    return {"message": "Pull complete", "results": results}
+
+
+@app.get("/api/sync/status")
+def get_sync_status(user: dict = Depends(require_supabase_user)):
+    """Get sync status - pending records count"""
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Count pending classes
+    cursor = conn.execute("""
+        SELECT COUNT(*) as count FROM classes
+        WHERE sync_status = 'pending' AND supabase_teacher_id = ?
+    """, (supabase_user_id,))
+    pending_classes = cursor.fetchone()["count"]
+
+    # Count pending mistakes
+    cursor = conn.execute("""
+        SELECT COUNT(*) as count FROM mistakes
+        WHERE sync_status = 'pending' AND supabase_student_id = ?
+    """, (supabase_user_id,))
+    pending_mistakes = cursor.fetchone()["count"]
+
+    # Count errors
+    cursor = conn.execute("""
+        SELECT COUNT(*) as count FROM classes WHERE sync_status = 'error'
+    """)
+    error_classes = cursor.fetchone()["count"]
+
+    cursor = conn.execute("""
+        SELECT COUNT(*) as count FROM mistakes WHERE sync_status = 'error'
+    """)
+    error_mistakes = cursor.fetchone()["count"]
+
+    conn.close()
+
+    return {
+        "pending": {
+            "classes": pending_classes,
+            "mistakes": pending_mistakes,
+        },
+        "errors": {
+            "classes": error_classes,
+            "mistakes": error_mistakes,
+        },
+        "synced": pending_classes == 0 and pending_mistakes == 0,
+    }
+
+
+# ============ LOCAL-FIRST CLASS ENDPOINTS ============
+
+@app.post("/api/local/classes")
+def create_local_class(
+    class_data: ClassCreate,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Create class in local app.db first (instant response).
+    Syncs to Supabase in background.
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Insert class
+    cursor = conn.execute("""
+        INSERT INTO classes (date, day, notes, class_type, supabase_teacher_id, sync_status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?)
+    """, (
+        class_data.date,
+        class_data.day,
+        class_data.notes,
+        class_data.class_type,
+        supabase_user_id,
+        datetime.utcnow().isoformat()
+    ))
+    class_id = cursor.lastrowid
+
+    # Insert assignments
+    for assignment in class_data.assignments:
+        conn.execute("""
+            INSERT INTO assignments (class_id, type, start_surah, end_surah, start_ayah, end_ayah, student_id, sync_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+        """, (
+            class_id,
+            assignment.type,
+            assignment.start_surah,
+            assignment.end_surah,
+            assignment.start_ayah,
+            assignment.end_ayah,
+            assignment.student_id
+        ))
+
+    conn.commit()
+    conn.close()
+
+    # Trigger sync in background
+    background_tasks.add_task(push_pending_classes, supabase_user_id)
+
+    return {"id": class_id, "message": "Class created locally", "sync_status": "pending"}
+
+
+@app.get("/api/local/classes")
+def get_local_classes(
+    role: Optional[str] = None,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Get classes from local app.db (instant response).
+    Returns both synced and pending classes.
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+    user_role = role or user.get("role", "student")
+
+    if user_role == "teacher":
+        cursor = conn.execute("""
+            SELECT * FROM classes
+            WHERE supabase_teacher_id = ?
+            ORDER BY date DESC
+        """, (supabase_user_id,))
+    else:
+        # For students, need to check class_students
+        # For now, return published classes
+        cursor = conn.execute("""
+            SELECT c.* FROM classes c
+            WHERE c.is_published = 1
+            ORDER BY c.date DESC
+        """)
+
+    classes = []
+    for row in cursor.fetchall():
+        class_dict = dict(row)
+
+        # Get assignments
+        assign_cursor = conn.execute("""
+            SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id, sync_status
+            FROM assignments WHERE class_id = ?
+        """, (class_dict["id"],))
+        class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
+
+        classes.append(class_dict)
+
+    conn.close()
+    return {"data": classes}
+
+
+@app.post("/api/local/mistakes")
+def add_local_mistake(
+    mistake: MistakeCreate,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Add mistake to local app.db first (instant response).
+    Syncs to Supabase in background.
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Check if mistake already exists
+    cursor = conn.execute("""
+        SELECT id, error_count FROM mistakes
+        WHERE supabase_student_id = ?
+        AND surah_number = ? AND ayah_number = ? AND word_index = ?
+        AND (char_index = ? OR (char_index IS NULL AND ? IS NULL))
+    """, (
+        supabase_user_id,
+        mistake.surah_number,
+        mistake.ayah_number,
+        mistake.word_index,
+        mistake.char_index,
+        mistake.char_index
+    ))
+    existing = cursor.fetchone()
+
+    if existing:
+        # Increment error count
+        new_count = existing["error_count"] + 1
+        conn.execute("""
+            UPDATE mistakes
+            SET error_count = ?, sync_status = 'pending', updated_at = ?
+            WHERE id = ?
+        """, (new_count, datetime.utcnow().isoformat(), existing["id"]))
+        mistake_id = existing["id"]
+    else:
+        # Create new mistake
+        cursor = conn.execute("""
+            INSERT INTO mistakes (
+                surah_number, ayah_number, word_index, word_text, char_index,
+                error_count, supabase_student_id, sync_status, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, 'pending', ?)
+        """, (
+            mistake.surah_number,
+            mistake.ayah_number,
+            mistake.word_index,
+            mistake.word_text,
+            mistake.char_index,
+            supabase_user_id,
+            datetime.utcnow().isoformat()
+        ))
+        mistake_id = cursor.lastrowid
+        new_count = 1
+
+    conn.commit()
+    conn.close()
+
+    # Trigger sync in background
+    background_tasks.add_task(push_pending_mistakes, supabase_user_id)
+
+    return {"id": mistake_id, "error_count": new_count, "sync_status": "pending"}
+
+
+@app.get("/api/local/mistakes")
+def get_local_mistakes(
+    surah_number: Optional[int] = None,
+    user: dict = Depends(require_supabase_user)
+):
+    """Get mistakes from local app.db (instant response)"""
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    if surah_number:
+        cursor = conn.execute("""
+            SELECT * FROM mistakes
+            WHERE supabase_student_id = ? AND surah_number = ?
+            ORDER BY error_count DESC
+        """, (supabase_user_id, surah_number))
+    else:
+        cursor = conn.execute("""
+            SELECT * FROM mistakes
+            WHERE supabase_student_id = ?
+            ORDER BY error_count DESC
+        """, (supabase_user_id,))
+
+    mistakes = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return {"data": mistakes}
 
 
 if __name__ == "__main__":

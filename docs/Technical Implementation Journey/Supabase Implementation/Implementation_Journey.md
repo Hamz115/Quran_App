@@ -723,9 +723,54 @@ export async function getClasses() {
 
 ---
 
+## Step 21: Local-First Sync with app.db (24 January 2026)
+
+Implemented true local-first architecture with app.db as primary storage and Supabase sync.
+
+**Architecture:**
+```
+Frontend → FastAPI → app.db (instant)
+                ↓
+           Background
+                ↓
+            Supabase (cloud sync)
+```
+
+**Schema Updates (app.db):**
+Added sync tracking columns to all tables:
+- `supabase_id` TEXT - UUID from Supabase
+- `sync_status` TEXT - 'pending', 'synced', 'error'
+- `supabase_teacher_id` / `supabase_student_id` TEXT - Supabase user UUIDs
+- `last_synced_at` TEXT - Timestamp
+
+**Sync Service (sync_service.py):**
+- `push_pending_classes()` - Push local → cloud
+- `push_pending_mistakes()` - Push local → cloud
+- `pull_classes()` - Pull cloud → local
+- `pull_mistakes()` - Pull cloud → local
+- `full_sync()` - Bidirectional sync
+
+**New FastAPI Endpoints:**
+- `POST /api/sync` - Trigger full sync
+- `POST /api/local/classes` - Create class locally (instant)
+- `GET /api/local/classes` - Get classes from app.db
+- `POST /api/local/mistakes` - Add mistake locally
+- `GET /api/local/mistakes` - Get mistakes from app.db
+
+**Files Created:**
+- `quran_backend/sync_service.py` - Supabase sync logic
+- `quran_frontend/src/lib/local-api.ts` - Frontend local API
+
+**Result:**
+- ✅ Writes go to app.db first (instant response)
+- ✅ Background sync to Supabase
+- ✅ Works offline (reads from local)
+
+---
+
 ## Next Steps (Pending)
 
-1. **Mobile Integration** - Update Flutter app to use Supabase client
+1. **Mobile Integration** - Update Flutter app to use local-first API
 2. **Realtime Setup** - Enable realtime subscriptions for instant updates
 3. **Migrate Remaining Functions** - Tests, portion suggestions, etc.
 4. **Create Demo Accounts in Supabase** - Add test users to Supabase for development
