@@ -3,7 +3,9 @@
     "allow": [
       "Bash(/mnt/c/flutter/bin/flutter create:*)",
       "Bash(mv:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(sqlite3:*)",
+      "Bash(perl:*)"
     ],
     "deny": [],
     "ask": []

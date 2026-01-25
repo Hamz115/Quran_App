@@ -2637,18 +2637,20 @@ def list_backups():
 @app.post("/api/sync")
 def trigger_sync(
     background_tasks: BackgroundTasks,
-    user: dict = Depends(require_supabase_user)
+    user: dict = Depends(require_supabase_user),
+    role: Optional[str] = None
 ):
     """
     Trigger full sync between app.db and Supabase.
     Runs in background and returns immediately.
     """
     supabase_user_id = user["id"]
+    user_role = role or user.get("role", "student")
 
     # Run sync in background
-    background_tasks.add_task(full_sync, supabase_user_id)
+    background_tasks.add_task(full_sync, supabase_user_id, user_role)
 
-    return {"message": "Sync started", "user_id": supabase_user_id}
+    return {"message": "Sync started", "user_id": supabase_user_id, "role": user_role}
 
 
 @app.post("/api/sync/push")

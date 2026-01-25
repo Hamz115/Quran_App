@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -12,12 +13,12 @@ import TeacherClasses from './pages/TeacherClasses';
 import StudentClasses from './pages/StudentClasses';
 import Classroom from './pages/Classroom';
 import QuranReader from './pages/QuranReader';
-import QuranPageTest from './pages/QuranPageTest';
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
@@ -49,11 +50,11 @@ function App() {
             <Route path="classes" element={<Classes />} />
             <Route path="classes/:id" element={<Classroom />} />
             <Route path="reader" element={<QuranReader />} />
-            <Route path="quran-test" element={<QuranPageTest />} />
           </Route>
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

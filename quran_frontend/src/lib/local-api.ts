@@ -57,8 +57,9 @@ export interface SyncStatus {
   synced: boolean;
 }
 
-export async function triggerSync(): Promise<{ message: string }> {
-  return apiCall('/api/sync', { method: 'POST' });
+export async function triggerSync(role?: 'teacher' | 'student'): Promise<{ message: string; user_id: string; role: string }> {
+  const params = role ? `?role=${role}` : '';
+  return apiCall(`/api/sync${params}`, { method: 'POST' });
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {

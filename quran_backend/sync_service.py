@@ -9,10 +9,11 @@ Sync Strategy:
 - Pulls remote changes on app start and periodically
 
 Tables synced:
+- profiles (users)
+- teacher_students (relationships)
 - classes
 - assignments
 - mistakes
-- mistake_occurrences
 """
 
 import os
@@ -51,6 +52,114 @@ def get_app_db():
     conn = sqlite3.connect(APP_DB)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+# ============ PROFILES: Supabase → Local (one-way) ============
+
+def pull_profiles() -> Dict[str, int]:
+    """
+    Pull ALL profiles from Supabase to app.db.
+    Profiles are managed in Supabase (source of truth), so this is one-way sync.
+    """
+    conn = get_app_db()
+    supabase = get_supabase()
+
+    results = {"created": 0, "updated": 0}
+
+    # Get all profiles from Supabase
+    response = supabase.table("profiles").select("*").execute()
+
+    for profile in response.data:
+        supabase_id = profile["id"]
+
+        # Check if exists locally
+        cursor = conn.execute("SELECT id FROM profiles WHERE id = ?", (supabase_id,))
+        local_row = cursor.fetchone()
+
+        if local_row:
+            # Update existing
+            conn.execute("""
+                UPDATE profiles SET
+                    email = ?, name = ?, role = ?,
+                    updated_at = ?, last_synced_at = ?
+                WHERE id = ?
+            """, (
+                profile.get("email"),
+                profile.get("name"),
+                profile.get("role", "student"),
+                profile.get("updated_at"),
+                datetime.utcnow().isoformat(),
+                supabase_id
+            ))
+            results["updated"] += 1
+        else:
+            # Create new local record
+            conn.execute("""
+                INSERT INTO profiles (id, email, name, role, created_at, updated_at, last_synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                supabase_id,
+                profile.get("email"),
+                profile.get("name"),
+                profile.get("role", "student"),
+                profile.get("created_at"),
+                profile.get("updated_at"),
+                datetime.utcnow().isoformat()
+            ))
+            results["created"] += 1
+
+        conn.commit()
+
+    conn.close()
+    return results
+
+
+def pull_teacher_students(teacher_id: str) -> Dict[str, int]:
+    """
+    Pull teacher-student relationships from Supabase to app.db.
+    Only pulls relationships for the given teacher.
+    """
+    conn = get_app_db()
+    supabase = get_supabase()
+
+    results = {"created": 0, "updated": 0}
+
+    # Get teacher's students from Supabase
+    response = supabase.table("teacher_students").select("*").eq("teacher_id", teacher_id).execute()
+
+    for rel in response.data:
+        teacher_id = rel["teacher_id"]
+        student_id = rel["student_id"]
+
+        # Check if exists locally
+        cursor = conn.execute(
+            "SELECT id FROM teacher_students WHERE teacher_id = ? AND student_id = ?",
+            (teacher_id, student_id)
+        )
+        local_row = cursor.fetchone()
+
+        if local_row:
+            conn.execute("""
+                UPDATE teacher_students SET last_synced_at = ?
+                WHERE teacher_id = ? AND student_id = ?
+            """, (datetime.utcnow().isoformat(), teacher_id, student_id))
+            results["updated"] += 1
+        else:
+            conn.execute("""
+                INSERT INTO teacher_students (teacher_id, student_id, created_at, last_synced_at)
+                VALUES (?, ?, ?, ?)
+            """, (
+                teacher_id,
+                student_id,
+                rel.get("created_at"),
+                datetime.utcnow().isoformat()
+            ))
+            results["created"] += 1
+
+        conn.commit()
+
+    conn.close()
+    return results
 
 
 # ============ PUSH: Local → Supabase ============
@@ -350,15 +459,28 @@ def pull_mistakes(supabase_user_id: str, since: Optional[str] = None) -> Dict[st
 
 # ============ FULL SYNC ============
 
-def full_sync(supabase_user_id: str) -> Dict[str, Any]:
+def full_sync(supabase_user_id: str, user_role: str = "student") -> Dict[str, Any]:
     """
     Perform full bidirectional sync for a user.
     Called on login and periodically.
+
+    Args:
+        supabase_user_id: The Supabase UUID of the logged-in user
+        user_role: 'teacher' or 'student' - determines what to sync
     """
     results = {
+        "profiles": {},
+        "teacher_students": {},
         "push": {"classes": {}, "mistakes": {}},
         "pull": {"classes": {}, "mistakes": {}},
     }
+
+    # Always sync profiles first (one-way from Supabase)
+    results["profiles"] = pull_profiles()
+
+    # Sync teacher-student relationships if teacher
+    if user_role == "teacher":
+        results["teacher_students"] = pull_teacher_students(supabase_user_id)
 
     # Push local changes first
     results["push"]["classes"] = push_pending_classes(supabase_user_id)

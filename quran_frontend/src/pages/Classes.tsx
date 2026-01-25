@@ -13,7 +13,7 @@ interface SurahInfo {
 }
 
 interface Assignment {
-  id: number;
+  id: string;
   type: string;
   start_surah: number;
   end_surah: number;
@@ -48,8 +48,8 @@ const DEFAULT_SECTIONS: SectionInput[] = [
 ];
 
 const SECTION_CONFIG = {
-  hifz: { label: 'Hifz (New Memorization)', color: 'emerald', description: 'New verses to memorize' },
-  sabqi: { label: 'Sabqi (Recent)', color: 'blue', description: 'Recently memorized, needs reinforcement' },
+  hifz: { label: 'Hifz (New Memorization)', color: 'cyan', description: 'New verses to memorize' },
+  sabqi: { label: 'Sabqi (Recent)', color: 'cyan', description: 'Recently memorized, needs reinforcement' },
   revision: { label: 'Revision (Manzil)', color: 'purple', description: 'Long-term revision' },
 };
 
@@ -62,8 +62,8 @@ export default function Classes() {
   const [sections, setSections] = useState<SectionInput[]>(DEFAULT_SECTIONS);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
   const [backupStatus, setBackupStatus] = useState<string>('');
-  const [selectedNote, setSelectedNote] = useState<{ classId: number; note: string; isEditing: boolean } | null>(null);
-  const [performanceDropdown, setPerformanceDropdown] = useState<number | null>(null);
+  const [selectedNote, setSelectedNote] = useState<{ classId: string; note: string; isEditing: boolean } | null>(null);
+  const [performanceDropdown, setPerformanceDropdown] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupList, setBackupList] = useState<{ filename: string; size: number; created: string }[]>([]);
 
@@ -212,7 +212,7 @@ export default function Classes() {
     }
   };
 
-  const handleDeleteClass = async (e: React.MouseEvent, classId: number) => {
+  const handleDeleteClass = async (e: React.MouseEvent, classId: string) => {
     e.stopPropagation();
     if (!confirm('Are you sure you want to delete this class?')) return;
 
@@ -224,7 +224,7 @@ export default function Classes() {
     }
   };
 
-  const handlePerformanceUpdate = async (classId: number, performance: string) => {
+  const handlePerformanceUpdate = async (classId: string, performance: string) => {
     try {
       await updateClassPerformance(classId, performance);
       setClasses(classes.map(c => c.id === classId ? { ...c, performance } : c));
@@ -248,7 +248,7 @@ export default function Classes() {
   const getPerformanceStyle = (perf?: string) => {
     switch (perf) {
       case 'Excellent':
-        return 'bg-emerald-500/20 text-emerald-400';
+        return 'bg-cyan-500/20 text-cyan-400';
       case 'Very Good':
         return 'bg-teal-500/20 text-teal-400';
       case 'Good':
@@ -341,7 +341,7 @@ export default function Classes() {
           {/* Backup Status */}
           {backupStatus && (
             <span className={`text-sm px-3 py-1.5 rounded-lg ${
-              backupStatus.includes('Failed') ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
+              backupStatus.includes('Failed') ? 'bg-red-500/20 text-red-400' : 'bg-cyan-500/20 text-cyan-400'
             }`}>
               {backupStatus}
             </span>
@@ -369,7 +369,7 @@ export default function Classes() {
 
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/25"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl font-medium hover:from-cyan-600 hover:to-teal-600 transition-all shadow-lg shadow-cyan-500/25"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -391,7 +391,7 @@ export default function Classes() {
           <p className="text-slate-400 mb-8">Start your first class to begin tracking progress</p>
           <button
             onClick={() => setShowModal(true)}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors"
+            className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-medium hover:bg-cyan-700 transition-colors"
           >
             Create First Class
           </button>
@@ -415,8 +415,8 @@ export default function Classes() {
                     <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider w-14">Week</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider w-20">Date</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider w-12">Day</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-emerald-400 uppercase tracking-wider">Hifz</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-blue-400 uppercase tracking-wider">Sabqi</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">Hifz</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">Sabqi</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-purple-400 uppercase tracking-wider">Manzil</th>
                     <th className="px-3 py-2 text-center text-xs font-semibold text-amber-400 uppercase tracking-wider w-20">Perf.</th>
                     <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider w-10">Notes</th>
@@ -449,7 +449,7 @@ export default function Classes() {
                         </td>
                         <td className="px-3 py-2 text-sm">
                           {hifzList.length > 0 ? (
-                            <span className="text-emerald-400 font-medium">
+                            <span className="text-cyan-400 font-medium">
                               {hifzList.map((a, i) => (
                                 <span key={a.id}>{i > 0 && ', '}{formatAssignment(a)}</span>
                               ))}
@@ -460,7 +460,7 @@ export default function Classes() {
                         </td>
                         <td className="px-3 py-2 text-sm">
                           {sabqiList.length > 0 ? (
-                            <span className="text-blue-400 font-medium">
+                            <span className="text-cyan-400 font-medium">
                               {sabqiList.map((a, i) => (
                                 <span key={a.id}>{i > 0 && ', '}{formatAssignment(a)}</span>
                               ))}
@@ -503,7 +503,7 @@ export default function Classes() {
                                       handlePerformanceUpdate(classItem.id, perf);
                                     }}
                                     className={`w-full px-3 py-1.5 text-left text-xs hover:bg-slate-700 transition-colors ${
-                                      classItem.performance === perf ? 'text-emerald-400' : 'text-slate-300'
+                                      classItem.performance === perf ? 'text-cyan-400' : 'text-slate-300'
                                     }`}
                                   >
                                     {perf}
@@ -619,7 +619,7 @@ export default function Classes() {
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                   />
                 </div>
                 <div className="flex-1">
@@ -637,19 +637,12 @@ export default function Classes() {
                 {sections.map((section) => {
                   const config = SECTION_CONFIG[section.type];
                   const colorMap: Record<string, { bg: string; border: string; text: string; toggle: string; addBtn: string }> = {
-                    emerald: {
-                      bg: 'bg-emerald-500/20',
-                      border: 'border-emerald-500/30',
-                      text: 'text-emerald-400',
-                      toggle: 'bg-emerald-500',
-                      addBtn: 'text-emerald-400 hover:bg-emerald-500/20',
-                    },
-                    blue: {
-                      bg: 'bg-blue-500/20',
-                      border: 'border-blue-500/30',
-                      text: 'text-blue-400',
-                      toggle: 'bg-blue-500',
-                      addBtn: 'text-blue-400 hover:bg-blue-500/20',
+                    cyan: {
+                      bg: 'bg-cyan-500/20',
+                      border: 'border-cyan-500/30',
+                      text: 'text-cyan-400',
+                      toggle: 'bg-cyan-500',
+                      addBtn: 'text-cyan-400 hover:bg-cyan-500/20',
                     },
                     purple: {
                       bg: 'bg-purple-500/20',
@@ -659,7 +652,7 @@ export default function Classes() {
                       addBtn: 'text-purple-400 hover:bg-purple-500/20',
                     },
                   };
-                  const colorClasses = colorMap[config.color] || colorMap.emerald;
+                  const colorClasses = colorMap[config.color] || colorMap.cyan;
 
                   return (
                     <div
@@ -722,7 +715,7 @@ export default function Classes() {
                                     value={portion.start_surah}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handlePortionChange(section.type, portion.id, 'start_surah', Number(e.target.value))}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                   >
                                     {surahList.map((surah) => (
                                       <option key={surah.number} value={surah.number}>
@@ -737,7 +730,7 @@ export default function Classes() {
                                     value={portion.end_surah}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handlePortionChange(section.type, portion.id, 'end_surah', Number(e.target.value))}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                   >
                                     {surahList.map((surah) => (
                                       <option key={surah.number} value={surah.number}>
@@ -755,7 +748,7 @@ export default function Classes() {
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handlePortionChange(section.type, portion.id, 'start_ayah', e.target.value ? Number(e.target.value) : undefined)}
                                     placeholder="All"
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                   />
                                 </div>
                                 <div>
@@ -767,7 +760,7 @@ export default function Classes() {
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handlePortionChange(section.type, portion.id, 'end_ayah', e.target.value ? Number(e.target.value) : undefined)}
                                     placeholder="All"
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                   />
                                 </div>
                               </div>
@@ -807,7 +800,7 @@ export default function Classes() {
               <button
                 onClick={handleSubmit}
                 disabled={!sections.some(s => s.enabled && s.portions.length > 0)}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-medium hover:from-cyan-600 hover:to-teal-600 transition-all shadow-lg shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Create Class
               </button>
@@ -854,7 +847,7 @@ export default function Classes() {
                 backupList.map((backup) => (
                   <div
                     key={backup.filename}
-                    className="p-4 bg-slate-700/30 rounded-xl border border-slate-700 hover:border-emerald-500/50 transition-colors"
+                    className="p-4 bg-slate-700/30 rounded-xl border border-slate-700 hover:border-cyan-500/50 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -871,7 +864,7 @@ export default function Classes() {
                       </div>
                       <button
                         onClick={() => handleRestoreBackup(backup.filename)}
-                        className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm font-medium transition-colors"
+                        className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-sm font-medium transition-colors"
                       >
                         Restore
                       </button>

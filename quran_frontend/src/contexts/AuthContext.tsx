@@ -2,7 +2,9 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, clearSupabaseStorage, resetSupabaseAndReload } from '../lib/supabase';
+import { triggerSync, isLocalApiAvailable } from '../lib/local-api';
 import type { User } from '../types';
+import type { Profile } from '../lib/database.types';
 
 interface AuthContextType {
   user: User | null;
@@ -41,13 +43,30 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+// Trigger local-first sync (non-blocking)
+async function triggerLocalSync(role: 'teacher' | 'student'): Promise<void> {
+  try {
+    const available = await isLocalApiAvailable();
+    if (available) {
+      console.log('AuthContext: Triggering local sync for role:', role);
+      await triggerSync(role);
+      console.log('AuthContext: Sync triggered successfully');
+    } else {
+      console.log('AuthContext: Local API not available, skipping sync');
+    }
+  } catch (err) {
+    console.warn('AuthContext: Sync failed (non-blocking):', err);
+    // Don't throw - sync failure shouldn't block login
+  }
+}
+
 // Fetch profile from profiles table and map to User type
 async function fetchUserProfile(userId: string): Promise<User | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .single() as { data: Profile | null; error: any };
 
   if (error || !data) {
     console.error('Error fetching profile:', error);
@@ -130,6 +149,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (isMounted) {
               setUser(profile);
               console.log('AuthContext: Profile loaded:', profile?.email);
+              // Trigger sync on app start (non-blocking)
+              if (profile?.role) {
+                triggerLocalSync(profile.role);
+              }
             }
           } catch (profileError) {
             console.error('AuthContext: Profile fetch failed:', profileError);
@@ -228,6 +251,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(error.message);
       }
       console.log('AuthContext: Login successful');
+
+      // Trigger local sync in background (non-blocking)
+      // Get session to fetch user role
+      const { data: { session: newSession } } = await supabase.auth.getSession();
+      if (newSession?.user) {
+        const profile = await fetchUserProfile(newSession.user.id);
+        if (profile?.role) {
+          triggerLocalSync(profile.role); // Don't await - background operation
+        }
+      }
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('TIMEOUT')) {
         clearSupabaseStorage();
@@ -281,6 +314,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(error.message);
       }
       console.log('AuthContext: Signup successful');
+
+      // Trigger local sync in background (non-blocking)
+      triggerLocalSync(data.role); // Don't await - background operation
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('TIMEOUT')) {
         clearSupabaseStorage();

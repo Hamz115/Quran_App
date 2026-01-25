@@ -34,7 +34,7 @@ async function fetchStudentsFromSupabase(): Promise<StudentListItem[]> {
         email
       )
     `)
-    .eq('teacher_id', user.id);
+    .eq('teacher_id', user.id) as { data: Array<{ id: string; created_at: string; student: { id: string; student_id: string; name: string; email: string } }> | null; error: any };
 
   if (error) throw new Error(error.message);
 
@@ -61,7 +61,7 @@ export async function lookupStudent(email: string): Promise<StudentLookup> {
     .from('profiles')
     .select('id, student_id, name, email')
     .eq('email', email)
-    .single();
+    .single() as { data: { id: string; student_id: string | null; name: string; email: string } | null; error: any };
 
   if (error || !data) {
     throw new Error('No user found with that email');
@@ -86,7 +86,7 @@ export async function addStudent(email: string): Promise<{ message: string }> {
     .from('profiles')
     .select('id')
     .eq('email', email)
-    .single();
+    .single() as { data: { id: string } | null; error: any };
 
   if (lookupError || !student) {
     throw new Error('No user found with that email');
@@ -98,7 +98,7 @@ export async function addStudent(email: string): Promise<{ message: string }> {
     .select('id')
     .eq('teacher_id', user.id)
     .eq('student_id', student.id)
-    .single();
+    .single() as { data: { id: string } | null; error: any };
 
   if (existing) {
     throw new Error('Student already added to your list');
@@ -106,11 +106,8 @@ export async function addStudent(email: string): Promise<{ message: string }> {
 
   // Add relationship
   const { error } = await supabase
-    .from('teacher_students')
-    .insert({
-      teacher_id: user.id,
-      student_id: student.id,
-    });
+    .from('teacher_students' as any)
+    .insert({ teacher_id: user.id, student_id: student.id } as any);
 
   if (error) {
     throw new Error(error.message);
@@ -159,7 +156,7 @@ async function fetchTeachersFromSupabase(): Promise<TeacherListItem[]> {
         name
       )
     `)
-    .eq('student_id', user.id);
+    .eq('student_id', user.id) as { data: Array<{ id: string; created_at: string; teacher: { id: string; name: string } }> | null; error: any };
 
   if (error) throw new Error(error.message);
 
@@ -231,7 +228,7 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
   if (role === 'teacher') {
     // Teachers see their own classes
     const { data, error } = await supabase
-      .from('classes')
+      .from('classes' as any)
       .select(`
         *,
         assignments (*),
@@ -248,7 +245,7 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
   } else {
     // Students see published classes they're enrolled in
     const { data, error } = await supabase
-      .from('classes')
+      .from('classes' as any)
       .select(`
         *,
         assignments (*),
@@ -281,7 +278,7 @@ export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassDat
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .single() as { data: { role: string } | null; error: any };
       userRole = profile?.role as 'teacher' | 'student';
 
       // Cache the profile role
@@ -300,7 +297,7 @@ export async function getClass(classId: string): Promise<ClassData> {
   if (!user) throw new Error('Not authenticated');
 
   const { data, error } = await supabase
-    .from('classes')
+    .from('classes' as any)
     .select(`
       *,
       assignments (*),
@@ -376,18 +373,10 @@ export async function createClass(classData: {
 
   // Create the class
   const { data: newClass, error: classError } = await supabase
-    .from('classes')
-    .insert({
-      teacher_id: user.id,
-      date: classData.date,
-      day: classData.day,
-      notes: classData.notes,
-      class_type: classData.class_type || 'regular',
-    })
-    .select()
-    .single();
+    .from('classes' as any)
+    .insert({ teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, class_type: classData.class_type || 'regular' } as any).select().single() as { data: { id: string } | null; error: any };
 
-  if (classError) throw new Error(classError.message);
+  if (classError || !newClass) throw new Error(classError?.message || "Failed to create class");
 
   // Add students to class
   if (classData.student_ids.length > 0) {
@@ -397,8 +386,8 @@ export async function createClass(classData: {
     }));
 
     const { error: studentsError } = await supabase
-      .from('class_students')
-      .insert(classStudents);
+      .from('class_students' as any)
+      .insert(classStudents as any);
 
     if (studentsError) throw new Error(studentsError.message);
   }
@@ -415,8 +404,8 @@ export async function createClass(classData: {
     }));
 
     const { error: assignmentsError } = await supabase
-      .from('assignments')
-      .insert(assignments);
+      .from('assignments' as any)
+      .insert(assignments as any);
 
     if (assignmentsError) throw new Error(assignmentsError.message);
   }
@@ -429,7 +418,7 @@ export async function createClass(classData: {
 
 export async function deleteClass(classId: string): Promise<{ message: string }> {
   const { error } = await supabase
-    .from('classes')
+    .from('classes' as any)
     .delete()
     .eq('id', classId);
 
@@ -442,31 +431,19 @@ export async function deleteClass(classId: string): Promise<{ message: string }>
 }
 
 export async function updateClassNotes(classId: string, notes: string | null): Promise<{ message: string }> {
-  const { error } = await supabase
-    .from('classes')
-    .update({ notes })
-    .eq('id', classId);
-
+  const { error } = await (supabase as any).from('classes').update({ notes }).eq('id', classId);
   if (error) throw new Error(error.message);
   return { message: 'Notes updated successfully' };
 }
 
 export async function updateClassPerformance(classId: string, performance: string): Promise<{ message: string }> {
-  const { error } = await supabase
-    .from('classes')
-    .update({ performance })
-    .eq('id', classId);
-
+  const { error } = await (supabase as any).from('classes').update({ performance }).eq('id', classId);
   if (error) throw new Error(error.message);
   return { message: 'Performance updated successfully' };
 }
 
 export async function updateClassPublish(classId: string, isPublished: boolean): Promise<{ message: string }> {
-  const { error } = await supabase
-    .from('classes')
-    .update({ is_published: isPublished })
-    .eq('id', classId);
-
+  const { error } = await (supabase as any).from('classes').update({ is_published: isPublished }).eq('id', classId);
   if (error) throw new Error(error.message);
   return { message: isPublished ? 'Class published' : 'Class unpublished' };
 }
@@ -479,7 +456,7 @@ export async function addClassStudents(classId: string, studentIds: string[]): P
 
   const { error } = await supabase
     .from('class_students')
-    .insert(classStudents);
+    .insert(classStudents as any);
 
   if (error) throw new Error(error.message);
   return { message: 'Students added successfully' };
@@ -547,7 +524,7 @@ export async function addMistake(mistake: {
 
   // Try to find existing mistake
   let query = supabase
-    .from('mistakes')
+    .from('mistakes' as any)
     .select('id, error_count')
     .eq('student_id', studentId)
     .eq('surah_number', mistake.surah_number)
@@ -560,51 +537,32 @@ export async function addMistake(mistake: {
     query = query.is('char_index', null);
   }
 
-  const { data: existing } = await query.single();
+  const { data: existing } = await query.single() as { data: { id: string; error_count: number } | null };
 
   if (existing) {
     // Update existing mistake - increment error count
     const newCount = existing.error_count + 1;
-    const { error } = await supabase
-      .from('mistakes')
-      .update({ error_count: newCount })
-      .eq('id', existing.id);
+    const { error } = await (supabase as any).from('mistakes').update({ error_count: newCount }).eq('id', existing.id);
 
     if (error) throw new Error(error.message);
 
     // Add occurrence if class_id provided
     if (mistake.class_id) {
-      await supabase.from('mistake_occurrences').insert({
-        mistake_id: existing.id,
-        class_id: mistake.class_id,
-      });
+      await supabase.from('mistake_occurrences' as any).insert({ mistake_id: existing.id, class_id: mistake.class_id } as any);
     }
 
     return { id: existing.id, error_count: newCount };
   } else {
     // Create new mistake
     const { data: newMistake, error } = await supabase
-      .from('mistakes')
-      .insert({
-        student_id: studentId,
-        surah_number: mistake.surah_number,
-        ayah_number: mistake.ayah_number,
-        word_index: mistake.word_index,
-        word_text: mistake.word_text,
-        char_index: mistake.char_index,
-        error_count: 1,
-      })
-      .select()
-      .single();
+      .from('mistakes' as any)
+      .insert({ student_id: studentId, surah_number: mistake.surah_number, ayah_number: mistake.ayah_number, word_index: mistake.word_index, word_text: mistake.word_text, char_index: mistake.char_index, error_count: 1 } as any).select().single() as { data: { id: string } | null; error: any };
 
-    if (error) throw new Error(error.message);
+    if (error || !newMistake) throw new Error(error?.message || "Failed to create mistake");
 
     // Add occurrence if class_id provided
     if (mistake.class_id) {
-      await supabase.from('mistake_occurrences').insert({
-        mistake_id: newMistake.id,
-        class_id: mistake.class_id,
-      });
+      await supabase.from('mistake_occurrences' as any).insert({ mistake_id: newMistake.id, class_id: mistake.class_id } as any);
     }
 
     return { id: newMistake.id, error_count: 1 };
@@ -613,7 +571,7 @@ export async function addMistake(mistake: {
 
 export async function removeMistake(mistakeId: string): Promise<{ message: string }> {
   const { error } = await supabase
-    .from('mistakes')
+    .from('mistakes' as any)
     .delete()
     .eq('id', mistakeId);
 

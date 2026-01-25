@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { getQuranPageWords, getMistakes, type QuranPageWord, type MistakeData } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getPageNumber } from '../data/quranPages';
 
 // Surah names in Arabic
@@ -55,6 +56,7 @@ const getMistakeLevel = (errorCount: number): number => {
 
 export default function QuranReader() {
   const { user } = useAuth();
+  const { darkMode } = useTheme();
   const [currentPage, setCurrentPage] = useState(1);
   const [wordsByLine, setWordsByLine] = useState<Map<number, WordData[]>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -70,7 +72,7 @@ export default function QuranReader() {
   // Get highest mistake level for a word (considering all char-level and word-level mistakes)
   // Note: word_index in mistakes is 0-based, but wordPosition from QPC is 1-based
   // So we need to convert: wordPosition - 1 = word_index
-  const getWordMistakeInfo = (surah: number, ayah: number, wordIndex: number): { errorCount: number; mistakeId: number | null } => {
+  const getWordMistakeInfo = (surah: number, ayah: number, wordIndex: number): { errorCount: number; mistakeId: string | null } => {
     // Find all mistakes for this word (both whole-word and character-level)
     const wordMistakes = mistakes.filter(
       m => m.surah_number === surah && m.ayah_number === ayah && m.word_index === wordIndex
@@ -286,17 +288,17 @@ export default function QuranReader() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Quran Reader</h1>
-          <p className="text-slate-400 mt-1">View Quran pages with mistake highlights</p>
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Quran Reader</h1>
+          <p className={`mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>View Quran pages with mistake highlights</p>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Status indicators */}
-          <span className={`text-xs px-2 py-1 rounded ${fontLoaded ? 'bg-emerald-600/30 text-emerald-400' : 'bg-amber-600/30 text-amber-400'}`}>
+          <span className={`text-xs px-2 py-1 rounded ${fontLoaded ? 'bg-cyan-600/30 text-cyan-400' : 'bg-amber-600/30 text-amber-400'}`}>
             {fontLoaded ? 'Ready' : 'Loading...'}
           </span>
           {mistakesLoading && (
-            <span className="text-xs px-2 py-1 rounded bg-blue-600/30 text-blue-400">
+            <span className="text-xs px-2 py-1 rounded bg-cyan-600/30 text-cyan-400">
               Loading mistakes...
             </span>
           )}
@@ -314,9 +316,9 @@ export default function QuranReader() {
                   setCurrentPage(val);
                 }
               }}
-              className="w-20 px-3 py-2 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={`w-20 px-3 py-2 rounded-xl border text-center focus:outline-none focus:ring-2 focus:ring-cyan-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-800'}`}
             />
-            <span className="text-slate-400">/ {TOTAL_PAGES}</span>
+            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>/ {TOTAL_PAGES}</span>
           </div>
 
           {/* Surah Dropdown */}
@@ -329,7 +331,7 @@ export default function QuranReader() {
                 setCurrentPage(page);
               }
             }}
-            className="px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            className={`px-3 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-300' : 'border-slate-300 bg-white text-slate-700'}`}
             style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
           >
             {Array.from({ length: 114 }, (_, i) => i + 1).map((num) => (
@@ -342,7 +344,7 @@ export default function QuranReader() {
           {/* Jump Button */}
           <button
             onClick={() => setShowJumpModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-slate-300 hover:bg-slate-700/30 transition-colors"
+            className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors ${darkMode ? 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700/30' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -353,31 +355,31 @@ export default function QuranReader() {
       </div>
 
       {/* Legend */}
-      <div className="card p-3">
+      <div className={`card p-3 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-4 flex-wrap">
-          <span className="text-slate-400 text-sm font-medium">Legend:</span>
+          <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Legend:</span>
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded mistake-1"></span>
-            <span className="text-slate-400">1x</span>
+            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>1x</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded mistake-2"></span>
-            <span className="text-slate-400">2x</span>
+            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>2x</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded mistake-3"></span>
-            <span className="text-slate-400">3x</span>
+            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>3x</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded mistake-4"></span>
-            <span className="text-slate-400">4x</span>
+            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>4x</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded mistake-5"></span>
-            <span className="text-slate-400">5+</span>
+            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>5+</span>
           </div>
           <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-slate-500 text-sm">
+            <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
               {mistakes.length} mistakes on this page
             </span>
           </div>
@@ -385,17 +387,17 @@ export default function QuranReader() {
       </div>
 
       {/* Page Info */}
-      <div className="card p-4 flex items-center justify-between">
-        <div className="text-slate-300">
+      <div className={`card p-4 flex items-center justify-between ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+        <div className={darkMode ? 'text-slate-300' : 'text-slate-700'}>
           <span className="font-semibold">Page {currentPage}</span>
           {getCurrentSurahNum() && (
             <>
-              <span className="text-slate-500 mx-2">-</span>
-              <span className="text-slate-400">Surah {getCurrentSurahNum()}</span>
+              <span className={`mx-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+              <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Surah {getCurrentSurahNum()}</span>
             </>
           )}
         </div>
-        <div className="text-sm text-slate-500">
+        <div className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           {lineNumbers.length} lines | {Array.from(wordsByLine.values()).flat().length} words
         </div>
       </div>
@@ -408,7 +410,7 @@ export default function QuranReader() {
           disabled={!canGoNext}
           className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
             canGoNext
-              ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white'
+              ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white'
               : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
           }`}
           title="Next Page"
@@ -458,8 +460,8 @@ export default function QuranReader() {
                         className="text-center mb-1"
                         style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
                       >
-                        <div className="inline-block px-6 py-1 border-2 border-emerald-600 rounded-lg bg-emerald-50">
-                          <span className="text-emerald-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
+                        <div className="inline-block px-6 py-1 border-2 border-cyan-600 rounded-lg bg-cyan-50">
+                          <span className="text-cyan-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
                             سُورَةُ {SURAH_NAMES[surahStarting]}
                           </span>
                         </div>
@@ -494,7 +496,7 @@ export default function QuranReader() {
                             className={`rounded px-0.5 ${
                               word.charType === 'word'
                                 ? wordStyle.className
-                                : 'text-emerald-700'
+                                : 'text-cyan-700'
                             }`}
                             style={fontFamily ? { fontFamily } : undefined}
                             title={word.charType === 'word'
@@ -522,7 +524,7 @@ export default function QuranReader() {
           disabled={!canGoPrev}
           className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
             canGoPrev
-              ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white'
+              ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white'
               : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
           }`}
           title="Previous Page"
@@ -536,8 +538,8 @@ export default function QuranReader() {
       {/* Jump Modal */}
       {showJumpModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-semibold text-slate-100 mb-4">Jump to Page</h3>
+          <div className={`rounded-2xl p-6 w-full max-w-sm shadow-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Jump to Page</h3>
             <input
               type="number"
               min="1"
@@ -545,20 +547,20 @@ export default function QuranReader() {
               value={jumpToPage}
               onChange={(e) => setJumpToPage(e.target.value)}
               placeholder={`Enter page number (1-${TOTAL_PAGES})`}
-              className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+              className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-500 mb-4 ${darkMode ? 'border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-slate-50 text-slate-800 placeholder-slate-400'}`}
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && handleJumpToPage()}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowJumpModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-400 font-medium hover:bg-slate-700/30 transition-colors"
+                className={`flex-1 py-2.5 rounded-xl border font-medium transition-colors ${darkMode ? 'border-slate-600 text-slate-400 hover:bg-slate-700/30' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleJumpToPage}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 text-white font-medium hover:bg-cyan-700 transition-colors"
               >
                 Jump
               </button>

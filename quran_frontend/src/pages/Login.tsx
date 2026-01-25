@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,209 +29,232 @@ export default function Login() {
     }
   };
 
+  const fillDemo = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl font-bold text-white">QT</span>
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 ${
+      darkMode
+        ? 'bg-gradient-to-br from-[rgb(26,31,46)] via-[rgb(37,45,61)] to-[rgb(30,41,59)]'
+        : 'bg-gradient-to-br from-sky-200 via-cyan-200 to-teal-100'
+    }`}>
+      {/* Theme Toggle Button */}
+      <button
+        onClick={toggleDarkMode}
+        className={`fixed top-4 right-4 p-3 rounded-full transition-all duration-300 ${
+          darkMode
+            ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
+            : 'bg-white text-cyan-600 hover:bg-cyan-50 shadow-lg border border-cyan-200'
+        }`}
+        aria-label="Toggle dark mode"
+      >
+        {darkMode ? (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ) : (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        )}
+      </button>
+
+      {/* Quran Verse - Surah Al-Isra 17:9 */}
+      <div className="w-full max-w-4xl text-center mb-6">
+        <p className={`text-xl md:text-2xl font-arabic leading-relaxed transition-colors duration-300 ${
+          darkMode ? 'text-slate-300' : 'text-slate-600'
+        }`} dir="rtl">
+          إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا
+        </p>
+        <p className={`text-sm mt-2 transition-colors duration-300 ${
+          darkMode ? 'text-slate-400' : 'text-slate-500'
+        }`}>
+          "Indeed, this Quran guides to that which is most suitable and gives good tidings to the believers who do righteous deeds that they will have a great reward." - Al-Isra 17:9
+        </p>
+      </div>
+
+      {/* Main Card */}
+      <div className={`w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col-reverse lg:flex-row lg:min-h-[520px] transition-colors duration-300 ${
+        darkMode ? 'bg-[rgb(30,41,59)] border border-cyan-900/30' : 'bg-white/90 backdrop-blur-sm border border-cyan-200/50'
+      }`}>
+        {/* Left Side - Form */}
+        <div className="w-full lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center">
+          <div className="max-w-sm mx-auto w-full">
+            {/* Logo */}
+            <div className="flex items-center gap-3 mb-8">
+              <img src="/logo.png" alt="QuranTrack" className="w-12 h-12" />
+              <span className={`text-2xl font-bold transition-colors duration-300 ${
+                darkMode ? 'text-white' : 'text-slate-800'
+              }`}>QuranTrack</span>
+            </div>
+
+            <h1 className={`text-2xl font-bold mb-2 transition-colors duration-300 ${
+              darkMode ? 'text-white' : 'text-slate-800'
+            }`}>Assalamu Alaikum!</h1>
+            <p className={`mb-8 transition-colors duration-300 ${
+              darkMode ? 'text-slate-400' : 'text-slate-500'
+            }`}>Sign in to your account</p>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+                  darkMode
+                    ? 'bg-red-900/30 border border-red-800 text-red-400'
+                    : 'bg-red-50 border border-red-200 text-red-600'
+                }`}>
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              {/* Email Input */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`w-full pl-12 pr-4 py-3.5 rounded-xl transition-all focus:outline-none focus:ring-2 ${
+                    darkMode
+                      ? 'bg-[rgb(37,45,61)] border border-cyan-900/50 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20'
+                      : 'bg-cyan-50/50 border border-cyan-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20'
+                  }`}
+                  placeholder="E-mail"
+                  required
+                />
+              </div>
+
+              {/* Password Input */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full pl-12 pr-4 py-3.5 rounded-xl transition-all focus:outline-none focus:ring-2 ${
+                    darkMode
+                      ? 'bg-[rgb(37,45,61)] border border-cyan-900/50 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20'
+                      : 'bg-cyan-50/50 border border-cyan-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20'
+                  }`}
+                  placeholder="Password"
+                  required
+                />
+              </div>
+
+              {/* Demo Accounts Toggle */}
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                  className={`font-medium flex items-center gap-1 ${
+                    darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
+                  }`}
+                >
+                  <svg className={`w-4 h-4 transition-transform ${showDemoAccounts ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  Demo accounts
+                </button>
+              </div>
+
+              {/* Demo Accounts Panel */}
+              {showDemoAccounts && (
+                <div className={`p-3 rounded-xl border space-y-2 ${
+                  darkMode
+                    ? 'bg-[rgb(37,45,61)] border-cyan-900/50'
+                    : 'bg-cyan-50/50 border-cyan-200'
+                }`}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('hamzaferoze115@gmail.com', '12345678')}
+                      className={`px-3 py-2 rounded-lg text-xs transition-colors ${
+                        darkMode
+                          ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30'
+                          : 'bg-cyan-100 border border-cyan-200 text-cyan-700 hover:bg-cyan-200'
+                      }`}
+                    >
+                      Teacher 1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('hamzaferoze115+23@gmail.com', '12345678')}
+                      className={`px-3 py-2 rounded-lg text-xs transition-colors ${
+                        darkMode
+                          ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30'
+                          : 'bg-cyan-100 border border-cyan-200 text-cyan-700 hover:bg-cyan-200'
+                      }`}
+                    >
+                      Teacher 2
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/30"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : 'SIGN IN'}
+              </button>
+            </form>
+
+            <p className={`text-center mt-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Don't have an account?{' '}
+              <Link to="/signup" className={`font-semibold ${
+                darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
+              }`}>
+                Create
+              </Link>
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">Welcome Back</h1>
-          <p className="text-slate-400 mt-1">Sign in to QuranTrack</p>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-          {error && (
-            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
-              placeholder="Enter your email"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
-              placeholder="Enter password"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        {/* Right Side - Decorative (shows below on mobile, right on desktop) */}
+        <div className="flex w-full lg:w-1/2 relative bg-gradient-to-br from-cyan-400 via-cyan-500 to-teal-500 items-center justify-center py-8 lg:py-0 rounded-t-3xl lg:rounded-t-none lg:rounded-r-3xl">
+          {/* Smooth Wave Divider - desktop only */}
+          <svg
+            className="hidden lg:block absolute -left-4 -top-4 w-24"
+            style={{ height: 'calc(100% + 32px)' }}
+            viewBox="0 0 100 800"
+            preserveAspectRatio="none"
+            fill={darkMode ? 'rgb(30,41,59)' : 'rgba(255,255,255,0.9)'}
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            <path d="M100 -20H-20V820H100C100 820 20 700 40 600C60 500 0 450 20 350C40 250 0 150 40 50C60 -20 100 -20 100 -20Z" />
+          </svg>
 
-        {/* Sign up link */}
-        <p className="text-center text-slate-400 mt-6">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-emerald-400 hover:text-emerald-300">
-            Sign up
-          </Link>
-        </p>
+          {/* Decorative Elements */}
+          <div className="absolute top-10 right-10 lg:top-20 lg:right-20 w-20 lg:w-32 h-20 lg:h-32 bg-white/10 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-10 right-20 lg:bottom-32 lg:right-32 w-16 lg:w-24 h-16 lg:h-24 bg-white/10 rounded-full blur-2xl"></div>
 
-        {/* Demo Users */}
-        <div className="mt-8 p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
-          <p className="text-sm text-slate-400 mb-3 text-center">Demo Accounts (click to auto-fill)</p>
-          <p className="text-xs text-slate-500 mb-3 text-center">Password: Test123!</p>
-          <div className="space-y-2">
-            {/* Personal Accounts */}
-            <p className="text-xs text-purple-400 font-medium">Personal:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setEmail('hamzaferoze115@gmail.com'); setPassword('password12345'); }}
-                className="px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/30 transition-colors"
-              >
-                Hamza Feroze (T)
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('hamzaferoze115+114@gmail.com'); setPassword('password12345'); }}
-                className="px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/30 transition-colors"
-              >
-                Hamza Reyal (S)
-              </button>
-            </div>
-
-            {/* Teachers */}
-            <p className="text-xs text-emerald-400 font-medium mt-3">Teachers:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setEmail('abdullah.q@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
-              >
-                Abdullah Q
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('tariq.jameel@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
-              >
-                Tariq Jameel
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('usman.farooq@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
-              >
-                Usman Farooq
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('maryam.s@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
-              >
-                Maryam S
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('khadijah.noor@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors"
-              >
-                Khadijah Noor
-              </button>
-            </div>
-
-            {/* Students */}
-            <p className="text-xs text-blue-400 font-medium mt-3">Students:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setEmail('ahmed.khan@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Ahmed Khan
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('yusuf.ali@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Yusuf Ali
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('omar.hassan@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Omar Hassan
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('ibrahim.m@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Ibrahim M
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('bilal.ahmad@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Bilal Ahmad
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('khalid.r@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Khalid R
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('zayd.malik@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Zayd Malik
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('mustafa.h@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Mustafa H
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('fatima.zahra@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Fatima Zahra
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('aisha.begum@test.com'); setPassword('Test123!'); }}
-                className="px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
-              >
-                Aisha Begum
-              </button>
-            </div>
+          {/* Content */}
+          <div className="relative z-10 text-center px-8 lg:px-12">
+            <img src="/logo.png" alt="QuranTrack" className="w-16 h-16 lg:w-28 lg:h-28 mx-auto mb-4 lg:mb-8 drop-shadow-2xl" />
+            <h2 className="text-2xl lg:text-3xl font-bold text-white mb-2 lg:mb-4">Welcome Back!</h2>
+            <p className="text-white/90 text-sm lg:text-lg leading-relaxed max-w-xs mx-auto">
+              Track your Quran memorization journey with ease
+            </p>
           </div>
         </div>
       </div>

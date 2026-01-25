@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
@@ -38,7 +39,7 @@ interface SurahInfo {
 }
 
 interface SinglePortion {
-  id: number;
+  id: string;
   mode: 'page' | 'surah';  // Default to page
   startPage: number;
   endPage: number;
@@ -74,6 +75,7 @@ const getMonthLabel = (monthKey: string) => {
 
 export default function TeacherClasses() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { darkMode } = useTheme();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
@@ -82,13 +84,13 @@ export default function TeacherClasses() {
   // Modal state
   const [showNewClassModal, setShowNewClassModal] = useState(false);
   const [modalStep, setModalStep] = useState<1 | 2>(1);
-  const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [classType, setClassType] = useState<'regular' | 'test'>('regular');
 
   // Notes modal state
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const [notesClassId, setNotesClassId] = useState<number | null>(null);
+  const [notesClassId, setNotesClassId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
 
@@ -97,7 +99,7 @@ export default function TeacherClasses() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedStudentFilter, setSelectedStudentFilter] = useState<number | null>(null);
+  const [selectedStudentFilter, setSelectedStudentFilter] = useState<string | null>(null);
 
   // Auto-open modal if ?new=1 is in URL, and pre-select student if ?student=ID
   useEffect(() => {
@@ -107,11 +109,8 @@ export default function TeacherClasses() {
       // Pre-select student if provided in URL and skip to step 2
       const studentId = searchParams.get('student');
       if (studentId) {
-        const id = Number(studentId);
-        if (!isNaN(id)) {
-          setSelectedStudents([id]);
-          setModalStep(2); // Skip to portion selection since student is already selected
-        }
+        setSelectedStudents([studentId]);
+        setModalStep(2); // Skip to portion selection since student is already selected
       }
 
       // Remove the query params from URL
@@ -121,16 +120,16 @@ export default function TeacherClasses() {
 
   // Portion configuration mode: 'same' for all students, 'per-student' for individual
   const [portionMode, setPortionMode] = useState<'same' | 'per-student'>('same');
-  const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
 
   // Suggestions state - keyed by student ID
-  const [suggestions, setSuggestions] = useState<Record<number, SuggestedPortions>>({});
-  const [loadingSuggestions, setLoadingSuggestions] = useState<Record<number, boolean>>({});
+  const [suggestions, setSuggestions] = useState<Record<string, SuggestedPortions>>({});
+  const [loadingSuggestions, setLoadingSuggestions] = useState<Record<string, boolean>>({});
 
   // Portion configuration - shared (for 'same' mode) or per-student (for 'per-student' mode)
   // Default to page mode with page 560 (Surah Al-Mulk starts on page 560)
   const createDefaultPortion = (): SinglePortion => ({
-    id: Date.now(),
+    id: String(Date.now()),
     mode: 'page',
     startPage: 560,
     endPage: 560,
@@ -146,7 +145,7 @@ export default function TeacherClasses() {
   const [revisionConfig, setRevisionConfig] = useState<PortionConfig>({ enabled: false, portions: [createDefaultPortion()] });
 
   // Per-student configs: Map of student_id -> { hifz, sabqi, revision }
-  const [perStudentConfigs, setPerStudentConfigs] = useState<Record<number, {
+  const [perStudentConfigs, setPerStudentConfigs] = useState<Record<string, {
     hifz: PortionConfig;
     sabqi: PortionConfig;
     revision: PortionConfig;
@@ -185,7 +184,7 @@ export default function TeacherClasses() {
     };
   }, []);
 
-  const toggleStudent = (id: number) => {
+  const toggleStudent = (id: string) => {
     if (classType === 'test') {
       // Test classes only allow one student - toggle to this student only
       setSelectedStudents(prev => prev.includes(id) ? [] : [id]);
@@ -212,7 +211,7 @@ export default function TeacherClasses() {
 
   // Initialize per-student configs when switching to per-student mode
   const initPerStudentConfigs = () => {
-    const configs: Record<number, { hifz: PortionConfig; sabqi: PortionConfig; revision: PortionConfig }> = {};
+    const configs: Record<string, { hifz: PortionConfig; sabqi: PortionConfig; revision: PortionConfig }> = {};
     selectedStudents.forEach(studentId => {
       configs[studentId] = {
         hifz: { enabled: true, portions: [createDefaultPortion()] },
@@ -251,7 +250,7 @@ export default function TeacherClasses() {
   };
 
   // Fetch suggestions for a student
-  const fetchSuggestionsForStudent = async (studentId: number) => {
+  const fetchSuggestionsForStudent = async (studentId: string) => {
     if (suggestions[studentId] || loadingSuggestions[studentId]) return;
 
     setLoadingSuggestions(prev => ({ ...prev, [studentId]: true }));
@@ -268,7 +267,7 @@ export default function TeacherClasses() {
   // Apply suggestion to portion config
   const applySuggestion = (
     type: 'hifz' | 'sabqi' | 'manzil',
-    studentId?: number
+    studentId?: string
   ) => {
     const studentSuggestions = studentId ? suggestions[studentId] : suggestions[selectedStudents[0]];
     if (!studentSuggestions) return;
@@ -277,7 +276,7 @@ export default function TeacherClasses() {
     if (!suggestion) return;
 
     const newPortion: SinglePortion = {
-      id: Date.now(),
+      id: String(Date.now()),
       mode: 'surah',
       startPage: 1,
       endPage: 1,
@@ -332,10 +331,10 @@ export default function TeacherClasses() {
         end_surah: number;
         start_ayah?: number;
         end_ayah?: number;
-        student_id?: number;
+        student_id?: string;
       }> = [];
 
-      const addPortions = (config: PortionConfig, type: string, studentId?: number) => {
+      const addPortions = (config: PortionConfig, type: string, studentId?: string) => {
         if (config.enabled) {
           config.portions.forEach(p => {
             assignments.push({
@@ -357,8 +356,7 @@ export default function TeacherClasses() {
         addPortions(revisionConfig, 'revision');
       } else {
         // Per-student portions - add assignments for each student
-        Object.entries(perStudentConfigs).forEach(([studentIdStr, config]) => {
-          const studentId = parseInt(studentIdStr);
+        Object.entries(perStudentConfigs).forEach(([studentId, config]) => {
           addPortions(config.hifz, 'hifz', studentId);
           addPortions(config.sabqi, 'sabqi', studentId);
           addPortions(config.revision, 'revision', studentId);
@@ -498,7 +496,7 @@ export default function TeacherClasses() {
     config: PortionConfig;
     setConfig: (c: PortionConfig) => void;
   }) => {
-    const updatePortion = (portionId: number, updates: Partial<SinglePortion>) => {
+    const updatePortion = (portionId: string, updates: Partial<SinglePortion>) => {
       // Save scroll position before state update
       const scrollTop = modalBodyRef.current?.scrollTop || 0;
       setConfig({
@@ -520,7 +518,7 @@ export default function TeacherClasses() {
       });
     };
 
-    const removePortion = (portionId: number) => {
+    const removePortion = (portionId: string) => {
       if (config.portions.length > 1) {
         setConfig({
           ...config,
@@ -530,7 +528,7 @@ export default function TeacherClasses() {
     };
 
     // Convert page to surah/ayah when page changes
-    const handlePageChange = (portionId: number, startPage: number, endPage: number) => {
+    const handlePageChange = (portionId: string, startPage: number, endPage: number) => {
       const startRange = getPageRange(startPage);
       const endRange = getPageRange(endPage);
       updatePortion(portionId, {
@@ -591,7 +589,7 @@ export default function TeacherClasses() {
                       onClick={() => updatePortion(portion.id, { mode: 'page' })}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                         portion.mode === 'page'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
                           : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
                       }`}
                     >
@@ -602,7 +600,7 @@ export default function TeacherClasses() {
                       onClick={() => updatePortion(portion.id, { mode: 'surah' })}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                         portion.mode === 'surah'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
                           : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
                       }`}
                     >
@@ -628,7 +626,7 @@ export default function TeacherClasses() {
                               Math.max(newStart, portion.endPage)
                             );
                           }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
@@ -642,7 +640,7 @@ export default function TeacherClasses() {
                             const newEnd = Math.min(Math.max(portion.startPage, parseInt(e.target.value) || portion.startPage), TOTAL_PAGES);
                             handlePageChange(portion.id, portion.startPage, newEnd);
                           }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -663,7 +661,7 @@ export default function TeacherClasses() {
                                 endAyah: ''
                               });
                             }}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             {surahList.map((surah) => (
                               <option key={surah.number} value={surah.number}>
@@ -677,7 +675,7 @@ export default function TeacherClasses() {
                           <select
                             value={portion.endSurah}
                             onChange={(e) => updatePortion(portion.id, { endSurah: parseInt(e.target.value), startAyah: '', endAyah: '' })}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             {surahList.filter(s => s.number >= portion.startSurah).map((surah) => (
                               <option key={surah.number} value={surah.number}>
@@ -699,7 +697,7 @@ export default function TeacherClasses() {
                             value={portion.startAyah}
                             onChange={(e) => updatePortion(portion.id, { startAyah: e.target.value })}
                             disabled={!isSameSurah}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </div>
                         <div>
@@ -712,7 +710,7 @@ export default function TeacherClasses() {
                             value={portion.endAyah}
                             onChange={(e) => updatePortion(portion.id, { endAyah: e.target.value })}
                             disabled={!isSameSurah}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -746,12 +744,12 @@ export default function TeacherClasses() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">Classes</h1>
-          <p className="text-slate-400 mt-1">Manage all your teaching sessions</p>
+          <h1 className={`text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Classes</h1>
+          <p className={`mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Manage all your teaching sessions</p>
         </div>
         <button
           onClick={() => setShowNewClassModal(true)}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -761,17 +759,17 @@ export default function TeacherClasses() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+      <div className={`rounded-xl p-4 space-y-3 ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-slate-200'}`}>
         {/* Row 1: Students */}
         <div className="flex items-center gap-3">
-          <span className="text-slate-400 text-sm font-medium w-16">Student</span>
+          <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Student</span>
           <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
             <button
               onClick={() => setSelectedStudentFilter(null)}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                 selectedStudentFilter === null
                   ? 'bg-blue-600 text-white shadow-lg'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
               }`}
             >
               All
@@ -783,7 +781,7 @@ export default function TeacherClasses() {
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                   selectedStudentFilter === s.id
                     ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                 }`}
               >
                 {s.first_name}
@@ -794,7 +792,7 @@ export default function TeacherClasses() {
 
         {/* Row 2: Months */}
         <div className="flex items-center gap-3">
-          <span className="text-slate-400 text-sm font-medium w-16">Month</span>
+          <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Month</span>
           <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
             {recentMonths.map(month => {
               const count = classCountByMonth[month] || 0;
@@ -805,13 +803,13 @@ export default function TeacherClasses() {
                   onClick={() => setSelectedMonth(month)}
                   className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                     isSelected
-                      ? 'bg-emerald-600 text-white shadow-lg'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                   }`}
                 >
                   {getMonthLabel(month)}
                   <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
-                    isSelected ? 'bg-emerald-500' : 'bg-slate-600'
+                    isSelected ? 'bg-blue-500' : darkMode ? 'bg-slate-600' : 'bg-slate-300'
                   }`}>
                     {count}
                   </span>
@@ -824,7 +822,7 @@ export default function TeacherClasses() {
               <select
                 value={!recentMonths.includes(selectedMonth) ? selectedMonth : ''}
                 onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
-                className="bg-slate-700 text-slate-300 rounded-full px-4 py-2 text-sm border-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className={`rounded-full px-4 py-2 text-sm border-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700'}`}
               >
                 <option value="">Older...</option>
                 {allMonths.filter(m => !recentMonths.includes(m)).map(month => (
@@ -853,7 +851,7 @@ export default function TeacherClasses() {
           };
 
           // Helper to format portion display nicely - now filters by student
-          const getPortionDisplay = (cls: ClassData, type: string, studentId?: number) => {
+          const getPortionDisplay = (cls: ClassData, type: string, studentId?: string) => {
             // Filter portions: show shared (no student_id) + student-specific
             const portions = cls.assignments.filter(a =>
               a.type === type && (!a.student_id || a.student_id === studentId)
@@ -883,7 +881,7 @@ export default function TeacherClasses() {
           // Expand classes: one row per student (or one row if no students)
           type ExpandedRow = {
             cls: ClassData;
-            student: { id: number; first_name: string; last_name: string; performance?: string } | null;
+            student: { id: string; first_name: string; last_name: string; performance?: string } | null;
             isFirstOfClass: boolean;
             isLastOfClass: boolean;
             studentCount: number;
@@ -914,12 +912,12 @@ export default function TeacherClasses() {
           });
 
           return (
-            <div key={monthKey} className="card overflow-hidden">
+            <div key={monthKey} className={`card overflow-hidden ${darkMode ? '' : 'bg-white border-slate-200'}`}>
               {/* Month Header */}
-              <div className="px-6 py-4 bg-slate-800/50 border-b border-slate-700/50 flex items-center justify-between">
+              <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-slate-100">{getMonthLabel(monthKey)}</h2>
-                  <span className="text-sm text-slate-500">({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
+                  <h2 className={`text-lg font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{getMonthLabel(monthKey)}</h2>
+                  <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
                 </div>
               </div>
 
@@ -933,17 +931,17 @@ export default function TeacherClasses() {
                   return (
                     <div
                       key={cls.id}
-                      className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-colors"
+                      className={`rounded-xl border overflow-hidden transition-colors ${darkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600/50' : 'bg-white border-slate-200 hover:border-slate-300'}`}
                     >
                       {/* Class Header */}
-                      <div className="flex items-center justify-between px-5 py-3 bg-slate-800/80 border-b border-slate-700/50">
+                      <div className={`flex items-center justify-between px-5 py-3 border-b ${darkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-4">
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-bold">
+                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold ${darkMode ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-200 text-slate-600'}`}>
                             W{weekNum}
                           </span>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-slate-200 font-medium">
+                              <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
                               </span>
                               {cls.class_type === 'test' && (
@@ -952,7 +950,7 @@ export default function TeacherClasses() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-slate-500 mt-0.5">
+                            <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                               {students.length} student{students.length !== 1 ? 's' : ''}
                             </div>
                           </div>
@@ -968,7 +966,7 @@ export default function TeacherClasses() {
                             }}
                             className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
                               cls.is_published
-                                ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                                 : 'bg-slate-600/50 text-slate-400 hover:bg-slate-600/70'
                             }`}
                           >
@@ -1012,7 +1010,7 @@ export default function TeacherClasses() {
                       {/* Portions Section */}
                       <div className="p-4">
                         {students.length === 0 ? (
-                          <div className="text-center py-4 text-slate-500">No students assigned</div>
+                          <div className={`text-center py-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>No students assigned</div>
                         ) : (
                           <div className="space-y-4">
                             {students.map((student) => (
@@ -1021,15 +1019,15 @@ export default function TeacherClasses() {
                                 onClick={() => {
                                   window.location.href = `/teacher/classes/${cls.id}?student=${student.id}`;
                                 }}
-                                className="bg-slate-900/50 rounded-lg p-4 cursor-pointer hover:bg-slate-900/80 transition-colors"
+                                className={`rounded-lg p-4 cursor-pointer transition-colors ${darkMode ? 'bg-slate-900/50 hover:bg-slate-900/80' : 'bg-slate-50 hover:bg-slate-100'}`}
                               >
                                 {/* Student Header */}
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2">
-                                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
+                                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
                                       {student.first_name[0]}
                                     </span>
-                                    <span className="text-slate-200 font-medium">{student.first_name} {student.last_name}</span>
+                                    <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{student.first_name} {student.last_name}</span>
                                   </div>
                                   {/* Performance Dropdown */}
                                   <div onClick={(e) => e.stopPropagation()}>
@@ -1040,9 +1038,9 @@ export default function TeacherClasses() {
                                         const updated = await getClasses();
                                         setClasses(updated);
                                       }}
-                                      className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
+                                      className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                                         student.performance === 'Excellent'
-                                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                                           : student.performance === 'Very Good'
                                           ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
                                           : student.performance === 'Good'
@@ -1065,14 +1063,14 @@ export default function TeacherClasses() {
                                 {/* Portions Grid - Each type on its own row */}
                                 <div className="space-y-2">
                                   {/* Hifz Row */}
-                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                                    <span className="text-xs font-semibold text-emerald-400 w-16 flex-shrink-0">HIFZ</span>
-                                    <span className="text-sm text-emerald-300 flex-1">{getPortionDisplay(cls, 'hifz', student.id)}</span>
+                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                                    <span className="text-xs font-semibold text-blue-400 w-16 flex-shrink-0">HIFZ</span>
+                                    <span className="text-sm text-blue-300 flex-1">{getPortionDisplay(cls, 'hifz', student.id)}</span>
                                     {(student.mistake_counts?.hifz ?? 0) > 0 && (
                                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                         (student.mistake_counts?.hifz ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
                                         : (student.mistake_counts?.hifz ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
-                                        : 'bg-emerald-500/20 text-emerald-400'
+                                        : 'bg-blue-500/20 text-blue-400'
                                       }`}>
                                         {student.mistake_counts?.hifz} {student.mistake_counts?.hifz === 1 ? 'mistake' : 'mistakes'}
                                       </span>
@@ -1115,9 +1113,9 @@ export default function TeacherClasses() {
 
                       {/* Notes Section (if has notes) */}
                       {cls.notes && (
-                        <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/30">
-                          <p className="text-xs text-slate-400">
-                            <span className="font-medium text-slate-500">Notes:</span> {cls.notes}
+                        <div className={`px-5 py-3 border-t ${darkMode ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-200 bg-slate-50'}`}>
+                          <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <span className={`font-medium ${darkMode ? 'text-slate-500' : 'text-slate-600'}`}>Notes:</span> {cls.notes}
                           </p>
                         </div>
                       )}
@@ -1130,21 +1128,21 @@ export default function TeacherClasses() {
         })
       ) : (
         /* Empty State */
-        <div className="card p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className={`card p-12 text-center ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            <svg className={`w-8 h-8 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
           {classes.length === 0 ? (
             <>
-              <p className="text-lg text-slate-300 font-medium">No classes yet</p>
-              <p className="text-slate-500 mt-1">Start your first class to begin tracking</p>
+              <p className={`text-lg font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>No classes yet</p>
+              <p className={`mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Start your first class to begin tracking</p>
             </>
           ) : (
             <>
-              <p className="text-lg text-slate-300 font-medium">No classes found</p>
-              <p className="text-slate-500 mt-1">
+              <p className={`text-lg font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>No classes found</p>
+              <p className={`mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                 No classes in {getMonthLabel(selectedMonth)}
                 {selectedStudentFilter && ` for ${students.find(s => s.id === selectedStudentFilter)?.first_name || 'this student'}`}
               </p>
@@ -1154,7 +1152,7 @@ export default function TeacherClasses() {
                   const now = new Date();
                   setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
                 }}
-                className="mt-4 text-emerald-400 hover:text-emerald-300 text-sm"
+                className="mt-4 text-blue-400 hover:text-blue-300 text-sm"
               >
                 Clear filters
               </button>
@@ -1166,18 +1164,18 @@ export default function TeacherClasses() {
       {/* New Class Modal */}
       {showNewClassModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className={`rounded-2xl border w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between flex-shrink-0">
+            <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
               <div>
-                <h2 className="text-xl font-semibold text-slate-100">
+                <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                   {modalStep === 1 ? 'Select Students' : 'Configure Portions'}
                 </h2>
-                <p className="text-sm text-slate-400 mt-0.5">
+                <p className={`text-sm mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Step {modalStep} of 2
                 </p>
               </div>
-              <button onClick={resetModal} className="text-slate-400 hover:text-slate-200">
+              <button onClick={resetModal} className={darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}>
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1200,7 +1198,7 @@ export default function TeacherClasses() {
                         onClick={() => setClassType('regular')}
                         className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
                           classType === 'regular'
-                            ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500'
+                            ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-500'
                             : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
                         }`}
                       >
@@ -1257,13 +1255,13 @@ export default function TeacherClasses() {
                             onClick={() => toggleStudent(student.id)}
                             className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-emerald-500/20 border-2 border-emerald-500'
+                                ? 'bg-blue-500/20 border-2 border-blue-500'
                                 : 'bg-slate-700/50 border-2 border-transparent hover:bg-slate-700'
                             }`}
                           >
                             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
                               isSelected
-                                ? 'bg-emerald-500 border-emerald-500'
+                                ? 'bg-blue-500 border-blue-500'
                                 : 'border-slate-500'
                             }`}>
                               {isSelected && (
@@ -1272,7 +1270,7 @@ export default function TeacherClasses() {
                                 </svg>
                               )}
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
                               {student.first_name[0]}{student.last_name[0]}
                             </div>
                             <span className="text-slate-200 font-medium">{student.first_name} {student.last_name}</span>
@@ -1287,7 +1285,7 @@ export default function TeacherClasses() {
                 <div className="space-y-4">
                   <div className="p-3 bg-slate-700/50 rounded-lg flex items-center gap-2">
                     <p className="text-sm text-slate-400">
-                      {classType === 'test' ? 'Test' : 'Class'} with: <span className={`font-medium ${classType === 'test' ? 'text-cyan-400' : 'text-emerald-400'}`}>{selectedStudentNames}</span>
+                      {classType === 'test' ? 'Test' : 'Class'} with: <span className={`font-medium ${classType === 'test' ? 'text-cyan-400' : 'text-blue-400'}`}>{selectedStudentNames}</span>
                     </p>
                     {classType === 'test' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
@@ -1308,7 +1306,7 @@ export default function TeacherClasses() {
                           onClick={() => setPortionMode('same')}
                           className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
                             portionMode === 'same'
-                              ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500'
+                              ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-500'
                               : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
                           }`}
                         >
@@ -1353,12 +1351,12 @@ export default function TeacherClasses() {
                                 : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
                             }`}
                           >
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-xs font-bold text-white">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-xs font-bold text-white">
                               {student.first_name[0]}
                             </div>
                             {student.first_name}
                             {hasPortions && (
-                              <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
                             )}
@@ -1413,12 +1411,12 @@ export default function TeacherClasses() {
                               <button
                                 type="button"
                                 onClick={() => applySuggestion('hifz', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
-                                className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors text-left"
+                                className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors text-left"
                               >
-                                <div className="text-xs font-medium text-emerald-400 mb-1">HIFZ</div>
-                                <div className="text-sm text-emerald-300">{studentSuggestions.hifz.surah_name || `Surah ${studentSuggestions.hifz.start_surah}`}</div>
+                                <div className="text-xs font-medium text-blue-400 mb-1">HIFZ</div>
+                                <div className="text-sm text-blue-300">{studentSuggestions.hifz.surah_name || `Surah ${studentSuggestions.hifz.start_surah}`}</div>
                                 {studentSuggestions.hifz.start_ayah && (
-                                  <div className="text-xs text-emerald-400/70">
+                                  <div className="text-xs text-blue-400/70">
                                     Ayah {studentSuggestions.hifz.start_ayah}-{studentSuggestions.hifz.end_ayah}
                                   </div>
                                 )}
@@ -1685,8 +1683,8 @@ export default function TeacherClasses() {
                         <PortionSelector
                           label="Hifz (New Memorization)"
                           description="New verses to memorize"
-                          borderColor="border-emerald-500 bg-emerald-500/5"
-                          toggleColor="bg-emerald-500"
+                          borderColor="border-blue-500 bg-blue-500/5"
+                          toggleColor="bg-blue-500"
                           config={hifzConfig}
                           setConfig={setHifzConfig}
                         />
@@ -1712,8 +1710,8 @@ export default function TeacherClasses() {
                         <PortionSelector
                           label="Hifz (New Memorization)"
                           description="New verses to memorize"
-                          borderColor="border-emerald-500 bg-emerald-500/5"
-                          toggleColor="bg-emerald-500"
+                          borderColor="border-blue-500 bg-blue-500/5"
+                          toggleColor="bg-blue-500"
                           config={getActiveStudentConfig().hifz}
                           setConfig={(c) => updateActiveStudentConfig('hifz', c)}
                         />
@@ -1753,7 +1751,7 @@ export default function TeacherClasses() {
                   <button
                     disabled={selectedStudents.length === 0}
                     onClick={() => setModalStep(2)}
-                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-emerald-600 hover:bg-emerald-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
+                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-blue-600 hover:bg-blue-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
                   >
                     {classType === 'test' ? 'Next: Test Portion' : 'Next: Choose Portions'}
                   </button>
@@ -1769,7 +1767,7 @@ export default function TeacherClasses() {
                   <button
                     onClick={handleCreateClass}
                     disabled={creating}
-                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-emerald-600 hover:bg-emerald-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
+                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-blue-600 hover:bg-blue-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
                   >
                     {creating ? (
                       <>

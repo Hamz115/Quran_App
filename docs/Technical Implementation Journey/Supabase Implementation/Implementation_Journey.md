@@ -768,6 +768,84 @@ Added sync tracking columns to all tables:
 
 ---
 
+## Step 22: Profile Sync & Frontend Wiring (25 January 2026)
+
+Extended sync to include profiles and wired it to the frontend.
+
+**Problem:**
+- Classes stored `supabase_teacher_id` but local app.db had no profiles to look up names
+- Sync wasn't triggered automatically - had to call manually
+
+**Solution:**
+1. Added profile syncing from Supabase → app.db (one-way)
+2. Added teacher_students relationship syncing
+3. Wired sync to AuthContext (triggers on login/signup/app start)
+
+**New Tables in app.db:**
+```sql
+CREATE TABLE profiles (
+    id TEXT PRIMARY KEY,  -- Supabase UUID
+    email TEXT UNIQUE,
+    name TEXT,
+    role TEXT DEFAULT 'student',
+    created_at TEXT,
+    updated_at TEXT,
+    last_synced_at TEXT
+);
+
+CREATE TABLE teacher_students (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    last_synced_at TEXT,
+    UNIQUE(teacher_id, student_id)
+);
+```
+
+**New Sync Functions (sync_service.py):**
+- `pull_profiles()` - Pull all profiles from Supabase
+- `pull_teacher_students(teacher_id)` - Pull relationships for a teacher
+
+**Updated full_sync():**
+```python
+def full_sync(supabase_user_id: str, user_role: str = "student"):
+    # 1. Pull profiles (all users)
+    results["profiles"] = pull_profiles()
+
+    # 2. Pull teacher_students (if teacher)
+    if user_role == "teacher":
+        results["teacher_students"] = pull_teacher_students(supabase_user_id)
+
+    # 3. Push pending local changes
+    # 4. Pull remote changes
+```
+
+**Frontend Wiring (AuthContext.tsx):**
+```typescript
+// Added import
+import { triggerSync, isLocalApiAvailable } from '../lib/local-api';
+
+// New helper function
+async function triggerLocalSync(role: 'teacher' | 'student'): Promise<void> {
+  const available = await isLocalApiAvailable();
+  if (available) {
+    await triggerSync(role);
+  }
+}
+
+// Called in login(), signup(), and initSession()
+triggerLocalSync(profile.role);  // Non-blocking
+```
+
+**Result:**
+- ✅ Profiles synced to app.db for local name lookups
+- ✅ Sync triggers automatically on login/signup
+- ✅ Sync triggers on app start (existing session)
+- ✅ Non-blocking (doesn't slow down auth)
+
+---
+
 ## Next Steps (Pending)
 
 1. **Mobile Integration** - Update Flutter app to use local-first API

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 import { getClasses, getMyTeachers } from '../api';
 import type { ClassData } from '../api';
 
@@ -29,7 +30,7 @@ const surahNames: Record<number, string> = {
 };
 
 interface Teacher {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   added_at: string;
@@ -37,7 +38,7 @@ interface Teacher {
 
 const getPerformanceStyle = (perf: string | null) => {
   switch (perf) {
-    case 'Excellent': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+    case 'Excellent': return 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30';
     case 'Very Good': return 'bg-teal-500/20 text-teal-400 border border-teal-500/30';
     case 'Good': return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
     case 'Needs Work': return 'bg-red-500/20 text-red-400 border border-red-500/30';
@@ -65,6 +66,7 @@ const getMonthLabel = (monthKey: string) => {
 };
 
 export default function StudentClasses() {
+  const { darkMode } = useTheme();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,15 +200,15 @@ export default function StudentClasses() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">My Classes</h1>
-          <p className="text-slate-400 mt-1">Your learning journey with {teacherName}</p>
+          <h1 className={`text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>My Classes</h1>
+          <p className={`mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Your learning journey with {teacherName}</p>
         </div>
       </div>
 
       {/* Month Filter Tabs */}
       {classes.length > 0 && (
         <div className="flex items-center gap-3">
-          <span className="text-slate-400 text-sm font-medium">Month</span>
+          <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Month</span>
           <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
             {recentMonths.map(month => {
               const count = classCountByMonth[month] || 0;
@@ -217,13 +219,13 @@ export default function StudentClasses() {
                   onClick={() => setSelectedMonth(month)}
                   className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                     isSelected
-                      ? 'bg-emerald-600 text-white shadow-lg'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      ? 'bg-cyan-600 text-white shadow-lg'
+                      : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                   }`}
                 >
                   {getMonthLabel(month)}
                   <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
-                    isSelected ? 'bg-emerald-500' : 'bg-slate-600'
+                    isSelected ? 'bg-cyan-500' : darkMode ? 'bg-slate-600' : 'bg-slate-300'
                   }`}>
                     {count}
                   </span>
@@ -236,7 +238,7 @@ export default function StudentClasses() {
               <select
                 value={!recentMonths.includes(selectedMonth) ? selectedMonth : ''}
                 onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
-                className="bg-slate-700 text-slate-300 rounded-full px-4 py-2 text-sm border-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className={`rounded-full px-4 py-2 text-sm border-none focus:outline-none focus:ring-2 focus:ring-cyan-500 ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700'}`}
               >
                 <option value="">Older...</option>
                 {allMonths.filter(m => !recentMonths.includes(m)).map(month => (
@@ -256,12 +258,12 @@ export default function StudentClasses() {
           const monthClasses = groupedClasses[monthKey];
 
           return (
-            <div key={monthKey} className="card overflow-hidden">
+            <div key={monthKey} className={`card overflow-hidden ${darkMode ? '' : 'bg-white border-slate-200'}`}>
               {/* Month Header */}
-              <div className="px-6 py-4 bg-slate-800/50 border-b border-slate-700/50 flex items-center justify-between">
+              <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-slate-100">{getMonthLabel(monthKey)}</h2>
-                  <span className="text-sm text-slate-500">({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
+                  <h2 className={`text-lg font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{getMonthLabel(monthKey)}</h2>
+                  <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
                 </div>
               </div>
 
@@ -275,17 +277,17 @@ export default function StudentClasses() {
                     <div
                       key={cls.id}
                       onClick={() => window.location.href = `/student/classes/${cls.id}`}
-                      className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden hover:border-emerald-500/30 cursor-pointer transition-all hover:shadow-lg hover:shadow-emerald-500/5"
+                      className={`rounded-xl border overflow-hidden cursor-pointer transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-cyan-500/30 hover:shadow-cyan-500/5' : 'bg-white border-slate-200 hover:border-cyan-400 hover:shadow-cyan-200/50'}`}
                     >
                       {/* Class Header */}
-                      <div className="flex items-center justify-between px-5 py-3 bg-slate-800/80 border-b border-slate-700/50">
+                      <div className={`flex items-center justify-between px-5 py-3 border-b ${darkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-4">
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700/50 text-slate-300 text-sm font-bold">
+                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold ${darkMode ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-200 text-slate-600'}`}>
                             W{weekNum}
                           </span>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-slate-200 font-medium">
+                              <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
                               </span>
                               {cls.class_type === 'test' && (
@@ -294,7 +296,7 @@ export default function StudentClasses() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-slate-500 mt-0.5">
+                            <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                               with {teacherName}
                             </div>
                           </div>
@@ -330,14 +332,14 @@ export default function StudentClasses() {
                       <div className="p-4">
                         <div className="space-y-2">
                           {/* Hifz Row */}
-                          <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                            <span className="text-xs font-semibold text-emerald-400 w-16 flex-shrink-0">HIFZ</span>
-                            <span className="text-sm text-emerald-300 flex-1">{getPortionDisplay(cls, 'hifz')}</span>
+                          <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
+                            <span className="text-xs font-semibold text-cyan-400 w-16 flex-shrink-0">HIFZ</span>
+                            <span className="text-sm text-cyan-300 flex-1">{getPortionDisplay(cls, 'hifz')}</span>
                             {(cls.mistake_counts?.hifz ?? 0) > 0 && (
                               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                 (cls.mistake_counts?.hifz ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
                                 : (cls.mistake_counts?.hifz ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
-                                : 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-cyan-500/20 text-cyan-400'
                               }`}>
                                 {cls.mistake_counts?.hifz} {cls.mistake_counts?.hifz === 1 ? 'mistake' : 'mistakes'}
                               </span>
@@ -376,8 +378,8 @@ export default function StudentClasses() {
 
                       {/* Notes Preview (if has notes) */}
                       {cls.notes && (
-                        <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/30">
-                          <p className="text-xs text-slate-400 truncate">
+                        <div className={`px-5 py-3 border-t ${darkMode ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-200 bg-slate-50'}`}>
+                          <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                             <span className="font-medium text-amber-400/80">📝 Note:</span> {cls.notes}
                           </p>
                         </div>
@@ -391,21 +393,21 @@ export default function StudentClasses() {
         })
       ) : (
         /* Empty State */
-        <div className="card p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className={`card p-12 text-center ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            <svg className={`w-8 h-8 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
           {classes.length === 0 ? (
             <>
-              <p className="text-lg text-slate-300 font-medium">No classes yet</p>
-              <p className="text-slate-500 mt-1">Your teacher will add classes soon!</p>
+              <p className={`text-lg font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>No classes yet</p>
+              <p className={`mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Your teacher will add classes soon!</p>
             </>
           ) : (
             <>
-              <p className="text-lg text-slate-300 font-medium">No classes in {getMonthLabel(selectedMonth)}</p>
-              <p className="text-slate-500 mt-1">Try selecting a different month</p>
+              <p className={`text-lg font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>No classes in {getMonthLabel(selectedMonth)}</p>
+              <p className={`mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Try selecting a different month</p>
             </>
           )}
         </div>
@@ -414,10 +416,10 @@ export default function StudentClasses() {
       {/* Notes Modal */}
       {showNotesModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg">
+          <div className={`rounded-2xl border w-full max-w-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <h2 className={`text-xl font-semibold flex items-center gap-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -425,7 +427,7 @@ export default function StudentClasses() {
               </h2>
               <button
                 onClick={() => setShowNotesModal(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className={darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -435,17 +437,17 @@ export default function StudentClasses() {
 
             {/* Modal Body */}
             <div className="p-6">
-              <p className="text-xs text-slate-500 mb-2">Class on {notesDate}</p>
-              <div className="px-4 py-3 rounded-xl border border-slate-600 bg-slate-700/50 text-slate-200">
+              <p className={`text-xs mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Class on {notesDate}</p>
+              <div className={`px-4 py-3 rounded-xl border ${darkMode ? 'border-slate-600 bg-slate-700/50 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
                 {notesText}
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-700">
+            <div className={`px-6 py-4 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
               <button
                 onClick={() => setShowNotesModal(false)}
-                className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+                className={`w-full px-4 py-2.5 rounded-xl font-medium transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
               >
                 Close
               </button>

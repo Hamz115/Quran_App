@@ -2,39 +2,40 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getClass, getSurahs, getQuranPageWords, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, getTestByClass, startTest, completeTest, startQuestion, endQuestion, cancelQuestion, addTestMistake, type QuranPageWord, type TestData, type TestQuestion } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getPageNumber, getSurahsOnPage } from '../data/quranPages';
 
 interface Assignment {
-  id: number;
+  id: string;
   type: string;
   start_surah: number;
   end_surah: number;
   start_ayah?: number;
   end_ayah?: number;
-  student_id?: number;
+  student_id?: string;
 }
 
 interface ClassData {
-  id: number;
+  id: string;
   date: string;
   day: string;
   notes?: string;
   assignments: Assignment[];
-  students?: { id: number; first_name: string; last_name: string; performance?: string }[];
+  students?: { id: string; first_name: string; last_name: string; performance?: string }[];
   is_published?: boolean;
   performance?: string;
   class_type?: 'regular' | 'test';
 }
 
 interface MistakeOccurrence {
-  class_id: number;
+  class_id: string;
   occurred_at: string;
   class_date: string;
   class_day: string;
 }
 
 interface Mistake {
-  id: number;
+  id: string;
   surah_number: number;
   ayah_number: number;
   word_index: number;
@@ -85,8 +86,8 @@ const SURAH_NAMES: Record<number, string> = {
 };
 
 const SECTION_LABELS: Record<SectionType, { label: string; color: string; bgColor: string; borderColor: string }> = {
-  hifz: { label: 'Memorization (Hifz)', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', borderColor: 'border-emerald-600/50' },
-  sabqi: { label: 'Sabqi (Recent)', color: 'text-blue-400', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-600/50' },
+  hifz: { label: 'Memorization (Hifz)', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', borderColor: 'border-cyan-600/50' },
+  sabqi: { label: 'Sabqi (Recent)', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', borderColor: 'border-cyan-600/50' },
   revision: { label: 'Revision (Manzil)', color: 'text-purple-400', bgColor: 'bg-purple-500/20', borderColor: 'border-purple-600/50' },
 };
 
@@ -140,9 +141,10 @@ export default function Classroom() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { darkMode } = useTheme();
   const isTeacher = user?.is_verified === true;
 
-  const preSelectedStudentId = searchParams.get('student') ? Number(searchParams.get('student')) : null;
+  const preSelectedStudentId = searchParams.get('student');
 
   const getBackRoute = () => {
     if (location.pathname.startsWith('/teacher/')) return '/teacher/classes';
@@ -160,7 +162,7 @@ export default function Classroom() {
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
   const [performanceSaving, setPerformanceSaving] = useState(false);
-  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // Add portion modal state
   const [showAddPortionModal, setShowAddPortionModal] = useState(false);
@@ -169,11 +171,11 @@ export default function Classroom() {
   const [newPortionEnd, setNewPortionEnd] = useState(67);
   const [newPortionStartAyah, setNewPortionStartAyah] = useState<number | undefined>(undefined);
   const [newPortionEndAyah, setNewPortionEndAyah] = useState<number | undefined>(undefined);
-  const [newPortionStudentId, setNewPortionStudentId] = useState<number | null>(null);
+  const [newPortionStudentId, setNewPortionStudentId] = useState<string | null>(null);
 
   // Edit portion modal state
   const [showEditPortionModal, setShowEditPortionModal] = useState(false);
-  const [editAssignmentId, setEditAssignmentId] = useState<number | null>(null);
+  const [editAssignmentId, setEditAssignmentId] = useState<string | null>(null);
   const [editPortionType, setEditPortionType] = useState<SectionType>('hifz');
   const [editPortionStart, setEditPortionStart] = useState(67);
   const [editPortionEnd, setEditPortionEnd] = useState(67);
@@ -286,7 +288,7 @@ export default function Classroom() {
     let isMounted = true;
 
     setLoading(true);
-    getClass(Number(id))
+    getClass(id)
       .then((data) => {
         if (!isMounted) return;
         setClassData(data);
@@ -577,7 +579,7 @@ export default function Classroom() {
           word_index: wordPopup.word.wordPosition - 1, // Convert to 0-based
           word_text: mistakeText,
           char_index: charIndex,
-          class_id: id ? parseInt(id) : undefined,
+          class_id: id || undefined,
         });
       }
 
@@ -724,7 +726,7 @@ export default function Classroom() {
     if (!classData || !id) return;
 
     try {
-      await addClassAssignments(parseInt(id), [{
+      await addClassAssignments(id, [{
         type: newPortionType,
         start_surah: newPortionStart,
         end_surah: newPortionEnd,
@@ -733,7 +735,7 @@ export default function Classroom() {
         student_id: newPortionStudentId || undefined,
       }]);
 
-      const updatedClass = await getClass(parseInt(id));
+      const updatedClass = await getClass(id);
       setClassData(updatedClass);
       setShowAddPortionModal(false);
       setNewPortionStart(67);
@@ -758,7 +760,7 @@ export default function Classroom() {
         end_ayah: editPortionEndAyah,
       });
 
-      const updatedClass = await getClass(parseInt(id));
+      const updatedClass = await getClass(id);
       setClassData(updatedClass);
       setShowEditPortionModal(false);
       setEditAssignmentId(null);
@@ -771,7 +773,7 @@ export default function Classroom() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="spinner mb-4"></div>
-        <p className="text-slate-400">Loading class...</p>
+        <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Loading class...</p>
       </div>
     );
   }
@@ -779,8 +781,8 @@ export default function Classroom() {
   if (!classData) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <h2 className="text-xl font-semibold text-slate-100 mb-2">Class not found</h2>
-        <button onClick={() => navigate(getBackRoute())} className="px-6 py-3 bg-emerald-600 text-white rounded-xl">
+        <h2 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class not found</h2>
+        <button onClick={() => navigate(getBackRoute())} className="px-6 py-3 bg-cyan-600 text-white rounded-xl">
           Back to Classes
         </button>
       </div>
@@ -849,20 +851,20 @@ export default function Classroom() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate(getBackRoute())} className="w-10 h-10 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 flex items-center justify-center">
-          <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <button onClick={() => navigate(getBackRoute())} className={`w-10 h-10 rounded-xl flex items-center justify-center ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50' : 'bg-slate-200 hover:bg-slate-300'}`}>
+          <svg className={`w-5 h-5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-100">Class - {classData.day}, {classData.date}</h1>
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class - {classData.day}, {classData.date}</h1>
           {isTeacher && classData.students && classData.students.length > 0 && (
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-sm text-slate-400">Marking mistakes for:</span>
+              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Marking mistakes for:</span>
               <select
                 value={selectedStudentId || ''}
-                onChange={(e) => setSelectedStudentId(Number(e.target.value))}
-                className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium"
+                onChange={(e) => setSelectedStudentId(e.target.value)}
+                className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm font-medium"
               >
                 {classData.students.map(s => (
                   <option key={s.id} value={s.id} className="bg-slate-800 text-slate-100">
@@ -880,7 +882,7 @@ export default function Classroom() {
           const studentPerf = selectedStudent?.performance;
           return (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-400">Performance:</span>
+              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Performance:</span>
               <select
                 value={studentPerf || ''}
                 onChange={async (e) => {
@@ -901,7 +903,7 @@ export default function Classroom() {
                 }}
                 disabled={performanceSaving}
                 className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium ${
-                  studentPerf === 'Excellent' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  studentPerf === 'Excellent' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                   : studentPerf === 'Very Good' ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
                   : studentPerf === 'Good' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                   : studentPerf === 'Needs Work' ? 'bg-red-500/20 text-red-400 border border-red-500/30'
@@ -944,10 +946,10 @@ export default function Classroom() {
 
       {/* Notes Editor */}
       {showNotesEditor && (
-        <div className="card p-5">
+        <div className={`card p-5 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-slate-100">Class Notes</h3>
-            <button onClick={() => setShowNotesEditor(false)} className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400">
+            <h3 className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class Notes</h3>
+            <button onClick={() => setShowNotesEditor(false)} className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700/50 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -972,7 +974,7 @@ export default function Classroom() {
               </div>
             </>
           ) : (
-            <div className="px-4 py-3 rounded-xl border border-slate-600 bg-slate-800/50 text-slate-200">
+            <div className={`px-4 py-3 rounded-xl border ${darkMode ? 'border-slate-600 bg-slate-800/50 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
               {classData.notes || 'No notes for this class.'}
             </div>
           )}
@@ -989,7 +991,7 @@ export default function Classroom() {
               </span>
               <span className={`text-sm font-medium ${
                 testData.status === 'not_started' ? 'text-slate-400' :
-                testData.status === 'in_progress' ? 'text-cyan-400' : 'text-emerald-400'
+                testData.status === 'in_progress' ? 'text-cyan-400' : 'text-cyan-400'
               }`}>
                 {testData.status === 'not_started' ? 'Not Started' :
                  testData.status === 'in_progress' ? 'In Progress' : 'Completed'}
@@ -1069,7 +1071,7 @@ export default function Classroom() {
                   <>
                     <button
                       onClick={handleEndQuestion}
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium"
+                      className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium"
                     >
                       End Question
                     </button>
@@ -1129,7 +1131,7 @@ export default function Classroom() {
                             Q{q.question_number}: {q.start_surah}:{q.start_ayah} → {q.end_surah}:{q.end_ayah}
                           </span>
                           <span className={`text-xs font-medium ${
-                            (q.points_earned || 0) === 0 ? 'text-emerald-400' :
+                            (q.points_earned || 0) === 0 ? 'text-cyan-400' :
                             (q.points_earned || 0) < 3 ? 'text-amber-400' : 'text-red-400'
                           }`}>
                             {(q.points_earned || 0) === 0 ? 'Perfect!' : `-${q.points_earned?.toFixed(1)} pts`}
@@ -1179,7 +1181,7 @@ export default function Classroom() {
             return (
               <div className="space-y-4">
                 <div className="text-center py-4">
-                  <p className="text-5xl font-bold text-emerald-400">
+                  <p className="text-5xl font-bold text-cyan-400">
                     {percentage.toFixed(0)}%
                   </p>
                   <p className="text-lg text-slate-300 mt-2">
@@ -1202,7 +1204,7 @@ export default function Classroom() {
                             Q{q.question_number}: {q.start_surah}:{q.start_ayah} → {q.end_surah}:{q.end_ayah}
                           </span>
                           <span className={`text-sm font-medium ${
-                            (q.points_earned || 0) === 0 ? 'text-emerald-400' :
+                            (q.points_earned || 0) === 0 ? 'text-cyan-400' :
                             (q.points_earned || 0) < 3 ? 'text-amber-400' : 'text-red-400'
                           }`}>
                             {(q.points_earned || 0) === 0 ? 'Perfect!' : `-${q.points_earned?.toFixed(1)} pts`}
@@ -1246,13 +1248,13 @@ export default function Classroom() {
                   key={type}
                   onClick={() => setActiveSection(type)}
                   className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                    isActive ? `${config.bgColor} ${config.borderColor} ${config.color}` : 'bg-slate-800 border-slate-700 text-slate-400'
+                    isActive ? `${config.bgColor} ${config.borderColor} ${config.color}` : darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
                   }`}
                 >
                   <div className="text-left">
-                    <p className={`font-semibold ${isActive ? config.color : 'text-slate-200'}`}>{config.label}</p>
+                    <p className={`font-semibold ${isActive ? config.color : darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{config.label}</p>
                     {typeAssignments.length > 0 && (
-                      <p className={`text-sm mt-1 ${isActive ? 'opacity-80' : 'text-slate-400'}`}>
+                      <p className={`text-sm mt-1 ${isActive ? 'opacity-80' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         {typeAssignments.map((a, i) => <span key={a.id}>{i > 0 && ' + '}{formatAssignmentRange(a)}</span>)}
                       </p>
                     )}
@@ -1267,7 +1269,7 @@ export default function Classroom() {
             <div className="flex justify-end">
               <button
                 onClick={() => { setNewPortionType(activeSection); setShowAddPortionModal(true); }}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-xl border border-slate-600"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'}`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1284,9 +1286,9 @@ export default function Classroom() {
         <>
           {/* Portion selector */}
           {sectionAssignments.length > 1 && (
-            <div className="card p-4">
+            <div className={`card p-4 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-400">Select Portion:</span>
+                <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Select Portion:</span>
                 <div className="flex flex-wrap gap-2">
                   {sectionAssignments.map((assignment, index) => (
                     <div key={assignment.id} className="flex items-center gap-1">
@@ -1326,19 +1328,19 @@ export default function Classroom() {
           )}
 
           {/* Legend */}
-          <div className="card p-4 flex items-center justify-between flex-wrap gap-4">
+          <div className={`card p-4 flex items-center justify-between flex-wrap gap-4 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center gap-4 text-sm">
-              <span className="text-slate-400 font-medium">Legend:</span>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-1"></span><span className="text-slate-400">1x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-2"></span><span className="text-slate-400">2x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-3"></span><span className="text-slate-400">3x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-4"></span><span className="text-slate-400">4x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-5"></span><span className="text-slate-400">5+</span></div>
+              <span className={`font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Legend:</span>
+              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-1"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>1x</span></div>
+              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-2"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>2x</span></div>
+              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-3"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>3x</span></div>
+              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-4"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>4x</span></div>
+              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-5"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>5+</span></div>
             </div>
             <div className="flex items-center gap-4">
-              {isTeacher && <p className="text-sm text-slate-400">Click words to mark. Right-click to remove.</p>}
+              {isTeacher && <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Click words to mark. Right-click to remove.</p>}
               <div className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                totalErrors === 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-600/50'
+                totalErrors === 0 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-600/50'
                 : totalErrors < 5 ? 'bg-amber-500/20 text-amber-400 border border-amber-600/50'
                 : 'bg-red-500/20 text-red-400 border border-red-600/50'
               }`}>
@@ -1350,11 +1352,11 @@ export default function Classroom() {
           {/* Page Indicator */}
           <div className="flex flex-col items-center py-2">
             <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold text-emerald-400">{currentPageInAssignment}</span>
-              <span className="text-slate-500 text-xl">/</span>
-              <span className="text-xl text-slate-400">{totalPagesInAssignment}</span>
+              <span className="text-3xl font-bold text-cyan-400">{currentPageInAssignment}</span>
+              <span className={`text-xl ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>/</span>
+              <span className={`text-xl ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{totalPagesInAssignment}</span>
             </div>
-            <span className="text-sm text-slate-500 mt-1">Page {currentPage} (Madani Mushaf)</span>
+            <span className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Page {currentPage} (Madani Mushaf)</span>
           </div>
 
           {/* Quran Display with QPC Fonts */}
@@ -1364,7 +1366,7 @@ export default function Classroom() {
               onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
               disabled={!canGoNext}
               className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
-                canGoNext ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white' : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
+                canGoNext ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white' : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1407,8 +1409,8 @@ export default function Classroom() {
                             className="text-center mb-1"
                             style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
                           >
-                            <div className="inline-block px-6 py-1 border-2 border-emerald-600 rounded-lg bg-emerald-50">
-                              <span className="text-emerald-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
+                            <div className="inline-block px-6 py-1 border-2 border-cyan-600 rounded-lg bg-cyan-50">
+                              <span className="text-cyan-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
                                 سُورَةُ {SURAH_NAMES[surahStarting]}
                               </span>
                             </div>
@@ -1441,7 +1443,7 @@ export default function Classroom() {
                                   onClick={(e) => inPortion && handleWordClick(e, word)}
                                   onContextMenu={(e) => inPortion && handleWordRightClick(e, word)}
                                   className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block ${
-                                    inPortion && wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher && inPortion ? 'hover:bg-emerald-200 rounded' : ''
+                                    inPortion && wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher && inPortion ? 'hover:bg-cyan-200 rounded' : ''
                                   }`}
                                   style={{ fontSize: '0.85em', fontWeight: 400, letterSpacing: '0.02em', lineHeight: 1, position: 'relative', top: '-0.3em', ...dimStyle }}
                                   title={inPortion ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}` : 'Outside assigned portion'}
@@ -1473,8 +1475,8 @@ export default function Classroom() {
                                   word.charType === 'word'
                                     ? inPortion && wholeWordLevel > 0
                                       ? `mistake-${wholeWordLevel}`
-                                      : isTeacher && inPortion ? 'hover:bg-emerald-200' : ''
-                                    : inPortion ? 'text-emerald-700' : ''
+                                      : isTeacher && inPortion ? 'hover:bg-cyan-200' : ''
+                                    : inPortion ? 'text-cyan-700' : ''
                                 }`}
                                 style={dimStyle}
                                 title={word.charType === 'word'
@@ -1504,7 +1506,7 @@ export default function Classroom() {
               onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
               disabled={!canGoPrev}
               className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
-                canGoPrev ? 'bg-emerald-600/80 hover:bg-emerald-500 text-white' : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
+                canGoPrev ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white' : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1531,7 +1533,7 @@ export default function Classroom() {
               if (errorCount >= 5) return 'bg-red-500/20 text-red-400 border-red-600/50';
               if (errorCount >= 4) return 'bg-purple-500/20 text-purple-400 border-purple-600/50';
               if (errorCount >= 3) return 'bg-orange-500/20 text-orange-400 border-orange-600/50';
-              if (errorCount >= 2) return 'bg-blue-500/20 text-blue-400 border-blue-600/50';
+              if (errorCount >= 2) return 'bg-cyan-500/20 text-cyan-400 border-cyan-600/50';
               return 'bg-amber-500/20 text-amber-400 border-amber-600/50';
             };
 
@@ -1547,8 +1549,8 @@ export default function Classroom() {
               <div className="space-y-4">
                 {/* Mistakes in this class */}
                 {mistakesInThisClass.length > 0 && (
-                  <div className="card p-6 border-2 border-emerald-600/30">
-                    <h3 className="font-semibold text-emerald-400 mb-4 flex items-center gap-2">
+                  <div className="card p-6 border-2 border-cyan-600/30">
+                    <h3 className="font-semibold text-cyan-400 mb-4 flex items-center gap-2">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -1563,7 +1565,7 @@ export default function Classroom() {
                 {/* Mistakes from previous classes - grouped by day */}
                 {mistakesFromPrevious.length > 0 && (() => {
                   // Group mistakes by class day
-                  const mistakesByDay: { [key: string]: { day: string; date: string; class_id: number; mistakes: Mistake[] }[] } = {};
+                  const mistakesByDay: { [key: string]: { day: string; date: string; class_id: string; mistakes: Mistake[] }[] } = {};
 
                   mistakesFromPrevious.forEach(m => {
                     m.occurrences?.filter(o => o.class_id !== currentClassId).forEach(o => {
@@ -1672,7 +1674,7 @@ export default function Classroom() {
                         <button
                           key={`letter-${l.index}`}
                           onClick={() => handleAddMistake(l.char, l.index)}
-                          className="w-8 h-8 font-amiri text-lg bg-slate-700/50 hover:bg-blue-500/30 border border-slate-600 hover:border-blue-500/50 rounded text-slate-200 hover:text-blue-400"
+                          className="w-8 h-8 font-amiri text-lg bg-slate-700/50 hover:bg-cyan-500/30 border border-slate-600 hover:border-cyan-500/50 rounded text-slate-200 hover:text-cyan-400"
                         >
                           {l.char}
                         </button>
@@ -1764,7 +1766,7 @@ export default function Classroom() {
               {isTeacher && classData?.students && classData.students.length > 1 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Assign to Student</label>
-                  <select value={newPortionStudentId ?? 'all'} onChange={(e) => setNewPortionStudentId(e.target.value === 'all' ? null : Number(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
+                  <select value={newPortionStudentId ?? 'all'} onChange={(e) => setNewPortionStudentId(e.target.value === 'all' ? null : e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
                     <option value="all">All Students</option>
                     {classData.students.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name} only</option>)}
                   </select>
@@ -1774,7 +1776,7 @@ export default function Classroom() {
 
             <div className="p-6 bg-slate-800/50 border-t border-slate-700/30 flex gap-3">
               <button onClick={() => { setShowAddPortionModal(false); setNewPortionStudentId(null); }} className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 font-medium">Cancel</button>
-              <button onClick={handleAddPortion} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium">Add Portion</button>
+              <button onClick={handleAddPortion} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-medium">Add Portion</button>
             </div>
           </div>
         </div>
@@ -1824,7 +1826,7 @@ export default function Classroom() {
 
             <div className="p-6 bg-slate-800/50 border-t border-slate-700/30 flex gap-3">
               <button onClick={() => setShowEditPortionModal(false)} className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 font-medium">Cancel</button>
-              <button onClick={handleEditPortion} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium">Update Portion</button>
+              <button onClick={handleEditPortion} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-medium">Update Portion</button>
             </div>
           </div>
         </div>

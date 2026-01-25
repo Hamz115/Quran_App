@@ -851,6 +851,43 @@ Frontend → FastAPI → app.db (instant)
 2. Add your Supabase URL and service key
 3. Install: `pip install -r requirements.txt`
 
+### 25 January 2026 - Profile Sync & Frontend Wiring
+
+Extended sync service to include profiles and wired it to the frontend.
+
+**Problem:**
+- Classes stored `supabase_teacher_id` but local app.db had no profiles to look up names
+- Sync wasn't triggered automatically on login
+
+**Solution:**
+1. Added profile syncing (Supabase → app.db, one-way)
+2. Added teacher_students relationship syncing
+3. Wired sync to AuthContext (triggers on login/signup/app start)
+
+**New Tables in app.db:**
+- `profiles` - Synced from Supabase (id, email, name, role)
+- `teacher_students` - Teacher-student relationships
+
+**Sync Flow:**
+```
+Login/Signup → full_sync() →
+  1. Pull profiles (all users)
+  2. Pull teacher_students (if teacher)
+  3. Push pending classes/mistakes
+  4. Pull classes/mistakes
+```
+
+**Files Modified:**
+- `sync_service.py` - Added `pull_profiles()`, `pull_teacher_students()`
+- `main.py` - Updated `/api/sync` to accept role parameter
+- `local-api.ts` - Updated `triggerSync()` to pass role
+- `AuthContext.tsx` - Added `triggerLocalSync()` on login/signup/init
+
+**Result:**
+- Profiles synced locally for name display
+- Sync happens automatically on auth events
+- Non-blocking (doesn't slow down login)
+
 ---
 
 ## Running the Project
