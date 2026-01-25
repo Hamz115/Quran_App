@@ -171,7 +171,6 @@ export default function Layout() {
                 </div>
                 <div className="text-left hidden sm:block">
                   <p className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{user?.first_name} {user?.last_name}</p>
-                  <p className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{user?.student_id}</p>
                 </div>
                 <svg className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -190,20 +189,18 @@ export default function Layout() {
                     {/* User Info */}
                     <div className={`p-4 border-b ${darkMode ? 'border-cyan-900/30' : 'border-cyan-200'}`}>
                       <p className={`font-medium ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{user?.first_name} {user?.last_name}</p>
-                      <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{user?.email}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>ID:</span>
+                      <div className="mt-1 flex items-center gap-2">
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(user?.student_id || '');
+                            navigator.clipboard.writeText(user?.email || '');
                           }}
-                          className={`text-xs px-2 py-0.5 rounded text-cyan-500 font-mono flex items-center gap-1 transition-colors ${
-                            darkMode ? 'bg-cyan-500/10 hover:bg-cyan-500/20' : 'bg-cyan-50 hover:bg-cyan-100'
+                          className={`text-sm flex items-center gap-1.5 transition-colors ${
+                            darkMode ? 'text-slate-400 hover:text-cyan-400' : 'text-slate-500 hover:text-cyan-600'
                           }`}
-                          title="Click to copy"
+                          title="Click to copy email"
                         >
-                          {user?.student_id}
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          {user?.email}
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                           </svg>
                         </button>

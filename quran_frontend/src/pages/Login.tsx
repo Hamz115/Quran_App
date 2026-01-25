@@ -35,15 +35,22 @@ export default function Login() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 ${
-      darkMode
-        ? 'bg-gradient-to-br from-[rgb(26,31,46)] via-[rgb(37,45,61)] to-[rgb(30,41,59)]'
-        : 'bg-gradient-to-br from-sky-200 via-cyan-200 to-teal-100'
-    }`}>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: 'url(/background.jpg)',
+      }}
+    >
+      {/* Overlay for readability */}
+      <div className={`fixed inset-0 transition-colors duration-300 ${
+        darkMode
+          ? 'bg-[rgb(26,31,46)]/80'
+          : 'bg-sky-100/70'
+      }`} />
       {/* Theme Toggle Button */}
       <button
         onClick={toggleDarkMode}
-        className={`fixed top-4 right-4 p-3 rounded-full transition-all duration-300 ${
+        className={`fixed top-4 right-4 z-20 p-3 rounded-full transition-all duration-300 ${
           darkMode
             ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
             : 'bg-white text-cyan-600 hover:bg-cyan-50 shadow-lg border border-cyan-200'
@@ -62,7 +69,7 @@ export default function Login() {
       </button>
 
       {/* Quran Verse - Surah Al-Isra 17:9 */}
-      <div className="w-full max-w-4xl text-center mb-6">
+      <div className="relative z-10 w-full max-w-4xl text-center mb-6">
         <p className={`text-xl md:text-2xl font-arabic leading-relaxed transition-colors duration-300 ${
           darkMode ? 'text-slate-300' : 'text-slate-600'
         }`} dir="rtl">
@@ -76,8 +83,8 @@ export default function Login() {
       </div>
 
       {/* Main Card */}
-      <div className={`w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col-reverse lg:flex-row lg:min-h-[520px] transition-colors duration-300 ${
-        darkMode ? 'bg-[rgb(30,41,59)] border border-cyan-900/30' : 'bg-white/90 backdrop-blur-sm border border-cyan-200/50'
+      <div className={`relative z-10 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col-reverse lg:flex-row lg:min-h-[520px] transition-colors duration-300 ${
+        darkMode ? 'bg-[rgb(30,41,59)]/95 border border-cyan-900/30 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm border border-cyan-200/50'
       }`}>
         {/* Left Side - Form */}
         <div className="w-full lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center">
