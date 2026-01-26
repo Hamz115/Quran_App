@@ -508,6 +508,61 @@ export async function getMistakes(surahNumber?: number, studentId?: string): Pro
   return data ?? [];
 }
 
+export interface MistakeWithOccurrences extends MistakeData {
+  occurrences?: {
+    class_id: string;
+    class_date: string;
+  }[];
+}
+
+export async function getMistakesWithOccurrences(surahNumber?: number, studentId?: string): Promise<MistakeWithOccurrences[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Build query with occurrences join
+  let query = supabase
+    .from('mistakes')
+    .select(`
+      *,
+      mistake_occurrences (
+        class_id,
+        classes (date)
+      )
+    `);
+
+  // If studentId is provided, filter by it (teacher viewing student's mistakes)
+  if (studentId) {
+    query = query.eq('student_id', studentId);
+  }
+
+  if (surahNumber) {
+    query = query.eq('surah_number', surahNumber);
+  }
+
+  const { data, error } = await query.order('error_count', { ascending: false });
+
+  if (error) {
+    console.error('getMistakesWithOccurrences error:', error);
+    throw new Error(error.message);
+  }
+
+  // Transform the data to match expected format
+  return (data ?? []).map((mistake: any) => ({
+    id: mistake.id,
+    student_id: mistake.student_id,
+    surah_number: mistake.surah_number,
+    ayah_number: mistake.ayah_number,
+    word_index: mistake.word_index,
+    word_text: mistake.word_text,
+    char_index: mistake.char_index,
+    error_count: mistake.error_count,
+    occurrences: (mistake.mistake_occurrences ?? []).map((occ: any) => ({
+      class_id: occ.class_id,
+      class_date: occ.classes?.date || '',
+    })),
+  }));
+}
+
 export async function addMistake(mistake: {
   student_id?: string;
   surah_number: number;

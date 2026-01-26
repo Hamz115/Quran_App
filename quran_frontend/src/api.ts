@@ -22,6 +22,7 @@ export {
   addClassStudents,
   removeClassStudent,
   getMistakes,
+  getMistakesWithOccurrences,
   addMistake,
   removeMistake,
   getStats,
@@ -200,21 +201,6 @@ export async function restoreBackup(filename: string) {
   }
 
   return res.json();
-}
-
-// ============ MISTAKES WITH OCCURRENCES (still FastAPI) ============
-
-export async function getMistakesWithOccurrences(surahNumber?: number, studentId?: string) {
-  const params = new URLSearchParams();
-  if (surahNumber) params.append('surah', surahNumber.toString());
-  if (studentId) params.append('student_id', studentId);
-
-  const url = params.toString()
-    ? `${API_BASE}/mistakes/with-occurrences?${params.toString()}`
-    : `${API_BASE}/mistakes/with-occurrences`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.data;
 }
 
 // ============ TESTS (still FastAPI - complex logic) ============
