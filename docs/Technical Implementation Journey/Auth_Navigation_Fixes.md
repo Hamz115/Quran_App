@@ -133,12 +133,72 @@ CREATE POLICY "Teachers can lookup any student profile" ON profiles
 FOR SELECT USING (role = 'student' AND public.is_teacher());
 ```
 
+## API Migration: FastAPI to Supabase
+
+Several legacy FastAPI endpoints were returning 401 Unauthorized because they expected JWT tokens that weren't being sent. These were migrated to use Supabase directly.
+
+### Mistakes API
+
+**Problem**: `/api/mistakes/with-occurrences` returned 401 Unauthorized.
+
+**Cause**: The legacy fetch call had no Authorization header:
+```typescript
+// OLD - No auth!
+const res = await fetch(`${API_BASE}/mistakes/with-occurrences`);
+```
+
+**Solution**: Created Supabase version in `supabase-api.ts`:
+```typescript
+export async function getMistakesWithOccurrences(surahNumber?: number, studentId?: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  let query = supabase.from('mistakes').select(`
+    *,
+    mistake_occurrences (class_id, classes (date))
+  `);
+  // ... filters and mapping
+}
+```
+
+### Suggested Portions API
+
+**Problem**: `/api/students/{id}/suggested-portions` returned 401 Unauthorized.
+
+**Solution**: Created Supabase version that:
+1. Finds student's most recent class
+2. Returns the assignments from that class as suggestions
+3. Teacher can then adjust from there (no need to scroll to find the surah)
+
+### isTeacher Bug
+
+**Problem**: `Classroom.tsx` used `user?.is_verified === true` to check if user is a teacher.
+
+**Fix**: Changed to `user?.role === 'teacher'`
+
+### Auto-publish Classes
+
+**Problem**: New classes defaulted to "Draft" mode, so students couldn't see them.
+
+**Solution**: Classes now auto-publish on creation (`is_published: true`).
+
+## Files Modified (API Migration)
+
+| File | Changes |
+|------|---------|
+| `src/lib/supabase-api.ts` | Added `getMistakesWithOccurrences`, `getSuggestedPortions` |
+| `src/api.ts` | Removed legacy FastAPI versions, re-export from Supabase |
+| `src/pages/Classroom.tsx` | Fixed `isTeacher` check |
+
 ## Testing Checklist
 
 - [ ] Login as Teacher 1 (hamzaferoze115@gmail.com)
 - [ ] Click "Start New Class" from dashboard - should navigate without redirect to login
 - [ ] Click on an existing class - should open the classroom
-- [ ] Create a new class with a student - should complete successfully
+- [ ] Click on words in classroom - popup should appear to mark mistakes
+- [ ] Mark a mistake - should save and word should highlight
+- [ ] Create a new class - suggestions should auto-populate from last class
+- [ ] New class should be visible to student immediately (auto-published)
 - [ ] Login as Student 1 (hamza@iiotsolutions.sa)
 - [ ] Click on a class - should navigate to classroom
 - [ ] Sign up new account and verify email - should auto-login after verification
@@ -150,3 +210,5 @@ FOR SELECT USING (role = 'student' AND public.is_teacher());
 3. **Use React Router's navigate()** instead of `window.location.href` in SPAs to preserve state
 4. **Auth state handlers should be resilient** - don't lose user state on temporary failures
 5. **Only clear auth on explicit sign out** - null sessions can be temporary during token refresh
+6. **Migrate legacy APIs to Supabase** - Supabase client handles auth automatically
+7. **Check role, not verification status** - `user.role === 'teacher'` not `user.is_verified`

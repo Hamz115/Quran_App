@@ -26,6 +26,7 @@ export {
   addMistake,
   removeMistake,
   getStats,
+  getSuggestedPortions,
 } from './lib/supabase-api';
 
 export type {
@@ -33,6 +34,8 @@ export type {
   ClassStudent,
   ClassAssignment,
   MistakeData,
+  SuggestedPortions,
+  SuggestedPortion,
 } from './lib/supabase-api';
 
 // Re-export Quran API functions (local FastAPI)
@@ -94,38 +97,6 @@ export async function requestVerification() {
 export async function verifyEmail(_token: string) {
   console.warn('verifyEmail not yet implemented with Supabase');
   return { message: 'Not implemented' };
-}
-
-// ============ PORTION SUGGESTIONS (still FastAPI) ============
-
-export interface PortionSuggestion {
-  start_surah: number;
-  end_surah: number;
-  start_ayah: number | null;
-  end_ayah: number | null;
-  surah_name: string | null;
-  note: string;
-}
-
-export interface SuggestedPortions {
-  hifz: PortionSuggestion | null;
-  sabqi: PortionSuggestion | null;
-  manzil: PortionSuggestion | null;
-  last_class: {
-    id: string;
-    date: string;
-    day: string;
-  } | null;
-}
-
-export async function getSuggestedPortions(studentId: string): Promise<SuggestedPortions> {
-  // This still uses FastAPI for now - complex logic
-  const res = await fetch(`${API_BASE}/students/${studentId}/suggested-portions`);
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Failed to get suggestions');
-  }
-  return res.json();
 }
 
 // ============ ASSIGNMENTS (update) ============
