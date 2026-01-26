@@ -371,10 +371,10 @@ export async function createClass(classData: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Create the class
+  // Create the class (auto-publish so students can see it immediately)
   const { data: newClass, error: classError } = await supabase
     .from('classes' as any)
-    .insert({ teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, class_type: classData.class_type || 'regular' } as any).select().single() as { data: { id: string } | null; error: any };
+    .insert({ teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, class_type: classData.class_type || 'regular', is_published: true } as any).select().single() as { data: { id: string } | null; error: any };
 
   if (classError || !newClass) throw new Error(classError?.message || "Failed to create class");
 

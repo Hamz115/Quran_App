@@ -142,7 +142,7 @@ export default function Classroom() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { darkMode } = useTheme();
-  const isTeacher = user?.is_verified === true;
+  const isTeacher = user?.role === 'teacher';
 
   const preSelectedStudentId = searchParams.get('student');
 
