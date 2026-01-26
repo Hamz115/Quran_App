@@ -160,7 +160,7 @@ export default function Login() {
                 />
               </div>
 
-              {/* Demo Accounts Toggle */}
+              {/* Demo Accounts Toggle & Forgot Password */}
               <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
@@ -174,6 +174,14 @@ export default function Login() {
                   </svg>
                   Demo accounts
                 </button>
+                <Link
+                  to="/forgot-password"
+                  className={`font-medium ${
+                    darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
+                  }`}
+                >
+                  Forgot Password?
+                </Link>
               </div>
 
               {/* Demo Accounts Panel */}
@@ -183,7 +191,7 @@ export default function Login() {
                     ? 'bg-[rgb(37,45,61)] border-cyan-900/50'
                     : 'bg-cyan-50/50 border-cyan-200'
                 }`}>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => fillDemo('hamzaferoze115@gmail.com', '12345678')}
@@ -205,6 +213,17 @@ export default function Login() {
                       }`}
                     >
                       Teacher 2
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('hamza@iiotsolutions.sa', '12345678')}
+                      className={`px-3 py-2 rounded-lg text-xs transition-colors ${
+                        darkMode
+                          ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30'
+                          : 'bg-purple-100 border border-purple-200 text-purple-700 hover:bg-purple-200'
+                      }`}
+                    >
+                      Student 1
                     </button>
                   </div>
                 </div>

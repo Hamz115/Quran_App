@@ -5,6 +5,9 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
@@ -23,6 +26,8 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected routes */}
           <Route
@@ -50,6 +55,9 @@ function App() {
             <Route path="classes" element={<Classes />} />
             <Route path="classes/:id" element={<Classroom />} />
             <Route path="reader" element={<QuranReader />} />
+
+            {/* Settings */}
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
         </BrowserRouter>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { getClasses, getMyTeachers } from '../api';
 import type { ClassData } from '../api';
@@ -66,6 +67,7 @@ const getMonthLabel = (monthKey: string) => {
 };
 
 export default function StudentClasses() {
+  const navigate = useNavigate();
   const { darkMode } = useTheme();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -276,7 +278,7 @@ export default function StudentClasses() {
                   return (
                     <div
                       key={cls.id}
-                      onClick={() => window.location.href = `/student/classes/${cls.id}`}
+                      onClick={() => navigate(`/student/classes/${cls.id}`)}
                       className={`rounded-xl border overflow-hidden cursor-pointer transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-cyan-500/30 hover:shadow-cyan-500/5' : 'bg-white border-slate-200 hover:border-cyan-400 hover:shadow-cyan-200/50'}`}
                     >
                       {/* Class Header */}

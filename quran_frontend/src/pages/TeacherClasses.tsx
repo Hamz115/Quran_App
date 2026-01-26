@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
@@ -75,6 +75,7 @@ const getMonthLabel = (monthKey: string) => {
 
 export default function TeacherClasses() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { darkMode } = useTheme();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
@@ -931,7 +932,8 @@ export default function TeacherClasses() {
                   return (
                     <div
                       key={cls.id}
-                      className={`rounded-xl border overflow-hidden transition-colors ${darkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600/50' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                      onClick={() => navigate(`/teacher/classes/${cls.id}`)}
+                      className={`rounded-xl border overflow-hidden transition-colors cursor-pointer ${darkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600/50' : 'bg-white border-slate-200 hover:border-slate-300'}`}
                     >
                       {/* Class Header */}
                       <div className={`flex items-center justify-between px-5 py-3 border-b ${darkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>

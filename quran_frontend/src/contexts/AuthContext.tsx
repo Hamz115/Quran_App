@@ -24,6 +24,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   emergencyReset: () => void;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+  updateProfile: (firstName: string, lastName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -182,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log('AuthContext: Auth state changed:', event);
+        console.log('AuthContext: Auth state changed:', event, { hasSession: !!newSession, hasUser: !!newSession?.user });
 
         if (!isMounted) {
           console.log('AuthContext: Unmounted, ignoring auth state change');
@@ -192,6 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
 
         if (newSession?.user) {
+          // Handle email confirmation - user is now verified
+          if (event === 'USER_UPDATED' && newSession.user.email_confirmed_at) {
+            console.log('AuthContext: Email confirmed! User is now verified.');
+          }
+
           // Fetch profile with timeout - don't block on failure
           try {
             const profile = await withTimeout(
@@ -201,13 +209,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             );
             if (isMounted) {
               setUser(profile);
+              console.log('AuthContext: Profile loaded for event:', event);
             }
           } catch (err) {
             console.error('AuthContext: Profile fetch in onChange failed:', err);
-            // Don't crash - just continue without updated profile
+            // IMPORTANT: Keep existing user if we have one - don't lose auth state
+            // Only log, don't set user to null or undefined
+            setUser(prev => {
+              if (prev) {
+                console.log('AuthContext: Keeping existing user state despite profile fetch failure');
+                return prev;
+              }
+              // If no previous user, create minimal user from session
+              console.log('AuthContext: Creating minimal user from session');
+              const sessionUser = newSession.user;
+              return {
+                id: sessionUser.id,
+                student_id: '',
+                username: sessionUser.email?.split('@')[0] || '',
+                email: sessionUser.email || '',
+                first_name: sessionUser.user_metadata?.name?.split(' ')[0] || '',
+                last_name: sessionUser.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+                role: sessionUser.user_metadata?.role || 'student',
+                is_verified: sessionUser.email_confirmed_at ? true : false,
+                created_at: sessionUser.created_at || new Date().toISOString(),
+              };
+            });
           }
-        } else {
+        } else if (event === 'SIGNED_OUT') {
+          // Only clear user on explicit sign out
+          console.log('AuthContext: Clearing user on SIGNED_OUT');
           setUser(null);
+        } else if (!newSession) {
+          // Session is null but not a sign out event - might be temporary
+          // Wait a bit before clearing to avoid race conditions
+          console.log('AuthContext: Session null but not SIGNED_OUT, checking in 1 second...');
+          setTimeout(async () => {
+            if (!isMounted) return;
+            const { data: { session: checkSession } } = await supabase.auth.getSession();
+            if (!checkSession && isMounted) {
+              console.log('AuthContext: Confirmed no session, clearing user');
+              setUser(null);
+            } else {
+              console.log('AuthContext: Session recovered, keeping user');
+            }
+          }, 1000);
         }
 
         if (isMounted) {
@@ -363,6 +409,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    console.log('AuthContext: Requesting password reset for', email);
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+        AUTH_TIMEOUT_MS,
+        'resetPasswordForEmail'
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      console.log('AuthContext: Password reset email sent');
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('TIMEOUT')) {
+        throw new Error('Request timed out. Please try again.');
+      }
+      throw err;
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    console.log('AuthContext: Updating password');
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.updateUser({ password: newPassword }),
+        AUTH_TIMEOUT_MS,
+        'updatePassword'
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      console.log('AuthContext: Password updated successfully');
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('TIMEOUT')) {
+        throw new Error('Request timed out. Please try again.');
+      }
+      throw err;
+    }
+  };
+
+  const updateProfile = async (firstName: string, lastName: string) => {
+    if (!session?.user) {
+      throw new Error('Not authenticated');
+    }
+
+    console.log('AuthContext: Updating profile');
+    try {
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: fullName } as never)
+        .eq('id', session.user.id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Update local user state
+      setUser(prev => prev ? {
+        ...prev,
+        first_name: firstName,
+        last_name: lastName,
+      } : null);
+
+      console.log('AuthContext: Profile updated successfully');
+    } catch (err) {
+      throw err;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -376,6 +497,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         refreshUser,
         emergencyReset,
+        resetPassword,
+        updatePassword,
+        updateProfile,
       }}
     >
       {children}

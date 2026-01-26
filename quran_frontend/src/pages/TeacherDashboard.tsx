@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getMyStudents, lookupStudent, addStudent, removeStudent, getClasses, type StudentListItem, type ClassData } from '../api';
@@ -12,6 +13,7 @@ interface StudentLookup {
 }
 
 export default function TeacherDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { darkMode } = useTheme();
   const [students, setStudents] = useState<StudentListItem[]>([]);
@@ -169,7 +171,7 @@ export default function TeacherDashboard() {
             Add Student
           </button>
           <button
-            onClick={() => window.location.href = '/teacher/classes?new=1'}
+            onClick={() => navigate('/teacher/classes?new=1')}
             className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-cyan-500/25"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -256,7 +258,7 @@ export default function TeacherDashboard() {
           </div>
           {selectedStudents.length > 0 && (
             <button
-              onClick={() => window.location.href = '/teacher/classes?new=1'}
+              onClick={() => navigate('/teacher/classes?new=1')}
               className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
