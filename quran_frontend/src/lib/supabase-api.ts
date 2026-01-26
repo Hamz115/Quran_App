@@ -249,14 +249,35 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
       .select(`
         *,
         assignments (*),
-        class_students!inner (student_id)
+        class_students!inner (student_id, performance)
       `)
       .eq('class_students.student_id', user.id)
       .eq('is_published', true)
       .order('date', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return mapClassData(data ?? [], false);
+    // For students, extract their own performance from class_students
+    return (data ?? []).map(row => {
+      const studentData = row.class_students?.[0];
+      return {
+        id: row.id,
+        date: row.date,
+        day: row.day || '',
+        notes: row.notes,
+        performance: studentData?.performance || row.performance, // Use student's own performance
+        teacher_id: row.teacher_id,
+        is_published: row.is_published,
+        class_type: row.class_type || 'regular',
+        assignments: (row.assignments ?? []).map((a: any) => ({
+          id: a.id,
+          type: a.type,
+          start_surah: a.start_surah,
+          end_surah: a.end_surah,
+          start_ayah: a.start_ayah,
+          end_ayah: a.end_ayah,
+        })),
+      };
+    });
   }
 }
 
@@ -303,6 +324,7 @@ export async function getClass(classId: string): Promise<ClassData> {
       assignments (*),
       class_students (
         student_id,
+        performance,
         student:profiles!student_id (id, student_id, name)
       )
     `)
@@ -345,6 +367,7 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
           student_id: student.student_id || '',
           first_name: nameParts[0] || '',
           last_name: nameParts.slice(1).join(' ') || '',
+          performance: cs.performance,
         };
       });
     }
@@ -446,6 +469,17 @@ export async function updateClassPublish(classId: string, isPublished: boolean):
   const { error } = await (supabase as any).from('classes').update({ is_published: isPublished }).eq('id', classId);
   if (error) throw new Error(error.message);
   return { message: isPublished ? 'Class published' : 'Class unpublished' };
+}
+
+export async function updateStudentPerformance(classId: string, studentId: string, performance: string): Promise<{ message: string }> {
+  const { error } = await supabase
+    .from('class_students')
+    .update({ performance: performance || null })
+    .eq('class_id', classId)
+    .eq('student_id', studentId);
+
+  if (error) throw new Error(error.message);
+  return { message: 'Student performance updated' };
 }
 
 export async function addClassStudents(classId: string, studentIds: string[]): Promise<{ message: string }> {

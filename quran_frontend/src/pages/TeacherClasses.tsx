@@ -958,22 +958,6 @@ export default function TeacherClasses() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {/* Status Toggle */}
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              await updateClassPublish(cls.id, !cls.is_published);
-                              const updated = await getClasses();
-                              setClasses(updated);
-                            }}
-                            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
-                              cls.is_published
-                                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
-                                : 'bg-slate-600/50 text-slate-400 hover:bg-slate-600/70'
-                            }`}
-                          >
-                            {cls.is_published ? 'Live' : 'Draft'}
-                          </button>
                           {/* Notes Button */}
                           <button
                             onClick={(e) => {

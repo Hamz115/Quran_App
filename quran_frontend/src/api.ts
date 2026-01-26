@@ -19,6 +19,7 @@ export {
   updateClassNotes,
   updateClassPerformance,
   updateClassPublish,
+  updateStudentPerformance,
   addClassStudents,
   removeClassStudent,
   getMistakes,
@@ -132,16 +133,6 @@ export async function addClassAssignments(classId: string, assignments: Array<{
   return res.json();
 }
 
-// ============ STUDENT PERFORMANCE ============
-
-export async function updateStudentPerformance(classId: string, studentId: string, performance: string) {
-  const res = await fetch(`${API_BASE}/classes/${classId}/student-performance`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ student_id: studentId, performance }),
-  });
-  return res.json();
-}
 
 // ============ BACKUP (still FastAPI) ============
 

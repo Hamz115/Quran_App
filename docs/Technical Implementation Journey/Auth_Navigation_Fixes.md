@@ -182,13 +182,49 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
 
 **Solution**: Classes now auto-publish on creation (`is_published: true`).
 
+### Student Performance API
+
+**Problem**: Performance dropdown in Classroom wasn't saving. The `updateStudentPerformance` function was using legacy FastAPI endpoint without auth headers.
+
+**Solution**: Created Supabase version in `supabase-api.ts`:
+```typescript
+export async function updateStudentPerformance(classId: string, studentId: string, performance: string) {
+  const { error } = await supabase
+    .from('class_students')
+    .update({ performance: performance || null })
+    .eq('class_id', classId)
+    .eq('student_id', studentId);
+
+  if (error) throw new Error(error.message);
+  return { message: 'Student performance updated' };
+}
+```
+
+### Student Performance Display
+
+**Problem**: Student's individual performance wasn't showing in Student Dashboard and Classes pages.
+
+**Cause**: The `getClasses('student')` query didn't fetch the `performance` field from `class_students`, and `getClass()` didn't include it in student mapping.
+
+**Solution**:
+1. Updated `getClass()` query to include `performance` in class_students select
+2. Updated `mapClassData()` to include `performance` in student mapping
+3. Updated student classes query to extract their own performance from `class_students`
+
+### Removed Draft/Live Toggle
+
+**Problem**: Draft/Live toggle button in TeacherClasses was redundant since classes now auto-publish.
+
+**Solution**: Removed the toggle button from `TeacherClasses.tsx`. Classes are automatically published when created.
+
 ## Files Modified (API Migration)
 
 | File | Changes |
 |------|---------|
-| `src/lib/supabase-api.ts` | Added `getMistakesWithOccurrences`, `getSuggestedPortions` |
+| `src/lib/supabase-api.ts` | Added `getMistakesWithOccurrences`, `getSuggestedPortions`, `updateStudentPerformance`, fixed performance field in queries |
 | `src/api.ts` | Removed legacy FastAPI versions, re-export from Supabase |
 | `src/pages/Classroom.tsx` | Fixed `isTeacher` check |
+| `src/pages/TeacherClasses.tsx` | Removed Draft/Live toggle button |
 
 ## Testing Checklist
 
@@ -199,8 +235,11 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
 - [ ] Mark a mistake - should save and word should highlight
 - [ ] Create a new class - suggestions should auto-populate from last class
 - [ ] New class should be visible to student immediately (auto-published)
+- [ ] Select a student and set performance (Excellent/Very Good/etc) - should save
 - [ ] Login as Student 1 (hamza@iiotsolutions.sa)
 - [ ] Click on a class - should navigate to classroom
+- [ ] Student Dashboard should show individual performance ratings
+- [ ] Student Classes page should show their performance for each class
 - [ ] Sign up new account and verify email - should auto-login after verification
 
 ## Key Learnings
@@ -212,3 +251,5 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
 5. **Only clear auth on explicit sign out** - null sessions can be temporary during token refresh
 6. **Migrate legacy APIs to Supabase** - Supabase client handles auth automatically
 7. **Check role, not verification status** - `user.role === 'teacher'` not `user.is_verified`
+8. **Include all needed fields in Supabase selects** - student performance needed to be explicitly included in `class_students` join queries
+9. **Remove redundant UI when behavior changes** - Draft/Live toggle removed after auto-publish implemented
