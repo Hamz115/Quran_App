@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../data/models/mistake.dart';
 import '../../providers/providers.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
 import '../classroom/word_popup.dart';
@@ -23,9 +26,12 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
     final surahsAsync = ref.watch(surahListProvider);
     final surahAsync = ref.watch(surahWithAyahsProvider(_selectedSurah));
     final mistakesAsync = ref.watch(mistakesProvider);
+    final isDarkMode = ref.watch(themeProvider);
+    final authState = ref.watch(authProvider);
+    final isTeacher = authState.user?.role.name == 'teacher';
 
     return Scaffold(
-      backgroundColor: AppTheme.slate900,
+      backgroundColor: AppColors.background(isDarkMode),
       body: SafeArea(
         child: Column(
           children: [
@@ -34,7 +40,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -43,12 +49,12 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.slate100,
+                            color: AppColors.text(isDarkMode),
                           ),
                         ),
                         Text(
-                          'Click words to mark mistakes',
-                          style: TextStyle(fontSize: 13, color: AppTheme.slate400),
+                          isTeacher ? 'Click words to mark mistakes' : 'Review your recitation progress',
+                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode)),
                         ),
                       ],
                     ),
@@ -58,15 +64,15 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                     data: (surahs) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: AppTheme.slate800,
+                        color: AppColors.surface(isDarkMode),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.slate700),
+                        border: Border.all(color: AppColors.border(isDarkMode)),
                       ),
                       child: DropdownButton<int>(
                         value: _selectedSurah,
-                        dropdownColor: AppTheme.slate800,
+                        dropdownColor: AppColors.surface(isDarkMode),
                         underline: const SizedBox(),
-                        style: const TextStyle(fontSize: 14, color: AppTheme.slate100),
+                        style: TextStyle(fontSize: 14, color: AppColors.text(isDarkMode)),
                         items: surahs.map((s) => DropdownMenuItem(
                           value: s.number,
                           child: Text('${s.number}. ${s.englishName}'),
@@ -94,7 +100,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                     icon: const Icon(Icons.arrow_back_rounded, size: 18),
                     label: const Text('Previous'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.slate400,
+                      foregroundColor: AppColors.textSecondary(isDarkMode),
                     ),
                   ),
                   surahAsync.when(
@@ -105,12 +111,12 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                                 data.surah.name,
                                 style: GoogleFonts.amiri(
                                   fontSize: 20,
-                                  color: AppTheme.slate100,
+                                  color: AppColors.text(isDarkMode),
                                 ),
                               ),
                               Text(
                                 '${data.surah.numberOfAyahs} Ayahs',
-                                style: const TextStyle(fontSize: 12, color: AppTheme.slate400),
+                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary(isDarkMode)),
                               ),
                             ],
                           )
@@ -125,7 +131,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                     icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                     label: const Text('Next'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.slate400,
+                      foregroundColor: AppColors.textSecondary(isDarkMode),
                     ),
                   ),
                 ],
@@ -146,11 +152,11 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                         spacing: 12,
                         runSpacing: 4,
                         children: [
-                          _buildLegendItem('1x', AppTheme.mistake1),
-                          _buildLegendItem('2x', AppTheme.mistake2),
-                          _buildLegendItem('3x', AppTheme.mistake3),
-                          _buildLegendItem('4x', AppTheme.mistake4),
-                          _buildLegendItem('5+', AppTheme.mistake5),
+                          _buildLegendItem('1x', AppColors.mistake1, isDarkMode),
+                          _buildLegendItem('2x', AppColors.mistake2, isDarkMode),
+                          _buildLegendItem('3x', AppColors.mistake3, isDarkMode),
+                          _buildLegendItem('4x', AppColors.mistake4, isDarkMode),
+                          _buildLegendItem('5+', AppColors.mistake5, isDarkMode),
                         ],
                       ),
                     ),
@@ -166,7 +172,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
             Expanded(
               child: surahAsync.when(
                 data: (data) {
-                  if (data == null) return const Center(child: Text('Surah not found'));
+                  if (data == null) return Center(child: Text('Surah not found', style: TextStyle(color: AppColors.text(isDarkMode))));
 
                   final mistakes = mistakesAsync.value ?? [];
 
@@ -184,7 +190,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                                 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
                                 style: GoogleFonts.amiri(
                                   fontSize: 22,
-                                  color: AppTheme.emerald400,
+                                  color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
                                 ),
                                 textDirection: TextDirection.rtl,
                               ),
@@ -239,27 +245,27 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                                                   begin: Alignment.topCenter,
                                                   end: Alignment.bottomCenter,
                                                   colors: [
-                                                    AppTheme.getMistakeColor(mistakeLevel).withOpacity(0.3),
-                                                    AppTheme.getMistakeColor(mistakeLevel).withOpacity(0.1),
+                                                    AppColors.getMistakeColor(mistakeLevel).withOpacity(0.3),
+                                                    AppColors.getMistakeColor(mistakeLevel).withOpacity(0.1),
                                                   ],
                                                 ),
                                                 borderRadius: BorderRadius.circular(4),
                                                 border: Border(
                                                   bottom: BorderSide(
-                                                    color: AppTheme.getMistakeColor(mistakeLevel),
+                                                    color: AppColors.getMistakeColor(mistakeLevel),
                                                     width: 2,
                                                   ),
                                                 ),
                                               )
                                             : null,
                                         child: hasCharMistakes
-                                            ? _buildHighlightedWord(word, charMistakes)
+                                            ? _buildHighlightedWord(word, charMistakes, isDarkMode)
                                             : Text(
                                                 word,
                                                 style: GoogleFonts.amiri(
                                                   fontSize: 22,
                                                   height: 2.2,
-                                                  color: AppTheme.slate200,
+                                                  color: AppColors.text(isDarkMode),
                                                 ),
                                               ),
                                       ),
@@ -271,7 +277,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                                       ' ﴿${ayah.ayahNumber}﴾ ',
                                       style: GoogleFonts.amiri(
                                         fontSize: 16,
-                                        color: AppTheme.emerald400,
+                                        color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
                                       ),
                                     ),
                                   ),
@@ -290,14 +296,14 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
             ),
 
             // Mistakes summary
-            _buildMistakesSummary(mistakesAsync),
+            _buildMistakesSummary(mistakesAsync, isDarkMode),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
+  Widget _buildLegendItem(String label, Color color, bool isDarkMode) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -311,7 +317,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.slate400)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary(isDarkMode))),
       ],
     );
   }
@@ -325,13 +331,13 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: totalErrors == 0
-            ? AppTheme.emerald500.withOpacity(0.2)
-            : AppTheme.mistake1.withOpacity(0.2),
+            ? AppColors.success.withOpacity(0.2)
+            : AppColors.mistake1.withOpacity(0.2),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: totalErrors == 0
-              ? AppTheme.emerald500.withOpacity(0.3)
-              : AppTheme.mistake1.withOpacity(0.3),
+              ? AppColors.success.withOpacity(0.3)
+              : AppColors.mistake1.withOpacity(0.3),
         ),
       ),
       child: Text(
@@ -339,13 +345,13 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: totalErrors == 0 ? AppTheme.emerald400 : AppTheme.mistake1,
+          color: totalErrors == 0 ? AppColors.success : AppColors.mistake1,
         ),
       ),
     );
   }
 
-  Widget _buildMistakesSummary(AsyncValue<List<Mistake>> mistakesAsync) {
+  Widget _buildMistakesSummary(AsyncValue<List<Mistake>> mistakesAsync, bool isDarkMode) {
     final mistakes = mistakesAsync.value ?? [];
     final surahMistakes = mistakes.where((m) => m.surahNumber == _selectedSurah).toList();
 
@@ -354,15 +360,15 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.slate800,
-        border: Border(top: BorderSide(color: AppTheme.slate700.withOpacity(0.5))),
+        color: AppColors.surface(isDarkMode),
+        border: Border(top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Mistakes in this Surah (${surahMistakes.length} words)',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.slate300),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text(isDarkMode)),
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -413,7 +419,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
   }
 
   /// Builds a word with highlighted characters for character-level mistakes
-  Widget _buildHighlightedWord(String word, List<Mistake> charMistakes) {
+  Widget _buildHighlightedWord(String word, List<Mistake> charMistakes, bool isDarkMode) {
     // Build a map of charIndex -> mistake for quick lookup
     final mistakeMap = <int, Mistake>{};
     for (final m in charMistakes) {
@@ -431,7 +437,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
 
       if (mistake != null) {
         // This character has a mistake - highlight it
-        final color = AppTheme.getMistakeColor(mistake.severityLevel);
+        final color = AppColors.getMistakeColor(mistake.severityLevel);
         spans.add(TextSpan(
           text: char,
           style: GoogleFonts.amiri(
@@ -448,7 +454,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
           style: GoogleFonts.amiri(
             fontSize: 22,
             height: 2.2,
-            color: AppTheme.slate200,
+            color: AppColors.text(isDarkMode),
           ),
         ));
       }

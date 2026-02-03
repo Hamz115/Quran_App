@@ -22,10 +22,17 @@ docs/
 │   ├── Classes_And_Mistakes.md             # Classes, assignments, mistakes
 │   ├── Qpc_Quran_Rendering.md              # QPC font rendering system
 │   ├── Test_System.md                      # Test classes and scoring
-│   └── Supabase Implementation/            # Supabase cloud setup
-│       ├── Implementation_Journey.md       # Step-by-step setup record
-│       ├── Supabase_Reference.md           # Full schema & policy reference
-│       └── Supabase_Frontend_Integration_Reference.md  # Frontend integration code
+│   ├── Supabase Implementation/            # Supabase cloud setup
+│   │   ├── Implementation_Journey.md       # Step-by-step setup record
+│   │   ├── Supabase_Reference.md           # Full schema & policy reference
+│   │   └── Supabase_Frontend_Integration_Reference.md  # Frontend integration code
+│   └── Flutter App Overhaul/               # Flutter mobile app UI redesign
+│       ├── 00-OVERVIEW.md                  # Summary of all changes
+│       ├── 01-THEME-SYSTEM.md              # Theme implementation
+│       ├── 02-AUTHENTICATION.md            # Supabase auth integration
+│       ├── 03-NAVIGATION.md                # Role-based navigation
+│       ├── 04-SCREENS.md                   # Screen updates
+│       └── 05-SHARED-WIDGETS.md            # Reusable widgets
 │
 └── Guides/                                 # For AI/developers - troubleshooting
     ├── Font_Overflow_Fix_Guide.md          # Fixing font overflow issues
@@ -916,3 +923,121 @@ flutter run
 ```powershell
 Invoke-RestMethod -Method DELETE -Uri http://localhost:8000/api/admin/clear-data
 ```
+
+---
+
+## Phase 13: Flutter Mobile App UI Overhaul
+
+**Status:** Complete
+
+### Overview
+Complete UI overhaul of the Flutter mobile app (`quran_mobile/`) to match the React web app design, implementing Supabase authentication, role-based navigation, and theme support.
+
+**Key Principles:**
+- **UI First** - Match the web app design pixel-perfect
+- **Local-First** - SQLite remains the primary database
+- **Supabase for Auth Only** - Login/signup to enter the app
+- **No Data Sync Yet** - Supabase data sync is a future phase
+
+### Implementation Phases
+
+| Phase | Title | Description |
+|-------|-------|-------------|
+| 1 | Theme System | Dual theme (light/dark) with SharedPreferences persistence |
+| 2 | Supabase Auth | Authentication service with Supabase |
+| 3 | Auth UI Screens | Login, Signup, Forgot Password screens |
+| 4 | Role-based Navigation | Teacher/Student navigation with role banner |
+| 5 | Dashboard Screens | Role-aware dashboard with personalized content |
+| 6 | Classes & Reader | Role-aware Classes and Quran Reader screens |
+| 7 | Shared Widgets | Common reusable UI components |
+
+### New Files Created
+
+**Core Auth:**
+- `lib/core/auth/supabase_config.dart` - Supabase initialization
+- `lib/core/auth/auth_service.dart` - Auth operations wrapper
+- `lib/data/models/app_user.dart` - User model with role
+
+**Providers:**
+- `lib/presentation/providers/auth_provider.dart` - Auth state management
+
+**Auth Screens:**
+- `lib/presentation/screens/auth/login_screen.dart`
+- `lib/presentation/screens/auth/signup_screen.dart`
+- `lib/presentation/screens/auth/forgot_password_screen.dart`
+
+**Shared Widgets:**
+- `lib/presentation/widgets/common/common_widgets.dart` - Barrel export
+- `lib/presentation/widgets/common/gradient_button.dart`
+- `lib/presentation/widgets/common/icon_input_field.dart`
+- `lib/presentation/widgets/common/avatar_circle.dart`
+
+**Configuration:**
+- `.env` - Supabase credentials (not committed)
+- `.env.example` - Example env file
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `lib/main.dart` | Supabase init, auth routing, role banner, nav items |
+| `lib/config/app_colors.dart` | Added purple colors |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | Role-aware welcome, stats |
+| `lib/presentation/screens/classes/classes_screen.dart` | Role-aware features |
+| `lib/presentation/screens/reader/quran_reader_screen.dart` | Role-aware text/colors |
+| `pubspec.yaml` | Added supabase_flutter, flutter_dotenv |
+| `.gitignore` | Added .env exclusion |
+
+### Dependencies Added
+
+```yaml
+dependencies:
+  supabase_flutter: ^2.3.0    # Supabase authentication
+  flutter_dotenv: ^5.1.0       # Environment configuration
+```
+
+### Role-Based Features
+
+**Teacher View:**
+- Cyan accent color throughout
+- "Teacher View" banner
+- Full CRUD on classes
+- Can mark/review mistakes
+- Sees "Manage your Halaqah" subtitle
+
+**Student View:**
+- Teal accent color throughout
+- "Student View" banner
+- Read-only class history
+- Can view mistakes
+- Sees "Track your progress" subtitle
+
+### Auth Flow
+
+```
+App Start
+  ├─► isLoading? ──► SplashScreen
+  ├─► isAuthenticated?
+  │       ├─► Yes ──► MainNavigation
+  │       └─► No ──► LoginScreen
+```
+
+### Demo Accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| Teacher | hamzaferoze115@gmail.com | 12345678 |
+| Student | hamza@iiotsolutions.sa | 12345678 |
+
+### Documentation
+
+All implementation details are in:
+`docs/Technical Implementation Journey/Flutter App Overhaul/`
+- `00-OVERVIEW.md` - Summary of the overhaul
+- `01-THEME-SYSTEM.md` - Theme implementation details
+- `02-AUTHENTICATION.md` - Supabase auth integration
+- `03-NAVIGATION.md` - Role-based navigation structure
+- `04-SCREENS.md` - Dashboard, Classes, Reader updates
+- `05-SHARED-WIDGETS.md` - Widget catalog and usage
+
+---

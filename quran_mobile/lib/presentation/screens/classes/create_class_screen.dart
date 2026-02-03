@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../providers/providers.dart';
+import '../../providers/theme_provider.dart';
 
 class CreateClassScreen extends ConsumerStatefulWidget {
   const CreateClassScreen({super.key});
@@ -29,12 +31,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   @override
   Widget build(BuildContext context) {
     final surahsAsync = ref.watch(surahListProvider);
+    final isDarkMode = ref.watch(themeProvider);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
-      decoration: const BoxDecoration(
-        color: AppTheme.slate800,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: AppColors.surface(isDarkMode),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
@@ -44,7 +47,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppTheme.slate600,
+              color: AppColors.textMuted(isDarkMode),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -54,7 +57,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -63,15 +66,15 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.slate100,
+                          color: AppColors.text(isDarkMode),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Configure today\'s teaching session',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.slate400,
+                          color: AppColors.textSecondary(isDarkMode),
                         ),
                       ),
                     ],
@@ -80,7 +83,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close_rounded),
-                  color: AppTheme.slate400,
+                  color: AppColors.textSecondary(isDarkMode),
                 ),
               ],
             ),
@@ -95,25 +98,25 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Date selector
-                    _buildDateSelector(),
+                    _buildDateSelector(isDarkMode),
                     const SizedBox(height: 24),
 
                     // Sections
-                    const Text(
+                    Text(
                       'Portions',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.slate200,
+                        color: AppColors.text(isDarkMode),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    _buildSection('hifz', 'Hifz (New Memorization)', 'New verses to memorize', AppTheme.emerald400, surahs),
+                    _buildSection('hifz', 'Hifz (New Memorization)', 'New verses to memorize', AppColors.hifzColor, surahs, isDarkMode),
                     const SizedBox(height: 12),
-                    _buildSection('sabqi', 'Sabqi (Recent)', 'Recently memorized, needs reinforcement', AppTheme.sabqiColor, surahs),
+                    _buildSection('sabqi', 'Sabqi (Recent)', 'Recently memorized, needs reinforcement', AppColors.sabqiColor, surahs, isDarkMode),
                     const SizedBox(height: 12),
-                    _buildSection('revision', 'Revision (Manzil)', 'Long-term revision', AppTheme.revisionColor, surahs),
+                    _buildSection('revision', 'Revision (Manzil)', 'Long-term revision', AppColors.revisionColor, surahs, isDarkMode),
 
                     const SizedBox(height: 100),
                   ],
@@ -128,8 +131,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.slate800,
-              border: Border(top: BorderSide(color: AppTheme.slate700.withOpacity(0.5))),
+              color: AppColors.surface(isDarkMode),
+              border: Border(top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5))),
             ),
             child: Row(
               children: [
@@ -138,9 +141,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: AppTheme.slate600),
+                      side: BorderSide(color: AppColors.textMuted(isDarkMode)),
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: AppTheme.slate300)),
+                    child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -149,7 +152,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     onPressed: _isCreating ? null : _createClass,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: AppTheme.emerald500,
+                      backgroundColor: AppColors.cyan500,
                     ),
                     child: _isCreating
                         ? const SizedBox(
@@ -168,28 +171,28 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildDateSelector() {
+  Widget _buildDateSelector(bool isDarkMode) {
     final dayName = AppConstants.daysOfWeek[_selectedDate.weekday % 7];
 
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: _selectDate,
+            onTap: () => _selectDate(isDarkMode),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.slate900,
+                color: AppColors.background(isDarkMode),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.slate700),
+                border: Border.all(color: AppColors.border(isDarkMode)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_rounded, color: AppTheme.slate400, size: 20),
+                  Icon(Icons.calendar_today_rounded, color: AppColors.textSecondary(isDarkMode), size: 20),
                   const SizedBox(width: 12),
                   Text(
                     '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 16, color: AppTheme.slate100),
+                    style: TextStyle(fontSize: 16, color: AppColors.text(isDarkMode)),
                   ),
                 ],
               ),
@@ -201,13 +204,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.slate900.withOpacity(0.5),
+              color: AppColors.background(isDarkMode).withOpacity(0.5),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.slate700),
+              border: Border.all(color: AppColors.border(isDarkMode)),
             ),
             child: Text(
               dayName,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.slate300),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.text(isDarkMode)),
             ),
           ),
         ),
@@ -215,17 +218,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildSection(String type, String label, String description, Color color, List surahs) {
+  Widget _buildSection(String type, String label, String description, Color color, List surahs, bool isDarkMode) {
     final isEnabled = _sectionEnabled[type]!;
     final portions = _portions[type]!;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: isEnabled ? color.withOpacity(0.1) : AppTheme.slate900.withOpacity(0.5),
+        color: isEnabled ? color.withOpacity(0.1) : AppColors.background(isDarkMode).withOpacity(0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isEnabled ? color.withOpacity(0.3) : AppTheme.slate700,
+          color: isEnabled ? color.withOpacity(0.3) : AppColors.border(isDarkMode),
           width: isEnabled ? 2 : 1,
         ),
       ),
@@ -248,7 +251,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: isEnabled ? color : AppTheme.slate400,
+                            color: isEnabled ? color : AppColors.textSecondary(isDarkMode),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -256,7 +259,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isEnabled ? AppTheme.slate400 : AppTheme.slate500,
+                            color: isEnabled ? AppColors.textSecondary(isDarkMode) : AppColors.textMuted(isDarkMode),
                           ),
                         ),
                       ],
@@ -282,9 +285,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.slate900.withOpacity(0.5),
+                  color: AppColors.background(isDarkMode).withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.slate700.withOpacity(0.5)),
+                  border: Border.all(color: AppColors.border(isDarkMode).withOpacity(0.5)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,14 +296,14 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       children: [
                         Text(
                           'Portion ${index + 1}',
-                          style: const TextStyle(fontSize: 12, color: AppTheme.slate400),
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary(isDarkMode)),
                         ),
                         const Spacer(),
                         if (portions.length > 1)
                           IconButton(
                             onPressed: () => setState(() => portions.removeAt(index)),
                             icon: const Icon(Icons.close_rounded, size: 18),
-                            color: AppTheme.slate500,
+                            color: AppColors.textMuted(isDarkMode),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
@@ -318,6 +321,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                               portion.startSurah = v;
                               portion.endSurah = v;
                             }),
+                            isDarkMode,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -327,6 +331,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             portion.endSurah,
                             surahs,
                             (v) => setState(() => portion.endSurah = v),
+                            isDarkMode,
                           ),
                         ),
                       ],
@@ -339,6 +344,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'From Ayah',
                             portion.startAyah,
                             (v) => setState(() => portion.startAyah = v),
+                            isDarkMode,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -347,6 +353,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'To Ayah',
                             portion.endAyah,
                             (v) => setState(() => portion.endAyah = v),
+                            isDarkMode,
                           ),
                         ),
                       ],
@@ -377,25 +384,25 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildSurahDropdown(String label, int value, List surahs, Function(int) onChanged) {
+  Widget _buildSurahDropdown(String label, int value, List surahs, Function(int) onChanged, bool isDarkMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.slate500)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: AppTheme.slate800,
+            color: AppColors.surface(isDarkMode),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.slate600),
+            border: Border.all(color: AppColors.textMuted(isDarkMode)),
           ),
           child: DropdownButton<int>(
             value: value,
             isExpanded: true,
-            dropdownColor: AppTheme.slate800,
+            dropdownColor: AppColors.surface(isDarkMode),
             underline: const SizedBox(),
-            style: const TextStyle(fontSize: 13, color: AppTheme.slate100),
+            style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
             items: surahs.map<DropdownMenuItem<int>>((s) {
               return DropdownMenuItem(
                 value: s.number,
@@ -409,29 +416,29 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildAyahInput(String label, int? value, Function(int?) onChanged) {
+  Widget _buildAyahInput(String label, int? value, Function(int?) onChanged, bool isDarkMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.slate500)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
         const SizedBox(height: 4),
         TextFormField(
           initialValue: value?.toString() ?? '',
           keyboardType: TextInputType.number,
-          style: const TextStyle(fontSize: 13, color: AppTheme.slate100),
+          style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
           decoration: InputDecoration(
             hintText: 'All',
-            hintStyle: const TextStyle(color: AppTheme.slate500),
+            hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             filled: true,
-            fillColor: AppTheme.slate800,
+            fillColor: AppColors.surface(isDarkMode),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.slate600),
+              borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.slate600),
+              borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
             ),
           ),
           onChanged: (v) => onChanged(int.tryParse(v)),
@@ -440,7 +447,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Future<void> _selectDate() async {
+  Future<void> _selectDate(bool isDarkMode) async {
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -449,10 +456,15 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppTheme.emerald500,
-              surface: AppTheme.slate800,
-            ),
+            colorScheme: isDarkMode
+                ? ColorScheme.dark(
+                    primary: AppColors.cyan500,
+                    surface: AppColors.surface(true),
+                  )
+                : ColorScheme.light(
+                    primary: AppColors.cyan600,
+                    surface: AppColors.surface(false),
+                  ),
           ),
           child: child!,
         );

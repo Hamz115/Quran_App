@@ -1,109 +1,126 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'app_colors.dart';
 
+/// App theme configuration with light and dark mode support.
+/// Colors match the web app exactly.
 class AppTheme {
-  // Slate colors (dark theme)
-  static const Color slate900 = Color(0xFF0F172A);
-  static const Color slate800 = Color(0xFF1E293B);
-  static const Color slate700 = Color(0xFF334155);
-  static const Color slate600 = Color(0xFF475569);
-  static const Color slate500 = Color(0xFF64748B);
-  static const Color slate400 = Color(0xFF94A3B8);
-  static const Color slate300 = Color(0xFFCBD5E1);
-  static const Color slate200 = Color(0xFFE2E8F0);
-  static const Color slate100 = Color(0xFFF1F5F9);
+  AppTheme._(); // Prevent instantiation
 
-  // Primary colors (emerald/teal)
-  static const Color emerald600 = Color(0xFF059669);
-  static const Color emerald500 = Color(0xFF10B981);
-  static const Color emerald400 = Color(0xFF34D399);
-  static const Color teal600 = Color(0xFF0D9488);
-  static const Color teal500 = Color(0xFF14B8A6);
+  // ============================================
+  // LEGACY COLOR EXPORTS (for backward compatibility)
+  // ============================================
+  static const Color slate900 = AppColors.slate900;
+  static const Color slate800 = AppColors.slate800;
+  static const Color slate700 = AppColors.slate700;
+  static const Color slate600 = AppColors.slate600;
+  static const Color slate500 = AppColors.slate500;
+  static const Color slate400 = AppColors.slate400;
+  static const Color slate300 = AppColors.slate300;
+  static const Color slate200 = AppColors.slate200;
+  static const Color slate100 = AppColors.slate100;
 
-  // Mistake severity colors
-  static const Color mistake1 = Color(0xFFF59E0B); // Amber - 1x
-  static const Color mistake2 = Color(0xFF3B82F6); // Blue - 2x
-  static const Color mistake3 = Color(0xFFF97316); // Orange - 3x
-  static const Color mistake4 = Color(0xFFA855F7); // Purple - 4x
-  static const Color mistake5 = Color(0xFFEF4444); // Red - 5x+
+  static const Color emerald600 = AppColors.emerald600;
+  static const Color emerald500 = AppColors.emerald500;
+  static const Color emerald400 = AppColors.emerald400;
+  static const Color teal600 = AppColors.teal600;
+  static const Color teal500 = AppColors.teal500;
 
-  // Section colors
-  static const Color hifzColor = emerald400;
-  static const Color sabqiColor = Color(0xFF60A5FA); // Blue-400
-  static const Color revisionColor = Color(0xFFC084FC); // Purple-400
+  static const Color mistake1 = AppColors.mistake1;
+  static const Color mistake2 = AppColors.mistake2;
+  static const Color mistake3 = AppColors.mistake3;
+  static const Color mistake4 = AppColors.mistake4;
+  static const Color mistake5 = AppColors.mistake5;
 
-  // Status colors
-  static const Color success = Color(0xFF22C55E);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color error = Color(0xFFEF4444);
+  static const Color hifzColor = AppColors.hifzColor;
+  static const Color sabqiColor = AppColors.sabqiColor;
+  static const Color revisionColor = AppColors.revisionColor;
 
+  static const Color success = AppColors.success;
+  static const Color warning = AppColors.warning;
+  static const Color error = AppColors.error;
+
+  // ============================================
+  // DARK THEME
+  // ============================================
   static ThemeData get darkTheme {
     return ThemeData(
+      useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: slate900,
-      primaryColor: emerald500,
+      scaffoldBackgroundColor: AppColors.darkBackground,
+      primaryColor: AppColors.cyan500,
       colorScheme: const ColorScheme.dark(
-        primary: emerald500,
-        secondary: teal600,
-        surface: slate800,
-        error: error,
+        primary: AppColors.cyan500,
+        secondary: AppColors.teal500,
+        surface: AppColors.darkSurface,
+        error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onSurface: slate100,
+        onSurface: AppColors.darkText,
         onError: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: slate400),
+        iconTheme: IconThemeData(color: AppColors.darkTextSecondary),
         titleTextStyle: TextStyle(
-          color: slate100,
+          color: AppColors.darkText,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
       ),
       cardTheme: CardThemeData(
-        color: slate800.withOpacity(0.5),
+        color: AppColors.darkCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: slate700.withOpacity(0.5)),
+          side: BorderSide(color: AppColors.darkBorder.withOpacity(0.5)),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: slate800,
-        selectedItemColor: emerald400,
-        unselectedItemColor: slate400,
+        backgroundColor: AppColors.darkSurface,
+        selectedItemColor: AppColors.cyan400,
+        unselectedItemColor: AppColors.darkTextSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: emerald500,
+        backgroundColor: AppColors.cyan500,
         foregroundColor: Colors.white,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: slate800,
+        fillColor: AppColors.darkInputBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: slate600),
+          borderSide: BorderSide(color: AppColors.cyan900.withOpacity(0.5)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: slate600),
+          borderSide: BorderSide(color: AppColors.cyan900.withOpacity(0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: emerald500, width: 2),
+          borderSide: const BorderSide(color: AppColors.cyan500, width: 2),
         ),
-        labelStyle: const TextStyle(color: slate400),
-        hintStyle: const TextStyle(color: slate500),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
+        ),
+        labelStyle: const TextStyle(color: AppColors.darkTextSecondary),
+        hintStyle: const TextStyle(color: AppColors.darkTextMuted),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: emerald500,
+          backgroundColor: AppColors.cyan500,
           foregroundColor: Colors.white,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -112,73 +129,269 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: emerald400,
+          foregroundColor: AppColors.cyan400,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.cyan400,
+          side: const BorderSide(color: AppColors.cyan500),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: slate700.withOpacity(0.5),
+        color: AppColors.darkBorder.withOpacity(0.5),
         thickness: 1,
       ),
-      textTheme: GoogleFonts.interTextTheme(
-        ThemeData.dark().textTheme,
-      ).copyWith(
-        headlineLarge: GoogleFonts.inter(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: slate100,
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.darkSurface,
+        contentTextStyle: const TextStyle(color: AppColors.darkText),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        headlineMedium: GoogleFonts.inter(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: slate100,
+        behavior: SnackBarBehavior.floating,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        titleLarge: GoogleFonts.inter(
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      textTheme: _buildTextTheme(isDark: true),
+    );
+  }
+
+  // ============================================
+  // LIGHT THEME
+  // ============================================
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.lightBackground,
+      primaryColor: AppColors.cyan600,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.cyan600,
+        secondary: AppColors.teal600,
+        surface: AppColors.lightSurface,
+        error: AppColors.error,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: AppColors.lightText,
+        onError: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: AppColors.lightTextSecondary),
+        titleTextStyle: TextStyle(
+          color: AppColors.lightText,
           fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: slate100,
+          fontWeight: FontWeight.bold,
         ),
-        titleMedium: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: slate200,
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.lightCard,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.lightBorder),
         ),
-        bodyLarge: GoogleFonts.inter(
-          fontSize: 16,
-          color: slate300,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.lightSurface,
+        selectedItemColor: AppColors.cyan600,
+        unselectedItemColor: AppColors.lightTextSecondary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.cyan600,
+        foregroundColor: Colors.white,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.lightInputBg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.slate200),
         ),
-        bodyMedium: GoogleFonts.inter(
-          fontSize: 14,
-          color: slate400,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.slate200),
         ),
-        labelLarge: GoogleFonts.inter(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: slate100,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cyan500, width: 2),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
+        ),
+        labelStyle: const TextStyle(color: AppColors.lightTextSecondary),
+        hintStyle: const TextStyle(color: AppColors.lightTextMuted),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.cyan600,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.cyan600,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.cyan600,
+          side: const BorderSide(color: AppColors.cyan500),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.lightBorder,
+        thickness: 1,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.lightSurface,
+        contentTextStyle: const TextStyle(color: AppColors.lightText),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.lightSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.lightSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      textTheme: _buildTextTheme(isDark: false),
+    );
+  }
+
+  // ============================================
+  // TEXT THEME BUILDER
+  // ============================================
+  static TextTheme _buildTextTheme({required bool isDark}) {
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return GoogleFonts.interTextTheme(
+      isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+    ).copyWith(
+      headlineLarge: GoogleFonts.inter(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+      headlineMedium: GoogleFonts.inter(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+      titleLarge: GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      titleMedium: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      titleSmall: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      bodyLarge: GoogleFonts.inter(
+        fontSize: 16,
+        color: secondaryColor,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        fontSize: 14,
+        color: secondaryColor,
+      ),
+      bodySmall: GoogleFonts.inter(
+        fontSize: 12,
+        color: secondaryColor,
+      ),
+      labelLarge: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      labelMedium: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      labelSmall: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: secondaryColor,
       ),
     );
   }
 
-  // Get mistake color based on count
-  static Color getMistakeColor(int count) {
-    if (count >= 5) return mistake5;
-    if (count >= 4) return mistake4;
-    if (count >= 3) return mistake3;
-    if (count >= 2) return mistake2;
-    return mistake1;
-  }
+  // ============================================
+  // LEGACY HELPER METHODS (for backward compatibility)
+  // ============================================
 
-  // Get section color
-  static Color getSectionColor(String type) {
-    switch (type) {
-      case 'hifz':
-        return hifzColor;
-      case 'sabqi':
-        return sabqiColor;
-      case 'revision':
-        return revisionColor;
-      default:
-        return slate400;
-    }
-  }
+  /// Get mistake color based on count
+  static Color getMistakeColor(int count) => AppColors.getMistakeColor(count);
+
+  /// Get section color
+  static Color getSectionColor(String type) => AppColors.getSectionColor(type);
+}
+
+// ============================================
+// THEME EXTENSIONS FOR EASY ACCESS IN WIDGETS
+// ============================================
+extension ThemeExtensions on BuildContext {
+  /// Check if current theme is dark mode
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+
+  /// Get theme-aware colors easily
+  Color get backgroundColor => AppColors.background(isDarkMode);
+  Color get surfaceColor => AppColors.surface(isDarkMode);
+  Color get cardColor => AppColors.card(isDarkMode);
+  Color get borderColor => AppColors.border(isDarkMode);
+  Color get inputBgColor => AppColors.inputBg(isDarkMode);
+  Color get textColor => AppColors.text(isDarkMode);
+  Color get textSecondaryColor => AppColors.textSecondary(isDarkMode);
+  Color get textMutedColor => AppColors.textMuted(isDarkMode);
+  Color get overlayColor => AppColors.overlay(isDarkMode);
+  Color get primaryColor => AppColors.primary(isDarkMode);
 }

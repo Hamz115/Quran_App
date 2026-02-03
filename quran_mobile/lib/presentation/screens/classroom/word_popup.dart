@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 
 class WordPopup extends StatelessWidget {
   final String word;
@@ -17,12 +18,13 @@ class WordPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parsed = _parseArabicWord(word);
+    final isDarkMode = context.isDarkMode;
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: AppTheme.slate800,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: AppColors.surface(isDarkMode),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -32,7 +34,7 @@ class WordPopup extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppTheme.slate600,
+              color: AppColors.textMuted(isDarkMode),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -43,7 +45,7 @@ class WordPopup extends StatelessWidget {
             word,
             style: GoogleFonts.amiri(
               fontSize: 36,
-              color: AppTheme.slate100,
+              color: AppColors.text(isDarkMode),
             ),
             textDirection: TextDirection.rtl,
           ),
@@ -55,12 +57,12 @@ class WordPopup extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onSelectWhole,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.mistake1.withOpacity(0.2),
-                foregroundColor: AppTheme.mistake1,
+                backgroundColor: AppColors.mistake1.withOpacity(0.2),
+                foregroundColor: AppColors.mistake1,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppTheme.mistake1.withOpacity(0.3)),
+                  side: BorderSide(color: AppColors.mistake1.withOpacity(0.3)),
                 ),
               ),
               child: const Text('Mark Whole Word', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -70,11 +72,11 @@ class WordPopup extends StatelessWidget {
 
           // Letters section
           if (parsed.letters.isNotEmpty) ...[
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'Letters:',
-                style: TextStyle(fontSize: 13, color: AppTheme.slate400),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode)),
               ),
             ),
             const SizedBox(height: 8),
@@ -90,16 +92,16 @@ class WordPopup extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppTheme.slate700,
+                        color: AppColors.border(isDarkMode),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.slate600),
+                        border: Border.all(color: AppColors.textMuted(isDarkMode)),
                       ),
                       child: Center(
                         child: Text(
                           l.char,
                           style: GoogleFonts.amiri(
                             fontSize: 22,
-                            color: AppTheme.slate200,
+                            color: AppColors.text(isDarkMode),
                           ),
                         ),
                       ),
@@ -113,11 +115,11 @@ class WordPopup extends StatelessWidget {
           // Harakat section
           if (parsed.harakat.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'Harakat:',
-                style: TextStyle(fontSize: 13, color: AppTheme.slate400),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode)),
               ),
             ),
             const SizedBox(height: 8),
@@ -133,16 +135,16 @@ class WordPopup extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppTheme.revisionColor.withOpacity(0.2),
+                        color: AppColors.revisionColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.revisionColor.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.revisionColor.withOpacity(0.3)),
                       ),
                       child: Center(
                         child: Text(
                           'ـ${h.char}',
                           style: GoogleFonts.amiri(
                             fontSize: 22,
-                            color: AppTheme.revisionColor,
+                            color: AppColors.revisionColor,
                           ),
                         ),
                       ),
@@ -158,7 +160,7 @@ class WordPopup extends StatelessWidget {
           // Cancel
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.slate400)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
           ),
 
           SizedBox(height: MediaQuery.of(context).padding.bottom),

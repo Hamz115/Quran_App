@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../core/network/connectivity_service.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../providers/providers.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -13,37 +16,86 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final syncState = ref.watch(syncStateProvider);
     final connectivity = ref.watch(connectivityStreamProvider);
+    final isDarkMode = ref.watch(themeProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.slate900,
+      backgroundColor: AppColors.background(isDarkMode),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Settings',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.slate100,
+                  color: AppColors.text(isDarkMode),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Manage sync and app settings',
-                style: TextStyle(fontSize: 14, color: AppTheme.slate400),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary(isDarkMode)),
               ),
               const SizedBox(height: 32),
 
+              // Appearance Section
+              Text(
+                'APPEARANCE',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted(isDarkMode),
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              GlassmorphicCard(
+                padding: const EdgeInsets.all(0),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? AppColors.cyan500.withOpacity(0.2)
+                          : AppColors.cyan100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                      color: AppColors.cyan500,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    'Theme',
+                    style: TextStyle(color: AppColors.text(isDarkMode)),
+                  ),
+                  subtitle: Text(
+                    isDarkMode ? 'Dark mode' : 'Light mode',
+                    style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                  ),
+                  trailing: Switch(
+                    value: isDarkMode,
+                    onChanged: (_) => ref.read(themeProvider.notifier).toggleTheme(),
+                    activeColor: AppColors.cyan500,
+                    activeTrackColor: AppColors.cyan500.withOpacity(0.5),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
               // Sync Section
-              const Text(
+              Text(
                 'SYNC',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.slate500,
+                  color: AppColors.textMuted(isDarkMode),
                   letterSpacing: 1,
                 ),
               ),
@@ -287,8 +339,99 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 32),
 
+              // Account Section
+              Text(
+                'ACCOUNT',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted(isDarkMode),
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              GlassmorphicCard(
+                padding: const EdgeInsets.all(0),
+                child: Column(
+                  children: [
+                    // User info
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final authState = ref.watch(authProvider);
+                        final user = authState.user;
+                        return ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? AppColors.cyan500.withOpacity(0.2)
+                                  : AppColors.cyan100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.person_rounded,
+                              color: AppColors.cyan500,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            user?.email ?? 'Not signed in',
+                            style: TextStyle(color: AppColors.text(isDarkMode)),
+                          ),
+                          subtitle: Text(
+                            user?.role.name.toUpperCase() ?? '',
+                            style: TextStyle(
+                              color: user?.role.name == 'teacher'
+                                  ? AppColors.cyan500
+                                  : AppColors.teal500,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                    // Logout button
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.logout_rounded,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        'Sign Out',
+                        style: TextStyle(color: AppColors.text(isDarkMode)),
+                      ),
+                      subtitle: Text(
+                        'Sign out of your account',
+                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                      ),
+                      trailing: ElevatedButton(
+                        onPressed: () => _showSignOutDialog(context, ref),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: const Text('Sign Out'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
               // Danger Zone Section
-              const Text(
+              Text(
                 'DANGER ZONE',
                 style: TextStyle(
                   fontSize: 12,
@@ -402,6 +545,38 @@ class SettingsScreen extends ConsumerWidget {
               );
             },
             child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context, WidgetRef ref) {
+    final isDarkMode = ref.read(themeProvider);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface(isDarkMode),
+        title: Text(
+          'Sign Out?',
+          style: TextStyle(color: AppColors.text(isDarkMode)),
+        ),
+        content: Text(
+          'Are you sure you want to sign out of your account?',
+          style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await ref.read(authProvider.notifier).signOut();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Sign Out'),
           ),
         ],
       ),

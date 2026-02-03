@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
+import '../../config/app_colors.dart';
 
 class GlassmorphicCard extends StatelessWidget {
   final Widget child;
@@ -23,20 +24,22 @@ class GlassmorphicCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     final card = Container(
       margin: margin,
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.slate800.withOpacity(0.5),
+        color: AppColors.card(isDark).withOpacity(isDark ? 0.5 : 1.0),
         borderRadius: BorderRadius.circular(borderRadius),
         border: showBorder
             ? Border.all(
-                color: borderColor ?? AppTheme.slate700.withOpacity(0.5),
+                color: borderColor ?? AppColors.border(isDark).withOpacity(0.5),
               )
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -76,6 +79,8 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return GlassmorphicCard(
       padding: padding ?? const EdgeInsets.all(20),
       borderColor: accentColor?.withOpacity(0.3),
@@ -93,16 +98,16 @@ class SectionCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: accentColor ?? AppTheme.slate100,
+                        color: accentColor ?? AppColors.text(isDark),
                       ),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         subtitle!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.slate400,
+                          color: AppColors.textSecondary(isDark),
                         ),
                       ),
                     ],
@@ -138,6 +143,8 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return GlassmorphicCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -148,12 +155,12 @@ class StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: (color ?? AppTheme.emerald500).withOpacity(0.2),
+                color: (color ?? AppColors.emerald500).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: color ?? AppTheme.emerald400,
+                color: color ?? AppColors.emerald400,
                 size: 20,
               ),
             ),
@@ -163,7 +170,7 @@ class StatCard extends StatelessWidget {
             style: TextStyle(
               fontSize: smallText ? 16 : 28,
               fontWeight: FontWeight.bold,
-              color: color ?? AppTheme.slate100,
+              color: color ?? AppColors.text(isDark),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -171,9 +178,9 @@ class StatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: AppTheme.slate400,
+              color: AppColors.textSecondary(isDark),
             ),
           ),
         ],

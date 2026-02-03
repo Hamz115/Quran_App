@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
+import '../../config/app_colors.dart';
 import '../../config/constants.dart';
 
 class SectionBadge extends StatelessWidget {
@@ -72,7 +73,8 @@ class SectionTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppTheme.getSectionColor(type);
+    final isDark = context.isDarkMode;
+    final color = AppColors.getSectionColor(type);
 
     return GestureDetector(
       onTap: onTap,
@@ -80,10 +82,10 @@ class SectionTab extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : AppTheme.slate800,
+          color: isSelected ? color.withOpacity(0.2) : AppColors.surface(isDark),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? color.withOpacity(0.5) : AppTheme.slate700,
+            color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDark),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -95,7 +97,7 @@ class SectionTab extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? color : AppTheme.slate400,
+                color: isSelected ? color : AppColors.textSecondary(isDark),
               ),
             ),
             if (portionCount > 1) ...[
@@ -103,7 +105,7 @@ class SectionTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isSelected ? color.withOpacity(0.3) : AppTheme.slate700,
+                  color: isSelected ? color.withOpacity(0.3) : AppColors.border(isDark),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -111,7 +113,7 @@ class SectionTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: isSelected ? color : AppTheme.slate400,
+                    color: isSelected ? color : AppColors.textSecondary(isDark),
                   ),
                 ),
               ),

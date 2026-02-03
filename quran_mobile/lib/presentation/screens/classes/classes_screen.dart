@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../../data/models/class_session.dart';
 import '../../../data/models/assignment.dart';
 import '../../providers/providers.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../classroom/classroom_screen.dart';
 import 'create_class_screen.dart';
@@ -37,15 +40,21 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
   @override
   Widget build(BuildContext context) {
     final classesAsync = ref.watch(classesProvider);
+    final isDarkMode = ref.watch(themeProvider);
+    final authState = ref.watch(authProvider);
+    final isTeacher = authState.user?.role.name == 'teacher';
 
     return Scaffold(
-      backgroundColor: AppTheme.slate900,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateClassSheet(context),
-        backgroundColor: AppTheme.emerald500,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New Class'),
-      ),
+      backgroundColor: AppColors.background(isDarkMode),
+      // Only teachers can create new classes
+      floatingActionButton: isTeacher
+          ? FloatingActionButton.extended(
+              onPressed: () => _showCreateClassSheet(context),
+              backgroundColor: AppColors.cyan500,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New Class'),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,20 +65,20 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Classes',
+                  Text(
+                    isTeacher ? 'Classes' : 'My Classes',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.slate100,
+                      color: AppColors.text(isDarkMode),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Manage your teaching sessions',
+                  Text(
+                    isTeacher ? 'Manage your teaching sessions' : 'View your class history',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppTheme.slate400,
+                      color: AppColors.textSecondary(isDarkMode),
                     ),
                   ),
                 ],
@@ -81,21 +90,21 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               child: classesAsync.when(
                 data: (classes) {
                   if (classes.isEmpty) {
-                    return _buildEmptyState();
+                    return _buildEmptyState(isDarkMode, isTeacher);
                   }
 
                   return RefreshIndicator(
                     onRefresh: () async {
                       ref.read(classesProvider.notifier).loadClasses();
                     },
-                    child: _buildMonthGroupedTable(classes),
+                    child: _buildMonthGroupedTable(classes, isDarkMode, isTeacher),
                   );
                 },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppTheme.emerald400),
+                loading: () => Center(
+                  child: CircularProgressIndicator(color: AppColors.cyan500),
                 ),
                 error: (e, _) => Center(
-                  child: Text('Error: $e', style: const TextStyle(color: AppTheme.error)),
+                  child: Text('Error: $e', style: const TextStyle(color: AppColors.error)),
                 ),
               ),
             ),
@@ -105,7 +114,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
-  Widget _buildMonthGroupedTable(List<ClassSession> classes) {
+  Widget _buildMonthGroupedTable(List<ClassSession> classes, bool isDarkMode, bool isTeacher) {
     final grouped = _groupClassesByMonth(classes);
     final sortedMonths = grouped.keys.toList()
       ..sort((a, b) => b.compareTo(a)); // Newest months first
@@ -115,7 +124,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
       child: Column(
         children: sortedMonths.map((monthKey) {
           final monthClasses = grouped[monthKey]!;
-          return _buildMonthSection(monthKey, monthClasses, classes);
+          return _buildMonthSection(monthKey, monthClasses, classes, isDarkMode, isTeacher);
         }).toList(),
       ),
     );
@@ -163,7 +172,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     return (diffDays ~/ 7) + 1;
   }
 
-  Widget _buildMonthSection(String monthKey, List<ClassSession> monthClasses, List<ClassSession> allClasses) {
+  Widget _buildMonthSection(String monthKey, List<ClassSession> monthClasses, List<ClassSession> allClasses, bool isDarkMode, bool isTeacher) {
     final classCount = monthClasses.length;
     final classWord = classCount == 1 ? 'class' : 'classes';
 
@@ -178,7 +187,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: AppTheme.slate800.withOpacity(0.5),
+                color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
@@ -186,17 +195,17 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                 children: [
                   Text(
                     _getMonthLabel(monthKey),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.emerald400,
+                      color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
                     ),
                   ),
                   Text(
                     '$classCount $classWord',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.slate400,
+                      color: AppColors.textSecondary(isDarkMode),
                     ),
                   ),
                 ],
@@ -207,22 +216,22 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.slate800.withOpacity(0.3),
+                color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.3 : 0.5),
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.slate700, width: 1),
+                  bottom: BorderSide(color: AppColors.border(isDarkMode), width: 1),
                 ),
               ),
               child: Row(
                 children: [
-                  _buildTableHeader('Wk', width: 30),
-                  _buildTableHeader('Date', width: 55),
-                  _buildTableHeader('Day', width: 35),
-                  _buildTableHeader('Hifz', flex: 1),
-                  _buildTableHeader('Sabqi', flex: 1),
-                  _buildTableHeader('Manzil', flex: 1),
-                  _buildTableHeader('Perf', width: 45),
-                  _buildTableHeader('', width: 30), // Notes
-                  const SizedBox(width: 24), // Delete
+                  _buildTableHeader('Wk', width: 30, isDarkMode: isDarkMode),
+                  _buildTableHeader('Date', width: 55, isDarkMode: isDarkMode),
+                  _buildTableHeader('Day', width: 35, isDarkMode: isDarkMode),
+                  _buildTableHeader('Hifz', flex: 1, isDarkMode: isDarkMode),
+                  _buildTableHeader('Sabqi', flex: 1, isDarkMode: isDarkMode),
+                  _buildTableHeader('Manzil', flex: 1, isDarkMode: isDarkMode),
+                  _buildTableHeader('Perf', width: 45, isDarkMode: isDarkMode),
+                  _buildTableHeader('', width: 30, isDarkMode: isDarkMode), // Notes
+                  if (isTeacher) const SizedBox(width: 24), // Delete (teachers only)
                 ],
               ),
             ),
@@ -232,7 +241,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               final index = entry.key;
               final classItem = entry.value;
               final isLast = index == monthClasses.length - 1;
-              return _buildTableRow(classItem, allClasses, isLast);
+              return _buildTableRow(classItem, allClasses, isLast, isDarkMode, isTeacher);
             }),
           ],
         ),
@@ -240,13 +249,13 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
-  Widget _buildTableHeader(String text, {double? width, int flex = 1}) {
+  Widget _buildTableHeader(String text, {double? width, int flex = 1, required bool isDarkMode}) {
     final child = Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 10,
         fontWeight: FontWeight.w600,
-        color: AppTheme.slate400,
+        color: AppColors.textSecondary(isDarkMode),
       ),
     );
     if (width != null) {
@@ -255,7 +264,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     return Expanded(flex: flex, child: child);
   }
 
-  Widget _buildTableRow(ClassSession classItem, List<ClassSession> allClasses, bool isLast) {
+  Widget _buildTableRow(ClassSession classItem, List<ClassSession> allClasses, bool isLast, bool isDarkMode, bool isTeacher) {
     final weekNum = _getWeekNumber(classItem.date, allClasses);
 
     // Get all assignments by type
@@ -276,7 +285,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           border: isLast ? null : Border(
-            bottom: BorderSide(color: AppTheme.slate700.withOpacity(0.5), width: 1),
+            bottom: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5), width: 1),
           ),
         ),
         child: Row(
@@ -286,9 +295,9 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               width: 30,
               child: Text(
                 'W$weekNum',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
-                  color: AppTheme.slate500,
+                  color: AppColors.textMuted(isDarkMode),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -298,9 +307,9 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               width: 55,
               child: Text(
                 _formatDateShort(classItem.date),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
-                  color: AppTheme.slate300,
+                  color: AppColors.text(isDarkMode),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -310,64 +319,131 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               width: 35,
               child: Text(
                 classItem.day.substring(0, 3),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
-                  color: AppTheme.slate400,
+                  color: AppColors.textSecondary(isDarkMode),
                 ),
               ),
             ),
             // Hifz
             Expanded(
-              child: _buildSurahCell(hifzAssignments, 'hifz'),
+              child: _buildSurahCell(hifzAssignments, 'hifz', isDarkMode),
             ),
             // Sabqi
             Expanded(
-              child: _buildSurahCell(sabqiAssignments, 'sabqi'),
+              child: _buildSurahCell(sabqiAssignments, 'sabqi', isDarkMode),
             ),
             // Manzil
             Expanded(
-              child: _buildSurahCell(manzilAssignments, 'manzil'),
+              child: _buildSurahCell(manzilAssignments, 'manzil', isDarkMode),
             ),
-            // Performance
+            // Performance (editable by teachers only)
             SizedBox(
               width: 45,
-              child: _buildPerformanceCell(classItem),
+              child: isTeacher
+                  ? _buildPerformanceCell(classItem, isDarkMode)
+                  : _buildPerformanceDisplay(classItem, isDarkMode),
             ),
-            // Notes
+            // Notes (editable by teachers only)
             SizedBox(
               width: 30,
-              child: _buildNotesCell(classItem),
+              child: isTeacher
+                  ? _buildNotesCell(classItem, isDarkMode)
+                  : _buildNotesDisplay(classItem, isDarkMode),
             ),
-            // Delete
-            GestureDetector(
-              onTap: () => _deleteClass(classItem.id!),
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 14,
-                  color: AppTheme.slate600,
+            // Delete (teachers only)
+            if (isTeacher)
+              GestureDetector(
+                onTap: () => _deleteClass(classItem.id!, isDarkMode),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: AppColors.textMuted(isDarkMode),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSurahCell(List<Assignment> assignments, String type) {
+  // Read-only performance display for students
+  Widget _buildPerformanceDisplay(ClassSession classItem, bool isDarkMode) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: _getPerformanceColor(classItem.performance, isDarkMode).withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        _getPerformanceShort(classItem.performance),
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: _getPerformanceColor(classItem.performance, isDarkMode),
+        ),
+      ),
+    );
+  }
+
+  // Read-only notes display for students
+  Widget _buildNotesDisplay(ClassSession classItem, bool isDarkMode) {
+    final hasNotes = classItem.notes != null && classItem.notes!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: hasNotes ? () => _showNotesReadonly(classItem, isDarkMode) : null,
+      child: Icon(
+        hasNotes ? Icons.note_rounded : Icons.note_outlined,
+        size: 16,
+        color: hasNotes ? AppColors.warning : AppColors.textMuted(isDarkMode).withOpacity(0.5),
+      ),
+    );
+  }
+
+  void _showNotesReadonly(ClassSession classItem, bool isDarkMode) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface(isDarkMode),
+        title: Row(
+          children: [
+            Icon(Icons.note_rounded, color: AppColors.warning, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Notes - ${classItem.day}, ${_formatDateShort(classItem.date)}',
+              style: TextStyle(fontSize: 16, color: AppColors.text(isDarkMode)),
+            ),
+          ],
+        ),
+        content: Text(
+          classItem.notes ?? '',
+          style: TextStyle(color: AppColors.text(isDarkMode)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSurahCell(List<Assignment> assignments, String type, bool isDarkMode) {
     if (assignments.isEmpty) {
-      return const Text(
+      return Text(
         '-',
         style: TextStyle(
           fontSize: 10,
-          color: AppTheme.slate600,
+          color: AppColors.textMuted(isDarkMode),
         ),
       );
     }
 
-    final color = AppTheme.getSectionColor(type);
+    final color = AppColors.getSectionColor(type);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +471,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
-  Widget _buildPerformanceCell(ClassSession classItem) {
+  Widget _buildPerformanceCell(ClassSession classItem, bool isDarkMode) {
     final isOpen = _performanceDropdownId == classItem.id;
 
     return GestureDetector(
@@ -410,7 +486,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             decoration: BoxDecoration(
-              color: _getPerformanceColor(classItem.performance).withOpacity(0.2),
+              color: _getPerformanceColor(classItem.performance, isDarkMode).withOpacity(0.2),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
@@ -418,7 +494,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
-                color: _getPerformanceColor(classItem.performance),
+                color: _getPerformanceColor(classItem.performance, isDarkMode),
               ),
             ),
           ),
@@ -431,9 +507,9 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                 child: Container(
                   width: 100,
                   decoration: BoxDecoration(
-                    color: AppTheme.slate800,
+                    color: AppColors.surface(isDarkMode),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.slate700),
+                    border: Border.all(color: AppColors.border(isDarkMode)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.3),
@@ -457,7 +533,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                             option,
                             style: TextStyle(
                               fontSize: 12,
-                              color: _getPerformanceColor(option),
+                              color: _getPerformanceColor(option, isDarkMode),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -483,66 +559,66 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     }
   }
 
-  Color _getPerformanceColor(String? perf) {
+  Color _getPerformanceColor(String? perf, bool isDarkMode) {
     switch (perf) {
-      case 'Excellent': return AppTheme.emerald400;
-      case 'Very Good': return const Color(0xFF14B8A6); // Teal
-      case 'Good': return const Color(0xFFF59E0B); // Amber
-      case 'Needs Work': return AppTheme.error;
-      default: return AppTheme.slate400;
+      case 'Excellent': return AppColors.emerald400;
+      case 'Very Good': return AppColors.teal500;
+      case 'Good': return AppColors.warning;
+      case 'Needs Work': return AppColors.error;
+      default: return AppColors.textSecondary(isDarkMode);
     }
   }
 
-  Widget _buildNotesCell(ClassSession classItem) {
+  Widget _buildNotesCell(ClassSession classItem, bool isDarkMode) {
     final hasNotes = classItem.notes != null && classItem.notes!.isNotEmpty;
 
     return GestureDetector(
-      onTap: () => _showNotesDialog(classItem),
+      onTap: () => _showNotesDialog(classItem, isDarkMode),
       child: Icon(
         hasNotes ? Icons.note_rounded : Icons.note_add_outlined,
         size: 16,
-        color: hasNotes ? AppTheme.mistake1 : AppTheme.slate600,
+        color: hasNotes ? AppColors.warning : AppColors.textMuted(isDarkMode),
       ),
     );
   }
 
-  void _showNotesDialog(ClassSession classItem) {
+  void _showNotesDialog(ClassSession classItem, bool isDarkMode) {
     _notesController.text = classItem.notes ?? '';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.slate800,
+        backgroundColor: AppColors.surface(isDarkMode),
         title: Row(
           children: [
-            const Icon(Icons.note_rounded, color: AppTheme.mistake1, size: 20),
+            Icon(Icons.note_rounded, color: AppColors.warning, size: 20),
             const SizedBox(width: 8),
             Text(
               'Notes - ${classItem.day}, ${_formatDateShort(classItem.date)}',
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: AppColors.text(isDarkMode)),
             ),
           ],
         ),
         content: TextField(
           controller: _notesController,
           maxLines: 4,
-          style: const TextStyle(color: AppTheme.slate100),
+          style: TextStyle(color: AppColors.text(isDarkMode)),
           decoration: InputDecoration(
             hintText: 'Add notes...',
-            hintStyle: const TextStyle(color: AppTheme.slate500),
+            hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
             filled: true,
-            fillColor: AppTheme.slate900,
+            fillColor: AppColors.background(isDarkMode),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppTheme.slate700),
+              borderSide: BorderSide(color: AppColors.border(isDarkMode)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppTheme.slate700),
+              borderSide: BorderSide(color: AppColors.border(isDarkMode)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.emerald400),
+              borderSide: BorderSide(color: AppColors.cyan500),
             ),
           ),
         ),
@@ -560,7 +636,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               );
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.emerald500),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.cyan500),
             child: const Text('Save'),
           ),
         ],
@@ -576,7 +652,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     return date;
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDarkMode, bool isTeacher) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -585,38 +661,42 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppTheme.slate800,
+              color: AppColors.surface(isDarkMode),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.calendar_today_outlined,
               size: 40,
-              color: AppTheme.slate500,
+              color: AppColors.textMuted(isDarkMode),
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'No classes yet',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: AppTheme.slate200,
+              color: AppColors.text(isDarkMode),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Start your first class to begin tracking progress',
+          Text(
+            isTeacher
+                ? 'Start your first class to begin tracking progress'
+                : 'Your teacher has not created any classes yet',
             style: TextStyle(
               fontSize: 14,
-              color: AppTheme.slate400,
+              color: AppColors.textSecondary(isDarkMode),
             ),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showCreateClassSheet(context),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Create First Class'),
-          ),
+          if (isTeacher) ...[
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _showCreateClassSheet(context),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Create First Class'),
+            ),
+          ],
         ],
       ),
     );
@@ -631,13 +711,13 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
-  void _deleteClass(int id) {
+  void _deleteClass(int id, bool isDarkMode) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.slate800,
-        title: const Text('Delete Class?'),
-        content: const Text('This action cannot be undone.'),
+        backgroundColor: AppColors.surface(isDarkMode),
+        title: Text('Delete Class?', style: TextStyle(color: AppColors.text(isDarkMode))),
+        content: Text('This action cannot be undone.', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -648,7 +728,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
               ref.read(classesProvider.notifier).deleteClass(id);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),
         ],

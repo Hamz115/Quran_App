@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../providers/providers.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
 
@@ -16,9 +19,17 @@ class DashboardScreen extends ConsumerWidget {
     final topMistakesAsync = ref.watch(topMistakesProvider);
     final mistakeCountsAsync = ref.watch(mistakeCountsBySurahProvider);
     final classesAsync = ref.watch(classesProvider);
+    final isDarkMode = ref.watch(themeProvider);
+    final authState = ref.watch(authProvider);
+
+    // User info from auth
+    final user = authState.user;
+    final isTeacher = user?.role.name == 'teacher';
+    final userName = user?.firstName ?? 'User';
+    final userInitials = '${user?.firstName?.isNotEmpty == true ? user!.firstName[0] : ''}${user?.lastName?.isNotEmpty == true ? user!.lastName[0] : ''}'.toUpperCase();
 
     return Scaffold(
-      backgroundColor: AppTheme.slate900,
+      backgroundColor: AppColors.background(isDarkMode),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
@@ -29,52 +40,71 @@ class DashboardScreen extends ConsumerWidget {
           },
           child: CustomScrollView(
             slivers: [
-              // Header
+              // Welcome Header
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
+                      // User avatar
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppTheme.emerald500, AppTheme.teal600],
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: isTeacher
+                                ? [AppColors.cyan500, AppColors.teal500]
+                                : [AppColors.teal500, AppColors.cyan500],
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.emerald500.withOpacity(0.3),
+                              color: (isTeacher ? AppColors.cyan500 : AppColors.teal500).withOpacity(0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.menu_book_rounded,
-                          color: Colors.white,
-                          size: 24,
+                        child: Center(
+                          child: Text(
+                            userInitials.isNotEmpty ? userInitials : 'QT',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Quran Logbook',
+                              'Assalamu Alaikum,',
                               style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.slate100,
+                                fontSize: 13,
+                                color: AppColors.textSecondary(isDarkMode),
                               ),
                             ),
                             Text(
-                              'Track your teaching progress',
+                              userName,
                               style: TextStyle(
-                                fontSize: 14,
-                                color: AppTheme.slate400,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(isDarkMode),
+                              ),
+                            ),
+                            Text(
+                              isTeacher
+                                  ? 'Manage your Halaqah'
+                                  : 'Track your progress',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textMuted(isDarkMode),
                               ),
                             ),
                           ],
@@ -85,9 +115,9 @@ class DashboardScreen extends ConsumerWidget {
                         builder: (context, ref, child) {
                           final syncState = ref.watch(syncStateProvider);
                           return syncState.when(
-                            data: (state) => _buildSyncButton(ref, state),
-                            loading: () => _buildSyncButton(ref, SyncState.idle),
-                            error: (_, __) => _buildSyncButton(ref, SyncState.error),
+                            data: (state) => _buildSyncButton(ref, state, isDarkMode),
+                            loading: () => _buildSyncButton(ref, SyncState.idle, isDarkMode),
+                            error: (_, __) => _buildSyncButton(ref, SyncState.error, isDarkMode),
                           );
                         },
                       ),
@@ -117,17 +147,17 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: StatCard(
-                              label: 'Current Progress',
+                              label: isTeacher ? 'Current Surah' : 'My Progress',
                               value: currentProgress,
                               icon: Icons.menu_book_rounded,
-                              color: AppTheme.hifzColor,
+                              color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
                               smallText: true,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: StatCard(
-                              label: 'Total Classes',
+                              label: isTeacher ? 'Classes Taught' : 'Classes',
                               value: '${stats['totalClasses']}',
                               icon: Icons.calendar_today_rounded,
                               color: AppTheme.emerald400,
@@ -136,7 +166,7 @@ class DashboardScreen extends ConsumerWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: StatCard(
-                              label: 'Repeated',
+                              label: isTeacher ? 'To Review' : 'To Fix',
                               value: '${stats['repeatedMistakes']}',
                               icon: Icons.repeat_rounded,
                               color: AppTheme.mistake5,
@@ -152,129 +182,182 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   error: (e, _) => Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text('Error: $e', style: const TextStyle(color: AppTheme.error)),
+                    child: Text('Error: $e', style: const TextStyle(color: AppColors.error)),
                   ),
                 ),
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-              // Weak Surahs
-              SliverToBoxAdapter(
-                child: mistakeCountsAsync.when(
-                  data: (counts) {
-                    if (counts.isEmpty) return const SizedBox.shrink();
-
-                    final sortedSurahs = counts.entries.toList()
-                      ..sort((a, b) => b.value.compareTo(a.value));
-                    final topSurahs = sortedSurahs.take(5).toList();
-                    final maxCount = topSurahs.isNotEmpty ? topSurahs.first.value : 1;
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SectionCard(
-                        title: 'Surahs Needing Attention',
-                        subtitle: 'Based on mistake frequency',
-                        child: Column(
-                          children: topSurahs.map((entry) {
-                            final surahName = AppConstants.surahNames[entry.key] ?? 'Surah ${entry.key}';
-                            final progress = entry.value / maxCount;
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 24,
-                                    child: Text(
-                                      '${entry.key}.',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.slate500,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      surahName,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: AppTheme.slate200,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    flex: 3,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: LinearProgressIndicator(
-                                        value: progress,
-                                        backgroundColor: AppTheme.slate700,
-                                        valueColor: AlwaysStoppedAnimation(
-                                          AppTheme.getMistakeColor(entry.value),
-                                        ),
-                                        minHeight: 8,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  SizedBox(
-                                    width: 32,
-                                    child: Text(
-                                      '${entry.value}',
-                                      textAlign: TextAlign.end,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.getMistakeColor(entry.value),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+              // Teacher: Show student management placeholder
+              // Student: Show surahs needing attention
+              if (isTeacher) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SectionCard(
+                      title: 'My Students',
+                      subtitle: 'Manage your halaqah students',
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.cyan500.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Icon(
+                                  Icons.people_rounded,
+                                  size: 48,
+                                  color: AppColors.cyan500,
+                                ),
                               ),
-                            );
-                          }).toList(),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Student Management',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text(isDarkMode),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Coming soon! You\'ll be able to add students, track their progress, and review their mistakes here.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary(isDarkMode),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
-              ),
+              ] else ...[
+                // Student: Weak Surahs
+                SliverToBoxAdapter(
+                  child: mistakeCountsAsync.when(
+                    data: (counts) {
+                      if (counts.isEmpty) return const SizedBox.shrink();
 
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                      final sortedSurahs = counts.entries.toList()
+                        ..sort((a, b) => b.value.compareTo(a.value));
+                      final topSurahs = sortedSurahs.take(5).toList();
+                      final maxCount = topSurahs.isNotEmpty ? topSurahs.first.value : 1;
 
-              // Top Repeated Mistakes
-              SliverToBoxAdapter(
-                child: topMistakesAsync.when(
-                  data: (mistakes) {
-                    if (mistakes.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SectionCard(
+                          title: 'Surahs Needing Attention',
+                          subtitle: 'Based on mistake frequency',
+                          child: Column(
+                            children: topSurahs.map((entry) {
+                              final surahName = AppConstants.surahNames[entry.key] ?? 'Surah ${entry.key}';
+                              final progress = entry.value / maxCount;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SectionCard(
-                        title: 'Top Repeated Mistakes',
-                        subtitle: 'Words to review',
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: mistakes.map((m) => MistakeBadge(
-                            errorCount: m.errorCount,
-                            wordText: m.wordText,
-                            location: '${m.ayahNumber}:${m.wordIndex + 1}',
-                          )).toList(),
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 24,
+                                      child: Text(
+                                        '${entry.key}.',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textMuted(isDarkMode),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        surahName,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.text(isDarkMode),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      flex: 3,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: progress,
+                                          backgroundColor: AppColors.border(isDarkMode),
+                                          valueColor: AlwaysStoppedAnimation(
+                                            AppColors.getMistakeColor(entry.value),
+                                          ),
+                                          minHeight: 8,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    SizedBox(
+                                      width: 32,
+                                      child: Text(
+                                        '${entry.value}',
+                                        textAlign: TextAlign.end,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.getMistakeColor(entry.value),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
                 ),
-              ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                // Student: Top Repeated Mistakes
+                SliverToBoxAdapter(
+                  child: topMistakesAsync.when(
+                    data: (mistakes) {
+                      if (mistakes.isEmpty) return const SizedBox.shrink();
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SectionCard(
+                          title: 'Top Repeated Mistakes',
+                          subtitle: 'Words to review',
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: mistakes.map((m) => MistakeBadge(
+                              errorCount: m.errorCount,
+                              wordText: m.wordText,
+                              location: '${m.ayahNumber}:${m.wordIndex + 1}',
+                            )).toList(),
+                          ),
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ),
+              ],
 
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
@@ -296,14 +379,14 @@ class DashboardScreen extends ConsumerWidget {
                                   Icon(
                                     Icons.calendar_today_outlined,
                                     size: 48,
-                                    color: AppTheme.slate600,
+                                    color: AppColors.textMuted(isDarkMode),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text(
+                                  Text(
                                     'No classes yet',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: AppTheme.slate400,
+                                      color: AppColors.textSecondary(isDarkMode),
                                     ),
                                   ),
                                 ],
@@ -324,9 +407,9 @@ class DashboardScreen extends ConsumerWidget {
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppTheme.slate800.withOpacity(0.5),
+                                color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.slate700.withOpacity(0.5)),
+                                border: Border.all(color: AppColors.border(isDarkMode).withOpacity(0.5)),
                               ),
                               child: Row(
                                 children: [
@@ -334,7 +417,7 @@ class DashboardScreen extends ConsumerWidget {
                                     width: 48,
                                     height: 48,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.slate700.withOpacity(0.5),
+                                      color: AppColors.border(isDarkMode).withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Column(
@@ -342,17 +425,17 @@ class DashboardScreen extends ConsumerWidget {
                                       children: [
                                         Text(
                                           classItem.date.split('-').last,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: AppTheme.slate100,
+                                            color: AppColors.text(isDarkMode),
                                           ),
                                         ),
                                         Text(
                                           _getMonthAbbr(classItem.date),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 10,
-                                            color: AppTheme.slate400,
+                                            color: AppColors.textSecondary(isDarkMode),
                                           ),
                                         ),
                                       ],
@@ -365,10 +448,10 @@ class DashboardScreen extends ConsumerWidget {
                                       children: [
                                         Text(
                                           classItem.day,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w600,
-                                            color: AppTheme.slate100,
+                                            color: AppColors.text(isDarkMode),
                                           ),
                                         ),
                                         const SizedBox(height: 4),
@@ -387,9 +470,9 @@ class DashboardScreen extends ConsumerWidget {
                                       ],
                                     ),
                                   ),
-                                  const Icon(
+                                  Icon(
                                     Icons.chevron_right_rounded,
-                                    color: AppTheme.slate500,
+                                    color: AppColors.textMuted(isDarkMode),
                                   ),
                                 ],
                               ),
@@ -412,7 +495,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSyncButton(WidgetRef ref, SyncState state) {
+  Widget _buildSyncButton(WidgetRef ref, SyncState state, bool isDarkMode) {
     IconData icon;
     Color color;
     bool isLoading = false;
@@ -420,21 +503,21 @@ class DashboardScreen extends ConsumerWidget {
     switch (state) {
       case SyncState.syncing:
         icon = Icons.sync;
-        color = AppTheme.emerald400;
+        color = AppColors.emerald400;
         isLoading = true;
         break;
       case SyncState.success:
         icon = Icons.cloud_done_rounded;
-        color = AppTheme.emerald400;
+        color = AppColors.emerald400;
         break;
       case SyncState.error:
         icon = Icons.cloud_off_rounded;
-        color = AppTheme.error;
+        color = AppColors.error;
         break;
       case SyncState.idle:
       default:
         icon = Icons.cloud_sync_rounded;
-        color = AppTheme.slate400;
+        color = AppColors.textSecondary(isDarkMode);
     }
 
     return GestureDetector(
@@ -442,7 +525,7 @@ class DashboardScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppTheme.slate800,
+          color: AppColors.surface(isDarkMode),
           borderRadius: BorderRadius.circular(10),
         ),
         child: isLoading

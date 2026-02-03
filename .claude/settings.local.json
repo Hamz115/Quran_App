@@ -5,7 +5,10 @@
       "Bash(mv:*)",
       "Bash(npm run build:*)",
       "Bash(sqlite3:*)",
-      "Bash(perl:*)"
+      "Bash(perl:*)",
+      "Bash(flutter build:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(timeout 30 bash:*)"
     ],
     "deny": [],
     "ask": []
