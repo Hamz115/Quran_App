@@ -897,34 +897,6 @@ Login/Signup → full_sync() →
 
 ---
 
-## Running the Project
-
-**Backend:**
-```bash
-cd quran_backend
-pip install -r requirements.txt
-python main.py
-```
-
-**Frontend:**
-```bash
-cd quran_frontend
-npm install
-npm run dev
-```
-
-**Mobile:**
-```bash
-cd quran_mobile
-flutter run
-```
-
-**Clear All Data (PowerShell):**
-```powershell
-Invoke-RestMethod -Method DELETE -Uri http://localhost:8000/api/admin/clear-data
-```
-
----
 
 ## Phase 13: Flutter Mobile App UI Overhaul
 
@@ -932,6 +904,79 @@ Invoke-RestMethod -Method DELETE -Uri http://localhost:8000/api/admin/clear-data
 
 ### Overview
 Complete UI overhaul of the Flutter mobile app (`quran_mobile/`) to match the React web app design, implementing Supabase authentication, role-based navigation, and theme support.
+
+### 2 February 2026 - Bug Fixes & Web Data Integration
+
+Fixed several issues with the Flutter app:
+
+**Bug Fixes:**
+1. **Settings Logout Missing** - Added Sign Out button to Settings screen with confirmation dialog
+2. **Teacher Dashboard Showing Student Content** - Teachers were seeing personal mistakes sections. Changed to show "My Students - Student Management Coming Soon" placeholder
+3. **Login Page Not Centered** - Login card wasn't centered on tablet/larger screens. Added Center wrapper with mainAxisSize: MainAxisSize.min
+
+**Flutter Web Data Integration:**
+The Flutter web build was returning hardcoded mock data instead of fetching from Supabase. The `providers.dart` file had `if (kIsWeb) return _mockData;` checks throughout.
+
+**Changes Made:**
+- Removed mock data returns for user-specific data (classes, mistakes, stats)
+- Added Supabase queries for web platform:
+  - `ClassesNotifier.loadClasses()` - Fetches classes from Supabase with user_id
+  - `MistakesNotifier.loadMistakes()` - Fetches mistakes from Supabase with student_id
+  - `statsProvider` - Fetches class and mistake stats from Supabase
+  - `topMistakesProvider` - Fetches top mistakes with occurrence count
+  - `mistakeCountsBySurahProvider` - Fetches mistake counts grouped by surah
+  - `classProvider` - Fetches single class by ID
+  - `mistakesForSurahProvider` - Fetches mistakes for specific surah
+- Kept static Quran text data (surahs list, pages mapping) as local data since it doesn't vary per user
+
+**Files Modified:**
+- `lib/presentation/screens/settings/settings_screen.dart` - Added logout functionality
+- `lib/presentation/screens/dashboard/dashboard_screen.dart` - Teacher placeholder
+- `lib/presentation/screens/auth/login_screen.dart` - Centered layout
+- `lib/presentation/providers/providers.dart` - Replaced mock data with Supabase queries
+
+### 3 February 2026 - Supabase Column Fix & Dashboard Redesign
+
+**Supabase Column Name Fix:**
+Fixed PostgrestException errors caused by incorrect column names in Supabase queries:
+- Changed `user_id` to `student_id` for mistakes table queries
+- Changed `user_id` to `teacher_id` for classes table queries
+- Removed `is_deleted` filter (column doesn't exist in Supabase schema)
+
+**Teacher Dashboard Redesign:**
+Updated Flutter Teacher Dashboard to match React web app design exactly:
+- Changed header from avatar greeting to "Teacher Dashboard" title with "Welcome back, {name}!" subtitle
+- Added action buttons row: "Add Student" and "+ Start New Class" (cyan gradient)
+- Updated stats cards to match React:
+  - **Total Students** with "Active" badge (emerald)
+  - **Classes This Week** (cyan)
+  - **Total Classes** (purple)
+  - **Today's Date** (amber)
+- Added `badge` parameter to StatCard widget
+- Added `amber500` and `amber600` colors to AppColors
+
+**Login/Signup Screen Enhancements:**
+- Added full Al-Isra 17:9 ayah in Arabic with English translation
+- Added background image (same as React web app)
+- Added dark gradient overlay for text readability
+- Fixed background image not covering full viewport on Flutter web (changed from Stack with Positioned.fill to Container with DecorationImage)
+
+**Settings Screen ListTile Fix:**
+Fixed "Trailing widget consumes entire tile width" error by wrapping ElevatedButtons in SizedBox(width: 100) for:
+- "Sync Now" button
+- "Sign Out" button
+- "Delete All" button
+
+**Files Modified:**
+- `lib/presentation/providers/providers.dart` - Fixed Supabase column names
+- `lib/presentation/screens/dashboard/dashboard_screen.dart` - Teacher dashboard redesign
+- `lib/presentation/widgets/glassmorphic_card.dart` - Added badge to StatCard
+- `lib/config/app_colors.dart` - Added amber colors
+- `lib/presentation/screens/auth/login_screen.dart` - Full ayah, background image, full-screen fix
+- `lib/presentation/screens/auth/signup_screen.dart` - Full ayah, background image, full-screen fix
+- `lib/presentation/screens/settings/settings_screen.dart` - Fixed ListTile button widths
+- `pubspec.yaml` - Added assets/images/ folder
+- `assets/images/background.jpg` - Copied from React web app
 
 **Key Principles:**
 - **UI First** - Match the web app design pixel-perfect
@@ -1041,3 +1086,32 @@ All implementation details are in:
 - `05-SHARED-WIDGETS.md` - Widget catalog and usage
 
 ---
+
+
+
+## Running the Project
+
+**Backend:**
+```bash
+cd quran_backend
+pip install -r requirements.txt
+python main.py
+```
+
+**Frontend:**
+```bash
+cd quran_frontend
+npm install
+npm run dev
+```
+
+**Mobile:**
+```bash
+cd quran_mobile
+flutter run
+```
+
+**Clear All Data (PowerShell):**
+```powershell
+Invoke-RestMethod -Method DELETE -Uri http://localhost:8000/api/admin/clear-data
+```

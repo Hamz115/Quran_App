@@ -82,87 +82,89 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final isLargeScreen = screenSize.width > 600;
 
     return Scaffold(
-      backgroundColor: AppColors.background(isDarkMode),
-      body: Stack(
-        children: [
-          // Background gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDarkMode
-                    ? [
-                        const Color(0xFF1A1F2E).withOpacity(0.95),
-                        const Color(0xFF0F172A),
-                      ]
-                    : [
-                        const Color(0xFFE0F2FE).withOpacity(0.9),
-                        const Color(0xFFF0F9FF),
-                      ],
-              ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/background.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.6),
+                Colors.black.withOpacity(0.8),
+              ],
             ),
           ),
+          child: Stack(
+            children: [
+              // Theme toggle
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 16,
+                child: _buildThemeToggle(isDarkMode),
+              ),
 
-          // Theme toggle
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 16,
-            child: _buildThemeToggle(isDarkMode),
-          ),
+              // Back button
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                left: 16,
+                child: _buildBackButton(isDarkMode),
+              ),
 
-          // Back button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            child: _buildBackButton(isDarkMode),
-          ),
+              // Main content
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
 
-          // Main content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
+                      // Quran verse
+                      _buildQuranVerse(isDarkMode),
 
-                  // Quran verse
-                  _buildQuranVerse(isDarkMode),
+                      const SizedBox(height: 24),
 
-                  const SizedBox(height: 24),
-
-                  // Main card
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: isLargeScreen ? 800 : double.infinity,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? const Color(0xFF1E293B).withOpacity(0.95)
-                          : Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDarkMode
-                            ? AppColors.cyan500.withOpacity(0.2)
-                            : AppColors.cyan200.withOpacity(0.5),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+                      // Main card
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: isLargeScreen ? 800 : double.infinity,
                         ),
-                      ],
-                    ),
-                    child: isLargeScreen
-                        ? _buildLargeScreenLayout(isDarkMode)
-                        : _buildSmallScreenLayout(isDarkMode),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? const Color(0xFF1E293B).withOpacity(0.95)
+                              : Colors.white.withOpacity(0.95),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: isDarkMode
+                                ? AppColors.cyan500.withOpacity(0.2)
+                                : AppColors.cyan200.withOpacity(0.5),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: isLargeScreen
+                            ? _buildLargeScreenLayout(isDarkMode)
+                            : _buildSmallScreenLayout(isDarkMode),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -218,27 +220,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Widget _buildQuranVerse(bool isDarkMode) {
-    return Column(
-      children: [
-        Text(
-          'إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ',
-          style: GoogleFonts.amiri(
-            fontSize: 22,
-            color: isDarkMode ? AppColors.slate300 : AppColors.slate600,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Text(
+            'إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا',
+            style: GoogleFonts.amiri(
+              fontSize: 20,
+              height: 1.8,
+              color: AppColors.slate300,
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
           ),
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '"This Quran guides to that which is most suitable" - Al-Isra 17:9',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary(isDarkMode),
+          const SizedBox(height: 12),
+          Text(
+            '"Indeed, this Quran guides to that which is most suitable and gives good tidings to the believers who do righteous deeds that they will have a great reward." - Al-Isra 17:9',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.slate400,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+        ],
+      ),
     );
   }
 

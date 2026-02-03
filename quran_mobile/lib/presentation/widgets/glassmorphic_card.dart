@@ -131,6 +131,7 @@ class StatCard extends StatelessWidget {
   final IconData? icon;
   final Color? color;
   final bool smallText;
+  final String? badge;
 
   const StatCard({
     super.key,
@@ -139,6 +140,7 @@ class StatCard extends StatelessWidget {
     this.icon,
     this.color,
     this.smallText = false,
+    this.badge,
   });
 
   @override
@@ -151,19 +153,40 @@ class StatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null)
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (color ?? AppColors.emerald500).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: color ?? AppColors.emerald400,
-                size: 20,
-              ),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (icon != null)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (color ?? AppColors.emerald500).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color ?? AppColors.emerald400,
+                    size: 20,
+                  ),
+                ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald500,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 12),
           Text(
             value,

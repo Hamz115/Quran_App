@@ -58,6 +58,12 @@ class AppColors {
   static const Color purple600 = Color(0xFF9333EA);
 
   // ============================================
+  // AMBER/YELLOW COLORS
+  // ============================================
+  static const Color amber500 = Color(0xFFF59E0B);
+  static const Color amber600 = Color(0xFFD97706);
+
+  // ============================================
   // PORTION/SECTION COLORS
   // ============================================
   static const Color hifzColor = emerald500;

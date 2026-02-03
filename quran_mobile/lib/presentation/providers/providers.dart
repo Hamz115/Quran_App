@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/connectivity_service.dart';
@@ -11,6 +12,7 @@ import '../../data/models/surah.dart';
 import '../../data/models/class_session.dart';
 import '../../data/models/mistake.dart';
 import '../../data/models/assignment.dart';
+import 'auth_provider.dart';
 
 // Core providers
 final databaseHelperProvider = Provider((ref) => DatabaseHelper.instance);
@@ -44,41 +46,78 @@ final syncStateProvider = StreamProvider<SyncState>((ref) {
   return ref.watch(syncServiceProvider).stateStream;
 });
 
-// Surah list provider
+// Surah list provider (Quran data is static, so mock is fine for web)
 final surahListProvider = FutureProvider<List<Surah>>((ref) async {
-  if (kIsWeb) return _mockSurahs;
+  if (kIsWeb) return _staticSurahs;
   final repo = ref.watch(quranRepositoryProvider);
   return repo.getAllSurahs();
 });
 
 // Single surah with ayahs provider
 final surahWithAyahsProvider = FutureProvider.family<SurahWithAyahs?, int>((ref, surahNumber) async {
-  if (kIsWeb) return _getMockSurahWithAyahs(surahNumber);
+  if (kIsWeb) return _getStaticSurahWithAyahs(surahNumber);
   final repo = ref.watch(quranRepositoryProvider);
   return repo.getSurahWithAyahs(surahNumber);
 });
 
 // Classes provider
 final classesProvider = StateNotifierProvider<ClassesNotifier, AsyncValue<List<ClassSession>>>((ref) {
-  return ClassesNotifier(ref.watch(classRepositoryProvider));
+  return ClassesNotifier(ref.watch(classRepositoryProvider), ref);
 });
 
 class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
   final ClassRepository _repository;
+  final Ref _ref;
 
-  ClassesNotifier(this._repository) : super(const AsyncValue.loading()) {
+  ClassesNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
     loadClasses();
   }
 
   Future<void> loadClasses() async {
-    if (kIsWeb) {
-      state = AsyncValue.data(_mockClasses);
-      return;
-    }
     state = const AsyncValue.loading();
     try {
-      final classes = await _repository.getAllClasses();
-      state = AsyncValue.data(classes);
+      if (kIsWeb) {
+        // Fetch from Supabase for web
+        final user = _ref.read(authProvider).user;
+        if (user == null) {
+          state = const AsyncValue.data([]);
+          return;
+        }
+
+        final supabase = Supabase.instance.client;
+        final response = await supabase
+            .from('classes')
+            .select('*, assignments(*)')
+            .eq('teacher_id', user.id)
+            .order('date', ascending: false);
+
+        final classes = (response as List).map((row) {
+          final assignmentsList = (row['assignments'] as List?)?.map((a) => Assignment(
+            id: a['id'] is String ? int.tryParse(a['id']) ?? 0 : a['id'] ?? 0,
+            classId: a['class_id'] is String ? int.tryParse(a['class_id']) ?? 0 : a['class_id'] ?? 0,
+            type: a['type'] ?? '',
+            startSurah: a['start_surah'] ?? 0,
+            endSurah: a['end_surah'] ?? 0,
+            startAyah: a['start_ayah'],
+            endAyah: a['end_ayah'],
+          )).toList() ?? [];
+
+          return ClassSession(
+            id: row['id'] is String ? int.tryParse(row['id']) ?? 0 : row['id'] ?? 0,
+            date: row['date'] ?? '',
+            day: row['day'] ?? '',
+            notes: row['notes'],
+            performance: row['performance'],
+            createdAt: row['created_at'] ?? '',
+            assignments: assignmentsList,
+          );
+        }).toList();
+
+        state = AsyncValue.data(classes);
+      } else {
+        final classes = await _repository.getAllClasses();
+        state = AsyncValue.data(classes);
+      }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -90,7 +129,35 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     String? notes,
     required List<Map<String, dynamic>> assignments,
   }) async {
-    if (kIsWeb) return _mockClasses.first;
+    if (kIsWeb) {
+      final user = _ref.read(authProvider).user;
+      if (user == null) throw Exception('Not authenticated');
+
+      final supabase = Supabase.instance.client;
+      final classResponse = await supabase.from('classes').insert({
+        'teacher_id': user.id,
+        'date': date,
+        'day': day,
+        'notes': notes,
+      }).select().single();
+
+      final classId = classResponse['id'];
+
+      for (final assignment in assignments) {
+        await supabase.from('assignments').insert({
+          'class_id': classId,
+          'type': assignment['type'],
+          'start_surah': assignment['start_surah'],
+          'end_surah': assignment['end_surah'],
+          'start_ayah': assignment['start_ayah'],
+          'end_ayah': assignment['end_ayah'],
+        });
+      }
+
+      await loadClasses();
+      return state.value!.first;
+    }
+
     final newClass = await _repository.createClass(
       date: date,
       day: day,
@@ -102,19 +169,34 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
   }
 
   Future<void> deleteClass(int id) async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase.from('classes').update({'is_deleted': true}).eq('id', id);
+      await loadClasses();
+      return;
+    }
     await _repository.deleteClass(id);
     await loadClasses();
   }
 
   Future<void> updateNotes(int id, String? notes) async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase.from('classes').update({'notes': notes}).eq('id', id);
+      await loadClasses();
+      return;
+    }
     await _repository.updateClassNotes(id, notes);
     await loadClasses();
   }
 
   Future<void> updatePerformance(int id, String? performance) async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase.from('classes').update({'performance': performance}).eq('id', id);
+      await loadClasses();
+      return;
+    }
     await _repository.updateClassPerformance(id, performance);
     await loadClasses();
   }
@@ -122,32 +204,99 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
 // Single class provider
 final classProvider = FutureProvider.family<ClassSession?, int>((ref, id) async {
-  if (kIsWeb) return _mockClasses.firstWhere((c) => c.id == id, orElse: () => _mockClasses.first);
+  if (kIsWeb) {
+    final user = ref.read(authProvider).user;
+    if (user == null) return null;
+
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('classes')
+        .select('*, assignments(*)')
+        .eq('id', id)
+        .eq('teacher_id', user.id)
+        .maybeSingle();
+
+    if (response == null) return null;
+
+    final assignmentsList = (response['assignments'] as List?)?.map((a) => Assignment(
+      id: a['id'] is String ? int.tryParse(a['id']) ?? 0 : a['id'] ?? 0,
+      classId: a['class_id'] is String ? int.tryParse(a['class_id']) ?? 0 : a['class_id'] ?? 0,
+      type: a['type'] ?? '',
+      startSurah: a['start_surah'] ?? 0,
+      endSurah: a['end_surah'] ?? 0,
+      startAyah: a['start_ayah'],
+      endAyah: a['end_ayah'],
+    )).toList() ?? [];
+
+    return ClassSession(
+      id: response['id'] is String ? int.tryParse(response['id']) ?? 0 : response['id'] ?? 0,
+      date: response['date'] ?? '',
+      day: response['day'] ?? '',
+      notes: response['notes'],
+      performance: response['performance'],
+      createdAt: response['created_at'] ?? '',
+      assignments: assignmentsList,
+    );
+  }
   final repo = ref.watch(classRepositoryProvider);
   return repo.getClass(id);
 });
 
 // Mistakes provider
 final mistakesProvider = StateNotifierProvider<MistakesNotifier, AsyncValue<List<Mistake>>>((ref) {
-  return MistakesNotifier(ref.watch(mistakeRepositoryProvider));
+  return MistakesNotifier(ref.watch(mistakeRepositoryProvider), ref);
 });
 
 class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
   final MistakeRepository _repository;
+  final Ref _ref;
 
-  MistakesNotifier(this._repository) : super(const AsyncValue.loading()) {
+  MistakesNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
     loadMistakes();
   }
 
   Future<void> loadMistakes() async {
-    if (kIsWeb) {
-      state = AsyncValue.data(_mockMistakes);
-      return;
-    }
     state = const AsyncValue.loading();
     try {
-      final mistakes = await _repository.getMistakesWithOccurrences();
-      state = AsyncValue.data(mistakes);
+      if (kIsWeb) {
+        final user = _ref.read(authProvider).user;
+        if (user == null) {
+          state = const AsyncValue.data([]);
+          return;
+        }
+
+        final supabase = Supabase.instance.client;
+        // Get mistakes with occurrence counts using RPC or aggregation
+        final response = await supabase
+            .from('mistakes')
+            .select()
+            .eq('student_id', user.id);
+
+        // Group by word to count occurrences
+        final Map<String, Map<String, dynamic>> grouped = {};
+        for (final row in response as List) {
+          final key = '${row['surah_number']}-${row['ayah_number']}-${row['word_index']}';
+          if (grouped.containsKey(key)) {
+            grouped[key]!['count'] = (grouped[key]!['count'] as int) + 1;
+          } else {
+            grouped[key] = {...row, 'count': 1};
+          }
+        }
+
+        final mistakes = grouped.values.map((row) => Mistake(
+          id: row['id'] is String ? int.tryParse(row['id']) ?? 0 : row['id'] ?? 0,
+          surahNumber: row['surah_number'] ?? 0,
+          ayahNumber: row['ayah_number'] ?? 0,
+          wordIndex: row['word_index'] ?? 0,
+          wordText: row['word_text'] ?? '',
+          errorCount: row['count'] ?? 1,
+        )).toList();
+
+        state = AsyncValue.data(mistakes);
+      } else {
+        final mistakes = await _repository.getMistakesWithOccurrences();
+        state = AsyncValue.data(mistakes);
+      }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -161,7 +310,31 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
     int? charIndex,
     int? classId,
   }) async {
-    if (kIsWeb) return _mockMistakes.first;
+    if (kIsWeb) {
+      final user = _ref.read(authProvider).user;
+      if (user == null) throw Exception('Not authenticated');
+
+      final supabase = Supabase.instance.client;
+      final response = await supabase.from('mistakes').insert({
+        'student_id': user.id,
+        'surah_number': surahNumber,
+        'ayah_number': ayahNumber,
+        'word_index': wordIndex,
+        'word_text': wordText,
+        'char_index': charIndex,
+      }).select().single();
+
+      await loadMistakes();
+      return Mistake(
+        id: response['id'],
+        surahNumber: surahNumber,
+        ayahNumber: ayahNumber,
+        wordIndex: wordIndex,
+        wordText: wordText,
+        errorCount: 1,
+      );
+    }
+
     final mistake = await _repository.addMistake(
       surahNumber: surahNumber,
       ayahNumber: ayahNumber,
@@ -175,13 +348,25 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
   }
 
   Future<void> removeMistake(int id) async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase.from('mistakes').delete().eq('id', id);
+      await loadMistakes();
+      return;
+    }
     await _repository.removeMistake(id);
     await loadMistakes();
   }
 
   Future<void> deleteAllMistakes() async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      final user = _ref.read(authProvider).user;
+      if (user == null) return;
+      final supabase = Supabase.instance.client;
+      await supabase.from('mistakes').delete().eq('student_id', user.id);
+      await loadMistakes();
+      return;
+    }
     await _repository.deleteAllMistakes();
     await loadMistakes();
   }
@@ -189,35 +374,142 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
 
 // Mistakes for surah provider
 final mistakesForSurahProvider = FutureProvider.family<List<Mistake>, int>((ref, surahNumber) async {
-  if (kIsWeb) return _mockMistakes.where((m) => m.surahNumber == surahNumber).toList();
+  if (kIsWeb) {
+    final user = ref.read(authProvider).user;
+    if (user == null) return [];
+
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('mistakes')
+        .select()
+        .eq('student_id', user.id)
+        .eq('surah_number', surahNumber);
+
+    return (response as List).map((row) => Mistake(
+      id: row['id'] is String ? int.tryParse(row['id']) ?? 0 : row['id'] ?? 0,
+      surahNumber: row['surah_number'] ?? 0,
+      ayahNumber: row['ayah_number'] ?? 0,
+      wordIndex: row['word_index'] ?? 0,
+      wordText: row['word_text'] ?? '',
+      errorCount: 1,
+    )).toList();
+  }
   final repo = ref.watch(mistakeRepositoryProvider);
   return repo.getMistakesForSurah(surahNumber);
 });
 
 // Stats provider
 final statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  if (kIsWeb) return _mockStats;
+  if (kIsWeb) {
+    final user = ref.read(authProvider).user;
+    if (user == null) {
+      return {'totalClasses': 0, 'totalMistakes': 0, 'repeatedMistakes': 0};
+    }
+
+    final supabase = Supabase.instance.client;
+
+    // Get total classes
+    final classesResponse = await supabase
+        .from('classes')
+        .select('id')
+        .eq('teacher_id', user.id);
+    final totalClasses = (classesResponse as List).length;
+
+    // Get mistakes and count repeated ones
+    final mistakesResponse = await supabase
+        .from('mistakes')
+        .select()
+        .eq('student_id', user.id);
+
+    final mistakes = mistakesResponse as List;
+    final totalMistakes = mistakes.length;
+
+    // Count repeated mistakes (same word appears more than once)
+    final Map<String, int> wordCounts = {};
+    for (final m in mistakes) {
+      final key = '${m['surah_number']}-${m['ayah_number']}-${m['word_index']}';
+      wordCounts[key] = (wordCounts[key] ?? 0) + 1;
+    }
+    final repeatedMistakes = wordCounts.values.where((c) => c > 1).length;
+
+    return {
+      'totalClasses': totalClasses,
+      'totalMistakes': totalMistakes,
+      'repeatedMistakes': repeatedMistakes,
+    };
+  }
   final repo = ref.watch(mistakeRepositoryProvider);
   return repo.getStats();
 });
 
 // Top mistakes provider
 final topMistakesProvider = FutureProvider<List<Mistake>>((ref) async {
-  if (kIsWeb) return _mockMistakes.take(5).toList();
+  if (kIsWeb) {
+    final user = ref.read(authProvider).user;
+    if (user == null) return [];
+
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('mistakes')
+        .select()
+        .eq('student_id', user.id);
+
+    // Group by word and count occurrences
+    final Map<String, Map<String, dynamic>> grouped = {};
+    for (final row in response as List) {
+      final key = '${row['surah_number']}-${row['ayah_number']}-${row['word_index']}';
+      if (grouped.containsKey(key)) {
+        grouped[key]!['count'] = (grouped[key]!['count'] as int) + 1;
+      } else {
+        grouped[key] = {...row, 'count': 1};
+      }
+    }
+
+    // Sort by count descending and take top 10
+    final sorted = grouped.values.toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+
+    return sorted.take(10).map((row) => Mistake(
+      id: row['id'] is String ? int.tryParse(row['id']) ?? 0 : row['id'] ?? 0,
+      surahNumber: row['surah_number'] ?? 0,
+      ayahNumber: row['ayah_number'] ?? 0,
+      wordIndex: row['word_index'] ?? 0,
+      wordText: row['word_text'] ?? '',
+      errorCount: row['count'] ?? 1,
+    )).toList();
+  }
   final repo = ref.watch(mistakeRepositoryProvider);
   return repo.getTopRepeatedMistakes(limit: 10);
 });
 
 // Mistake counts by surah provider
 final mistakeCountsBySurahProvider = FutureProvider<Map<int, int>>((ref) async {
-  if (kIsWeb) return {67: 5, 68: 3, 78: 2, 112: 1};
+  if (kIsWeb) {
+    final user = ref.read(authProvider).user;
+    if (user == null) return {};
+
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('mistakes')
+        .select('surah_number')
+        .eq('student_id', user.id);
+
+    final Map<int, int> counts = {};
+    for (final row in response as List) {
+      final surahNum = row['surah_number'] as int? ?? 0;
+      counts[surahNum] = (counts[surahNum] ?? 0) + 1;
+    }
+    return counts;
+  }
   final repo = ref.watch(mistakeRepositoryProvider);
   return repo.getMistakeCountsBySurah();
 });
 
-// ============ MOCK DATA FOR WEB PREVIEW ============
+// ============ STATIC QURAN DATA FOR WEB ============
+// Note: User data (classes, mistakes) is now fetched from Supabase.
+// Only Quran text data is static since it doesn't change per user.
 
-final _mockSurahs = [
+final _staticSurahs = [
   Surah(number: 1, name: 'الفاتحة', englishName: 'Al-Fatihah', englishNameTranslation: 'The Opening', numberOfAyahs: 7, revelationType: 'Meccan'),
   Surah(number: 67, name: 'الملك', englishName: 'Al-Mulk', englishNameTranslation: 'The Sovereignty', numberOfAyahs: 30, revelationType: 'Meccan'),
   Surah(number: 68, name: 'القلم', englishName: 'Al-Qalam', englishNameTranslation: 'The Pen', numberOfAyahs: 52, revelationType: 'Meccan'),
@@ -227,27 +519,27 @@ final _mockSurahs = [
   Surah(number: 114, name: 'الناس', englishName: 'An-Nas', englishNameTranslation: 'Mankind', numberOfAyahs: 6, revelationType: 'Meccan'),
 ];
 
-SurahWithAyahs _getMockSurahWithAyahs(int surahNumber) {
-  final surah = _mockSurahs.firstWhere(
+SurahWithAyahs _getStaticSurahWithAyahs(int surahNumber) {
+  final surah = _staticSurahs.firstWhere(
     (s) => s.number == surahNumber,
-    orElse: () => _mockSurahs.first,
+    orElse: () => _staticSurahs.first,
   );
 
-  // Generate mock ayahs
+  // Generate ayahs with sample text for web preview
   final ayahs = List<Ayah>.generate(
     surah.numberOfAyahs,
     (i) => Ayah(
       surahNumber: surah.number,
       ayahNumber: i + 1,
-      text: _getMockAyahText(surahNumber, i + 1),
+      text: _getStaticAyahText(surahNumber, i + 1),
     ),
   );
 
   return SurahWithAyahs(surah: surah, ayahs: ayahs);
 }
 
-String _getMockAyahText(int surah, int ayah) {
-  // Some sample Arabic text for preview
+String _getStaticAyahText(int surah, int ayah) {
+  // Sample Arabic text for web preview (Quran text is static)
   final samples = [
     'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
     'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
@@ -262,56 +554,3 @@ String _getMockAyahText(int surah, int ayah) {
   ];
   return samples[(ayah - 1) % samples.length];
 }
-
-final _mockClasses = [
-  ClassSession(
-    id: 1,
-    date: '2024-12-10',
-    day: 'Tuesday',
-    notes: 'Good session, need to review tajweed rules',
-    performance: 'Excellent',
-    createdAt: '2024-12-10T10:00:00',
-    assignments: [
-      Assignment(id: 1, classId: 1, type: 'hifz', startSurah: 67, endSurah: 67, startAyah: 1, endAyah: 10),
-      Assignment(id: 2, classId: 1, type: 'sabqi', startSurah: 78, endSurah: 78),
-      Assignment(id: 3, classId: 1, type: 'revision', startSurah: 112, endSurah: 114),
-    ],
-  ),
-  ClassSession(
-    id: 2,
-    date: '2024-12-08',
-    day: 'Sunday',
-    performance: 'Very Good',
-    createdAt: '2024-12-08T10:00:00',
-    assignments: [
-      Assignment(id: 4, classId: 2, type: 'hifz', startSurah: 67, endSurah: 67, startAyah: 1, endAyah: 5),
-      Assignment(id: 5, classId: 2, type: 'revision', startSurah: 112, endSurah: 112),
-    ],
-  ),
-  ClassSession(
-    id: 3,
-    date: '2024-12-05',
-    day: 'Thursday',
-    performance: 'Good',
-    createdAt: '2024-12-05T10:00:00',
-    assignments: [
-      Assignment(id: 6, classId: 3, type: 'hifz', startSurah: 68, endSurah: 68, startAyah: 1, endAyah: 15),
-    ],
-  ),
-];
-
-final _mockMistakes = [
-  Mistake(id: 1, surahNumber: 67, ayahNumber: 3, wordIndex: 2, wordText: 'تَفَاوُتٍ', errorCount: 4),
-  Mistake(id: 2, surahNumber: 67, ayahNumber: 5, wordIndex: 1, wordText: 'بِمَصَابِيحَ', errorCount: 3),
-  Mistake(id: 3, surahNumber: 67, ayahNumber: 8, wordIndex: 3, wordText: 'تَكَادُ', errorCount: 2),
-  Mistake(id: 4, surahNumber: 78, ayahNumber: 1, wordIndex: 0, wordText: 'عَمَّ', errorCount: 2),
-  Mistake(id: 5, surahNumber: 112, ayahNumber: 2, wordIndex: 1, wordText: 'الصَّمَدُ', errorCount: 1),
-];
-
-final _mockStats = {
-  'totalClasses': 12,
-  'totalMistakes': 45,
-  'repeatedMistakes': 8,
-  'averageMistakesPerClass': 3.75,
-  'mostProblematicSurah': 67,
-};

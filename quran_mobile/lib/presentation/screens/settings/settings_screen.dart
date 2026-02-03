@@ -221,13 +221,16 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                         style: const TextStyle(color: AppTheme.slate500),
                       ),
-                      trailing: ElevatedButton(
-                        onPressed: () => ref.read(syncServiceProvider).sync(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.emerald500,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      trailing: SizedBox(
+                        width: 100,
+                        child: ElevatedButton(
+                          onPressed: () => ref.read(syncServiceProvider).sync(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.emerald500,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: const Text('Sync Now'),
                         ),
-                        child: const Text('Sync Now'),
                       ),
                     ),
                   ],
@@ -415,13 +418,16 @@ class SettingsScreen extends ConsumerWidget {
                         'Sign out of your account',
                         style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
                       ),
-                      trailing: ElevatedButton(
-                        onPressed: () => _showSignOutDialog(context, ref),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      trailing: SizedBox(
+                        width: 100,
+                        child: ElevatedButton(
+                          onPressed: () => _showSignOutDialog(context, ref),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: const Text('Sign Out'),
                         ),
-                        child: const Text('Sign Out'),
                       ),
                     ),
                   ],
@@ -463,13 +469,16 @@ class SettingsScreen extends ConsumerWidget {
                         'Remove all tracked mistakes',
                         style: TextStyle(color: AppTheme.slate500),
                       ),
-                      trailing: ElevatedButton(
-                        onPressed: () => _showDeleteAllMistakesDialog(context, ref),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.error,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      trailing: SizedBox(
+                        width: 100,
+                        child: ElevatedButton(
+                          onPressed: () => _showDeleteAllMistakesDialog(context, ref),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.error,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: const Text('Delete All'),
                         ),
-                        child: const Text('Delete All'),
                       ),
                     ),
                   ],

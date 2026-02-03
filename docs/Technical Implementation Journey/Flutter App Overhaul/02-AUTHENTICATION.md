@@ -346,7 +346,11 @@ print('Logged in as: ${user.fullName}');
 
 #### 1. `lib/presentation/screens/auth/login_screen.dart`
 Login screen matching web app design:
-- Quran verse header (Al-Isra 17:9)
+- **Background Image** - Same mosque/lantern image as React web app (`assets/images/background.jpg`)
+- **Dark Gradient Overlay** - Ensures text readability (60%-80% opacity black gradient)
+- **Full Quran Verse Header** - Al-Isra 17:9 in Arabic with English translation:
+  - Arabic: "إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ..."
+  - English: "Indeed, this Quran guides to that which is most suitable..."
 - Split card layout: Form + Decorative panel
 - Logo + "QuranTrack" branding
 - "Assalamu Alaikum!" greeting
@@ -357,8 +361,13 @@ Login screen matching web app design:
 - Theme toggle (top right)
 - Links: Forgot Password, Create Account
 
+**Updated 3 Feb 2026:** Fixed background image not covering full viewport on Flutter web by using Container with DecorationImage instead of Stack with Positioned.fill.
+
 #### 2. `lib/presentation/screens/auth/signup_screen.dart`
 Signup screen matching web app design:
+- **Background Image** - Same as login screen
+- **Dark Gradient Overlay** - Same as login screen
+- **Full Quran Verse Header** - Same Al-Isra 17:9 ayah
 - Role selector cards (Teacher/Student with icons)
 - First Name + Last Name side by side
 - Email, Username fields

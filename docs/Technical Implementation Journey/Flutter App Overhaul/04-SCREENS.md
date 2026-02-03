@@ -2,7 +2,7 @@
 
 ## Overview
 
-Updated the Dashboard screen to be role-aware, showing different content and labels based on whether the user is a Teacher or Student.
+Updated the Dashboard screen to be role-aware, showing different content and labels based on whether the user is a Teacher or Student. **Updated 3 Feb 2026** to match React web app design exactly.
 
 **Completed:** Phase 5 of Flutter App Overhaul
 
@@ -20,90 +20,133 @@ final authState = ref.watch(authProvider);
 final user = authState.user;
 final isTeacher = user?.role.name == 'teacher';
 final userName = user?.firstName ?? 'User';
-final userInitials = '${user?.firstName?.isNotEmpty == true ? user!.firstName[0] : ''}${user?.lastName?.isNotEmpty == true ? user!.lastName[0] : ''}'.toUpperCase();
 ```
 
-#### Personalized Welcome Header
-- User avatar showing initials with role-based gradient colors
-- "Assalamu Alaikum, [Name]" greeting
-- Role-aware subtitle:
-  - Teacher: "Manage your Halaqah"
-  - Student: "Track your progress"
+---
+
+## Teacher Dashboard (Updated 3 Feb 2026)
+
+The Teacher Dashboard was redesigned to match the React web app exactly.
+
+### Header Section
+- Title: "Teacher Dashboard" (not avatar greeting)
+- Subtitle: "Welcome back, {firstName}!"
+
+### Action Buttons Row
+Two gradient buttons for teachers:
+- **Add Student** - Opens student management (placeholder)
+- **+ Start New Class** - Opens new class modal (placeholder)
 
 ```dart
-Container(
-  width: 56,
-  height: 56,
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      colors: isTeacher
-          ? [AppColors.cyan500, AppColors.teal500]  // Teacher: cyan->teal
-          : [AppColors.teal500, AppColors.cyan500], // Student: teal->cyan
-    ),
-    // ...
-  ),
-  child: Text(userInitials.isNotEmpty ? userInitials : 'QT'),
+Row(
+  children: [
+    Expanded(child: _buildActionButton('Add Student', Icons.person_add_outlined)),
+    SizedBox(width: 12),
+    Expanded(child: _buildGradientButton('+ Start New Class', Icons.add)),
+  ],
 )
 ```
 
-#### Role-Aware Stat Cards
+### Stat Cards (4 cards matching React)
 
-| Stat | Teacher Label | Student Label |
-|------|---------------|---------------|
-| Progress | Current Surah | My Progress |
-| Classes | Classes Taught | Classes |
-| Mistakes | To Review | To Fix |
+| Card | Icon | Color | Badge |
+|------|------|-------|-------|
+| Total Students | `school_outlined` | Emerald | "Active" |
+| Classes This Week | `calendar_today` | Cyan | - |
+| Total Classes | `class_outlined` | Purple | - |
+| Today's Date | `today` | Amber | - |
 
 ```dart
 StatCard(
-  label: isTeacher ? 'Current Surah' : 'My Progress',
-  // ...
-),
-StatCard(
-  label: isTeacher ? 'Classes Taught' : 'Classes',
-  // ...
-),
-StatCard(
-  label: isTeacher ? 'To Review' : 'To Fix',
-  // ...
+  label: 'Total Students',
+  value: '${stats['totalStudents'] ?? 0}',
+  icon: Icons.school_outlined,
+  color: AppColors.emerald500,
+  badge: 'Active',  // New badge parameter
 ),
 ```
 
-#### Role-Aware Colors
-- Teacher avatar: Cyan → Teal gradient with cyan shadow
-- Student avatar: Teal → Cyan gradient with teal shadow
+### StatCard Badge Enhancement
+Added `badge` parameter to StatCard widget for showing labels like "Active":
+
+```dart
+if (badge != null)
+  Container(
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: AppColors.emerald500,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(badge!, style: TextStyle(fontSize: 11, color: Colors.white)),
+  ),
+```
+
+---
+
+## Student Dashboard
+
+Students see a different layout focused on their progress:
+
+### Header Section
+- Avatar with initials (teal gradient)
+- "Assalamu Alaikum, {firstName}"
+- "Track your progress" subtitle
+
+### Stat Cards (3 cards)
+
+| Card | Label | Color |
+|------|-------|-------|
+| My Progress | Current surah | Emerald |
+| Classes | Total attended | Cyan |
+| To Fix | Mistakes count | Purple |
+
+### Sections Displayed
+1. **Surahs Needing Attention** - Bar chart of mistake frequency by surah
+2. **Top Repeated Mistakes** - Word badges with error counts
+3. **Recent Classes** - List of recent class sessions
 
 ---
 
 ## UI Components
 
-### Welcome Header
+### Teacher Dashboard Layout
 ```
 ┌──────────────────────────────────────────────────────┐
-│ ┌────┐  Assalamu Alaikum,                    [Sync] │
-│ │ HF │  Hamza                                        │
-│ └────┘  Manage your Halaqah                         │
+│ Teacher Dashboard                            [Sync] │
+│ Welcome back, Hamza!                                 │
+├──────────────────────────────────────────────────────┤
+│ [Add Student]  [+ Start New Class]                  │
+├──────────────────────────────────────────────────────┤
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│ │ 👥 Active│ │ 📅       │ │ 📚       │ │ 📆       │ │
+│ │ 5        │ │ 3        │ │ 45       │ │ Feb 3    │ │
+│ │ Students │ │ This Week│ │ Total    │ │ Today    │ │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │
+├──────────────────────────────────────────────────────┤
+│ My Students                                          │
+│ (Student management coming soon)                     │
 └──────────────────────────────────────────────────────┘
 ```
 
-### Stat Cards Row
+### Student Dashboard Layout
 ```
-┌────────────┐ ┌────────────┐ ┌────────────┐
-│ 📖         │ │ 📅         │ │ 🔄         │
-│ Al-Baqarah │ │ 12         │ │ 5          │
-│ My Progress│ │ Classes    │ │ To Fix     │
-└────────────┘ └────────────┘ └────────────┘
+┌──────────────────────────────────────────────────────┐
+│ ┌────┐  Assalamu Alaikum,                    [Sync] │
+│ │ HR │  Hamza                                        │
+│ └────┘  Track your progress                         │
+├──────────────────────────────────────────────────────┤
+│ ┌────────────┐ ┌────────────┐ ┌────────────┐        │
+│ │ Al-Baqarah │ │ 12         │ │ 5          │        │
+│ │ My Progress│ │ Classes    │ │ To Fix     │        │
+│ └────────────┘ └────────────┘ └────────────┘        │
+├──────────────────────────────────────────────────────┤
+│ Surahs Needing Attention                             │
+│ [Bar chart]                                          │
+├──────────────────────────────────────────────────────┤
+│ Top Repeated Mistakes                                │
+│ [Word badges]                                        │
+└──────────────────────────────────────────────────────┘
 ```
-
----
-
-## Sections Displayed
-
-1. **Welcome Header** - Avatar, greeting, role subtitle, sync button
-2. **Stat Cards** - Progress, classes count, mistakes to fix
-3. **Surahs Needing Attention** - Bar chart of mistake frequency by surah
-4. **Top Repeated Mistakes** - Word badges with error counts
-5. **Recent Classes** - List of recent class sessions
 
 ---
 

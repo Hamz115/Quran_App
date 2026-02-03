@@ -40,87 +40,76 @@ class DashboardScreen extends ConsumerWidget {
           },
           child: CustomScrollView(
             slivers: [
-              // Welcome Header
+              // Header with title and action buttons
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // User avatar
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: isTeacher
-                                ? [AppColors.cyan500, AppColors.teal500]
-                                : [AppColors.teal500, AppColors.cyan500],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isTeacher ? AppColors.cyan500 : AppColors.teal500).withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            userInitials.isNotEmpty ? userInitials : 'QT',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isTeacher ? 'Teacher Dashboard' : 'Student Dashboard',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.text(isDarkMode),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isTeacher
+                                      ? 'Welcome back, $userName! Manage your Halaqah and track student progress.'
+                                      : 'Welcome back, $userName! Track your Quran memorization progress.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary(isDarkMode),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      if (isTeacher) ...[
+                        const SizedBox(height: 16),
+                        Row(
                           children: [
-                            Text(
-                              'Assalamu Alaikum,',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary(isDarkMode),
+                            // Add Student button
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                // TODO: Add student functionality
+                              },
+                              icon: const Icon(Icons.person_add_outlined, size: 18),
+                              label: const Text('Add Student'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.text(isDarkMode),
+                                side: BorderSide(color: AppColors.border(isDarkMode)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               ),
                             ),
-                            Text(
-                              userName,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.text(isDarkMode),
-                              ),
-                            ),
-                            Text(
-                              isTeacher
-                                  ? 'Manage your Halaqah'
-                                  : 'Track your progress',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textMuted(isDarkMode),
+                            const SizedBox(width: 12),
+                            // Start New Class button
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                // TODO: Start new class functionality
+                              },
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Start New Class'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.emerald400,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      // Sync indicator
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final syncState = ref.watch(syncStateProvider);
-                          return syncState.when(
-                            data: (state) => _buildSyncButton(ref, state, isDarkMode),
-                            loading: () => _buildSyncButton(ref, SyncState.idle, isDarkMode),
-                            error: (_, __) => _buildSyncButton(ref, SyncState.error, isDarkMode),
-                          );
-                        },
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -130,51 +119,127 @@ class DashboardScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: statsAsync.when(
                   data: (stats) {
-                    // Get current progress from last hifz class (use startSurah - where they're currently at)
                     final classes = classesAsync.value ?? [];
-                    String currentProgress = '-';
-                    for (final cls in classes) {
-                      final hifzAssignment = cls.assignments.where((a) => a.type == 'hifz').firstOrNull;
-                      if (hifzAssignment != null && hifzAssignment.startSurah > 0 && hifzAssignment.startSurah <= 114) {
-                        currentProgress = AppConstants.surahNames[hifzAssignment.startSurah - 1] ?? '-';
-                        break;
-                      }
-                    }
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: StatCard(
-                              label: isTeacher ? 'Current Surah' : 'My Progress',
-                              value: currentProgress,
-                              icon: Icons.menu_book_rounded,
-                              color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
-                              smallText: true,
+                    // Calculate classes this week
+                    final now = DateTime.now();
+                    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+                    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+                    final classesThisWeek = classes.where((c) {
+                      try {
+                        final date = DateTime.parse(c.date);
+                        return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+                               date.isBefore(endOfWeek.add(const Duration(days: 1)));
+                      } catch (_) {
+                        return false;
+                      }
+                    }).length;
+
+                    // Format today's date
+                    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    final todayStr = '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+
+                    if (isTeacher) {
+                      // Teacher stats: Total Students, Classes This Week, Total Classes, Today's Date
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: StatCard(
+                                    label: 'Total Students',
+                                    value: '1', // TODO: Fetch from students provider
+                                    icon: Icons.people_rounded,
+                                    color: AppColors.cyan500,
+                                    badge: 'Active',
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: StatCard(
+                                    label: 'Classes This Week',
+                                    value: '$classesThisWeek',
+                                    icon: Icons.check_circle_outline,
+                                    color: AppTheme.emerald400,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: StatCard(
-                              label: isTeacher ? 'Classes Taught' : 'Classes',
-                              value: '${stats['totalClasses']}',
-                              icon: Icons.calendar_today_rounded,
-                              color: AppTheme.emerald400,
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: StatCard(
+                                    label: 'Total Classes',
+                                    value: '${stats['totalClasses']}',
+                                    icon: Icons.calendar_today_rounded,
+                                    color: AppColors.amber500,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: StatCard(
+                                    label: "Today's Date",
+                                    value: todayStr,
+                                    icon: Icons.schedule_rounded,
+                                    color: AppColors.textSecondary(isDarkMode),
+                                    smallText: true,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: StatCard(
-                              label: isTeacher ? 'To Review' : 'To Fix',
-                              value: '${stats['repeatedMistakes']}',
-                              icon: Icons.repeat_rounded,
-                              color: AppTheme.mistake5,
+                          ],
+                        ),
+                      );
+                    } else {
+                      // Student stats: My Progress, Classes, To Fix
+                      String currentProgress = '-';
+                      for (final cls in classes) {
+                        final hifzAssignment = cls.assignments.where((a) => a.type == 'hifz').firstOrNull;
+                        if (hifzAssignment != null && hifzAssignment.startSurah > 0 && hifzAssignment.startSurah <= 114) {
+                          currentProgress = AppConstants.surahNames[hifzAssignment.startSurah - 1] ?? '-';
+                          break;
+                        }
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: StatCard(
+                                label: 'My Progress',
+                                value: currentProgress,
+                                icon: Icons.menu_book_rounded,
+                                color: AppColors.teal500,
+                                smallText: true,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: StatCard(
+                                label: 'Classes',
+                                value: '${stats['totalClasses']}',
+                                icon: Icons.calendar_today_rounded,
+                                color: AppTheme.emerald400,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: StatCard(
+                                label: 'To Fix',
+                                value: '${stats['repeatedMistakes']}',
+                                icon: Icons.repeat_rounded,
+                                color: AppTheme.mistake5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                   },
                   loading: () => const Padding(
                     padding: EdgeInsets.all(20),
