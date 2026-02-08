@@ -8,7 +8,12 @@
       "Bash(perl:*)",
       "Bash(flutter build:*)",
       "Bash(flutter analyze:*)",
-      "Bash(timeout 30 bash:*)"
+      "Bash(timeout 30 bash:*)",
+      "Bash(ls \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\"\" 2>/dev/null || echo \"No assets dir or listing failed \")",
+      "Bash(python:*)",
+      "Bash(xcopy:*)",
+      "Bash(if not exist \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\\\\quran-pages\" mkdir \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\\\\quran-pages\")",
+      "Bash(powershell -Command:*)"
     ],
     "deny": [],
     "ask": []

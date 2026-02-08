@@ -439,6 +439,26 @@ class TestMistakeCreate(BaseModel):
 # Directory for QPC word data (code_v1, line_number, etc.)
 QURAN_PAGES_DIR = Path(__file__).parent / "quran-pages"
 
+# Directory for QPC .ttf fonts (converted from .woff2 for Flutter)
+QPC_FONTS_DIR = Path(__file__).parent / "fonts" / "qpc"
+
+@app.get("/api/fonts/qpc/{page_number}")
+def get_qpc_font(page_number: int):
+    """Serve QPC .ttf font file for a specific page (1-604)"""
+    if page_number < 1 or page_number > 604:
+        raise HTTPException(status_code=404, detail="Page not found (must be 1-604)")
+
+    font_file = QPC_FONTS_DIR / f"QCF_P{page_number:03d}.ttf"
+    if not font_file.exists():
+        raise HTTPException(status_code=404, detail="Font file not found. Run: python scripts/convert_fonts.py")
+
+    return FileResponse(
+        path=str(font_file),
+        media_type="font/ttf",
+        filename=f"QCF_P{page_number:03d}.ttf",
+        headers={"Cache-Control": "public, max-age=31536000"},  # Cache for 1 year
+    )
+
 @app.get("/api/quran/page/{page_number}")
 def get_quran_page_words(page_number: int):
     """Get word-by-word data for a specific page (1-604) with QPC glyph codes"""

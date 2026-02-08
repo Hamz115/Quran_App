@@ -1,15 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
+import '../../../data/quran_data.dart';
 import '../../../data/models/mistake.dart';
+import '../../../data/models/quran_page_data.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../widgets/glassmorphic_card.dart';
-import '../../widgets/section_badge.dart';
-import '../classroom/word_popup.dart';
+import '../../providers/quran_page_provider.dart';
+import '../../widgets/mushaf_page_widget.dart';
 
 class QuranReaderScreen extends ConsumerStatefulWidget {
   const QuranReaderScreen({super.key});
@@ -19,449 +19,398 @@ class QuranReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
-  int _selectedSurah = 67;
+  late PageController _pageController;
+  int _currentPage = 1;
+  bool _showOverlay = false;
+  Timer? _overlayTimer;
+  final TextEditingController _jumpController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _jumpController.dispose();
+    _overlayTimer?.cancel();
+    super.dispose();
+  }
+
+  void _toggleOverlay() {
+    setState(() => _showOverlay = !_showOverlay);
+    _overlayTimer?.cancel();
+    if (_showOverlay) {
+      _overlayTimer = Timer(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _showOverlay = false);
+      });
+    }
+  }
+
+  void _jumpToPage(int page) {
+    if (page < 1 || page > totalPages) return;
+    setState(() => _currentPage = page);
+    _pageController.jumpToPage(page - 1);
+  }
+
+  void _jumpToSurah(int surahNum) {
+    final page = getPageForSurah(surahNum);
+    _jumpToPage(page);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final surahsAsync = ref.watch(surahListProvider);
-    final surahAsync = ref.watch(surahWithAyahsProvider(_selectedSurah));
-    final mistakesAsync = ref.watch(mistakesProvider);
     final isDarkMode = ref.watch(themeProvider);
-    final authState = ref.watch(authProvider);
-    final isTeacher = authState.user?.role.name == 'teacher';
+    final mistakesAsync = ref.watch(mistakesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background(isDarkMode),
-      body: SafeArea(
-        child: Column(
+      backgroundColor: isDarkMode ? Colors.black : const Color(0xFFFEF9E7),
+      body: GestureDetector(
+        onTap: _toggleOverlay,
+        child: Stack(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quran Reader',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(isDarkMode),
-                          ),
-                        ),
-                        Text(
-                          isTeacher ? 'Click words to mark mistakes' : 'Review your recitation progress',
-                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Surah selector
-                  surahsAsync.when(
-                    data: (surahs) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface(isDarkMode),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border(isDarkMode)),
-                      ),
-                      child: DropdownButton<int>(
-                        value: _selectedSurah,
-                        dropdownColor: AppColors.surface(isDarkMode),
-                        underline: const SizedBox(),
-                        style: TextStyle(fontSize: 14, color: AppColors.text(isDarkMode)),
-                        items: surahs.map((s) => DropdownMenuItem(
-                          value: s.number,
-                          child: Text('${s.number}. ${s.englishName}'),
-                        )).toList(),
-                        onChanged: (v) => setState(() => _selectedSurah = v!),
-                      ),
-                    ),
-                    loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
-                  ),
-                ],
-              ),
+            // Full-screen PageView
+            PageView.builder(
+              controller: _pageController,
+              reverse: true, // RTL: swipe left = next page
+              itemCount: totalPages,
+              onPageChanged: (index) {
+                setState(() => _currentPage = index + 1);
+              },
+              itemBuilder: (context, index) {
+                final pageNum = index + 1;
+                return _PageLoader(
+                  pageNumber: pageNum,
+                  isDarkMode: isDarkMode,
+                  mistakes: mistakesAsync.value ?? [],
+                );
+              },
             ),
 
-            // Navigation buttons
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed: _selectedSurah > 1
-                        ? () => setState(() => _selectedSurah--)
-                        : null,
-                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                    label: const Text('Previous'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary(isDarkMode),
-                    ),
-                  ),
-                  surahAsync.when(
-                    data: (data) => data != null
-                        ? Column(
-                            children: [
-                              Text(
-                                data.surah.name,
-                                style: GoogleFonts.amiri(
-                                  fontSize: 20,
-                                  color: AppColors.text(isDarkMode),
-                                ),
-                              ),
-                              Text(
-                                '${data.surah.numberOfAyahs} Ayahs',
-                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary(isDarkMode)),
-                              ),
-                            ],
-                          )
-                        : const SizedBox(),
-                    loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
-                  ),
-                  TextButton.icon(
-                    onPressed: _selectedSurah < 114
-                        ? () => setState(() => _selectedSurah++)
-                        : null,
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                    label: const Text('Next'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary(isDarkMode),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Legend
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GlassmorphicCard(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 12,
-                        runSpacing: 4,
-                        children: [
-                          _buildLegendItem('1x', AppColors.mistake1, isDarkMode),
-                          _buildLegendItem('2x', AppColors.mistake2, isDarkMode),
-                          _buildLegendItem('3x', AppColors.mistake3, isDarkMode),
-                          _buildLegendItem('4x', AppColors.mistake4, isDarkMode),
-                          _buildLegendItem('5+', AppColors.mistake5, isDarkMode),
-                        ],
-                      ),
-                    ),
-                    _buildMistakeCount(mistakesAsync),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Quran text
-            Expanded(
-              child: surahAsync.when(
-                data: (data) {
-                  if (data == null) return Center(child: Text('Surah not found', style: TextStyle(color: AppColors.text(isDarkMode))));
-
-                  final mistakes = mistakesAsync.value ?? [];
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: GlassmorphicCard(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          // Bismillah
-                          if (_selectedSurah != 9 && _selectedSurah != 1)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 20),
-                              child: Text(
-                                'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                                style: GoogleFonts.amiri(
-                                  fontSize: 22,
-                                  color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
-                                ),
-                                textDirection: TextDirection.rtl,
-                              ),
-                            ),
-
-                          // Ayahs
-                          Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: Wrap(
-                              alignment: WrapAlignment.start,
-                              children: data.ayahs.expand((ayah) {
-                                final shouldStripBismillah = ayah.ayahNumber == 1 && _selectedSurah != 1 && _selectedSurah != 9;
-                                final words = ayah.text.split(' ');
-                                final displayWords = shouldStripBismillah ? words.skip(4).toList() : words;
-                                final wordOffset = shouldStripBismillah ? 4 : 0;
-
-                                return [
-                                  ...displayWords.asMap().entries.map((entry) {
-                                    final wordIndex = entry.key + wordOffset;
-                                    final word = entry.value;
-
-                                    // Find whole-word mistake
-                                    final wordMistake = mistakes.where((m) =>
-                                        m.surahNumber == _selectedSurah &&
-                                        m.ayahNumber == ayah.ayahNumber &&
-                                        m.wordIndex == wordIndex &&
-                                        m.charIndex == null).firstOrNull;
-
-                                    // Find character-level mistakes for this word
-                                    final charMistakes = mistakes.where((m) =>
-                                        m.surahNumber == _selectedSurah &&
-                                        m.ayahNumber == ayah.ayahNumber &&
-                                        m.wordIndex == wordIndex &&
-                                        m.charIndex != null).toList();
-
-                                    final mistakeLevel = wordMistake?.severityLevel ?? 0;
-                                    final hasCharMistakes = charMistakes.isNotEmpty;
-
-                                    return GestureDetector(
-                                      onTap: () => _showWordPopup(word, ayah.ayahNumber, wordIndex),
-                                      onLongPress: () {
-                                        if (wordMistake != null) {
-                                          ref.read(mistakesProvider.notifier).removeMistake(wordMistake.id!);
-                                        }
-                                      },
-                                      child: Container(
-                                        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                        decoration: mistakeLevel > 0
-                                            ? BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                  colors: [
-                                                    AppColors.getMistakeColor(mistakeLevel).withOpacity(0.3),
-                                                    AppColors.getMistakeColor(mistakeLevel).withOpacity(0.1),
-                                                  ],
-                                                ),
-                                                borderRadius: BorderRadius.circular(4),
-                                                border: Border(
-                                                  bottom: BorderSide(
-                                                    color: AppColors.getMistakeColor(mistakeLevel),
-                                                    width: 2,
-                                                  ),
-                                                ),
-                                              )
-                                            : null,
-                                        child: hasCharMistakes
-                                            ? _buildHighlightedWord(word, charMistakes, isDarkMode)
-                                            : Text(
-                                                word,
-                                                style: GoogleFonts.amiri(
-                                                  fontSize: 22,
-                                                  height: 2.2,
-                                                  color: AppColors.text(isDarkMode),
-                                                ),
-                                              ),
-                                      ),
-                                    );
-                                  }),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    child: Text(
-                                      ' ﴿${ayah.ayahNumber}﴾ ',
-                                      style: GoogleFonts.amiri(
-                                        fontSize: 16,
-                                        color: isTeacher ? AppColors.cyan500 : AppColors.teal500,
-                                      ),
-                                    ),
-                                  ),
-                                ];
-                              }).toList(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
-              ),
-            ),
-
-            // Mistakes summary
-            _buildMistakesSummary(mistakesAsync, isDarkMode),
+            // Overlay controls (appear on tap)
+            if (_showOverlay) ...[
+              // Top overlay
+              _buildTopOverlay(isDarkMode),
+              // Bottom overlay
+              _buildBottomOverlay(isDarkMode),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLegendItem(String label, Color color, bool isDarkMode) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(4),
-            border: Border(bottom: BorderSide(color: color, width: 2)),
+  Widget _buildTopOverlay(bool isDarkMode) {
+    final surahsOnPage = getSurahsOnPage(_currentPage);
+    final primarySurah = surahsOnPage.isNotEmpty ? surahsOnPage.first : 1;
+
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 12,
+          right: 12,
+          bottom: 10,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withOpacity(0.7),
+              Colors.black.withOpacity(0.0),
+            ],
           ),
         ),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary(isDarkMode))),
-      ],
+        child: Row(
+          children: [
+            // Page number (tappable to jump)
+            GestureDetector(
+              onTap: () {
+                _overlayTimer?.cancel();
+                _showJumpDialog(isDarkMode);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$_currentPage / $totalPages',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Surah name (center)
+            Expanded(
+              child: Text(
+                surahNamesArabic[primarySurah] ?? '',
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.rtl,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.amiri(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Surah list popup
+            PopupMenuButton<int>(
+              icon: const Icon(Icons.list_rounded, color: Colors.white, size: 22),
+              tooltip: 'Jump to Surah',
+              color: AppColors.surface(isDarkMode),
+              constraints: const BoxConstraints(maxHeight: 400),
+              onSelected: (surahNum) => _jumpToSurah(surahNum),
+              itemBuilder: (context) => List.generate(114, (i) {
+                final num = i + 1;
+                return PopupMenuItem(
+                  value: num,
+                  child: Text(
+                    '$num. ${surahNamesArabic[num]}',
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.text(isDarkMode),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildMistakeCount(AsyncValue<List<Mistake>> mistakesAsync) {
-    final mistakes = mistakesAsync.value ?? [];
-    final surahMistakes = mistakes.where((m) => m.surahNumber == _selectedSurah).toList();
-    final totalErrors = surahMistakes.fold(0, (sum, m) => sum + m.errorCount);
+  Widget _buildBottomOverlay(bool isDarkMode) {
+    final surahsOnPage = getSurahsOnPage(_currentPage);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: totalErrors == 0
-            ? AppColors.success.withOpacity(0.2)
-            : AppColors.mistake1.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: totalErrors == 0
-              ? AppColors.success.withOpacity(0.3)
-              : AppColors.mistake1.withOpacity(0.3),
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 8,
+          left: 16,
+          right: 16,
+          top: 16,
         ),
-      ),
-      child: Text(
-        '$totalErrors mistakes',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: totalErrors == 0 ? AppColors.success : AppColors.mistake1,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              Colors.black.withOpacity(0.7),
+              Colors.black.withOpacity(0.0),
+            ],
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Previous page (higher number in RTL)
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 24),
+              color: Colors.white70,
+              onPressed: _currentPage < totalPages
+                  ? () => _jumpToPage(_currentPage + 1)
+                  : null,
+            ),
+
+            // Surah info
+            Text(
+              surahsOnPage.map((s) => surahNamesArabic[s] ?? '').join(' - '),
+              textDirection: TextDirection.rtl,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white70,
+              ),
+            ),
+
+            // Next page (lower number in RTL)
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 24),
+              color: Colors.white70,
+              onPressed: _currentPage > 1
+                  ? () => _jumpToPage(_currentPage - 1)
+                  : null,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildMistakesSummary(AsyncValue<List<Mistake>> mistakesAsync, bool isDarkMode) {
-    final mistakes = mistakesAsync.value ?? [];
-    final surahMistakes = mistakes.where((m) => m.surahNumber == _selectedSurah).toList();
+  void _showJumpDialog(bool isDarkMode) {
+    _jumpController.text = _currentPage.toString();
 
-    if (surahMistakes.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface(isDarkMode),
-        border: Border(top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5))),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface(isDarkMode),
+        title: Text(
+          'Go to Page',
+          style: TextStyle(color: AppColors.text(isDarkMode)),
+        ),
+        content: TextField(
+          controller: _jumpController,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: '1-$totalPages',
+            hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          style: TextStyle(color: AppColors.text(isDarkMode)),
+          onSubmitted: (value) {
+            final page = int.tryParse(value);
+            if (page != null) {
+              _jumpToPage(page);
+            }
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel',
+                style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+          ),
+          TextButton(
+            onPressed: () {
+              final page = int.tryParse(_jumpController.text);
+              if (page != null) {
+                _jumpToPage(page);
+              }
+              Navigator.pop(context);
+            },
+            child: Text('Go',
+                style: TextStyle(color: AppColors.primary(isDarkMode))),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+/// Loads page data + fonts for a single page, shows loading state.
+class _PageLoader extends ConsumerWidget {
+  final int pageNumber;
+  final bool isDarkMode;
+  final List<Mistake> mistakes;
+
+  const _PageLoader({
+    required this.pageNumber,
+    required this.isDarkMode,
+    required this.mistakes,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageDataAsync = ref.watch(quranPageDataProvider(pageNumber));
+    final fontReadyAsync = ref.watch(fontReadyProvider(pageNumber));
+
+    return pageDataAsync.when(
+      data: (pageData) {
+        return fontReadyAsync.when(
+          data: (_) {
+            final widget = MushafPageWidget(
+              pageNumber: pageNumber,
+              pageData: pageData,
+              isDarkMode: isDarkMode,
+              mistakes: mistakes,
+            );
+            // Dark mode: add padding so the dark scaffold frames the page
+            // Light mode: edge-to-edge cream, no visible gap
+            return isDarkMode
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: widget,
+                  )
+                : widget;
+          },
+          loading: () => _buildLoadingState(),
+          error: (e, _) => _buildFontFallback(pageData),
+        );
+      },
+      loading: () => _buildLoadingState(),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: AppColors.error, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              'Error loading page $pageNumber',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$e',
+              style: const TextStyle(fontSize: 12, color: Colors.white54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'Mistakes in this Surah (${surahMistakes.length} words)',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text(isDarkMode)),
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary(isDarkMode),
+            ),
           ),
           const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: surahMistakes.map((m) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: MistakeBadge(
-                  errorCount: m.errorCount,
-                  wordText: m.wordText,
-                  location: '${m.ayahNumber}:${m.wordIndex + 1}',
-                ),
-              )).toList(),
-            ),
+          Text(
+            'Loading page $pageNumber...',
+            style: const TextStyle(fontSize: 13, color: Colors.white54),
           ),
         ],
       ),
     );
   }
 
-  void _showWordPopup(String word, int ayahNumber, int wordIndex) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => WordPopup(
-        word: word,
-        onSelectWhole: () {
-          ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: _selectedSurah,
-            ayahNumber: ayahNumber,
-            wordIndex: wordIndex,
-            wordText: word,
-          );
-          Navigator.pop(context);
-        },
-        onSelectChar: (charIndex, charText) {
-          ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: _selectedSurah,
-            ayahNumber: ayahNumber,
-            wordIndex: wordIndex,
-            wordText: charText,  // Store only the letter/harakat
-            charIndex: charIndex,
-          );
-          Navigator.pop(context);
-        },
-      ),
+  /// When font fails to load, show the page with plain Arabic text fallback.
+  Widget _buildFontFallback(QuranPageData pageData) {
+    final widget = MushafPageWidget(
+      pageNumber: pageNumber,
+      pageData: pageData,
+      isDarkMode: isDarkMode,
+      mistakes: mistakes,
     );
-  }
-
-  /// Builds a word with highlighted characters for character-level mistakes
-  Widget _buildHighlightedWord(String word, List<Mistake> charMistakes, bool isDarkMode) {
-    // Build a map of charIndex -> mistake for quick lookup
-    final mistakeMap = <int, Mistake>{};
-    for (final m in charMistakes) {
-      if (m.charIndex != null) {
-        mistakeMap[m.charIndex!] = m;
-      }
-    }
-
-    // Build TextSpan for each character using raw code units (same as word_popup.dart)
-    final spans = <TextSpan>[];
-
-    for (int i = 0; i < word.length; i++) {
-      final char = word[i];
-      final mistake = mistakeMap[i];
-
-      if (mistake != null) {
-        // This character has a mistake - highlight it
-        final color = AppColors.getMistakeColor(mistake.severityLevel);
-        spans.add(TextSpan(
-          text: char,
-          style: GoogleFonts.amiri(
-            fontSize: 22,
-            height: 2.2,
-            color: color,
-            backgroundColor: color.withOpacity(0.3),
-          ),
-        ));
-      } else {
-        // Normal character
-        spans.add(TextSpan(
-          text: char,
-          style: GoogleFonts.amiri(
-            fontSize: 22,
-            height: 2.2,
-            color: AppColors.text(isDarkMode),
-          ),
-        ));
-      }
-    }
-
-    return RichText(
-      text: TextSpan(children: spans),
-    );
+    return isDarkMode
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: widget,
+          )
+        : widget;
   }
 }

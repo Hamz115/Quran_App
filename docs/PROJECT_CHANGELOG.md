@@ -32,7 +32,8 @@ docs/
 │       ├── 02-AUTHENTICATION.md            # Supabase auth integration
 │       ├── 03-NAVIGATION.md                # Role-based navigation
 │       ├── 04-SCREENS.md                   # Screen updates
-│       └── 05-SHARED-WIDGETS.md            # Reusable widgets
+│       ├── 05-SHARED-WIDGETS.md            # Reusable widgets
+│       └── 06-QURAN-READER.md              # QPC page-based reader rewrite
 │
 └── Guides/                                 # For AI/developers - troubleshooting
     ├── Font_Overflow_Fix_Guide.md          # Fixing font overflow issues
@@ -900,14 +901,108 @@ Login/Signup → full_sync() →
 
 ## Phase 13: Flutter Mobile App UI Overhaul
 
-**Status:** Complete
+**Status:** In Progress
 
 ### Overview
-Complete UI overhaul of the Flutter mobile app (`quran_mobile/`) to match the React web app design, implementing Supabase authentication, role-based navigation, and theme support.
+Complete UI overhaul of the Flutter mobile app (`quran_mobile/`) to match the React web app design, implementing Supabase authentication, role-based navigation, theme support, and page-based Quran rendering.
 
-### 2 February 2026 - Bug Fixes & Web Data Integration
+---
 
-Fixed several issues with the Flutter app:
+### Phase 13.1 - Initial Flutter UI Overhaul
+
+**Date:** Late January 2026
+
+Complete UI overhaul foundation: theme system, Supabase auth, role-based navigation, and shared widgets.
+
+**Implementation Steps:**
+
+| Step | Title | Description |
+|------|-------|-------------|
+| 1 | Theme System | Dual theme (light/dark) with SharedPreferences persistence |
+| 2 | Supabase Auth | Authentication service with Supabase |
+| 3 | Auth UI Screens | Login, Signup, Forgot Password screens |
+| 4 | Role-based Navigation | Teacher/Student navigation with role banner |
+| 5 | Dashboard Screens | Role-aware dashboard with personalized content |
+| 6 | Classes & Reader | Role-aware Classes and Quran Reader screens |
+| 7 | Shared Widgets | Common reusable UI components |
+
+**New Files Created:**
+
+*Core Auth:*
+- `lib/core/auth/supabase_config.dart` - Supabase initialization
+- `lib/core/auth/auth_service.dart` - Auth operations wrapper
+- `lib/data/models/app_user.dart` - User model with role
+
+*Providers:*
+- `lib/presentation/providers/auth_provider.dart` - Auth state management
+
+*Auth Screens:*
+- `lib/presentation/screens/auth/login_screen.dart`
+- `lib/presentation/screens/auth/signup_screen.dart`
+- `lib/presentation/screens/auth/forgot_password_screen.dart`
+
+*Shared Widgets:*
+- `lib/presentation/widgets/common/common_widgets.dart` - Barrel export
+- `lib/presentation/widgets/common/gradient_button.dart`
+- `lib/presentation/widgets/common/icon_input_field.dart`
+- `lib/presentation/widgets/common/avatar_circle.dart`
+
+*Configuration:*
+- `.env` - Supabase credentials (not committed)
+- `.env.example` - Example env file
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `lib/main.dart` | Supabase init, auth routing, role banner, nav items |
+| `lib/config/app_colors.dart` | Added purple colors |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | Role-aware welcome, stats |
+| `lib/presentation/screens/classes/classes_screen.dart` | Role-aware features |
+| `lib/presentation/screens/reader/quran_reader_screen.dart` | Role-aware text/colors |
+| `pubspec.yaml` | Added supabase_flutter, flutter_dotenv |
+| `.gitignore` | Added .env exclusion |
+
+**Dependencies Added:**
+```yaml
+dependencies:
+  supabase_flutter: ^2.3.0    # Supabase authentication
+  flutter_dotenv: ^5.1.0       # Environment configuration
+```
+
+**Role-Based Features:**
+
+*Teacher View:*
+- Cyan accent color, "Teacher View" banner
+- Full CRUD on classes, can mark/review mistakes
+
+*Student View:*
+- Teal accent color, "Student View" banner
+- Read-only class history, can view mistakes
+
+**Auth Flow:**
+```
+App Start
+  ├─► isLoading? ──► SplashScreen
+  ├─► isAuthenticated?
+  │       ├─► Yes ──► MainNavigation
+  │       └─► No ──► LoginScreen
+```
+
+**Demo Accounts:**
+
+| Role | Email | Password |
+|------|-------|----------|
+| Teacher | hamzaferoze115@gmail.com | 12345678 |
+| Student | hamza@iiotsolutions.sa | 12345678 |
+
+---
+
+### Phase 13.2 - Bug Fixes & Web Data Integration
+
+**Date:** 2 February 2026
+
+Fixed several issues with the Flutter app and replaced mock data with Supabase queries.
 
 **Bug Fixes:**
 1. **Settings Logout Missing** - Added Sign Out button to Settings screen with confirmation dialog
@@ -935,7 +1030,11 @@ The Flutter web build was returning hardcoded mock data instead of fetching from
 - `lib/presentation/screens/auth/login_screen.dart` - Centered layout
 - `lib/presentation/providers/providers.dart` - Replaced mock data with Supabase queries
 
-### 3 February 2026 - Supabase Column Fix & Dashboard Redesign
+---
+
+### Phase 13.3 - Supabase Column Fix & Dashboard Redesign
+
+**Date:** 3 February 2026
 
 **Supabase Column Name Fix:**
 Fixed PostgrestException errors caused by incorrect column names in Supabase queries:
@@ -962,10 +1061,13 @@ Updated Flutter Teacher Dashboard to match React web app design exactly:
 - Fixed background image not covering full viewport on Flutter web (changed from Stack with Positioned.fill to Container with DecorationImage)
 
 **Settings Screen ListTile Fix:**
-Fixed "Trailing widget consumes entire tile width" error by wrapping ElevatedButtons in SizedBox(width: 100) for:
-- "Sync Now" button
-- "Sign Out" button
-- "Delete All" button
+Fixed "Trailing widget consumes entire tile width" error by wrapping ElevatedButtons in SizedBox(width: 100)
+
+**Key Principles:**
+- **UI First** - Match the web app design pixel-perfect
+- **Local-First** - SQLite remains the primary database
+- **Supabase for Auth Only** - Login/signup to enter the app
+- **No Data Sync Yet** - Supabase data sync is a future phase
 
 **Files Modified:**
 - `lib/presentation/providers/providers.dart` - Fixed Supabase column names
@@ -978,101 +1080,60 @@ Fixed "Trailing widget consumes entire tile width" error by wrapping ElevatedBut
 - `pubspec.yaml` - Added assets/images/ folder
 - `assets/images/background.jpg` - Copied from React web app
 
-**Key Principles:**
-- **UI First** - Match the web app design pixel-perfect
-- **Local-First** - SQLite remains the primary database
-- **Supabase for Auth Only** - Login/signup to enter the app
-- **No Data Sync Yet** - Supabase data sync is a future phase
+---
 
-### Implementation Phases
+### Phase 13.4 - Quran Reader Rewrite (Page-Based QPC Rendering)
 
-| Phase | Title | Description |
-|-------|-------|-------------|
-| 1 | Theme System | Dual theme (light/dark) with SharedPreferences persistence |
-| 2 | Supabase Auth | Authentication service with Supabase |
-| 3 | Auth UI Screens | Login, Signup, Forgot Password screens |
-| 4 | Role-based Navigation | Teacher/Student navigation with role banner |
-| 5 | Dashboard Screens | Role-aware dashboard with personalized content |
-| 6 | Classes & Reader | Role-aware Classes and Quran Reader screens |
-| 7 | Shared Widgets | Common reusable UI components |
+**Date:** 8 February 2026
 
-### New Files Created
+Complete rewrite of the Flutter Quran Reader from surah-based plain text to page-based QPC glyph rendering, matching the React web app's Mushaf display.
 
-**Core Auth:**
-- `lib/core/auth/supabase_config.dart` - Supabase initialization
-- `lib/core/auth/auth_service.dart` - Auth operations wrapper
-- `lib/data/models/app_user.dart` - User model with role
+**What Changed:**
+- **Fullscreen immersive layout**: Mushaf page fills entire screen, no persistent chrome. Tap to show/hide translucent overlay controls (page number, surah name, navigation arrows). Auto-hides after 4 seconds.
+- **Page-based navigation**: 604-page PageView with RTL swipe (was surah-based dropdown)
+- **QPC font rendering**: Each page uses its own QPC font file with page-specific glyph codes (was Google Fonts Amiri with plain text)
+- **Font download + cache**: Fonts served from backend API (`/api/fonts/qpc/{page}`), downloaded on first use, cached permanently on device
+- **Bundled page data**: 604 JSON files with word-by-word QPC data bundled in APK assets
+- **Overflow prevention**: Each line wrapped in FittedBox to scale down and prevent horizontal overflow
+- **Surah headers + Bismillah**: Rendered above page content when a surah starts on a page
+- **Mistake highlighting**: 5-level color coding (amber/blue/orange/purple/red) with gradient backgrounds
+- **Page 586 overflow**: Handles overflow glyphs that need previous page's font (codeUnit >= 0xFC00)
+- **Cream page background**: Mushaf page is always `#FEF9E7` (cream) regardless of theme, matching the printed Mushaf and the React web app. Text and decorations always use light-mode colors on the cream background. In dark mode the scaffold is black with padding for a framed card effect; in light mode the scaffold matches the cream for a seamless edge-to-edge look.
 
-**Providers:**
-- `lib/presentation/providers/auth_provider.dart` - Auth state management
+**Files Created:**
+- `scripts/convert_fonts.py` - Converts .woff2 fonts to .ttf for Flutter
+- `quran_mobile/lib/data/models/quran_page_word.dart` - QPC word model
+- `quran_mobile/lib/data/models/quran_page_data.dart` - Page data with line grouping
+- `quran_mobile/lib/data/quran_data.dart` - Static page starts + surah names (604 + 114 entries)
+- `quran_mobile/lib/core/services/qpc_font_service.dart` - Font download/cache/load service
+- `quran_mobile/lib/core/services/quran_page_data_service.dart` - JSON asset loader with LRU cache
+- `quran_mobile/lib/presentation/providers/quran_page_provider.dart` - Riverpod providers
+- `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` - Single page renderer
+- `quran_mobile/lib/presentation/widgets/surah_header_widget.dart` - Surah name header
+- `quran_mobile/lib/presentation/widgets/bismillah_widget.dart` - Bismillah renderer
 
-**Auth Screens:**
-- `lib/presentation/screens/auth/login_screen.dart`
-- `lib/presentation/screens/auth/signup_screen.dart`
-- `lib/presentation/screens/auth/forgot_password_screen.dart`
+**Files Modified:**
+- `quran_mobile/lib/presentation/screens/reader/quran_reader_screen.dart` - Complete rewrite
+- `quran_mobile/pubspec.yaml` - Added `assets/quran-pages/` asset bundle
+- `quran_backend/main.py` - Added `GET /api/fonts/qpc/{page_number}` endpoint
 
-**Shared Widgets:**
-- `lib/presentation/widgets/common/common_widgets.dart` - Barrel export
-- `lib/presentation/widgets/common/gradient_button.dart`
-- `lib/presentation/widgets/common/icon_input_field.dart`
-- `lib/presentation/widgets/common/avatar_circle.dart`
+**Architecture:**
+- Font strategy: Download + cache (not bundled in APK, ~80MB total too large)
+- Page data strategy: Bundled in APK (~10MB compressed, fully offline)
+- Only 3 fonts loaded at a time (current + prev + next)
+- LRU cache for page data (10 pages in memory)
 
-**Configuration:**
-- `.env` - Supabase credentials (not committed)
-- `.env.example` - Example env file
+See: [06-QURAN-READER.md](./Technical%20Implementation%20Journey/Flutter%20App%20Overhaul/06-QURAN-READER.md)
 
-### Files Modified
+---
 
-| File | Changes |
-|------|---------|
-| `lib/main.dart` | Supabase init, auth routing, role banner, nav items |
-| `lib/config/app_colors.dart` | Added purple colors |
-| `lib/presentation/screens/dashboard/dashboard_screen.dart` | Role-aware welcome, stats |
-| `lib/presentation/screens/classes/classes_screen.dart` | Role-aware features |
-| `lib/presentation/screens/reader/quran_reader_screen.dart` | Role-aware text/colors |
-| `pubspec.yaml` | Added supabase_flutter, flutter_dotenv |
-| `.gitignore` | Added .env exclusion |
+### Phase 13.5 - Integrate Quran Reader into Classes (Next)
 
-### Dependencies Added
+**Status:** Planned
 
-```yaml
-dependencies:
-  supabase_flutter: ^2.3.0    # Supabase authentication
-  flutter_dotenv: ^5.1.0       # Environment configuration
-```
+Integrate the page-based QPC Quran Reader into the Flutter Classes/Classroom screen, so teachers can navigate Quran pages, assign portions, and mark mistakes directly from the classroom view — matching the React web app's classroom experience.
 
-### Role-Based Features
-
-**Teacher View:**
-- Cyan accent color throughout
-- "Teacher View" banner
-- Full CRUD on classes
-- Can mark/review mistakes
-- Sees "Manage your Halaqah" subtitle
-
-**Student View:**
-- Teal accent color throughout
-- "Student View" banner
-- Read-only class history
-- Can view mistakes
-- Sees "Track your progress" subtitle
-
-### Auth Flow
-
-```
-App Start
-  ├─► isLoading? ──► SplashScreen
-  ├─► isAuthenticated?
-  │       ├─► Yes ──► MainNavigation
-  │       └─► No ──► LoginScreen
-```
-
-### Demo Accounts
-
-| Role | Email | Password |
-|------|-------|----------|
-| Teacher | hamzaferoze115@gmail.com | 12345678 |
-| Student | hamza@iiotsolutions.sa | 12345678 |
+---
 
 ### Documentation
 
@@ -1084,9 +1145,9 @@ All implementation details are in:
 - `03-NAVIGATION.md` - Role-based navigation structure
 - `04-SCREENS.md` - Dashboard, Classes, Reader updates
 - `05-SHARED-WIDGETS.md` - Widget catalog and usage
+- `06-QURAN-READER.md` - QPC page-based reader rewrite
 
 ---
-
 
 
 ## Running the Project
