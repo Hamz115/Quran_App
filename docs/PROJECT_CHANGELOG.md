@@ -26,14 +26,17 @@ docs/
 │   │   ├── Implementation_Journey.md       # Step-by-step setup record
 │   │   ├── Supabase_Reference.md           # Full schema & policy reference
 │   │   └── Supabase_Frontend_Integration_Reference.md  # Frontend integration code
-│   └── Flutter App Overhaul/               # Flutter mobile app UI redesign
-│       ├── 00-OVERVIEW.md                  # Summary of all changes
-│       ├── 01-THEME-SYSTEM.md              # Theme implementation
-│       ├── 02-AUTHENTICATION.md            # Supabase auth integration
-│       ├── 03-NAVIGATION.md                # Role-based navigation
-│       ├── 04-SCREENS.md                   # Screen updates
-│       ├── 05-SHARED-WIDGETS.md            # Reusable widgets
-│       └── 06-QURAN-READER.md              # QPC page-based reader rewrite
+│   ├── Flutter App Overhaul/               # Flutter mobile app UI redesign
+│   │   ├── 00-OVERVIEW.md                  # Summary of all changes
+│   │   ├── 01-THEME-SYSTEM.md              # Theme implementation
+│   │   ├── 02-AUTHENTICATION.md            # Supabase auth integration
+│   │   ├── 03-NAVIGATION.md                # Role-based navigation
+│   │   ├── 04-SCREENS.md                   # Screen updates
+│   │   ├── 05-SHARED-WIDGETS.md            # Reusable widgets
+│   │   └── 06-QURAN-READER.md              # QPC page-based reader rewrite
+│   └── Quran Reader/                       # Web Quran Reader rendering docs
+│       ├── WEB-READER-RENDERING-ISSUES.md  # All rendering fixes & approaches
+│       └── FLUTTER-RENDERING-REFERENCE.md  # Flutter rendering gold standard
 │
 └── Guides/                                 # For AI/developers - troubleshooting
     ├── Font_Overflow_Fix_Guide.md          # Fixing font overflow issues
@@ -1135,9 +1138,101 @@ Integrate the page-based QPC Quran Reader into the Flutter Classes/Classroom scr
 
 ---
 
+---
+
+## Phase 14: Web Quran Reader — Responsive Overhaul
+
+**Status:** Complete
+**Date:** 8-9 February 2026
+
+Complete rewrite of the web Quran Reader rendering system to match the Flutter app's quality. The reader is now fully responsive across phones, tablets, and desktops with crisp, properly-sized text on every page.
+
+### Core Rendering Fix — Scale DOWN Only
+
+**Problem:** The web app's `FittedLine` component was scaling text both UP and DOWN. Short lines (2-5 words, common in short surahs like Al-Kawthar, Al-Ikhlas, An-Nas) got massively enlarged — blurry, distorted text that looked nothing like the Flutter app.
+
+**Root Cause:** Flutter uses `FittedBox(fit: BoxFit.scaleDown)` which only scales DOWN, never up. The web was using `transform: scale(containerWidth / contentWidth)` with no upper bound.
+
+**Fix:** One critical change in `FittedLine.tsx`:
+```tsx
+// Before: scales both up AND down — causes enlargement
+const scale = containerWidth / contentWidth;
+
+// After: only scale DOWN, never up — matches Flutter
+const scale = Math.min(1.0, containerWidth / contentWidth);
+```
+
+### Font Size Strategy
+
+Switched from responsive `clamp()` and dynamic `height/N` calculations to a fixed `28px` base font size:
+- QPC glyphs are designed for specific sizes — scaling down preserves quality, scaling up distorts
+- At 28px, full QPC lines (10-15 words) naturally overflow the container and get scaled down by FittedLine
+- Short lines stay at 28px (reasonable size, never enlarged)
+- Removed `lineHeight: 1.8` which was causing vertical overflow and cutting off bottom content
+
+### Surah Headers — Full Width
+
+Matched Flutter's full-width surah header bar:
+- **Before:** Small inline pill wrapping only the text (`inline-block`)
+- **After:** Full-width bar spanning the entire page width (`w-full`)
+- Styling: `bg-cyan-50`, `border-cyan-200`, `text-cyan-800`, 18px Amiri font
+- Bismillah: 18px, Amiri Quran font, `text-cyan-700`
+
+### 3-Tier Responsive Layout
+
+Redesigned the entire app layout with three responsive tiers:
+
+| Feature | Phone (<640px) | Tablet/Small Laptop (640-1024px) | Desktop (>=1024px) |
+|---------|----------------|-----------------------------------|---------------------|
+| **Navigation** | Bottom nav bar | Bottom nav bar | Top tab nav |
+| **Mushaf Page** | Full-screen, edge-to-edge | Centered, sized for viewport | Centered, sized for viewport |
+| **Reader Controls** | Overlay on page | Header bar with controls | Header bar + legend + page info |
+| **Role Banner** | Hidden | Hidden | Visible |
+| **Role Switcher** | Hidden | Hidden | Visible |
+
+**Breakpoint Change:** Moved the nav breakpoint from `sm` (640px) to `lg` (1024px):
+- Bottom nav now shows on phones, tablets, AND small laptops (below 1024px)
+- Top tab navigation only appears on screens 1024px and wider
+- This ensures small 12-13" laptop screens get the cleaner bottom nav layout
+
+### Page Dimensions
+
+- **Phone** (<640px): Full viewport width, height = viewport - 112px (header + bottom nav)
+- **Tablet** (640-1024px): Height = min(80vh, viewport - 240px), width = height * 0.7, max 500px. Accounts for bottom nav + header cards.
+- **Desktop** (>=1024px): Height = min(80vh, viewport - 160px), width = height * 0.7, max 500px
+
+### Vertical Space Optimization
+
+On tablet/small laptop screens, the legend and page info cards are hidden (only shown on desktop) to ensure the mushaf page fits entirely in the viewport without scrolling:
+- Legend card: `hidden lg:block` (was `hidden sm:block`)
+- Page info card: `hidden lg:flex` (was `hidden sm:flex`)
+- Saves ~100px of vertical space on tablet
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_frontend/src/components/FittedLine.tsx` | Rewritten — `Math.min(1.0, scale)`, uniform `scale()` |
+| `quran_frontend/src/pages/QuranReader.tsx` | Fixed font size (28px), full-width surah headers, 3-tier dimensions, hide cards below lg |
+| `quran_frontend/src/pages/Classroom.tsx` | Same font size and surah header fixes, bottom-nav-aware dimensions |
+| `quran_frontend/src/components/Layout.tsx` | Nav breakpoint `sm` → `lg`, bottom nav shows below 1024px |
+
+### Documentation Created
+
+| File | Purpose |
+|------|---------|
+| `docs/Technical Implementation Journey/Quran Reader/FLUTTER-RENDERING-REFERENCE.md` | Complete Flutter rendering system reference |
+| `docs/Technical Implementation Journey/Quran Reader/WEB-READER-RENDERING-ISSUES.md` | Updated with all fixes and 3-tier responsive table |
+
+See: [WEB-READER-RENDERING-ISSUES.md](./Technical%20Implementation%20Journey/Quran%20Reader/WEB-READER-RENDERING-ISSUES.md), [FLUTTER-RENDERING-REFERENCE.md](./Technical%20Implementation%20Journey/Quran%20Reader/FLUTTER-RENDERING-REFERENCE.md)
+
+---
+
 ### Documentation
 
 All implementation details are in:
+
+**Flutter App Overhaul:**
 `docs/Technical Implementation Journey/Flutter App Overhaul/`
 - `00-OVERVIEW.md` - Summary of the overhaul
 - `01-THEME-SYSTEM.md` - Theme implementation details
@@ -1146,6 +1241,11 @@ All implementation details are in:
 - `04-SCREENS.md` - Dashboard, Classes, Reader updates
 - `05-SHARED-WIDGETS.md` - Widget catalog and usage
 - `06-QURAN-READER.md` - QPC page-based reader rewrite
+
+**Web Quran Reader:**
+`docs/Technical Implementation Journey/Quran Reader/`
+- `WEB-READER-RENDERING-ISSUES.md` - All rendering fixes, approaches, and responsive breakpoints
+- `FLUTTER-RENDERING-REFERENCE.md` - Flutter rendering gold standard reference
 
 ---
 
