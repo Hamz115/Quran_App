@@ -240,7 +240,7 @@ export default function QuranReader() {
     }
     // Tablet & Desktop: centered page with 0.7 width ratio
     // Account for bottom nav (56px) when present (below lg)
-    const chromeHeight = hasBottomNav ? 240 : 160;
+    const chromeHeight = hasBottomNav ? 300 : 160;
     const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
     const w = maxH * 0.7;
     const clampedW = Math.min(w, 500);
