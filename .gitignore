@@ -47,3 +47,6 @@ npm-debug.log*
 
 # Claude temp files
 tmpclaude-*
+
+# Screenshots (agent-browser output)
+screenshots/

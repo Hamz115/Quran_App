@@ -423,12 +423,12 @@ export default function QuranReader() {
         {/* Mushaf Page */}
         <div
           className="rounded-lg mushaf-page relative"
-          style={{ aspectRatio: '14/20', maxHeight: '95vh', backgroundColor: '#FEF9E7' }}
+          style={{ aspectRatio: '14/20', height: 'calc(100vh - 140px)', maxWidth: '700px', margin: '0 auto', backgroundColor: '#FEF9E7' }}
         >
           {/* Page Content - inside the border */}
           <div
             className="absolute inset-0 overflow-hidden"
-            style={{ zIndex: 1, padding: '5% 3%' }}
+            style={{ zIndex: 1, padding: '4% 6%' }}
           >
           {(loading || !fontLoaded) ? (
             <div className="flex items-center justify-center h-full">
@@ -479,7 +479,7 @@ export default function QuranReader() {
                         بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
                       </div>
                     )}
-                    <div className="flex justify-center items-center text-slate-800 w-full">
+                    <div className="flex justify-between items-center text-slate-800 w-full">
                       {words.map((word) => {
                         const wordStyle = getWordStyle(word);
                         // Page 586 has overflow glyphs from page 585 (ayahs 41-42 of Surah 80)

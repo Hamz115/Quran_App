@@ -1375,9 +1375,9 @@ export default function Classroom() {
             </button>
 
             {/* Mushaf Page */}
-            <div className="rounded-lg mushaf-page relative" style={{ aspectRatio: '14/20', maxHeight: '95vh', backgroundColor: '#FEF9E7' }}>
+            <div className="rounded-lg mushaf-page relative" style={{ aspectRatio: '14/20', height: 'calc(100vh - 140px)', maxWidth: '700px', margin: '0 auto', backgroundColor: '#FEF9E7' }}>
               {/* Page Content */}
-              <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 1, padding: '5% 3%' }}>
+              <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 1, padding: '4% 6%' }}>
 
               {(pageLoading || !fontLoaded) ? (
                 <div className="flex items-center justify-center h-full">
@@ -1428,7 +1428,7 @@ export default function Classroom() {
                             بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
                           </div>
                         )}
-                        <div className="flex justify-center items-center text-slate-800 w-full overflow-hidden">
+                        <div className="flex justify-between items-center text-slate-800 w-full">
                           {words.map((word) => {
                             const { wholeWordLevel, charMistakes, totalMistakes } = getWordMistakeInfo(word);
                             const hasCharMistakes = charMistakes.length > 0;
