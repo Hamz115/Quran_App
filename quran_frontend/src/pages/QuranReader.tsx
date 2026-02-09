@@ -240,7 +240,7 @@ export default function QuranReader() {
     }
     // Tablet & Desktop: centered page with 0.7 width ratio
     // Account for bottom nav (56px) when present (below lg)
-    const chromeHeight = hasBottomNav ? 300 : 160;
+    const chromeHeight = hasBottomNav ? 260 : 160;
     const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
     const w = maxH * 0.7;
     const clampedW = Math.min(w, 500);
@@ -479,7 +479,7 @@ export default function QuranReader() {
               dir="rtl"
               style={{
                 fontFamily: `'QPC-Page-${currentPage}', 'Amiri Quran', serif`,
-                fontSize: '28px',
+                fontSize: `${Math.min(28, Math.floor(pageDims.height / 21))}px`,
               }}
             >
               {lineNumbers.map((lineNum) => {
