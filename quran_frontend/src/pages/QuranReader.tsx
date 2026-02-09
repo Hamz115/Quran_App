@@ -229,21 +229,24 @@ export default function QuranReader() {
   }, []);
 
   const isMobile = windowSize.w < 640;
+  const hasBottomNav = windowSize.w < 1024; // bottom nav shows below lg breakpoint
   const getPageDimensions = useCallback(() => {
     if (isMobile) {
-      // Mobile: full width, fill entire available vertical space
+      // Phone: full width, fill entire available vertical space
       // Viewport minus: header(56px) + bottom nav(56px)
       const w = windowSize.w;
       const h = windowSize.h - 112;
       return { width: w, height: h };
     }
-    // Desktop: height-based with 0.7 width ratio
-    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - 160);
+    // Tablet & Desktop: centered page with 0.7 width ratio
+    // Account for bottom nav (56px) when present (below lg)
+    const chromeHeight = hasBottomNav ? 200 : 160;
+    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
     const w = maxH * 0.7;
     const clampedW = Math.min(w, 500);
     const finalH = clampedW / 0.7;
     return { width: clampedW, height: Math.min(maxH, finalH) };
-  }, [isMobile, windowSize]);
+  }, [isMobile, hasBottomNav, windowSize]);
 
   const pageDims = getPageDimensions();
 

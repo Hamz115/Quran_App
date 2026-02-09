@@ -64,8 +64,8 @@ export default function Layout() {
             }`}>QuranTrack</span>
           </div>
 
-          {/* Tab Navigation - hidden on mobile (shown in bottom nav instead) */}
-          <nav className={`hidden sm:flex items-center gap-2 p-1.5 rounded-xl border transition-colors duration-300 ${
+          {/* Tab Navigation - hidden below lg (shown in bottom nav instead) */}
+          <nav className={`hidden lg:flex items-center gap-2 p-1.5 rounded-xl border transition-colors duration-300 ${
             darkMode
               ? 'bg-[rgb(30,41,59)]/50 border-cyan-900/30'
               : 'bg-white/50 border-cyan-200/50'
@@ -116,9 +116,9 @@ export default function Layout() {
               )}
             </button>
 
-            {/* Role Switcher - only show for teachers on desktop */}
+            {/* Role Switcher - only show for teachers on lg+ */}
             {user?.role === 'teacher' && (
-              <div className={`hidden sm:flex items-center p-1 rounded-lg border transition-colors duration-300 ${
+              <div className={`hidden lg:flex items-center p-1 rounded-lg border transition-colors duration-300 ${
                 darkMode
                   ? 'bg-[rgb(30,41,59)]/50 border-cyan-900/30'
                   : 'bg-white/50 border-cyan-200/50'
@@ -279,8 +279,8 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* Role Banner - hidden on mobile */}
-      <div className={`hidden sm:block px-3 sm:px-6 lg:px-12 py-1.5 sm:py-2 text-center text-xs sm:text-sm font-medium border-b transition-colors duration-300 ${
+      {/* Role Banner - hidden below lg */}
+      <div className={`hidden lg:block px-3 sm:px-6 lg:px-12 py-1.5 sm:py-2 text-center text-xs sm:text-sm font-medium border-b transition-colors duration-300 ${
         role === 'teacher'
           ? darkMode
             ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
@@ -307,12 +307,12 @@ export default function Layout() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-12 lg:py-10 pb-20 sm:pb-4 max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-12 lg:py-10 pb-20 lg:pb-4 max-w-7xl mx-auto w-full">
         <Outlet />
       </main>
 
-      {/* Mobile Bottom Navigation - shown only on mobile */}
-      <nav className={`sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t transition-colors duration-300 ${
+      {/* Bottom Navigation - shown below lg (phones, tablets, small laptops) */}
+      <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t transition-colors duration-300 ${
         darkMode
           ? 'bg-[rgb(26,31,46)] border-cyan-900/30'
           : 'bg-white border-slate-200'

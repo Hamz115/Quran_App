@@ -76,24 +76,28 @@ lineHeight: 1.8,  // Match Flutter's height: 1.8
 - Bismillah: 18px, Amiri Quran, `text-cyan-700`
 - No longer responsive (`clamp()`) — fixed sizes that scale with the page via FittedLine
 
-### 4. Page Sizing - Responsive Desktop + Fullscreen Mobile
-- **Desktop**: `height: min(80vh, calc(100vh - 160px))`, `width: calc(height * 0.7)`, `maxWidth: 500px`
-- **Mobile**: Full-width page, height = viewport - 112px (header + bottom nav)
+### 4. Page Sizing - 3-Tier Responsive
+- **Phone** (<640px): Full-width page, height = viewport - 112px (header + bottom nav)
+- **Tablet/Small Laptop** (640-1024px): Centered page, height accounts for bottom nav (chromeHeight = 200px), width = height * 0.7, maxWidth 500px
+- **Desktop** (>=1024px): Centered page, chromeHeight = 160px, width = height * 0.7, maxWidth 500px
 
 ### 5. Mobile Fullscreen Reading Mode
-- Header, Legend, Page Info: hidden on mobile
+- Header, Legend, Page Info: hidden on phone (<640px)
 - Mushaf page: full-width, no rounded corners, edge-to-edge
 - Overlay controls at top/bottom with gradient backgrounds
 - Negative margins to negate Layout padding
 
-### 6. Navigation Arrows Closer to Page
+### 6. Bottom Navigation — Below lg (1024px)
+- Fixed bottom nav bar on phones, tablets, and small laptops
+- Top tab nav only shows at 1024px+ (lg breakpoint)
+- Role banner and role switcher also hidden below lg
+- Main content has `pb-20` below lg to clear the bottom nav
+
+### 7. Navigation Arrows Closer to Page
 - `gap-1` between arrows and page
 
-### 7. Content Padding
+### 8. Content Padding
 - `padding: '4% 6%'`
-
-### 8. Mobile Bottom Navigation
-- Fixed bottom nav bar on mobile with icons + labels
 
 ---
 
@@ -116,19 +120,33 @@ useLayoutEffect:
 
 ## Page Container Sizing
 
-### Desktop (>= 640px)
-```
-Height: min(80vh, calc(100vh - 160px))
-Width:  calc(height * 0.7)
-MaxWidth: 500px
-Font: 28px, lineHeight 1.8
-```
-
-### Mobile (< 640px)
+### Phone (< 640px)
 ```
 Width: 100% (full screen width)
 Height: viewport - 112px (56px header + 56px bottom nav)
-Font: pageDims.height / 18, lineHeight 1.8
+Font: 28px
+Mushaf: full-screen, no rounded corners, overlay controls
+```
+
+### Tablet / Small Laptop (640px - 1024px)
+```
+ChromeHeight: 200px (header + bottom nav + cards + padding)
+Height: min(80vh, calc(100vh - 200px))
+Width:  calc(height * 0.7)
+MaxWidth: 500px
+Font: 28px
+Bottom nav: visible (lg:hidden)
+Desktop controls: visible (header, legend, page info, nav arrows)
+```
+
+### Desktop (>= 1024px)
+```
+ChromeHeight: 160px (header + cards + padding, no bottom nav)
+Height: min(80vh, calc(100vh - 160px))
+Width:  calc(height * 0.7)
+MaxWidth: 500px
+Font: 28px
+Top tab nav: visible
 ```
 
 ---
@@ -154,11 +172,25 @@ Font: pageDims.height / 18, lineHeight 1.8
 
 ---
 
+## Responsive Breakpoint Summary
+
+| Feature | Phone (<640px) | Tablet (640-1024px) | Desktop (>=1024px) |
+|---------|----------------|---------------------|---------------------|
+| **Tab Navigation** | Bottom nav | Bottom nav | Top tab nav |
+| **Role Banner** | Hidden | Hidden | Visible |
+| **Role Switcher** | Hidden | Hidden | Visible |
+| **Mushaf Page** | Full-screen | Centered, sized | Centered, sized |
+| **Reader Controls** | Overlay on page | Header cards | Header cards |
+| **Nav Arrows** | Overlay on page | Beside page | Beside page |
+| **Content Bottom Padding** | 80px (pb-20) | 80px (pb-20) | 16px (pb-4) |
+
+---
+
 ## Files Involved
 
 | File | Role | Change Type |
 |------|------|-------------|
 | `quran_frontend/src/components/FittedLine.tsx` | Scale-down-only line component | **REWRITTEN** |
-| `quran_frontend/src/pages/QuranReader.tsx` | Standalone Quran Reader page | MODIFIED (font size + lineHeight) |
-| `quran_frontend/src/pages/Classroom.tsx` | Classroom view with embedded reader | MODIFIED (font size + lineHeight) |
-| `quran_frontend/src/components/Layout.tsx` | App layout with bottom nav | Previously modified |
+| `quran_frontend/src/pages/QuranReader.tsx` | Standalone Quran Reader page | MODIFIED (font size, 3-tier responsive) |
+| `quran_frontend/src/pages/Classroom.tsx` | Classroom view with embedded reader | MODIFIED (font size, bottom nav aware) |
+| `quran_frontend/src/components/Layout.tsx` | App layout, nav breakpoints | MODIFIED (sm→lg for nav) |

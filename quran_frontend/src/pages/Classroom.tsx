@@ -154,7 +154,10 @@ export default function Classroom() {
   }, []);
 
   const getPageDimensions = useCallback(() => {
-    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - 160);
+    // Account for bottom nav (56px) when below lg breakpoint (1024px)
+    const hasBottomNav = windowSize.w < 1024;
+    const chromeHeight = hasBottomNav ? 200 : 160;
+    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
     const w = maxH * 0.7;
     const clampedW = Math.min(w, 500);
     const finalH = clampedW / 0.7;
