@@ -1,64 +1,99 @@
 # Web Quran Reader - Rendering Issues & Fixes
 
 **Date**: 9 February 2026
-**Status**: Complete
+**Status**: Complete (v2 — scaleDown fix applied)
 **Applies to**: `quran_frontend/src/pages/QuranReader.tsx`, `Classroom.tsx`, `FittedLine.tsx`, `Layout.tsx`
+**See also**: [FLUTTER-RENDERING-REFERENCE.md](./FLUTTER-RENDERING-REFERENCE.md)
+
+---
+
+## v2 Fix: Scale DOWN Only (Match Flutter)
+
+### The Problem
+
+The web app's `FittedLine` component was scaling text both UP and DOWN:
+- Lines with fewer words got **enlarged** (scaled up to fill the container width)
+- This caused **blurry, distorted text** on mobile — especially on pages with short surahs (598-604)
+- Some lines had enormously enlarged text while others were normal size
+
+### The Root Cause
+
+Flutter uses `FittedBox(fit: BoxFit.scaleDown)` which **only scales down, never up**. The web was using `transform: scale(containerWidth / contentWidth)` with no upper bound — scaling both up and down.
+
+### The Fix
+
+**FittedLine.tsx** — One-line change:
+```tsx
+// Before (broken): scales both up AND down
+const scale = containerWidth / contentWidth;
+
+// After (fixed): only scale DOWN, never up
+const scale = Math.min(1.0, containerWidth / contentWidth);
+```
+
+**QuranReader.tsx & Classroom.tsx** — Set large base font size:
+```tsx
+// Before: small font, FittedLine scaled UP to fill width
+fontSize: isMobile ? `${Math.floor(pageDims.height / 25)}px` : 'clamp(16px, 3.5vw, 28px)'
+
+// After: large font, FittedLine scales DOWN to fit
+fontSize: isMobile ? `${Math.floor(pageDims.height / 18)}px` : '28px',
+lineHeight: 1.8,  // Match Flutter's height: 1.8
+```
+
+**Surah headers & Bismillah** — Fixed sizes:
+- Surah header: `fontSize: '18px'`, Amiri font, `border-cyan-200`, `bg-cyan-50`
+- Bismillah: `fontSize: '18px'`, Amiri Quran font, `text-cyan-700`
+
+### Why This Works
+
+1. The base font size is set large enough that QPC lines are naturally **wider** than the container
+2. FittedLine scales them **down** to fit — text is always sharp (scaling down preserves quality)
+3. Short lines (end of surah, short surahs) stay at their natural size and are centered
+4. Text is **never enlarged** beyond its designed size — no more blurry/distorted words
 
 ---
 
 ## Summary of All Changes Made
 
-### 1. FittedLine Component (NEW - Core Fix)
+### 1. FittedLine Component — Scale DOWN Only (v2 Fix)
 - **File**: `quran_frontend/src/components/FittedLine.tsx`
-- **What**: Custom React component that replaces CSS `justify-between` for word spacing
-- **How**: Renders QPC words at natural size, measures content vs container width, applies `transform: scaleX()` to fill the line edge-to-edge
-- **Why**: `justify-between` created uneven gaps — lines with many words had small gaps, lines with few words had huge gaps. The real Mushaf has each line uniformly stretched to fill the page width.
+- **What**: Matches Flutter's `FittedBox(fit: BoxFit.scaleDown)` — text is only scaled down, never up
+- **How**: `Math.min(1.0, containerWidth / contentWidth)` caps scale at 1.0
 - **Scale logic**:
-  - Lines that are 40%+ full: stretched to exactly fill the container width (no cap — exact fit)
-  - Short lines (<40% full): kept at natural size and **centered** on the line
-  - This matches real Mushaf behavior where normal lines fill edge-to-edge but the last line of a surah is centered
+  - `scale < 1.0`: Line is wider than container → shrink uniformly, `transformOrigin: right center`
+  - `scale = 1.0`: Line fits naturally → no transform, centered via `margin: 0 auto`
 
-### 2. Page Sizing - Responsive Desktop + Fullscreen Mobile
+### 2. Font Size Strategy — Large Base + Scale Down
+- **Files**: `QuranReader.tsx`, `Classroom.tsx`
+- **Mobile**: `pageDims.height / 18` (~40px) — intentionally oversized so FittedLine always scales down
+- **Desktop**: `28px` fixed
+- **lineHeight**: `1.8` — matches Flutter's `height: 1.8`
+- **Why**: QPC glyphs are designed for specific sizes. Scaling down is safe; scaling up distorts them.
+
+### 3. Surah Header & Bismillah — Fixed Sizes
+- Surah header: 18px, Amiri font, `border-cyan-200`, `bg-cyan-50`
+- Bismillah: 18px, Amiri Quran, `text-cyan-700`
+- No longer responsive (`clamp()`) — fixed sizes that scale with the page via FittedLine
+
+### 4. Page Sizing - Responsive Desktop + Fullscreen Mobile
 - **Desktop**: `height: min(80vh, calc(100vh - 160px))`, `width: calc(height * 0.7)`, `maxWidth: 500px`
-- **Mobile**: Full-width page with `aspect-ratio: 14/20` to compute height automatically
-- **Why**: On desktop, explicit width from height maintains correct 14:20 Madani Mushaf proportions. On mobile, the page fills the entire screen width like the Flutter app.
+- **Mobile**: Full-width page, height = viewport - 112px (header + bottom nav)
 
-### 3. Mobile Fullscreen Reading Mode (NEW)
-- **What**: On mobile (< 640px), the Quran page takes over the entire screen
-- **Changes**:
-  - Header, Legend, Page Info cards: hidden on mobile
-  - Desktop nav arrows: hidden on mobile
-  - Mushaf page: full-width, no rounded corners, edge-to-edge
-  - Overlay controls: page number + page input + surah dropdown at top with gradient overlay
-  - Navigation buttons: overlaid at bottom of the page
-  - Outer container: negative margins (`-mx-3 -mt-4`) to negate Layout padding
-- **Why**: Mobile should match the Flutter app experience — the Mushaf page IS the screen
+### 5. Mobile Fullscreen Reading Mode
+- Header, Legend, Page Info: hidden on mobile
+- Mushaf page: full-width, no rounded corners, edge-to-edge
+- Overlay controls at top/bottom with gradient backgrounds
+- Negative margins to negate Layout padding
 
-### 4. Navigation Arrows Closer to Page
-- **Before**: `gap-2 md:gap-4` between arrows and page
-- **After**: `gap-1` — arrows sit right next to the mushaf page
-- **Files**: QuranReader.tsx and Classroom.tsx
+### 6. Navigation Arrows Closer to Page
+- `gap-1` between arrows and page
 
-### 5. Content Padding
-- **Before**: `padding: '5% 3%'`
-- **After**: `padding: '4% 6%'`
-- **Why**: Words were being clipped at the left and right edges
+### 7. Content Padding
+- `padding: '4% 6%'`
 
-### 6. Layout Responsiveness
-- **File**: `quran_frontend/src/components/Layout.tsx`
-- **Changes**:
-  - Header: responsive padding (`px-3 sm:px-6 lg:px-12`)
-  - Tab nav: hidden on mobile (moved to bottom nav)
-  - Role switcher: hidden on mobile
-  - Role banner: hidden on mobile
-  - Main content: responsive padding, extra bottom padding for mobile bottom nav
-
-### 7. Mobile Bottom Navigation (NEW)
-- **File**: `quran_frontend/src/components/Layout.tsx`
-- **What**: Fixed bottom navigation bar on mobile (below `sm` breakpoint)
-- **Appearance**: Icons + short labels, active tab highlighted in cyan
-- **Behavior**: Same tabs as the top navbar — Dashboard, Classes, Quran Reader
-- **Why**: Top navbar tabs were cramped on mobile. Bottom nav matches the Flutter app pattern and is more thumb-friendly.
+### 8. Mobile Bottom Navigation
+- Fixed bottom nav bar on mobile with icons + labels
 
 ---
 
@@ -72,14 +107,10 @@ FittedLine (container: width=100%, overflow=hidden)
 useLayoutEffect:
   1. Measure container.clientWidth (available width)
   2. Measure content.scrollWidth (natural content width)
-  3. Calculate fillRatio = contentWidth / containerWidth
-  4. If fillRatio >= 0.40: scale exactly to fill → scaleX(containerWidth/contentWidth)
-     - transformOrigin: 'right center' (for RTL alignment)
-  5. If fillRatio < 0.40: no transform, centered via margin: '0 auto'
-     - Short lines stay at natural size, centered on the line
+  3. scale = Math.min(1.0, containerWidth / contentWidth)
+  4. If scale < 1.0: apply transform: scale(scale), transformOrigin: 'right center'
+  5. If scale = 1.0: no transform, centered via margin: '0 auto'
 ```
-
-Key insight: The old approach used a max scale cap (1.35x) which could leave some lines not fully filled. The new approach always scales to exactly `containerWidth / contentWidth` for any line that's at least 40% full. This means every normal line fills edge-to-edge perfectly.
 
 ---
 
@@ -90,65 +121,22 @@ Key insight: The old approach used a max scale cap (1.35x) which could leave som
 Height: min(80vh, calc(100vh - 160px))
 Width:  calc(height * 0.7)
 MaxWidth: 500px
-
-Result: Mushaf proportions (14:20 = 0.7 ratio), centered with nav arrows
+Font: 28px, lineHeight 1.8
 ```
 
 ### Mobile (< 640px)
 ```
-Width: 100% (full screen width via JS: windowSize.w)
+Width: 100% (full screen width)
 Height: viewport - 112px (56px header + 56px bottom nav)
-Rounded corners: none (edge-to-edge)
-Controls: overlaid with gradient backgrounds
-Negative margins: -mx-3 -mt-4 -mb-20 to negate Layout padding
-
-Result: Page fills entire screen from header to bottom nav, like the Flutter app
+Font: pageDims.height / 18, lineHeight 1.8
 ```
-
-### Why JS-computed dimensions instead of CSS?
-- CSS `aspect-ratio` was unreliable in flex containers
-- CSS `min()`/`calc()` inline styles were being overridden by global `.mushaf-page` CSS
-- Global `.mushaf-page` had `width: 100%` and `max-width: 645px` that fought with inline styles
-- JS dimensions are set as explicit pixel values — no specificity wars, always correct
-- `window.resize` listener keeps dimensions responsive
-
----
-
-## Mobile vs Desktop Layout
-
-| Feature | Mobile (< 640px) | Desktop (>= 640px) |
-|---------|-------------------|---------------------|
-| Header / Legend / Page Info | Hidden | Visible |
-| Navigation | Bottom tab bar | Top tab bar |
-| Nav arrows | Overlay on page | Beside page |
-| Page shape | Full-width, no border radius | Centered card, rounded |
-| Controls | Overlay (top/bottom gradient) | Above page in cards |
-| Role switcher | Hidden | Visible in header |
-| Role banner | Hidden | Visible |
 
 ---
 
 ## Known Remaining Issues
 
-### Fine-Tuning Needed
-1. **40% fill threshold**: May need adjustment. If some normal lines have fewer words than expected (data issue), they'd be centered instead of stretched.
-2. **Surah headers on special pages**: Pages with multiple surah starts (e.g., page 587) have compressed vertical space due to headers + bismillah taking up line slots.
-3. **Page 586 overflow**: Uses previous page's font for high glyph codes (>= 0xFC00).
-
-### Classroom.tsx
-1. The Classroom page still uses the desktop-only layout for the mushaf. Same mobile fullscreen treatment could be applied if needed, but the classroom has more controls above the page that make fullscreen less practical.
-
----
-
-## Files Involved
-
-| File | Role | Change Type |
-|------|------|-------------|
-| `quran_frontend/src/components/FittedLine.tsx` | Scale-to-fit line component | **CREATED** |
-| `quran_frontend/src/pages/QuranReader.tsx` | Standalone Quran Reader page | **MAJOR REWRITE** |
-| `quran_frontend/src/pages/Classroom.tsx` | Classroom view with embedded reader | MODIFIED |
-| `quran_frontend/src/components/Layout.tsx` | App layout with bottom nav | **MAJOR REWRITE** |
-| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Flutter equivalent (reference) | Unchanged |
+1. **Page 586 overflow**: Uses previous page's font for high glyph codes (>= 0xFC00) — handled correctly
+2. **Multi-surah pages**: Pages with multiple surah starts have compressed vertical space due to headers + bismillah taking up line slots
 
 ---
 
@@ -156,10 +144,21 @@ Result: Page fills entire screen from header to bottom nav, like the Flutter app
 
 1. **`justify-between`**: Created uneven word gaps — rejected
 2. **`justify-center`**: Words clustered in center, edges empty — rejected
-3. **Fixed `maxWidth: '500px'` / `'700px'`**: Not responsive — rejected
-4. **`aspect-ratio: '14/20'`**: Didn't compute width in flex context on desktop — rejected for desktop, used for mobile
-5. **`aspect-ratio: '3/5'`**: Way too wide, not Mushaf proportions — rejected
-6. **FittedLine with no scale cap**: Short lines (2-3 words) became enormous — fixed with fill ratio threshold
-7. **FittedLine with `Math.min(scale, 1.0)` cap**: Ragged left edge, normal lines didn't fill width — rejected
-8. **FittedLine with 75% threshold + 1.35x cap**: Too conservative, many lines left unfilled — replaced with 40% threshold + exact scale
-9. **Short lines right-aligned**: Looked unbalanced with empty space on left — changed to centered
+3. **Fixed `maxWidth`**: Not responsive — rejected
+4. **`aspect-ratio`**: Didn't compute width in flex context — rejected for desktop
+5. **FittedLine with no scale cap**: Short lines (2-3 words) became enormous — rejected
+6. **FittedLine with exact scale (no cap)**: Lines scaled UP and DOWN — caused distortion on mobile, rejected
+7. **FittedLine with 75% threshold + 1.35x cap**: Too conservative — rejected
+8. **Responsive `clamp()` font sizes**: Font changed with viewport, inconsistent rendering — rejected
+9. **v2 approach (current)**: Large base font + `Math.min(1.0, scale)` — matches Flutter, works correctly
+
+---
+
+## Files Involved
+
+| File | Role | Change Type |
+|------|------|-------------|
+| `quran_frontend/src/components/FittedLine.tsx` | Scale-down-only line component | **REWRITTEN** |
+| `quran_frontend/src/pages/QuranReader.tsx` | Standalone Quran Reader page | MODIFIED (font size + lineHeight) |
+| `quran_frontend/src/pages/Classroom.tsx` | Classroom view with embedded reader | MODIFIED (font size + lineHeight) |
+| `quran_frontend/src/components/Layout.tsx` | App layout with bottom nav | Previously modified |

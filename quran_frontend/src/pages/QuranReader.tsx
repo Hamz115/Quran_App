@@ -476,7 +476,7 @@ export default function QuranReader() {
               dir="rtl"
               style={{
                 fontFamily: `'QPC-Page-${currentPage}', 'Amiri Quran', serif`,
-                fontSize: 'clamp(16px, 3.5vw, 28px)'
+                fontSize: '28px',
               }}
             >
               {lineNumbers.map((lineNum) => {
@@ -488,22 +488,20 @@ export default function QuranReader() {
                   <div key={lineNum} className="flex-1 flex flex-col justify-center">
                     {surahStarting && (
                       <div
-                        className="text-center mb-1"
+                        className="w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
                         style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
                       >
-                        <div className="inline-block px-6 py-1 border-2 border-cyan-600 rounded-lg bg-cyan-50">
-                          <span className="text-cyan-800 font-bold" style={{ fontSize: 'clamp(14px, 2.5vw, 20px)' }}>
-                            سُورَةُ {SURAH_NAMES[surahStarting]}
-                          </span>
-                        </div>
+                        <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
+                          سُورَةُ {SURAH_NAMES[surahStarting]}
+                        </span>
                       </div>
                     )}
                     {showBismillah && (
                       <div
-                        className="text-center mb-1 text-slate-700"
+                        className="text-center mb-1 text-cyan-700"
                         style={{
                           fontFamily: "'Amiri Quran', 'Amiri', serif",
-                          fontSize: 'clamp(12px, 2vw, 18px)'
+                          fontSize: '18px',
                         }}
                       >
                         بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
