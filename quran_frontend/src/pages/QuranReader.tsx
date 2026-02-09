@@ -315,9 +315,9 @@ export default function QuranReader() {
   };
 
   return (
-    <div className="space-y-2 sm:space-y-4 -mx-3 -mt-4 -mb-20 sm:mx-0 sm:mt-0 sm:mb-0">
-      {/* Header - hidden on mobile */}
-      <div className="hidden sm:flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-2 lg:space-y-4 -mx-3 -mt-4 -mb-20 lg:mx-0 lg:mt-0 lg:mb-0">
+      {/* Header - only on desktop (lg+) */}
+      <div className="hidden lg:flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Quran Reader</h1>
           <p className={`mt-1 text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>View Quran pages with mistake highlights</p>
@@ -436,11 +436,11 @@ export default function QuranReader() {
       {/* Mushaf Display */}
       {/* Mobile: full-width page filling the screen | Desktop: centered with nav arrows */}
       <div className="flex items-center justify-center gap-1 relative">
-        {/* Next Page Button - LEFT side (RTL) - hidden on mobile */}
+        {/* Next Page Button - LEFT side (RTL) - only on desktop */}
         <button
           onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
           disabled={!canGoNext}
-          className={`hidden sm:flex flex-shrink-0 w-10 h-10 rounded-full transition-all items-center justify-center ${
+          className={`hidden lg:flex flex-shrink-0 w-10 h-10 rounded-full transition-all items-center justify-center ${
             canGoNext
               ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white'
               : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
@@ -545,8 +545,8 @@ export default function QuranReader() {
           )}
           </div>
 
-          {/* Mobile overlay controls */}
-          <div className="sm:hidden absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)' }}>
+          {/* Overlay controls — shown below lg */}
+          <div className="lg:hidden absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)' }}>
             <span className="text-white text-xs font-medium bg-black/40 px-2 py-1 rounded-lg">
               Page {currentPage}
             </span>
@@ -585,8 +585,8 @@ export default function QuranReader() {
             </div>
           </div>
 
-          {/* Mobile swipe hint / nav buttons at bottom */}
-          <div className="sm:hidden absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-2" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }}>
+          {/* Nav buttons at bottom — shown below lg */}
+          <div className="lg:hidden absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-2" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }}>
             <button
               onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
               disabled={!canGoNext}
@@ -605,11 +605,11 @@ export default function QuranReader() {
           </div>
         </div>
 
-        {/* Previous Page Button - RIGHT side - hidden on mobile */}
+        {/* Previous Page Button - RIGHT side - only on desktop */}
         <button
           onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
           disabled={!canGoPrev}
-          className={`hidden sm:flex flex-shrink-0 w-10 h-10 rounded-full transition-all items-center justify-center ${
+          className={`hidden lg:flex flex-shrink-0 w-10 h-10 rounded-full transition-all items-center justify-center ${
             canGoPrev
               ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white'
               : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
