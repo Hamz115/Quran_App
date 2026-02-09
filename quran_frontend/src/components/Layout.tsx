@@ -55,17 +55,17 @@ export default function Layout() {
           ? 'bg-[rgb(26,31,46)]/90 border-cyan-900/30'
           : 'bg-white/80 border-cyan-200/50'
       }`}>
-        <div className="flex items-center justify-between h-16 px-12">
+        <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-6 lg:px-12">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="QuranTrack" className="w-10 h-10" />
-            <span className={`text-xl font-bold transition-colors duration-300 ${
+            <img src="/logo.png" alt="QuranTrack" className="w-8 h-8 sm:w-10 sm:h-10" />
+            <span className={`text-base sm:text-xl font-bold transition-colors duration-300 hidden sm:inline ${
               darkMode ? 'text-slate-100' : 'text-slate-800'
             }`}>QuranTrack</span>
           </div>
 
-          {/* Tab Navigation */}
-          <nav className={`flex items-center gap-2 p-1.5 rounded-xl border transition-colors duration-300 ${
+          {/* Tab Navigation - hidden on mobile (shown in bottom nav instead) */}
+          <nav className={`hidden sm:flex items-center gap-2 p-1.5 rounded-xl border transition-colors duration-300 ${
             darkMode
               ? 'bg-[rgb(30,41,59)]/50 border-cyan-900/30'
               : 'bg-white/50 border-cyan-200/50'
@@ -76,7 +76,7 @@ export default function Layout() {
                 to={tab.path}
                 end={tab.path === '/teacher' || tab.path === '/student'}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  `flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-cyan-500/20 text-cyan-500 shadow-sm border border-cyan-500/30'
                       : darkMode
@@ -85,16 +85,16 @@ export default function Layout() {
                   }`
                 }
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={tab.icon} />
                 </svg>
-                {tab.label}
+                <span>{tab.label}</span>
               </NavLink>
             ))}
           </nav>
 
           {/* User Menu & Role Switcher */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Theme Toggle */}
             <button
               onClick={toggleDarkMode}
@@ -116,41 +116,41 @@ export default function Layout() {
               )}
             </button>
 
-            {/* Role Switcher - only show for teachers (they can view as student too) */}
+            {/* Role Switcher - only show for teachers on desktop */}
             {user?.role === 'teacher' && (
-              <div className={`flex items-center p-1 rounded-lg border transition-colors duration-300 ${
+              <div className={`hidden sm:flex items-center p-1 rounded-lg border transition-colors duration-300 ${
                 darkMode
                   ? 'bg-[rgb(30,41,59)]/50 border-cyan-900/30'
                   : 'bg-white/50 border-cyan-200/50'
               }`}>
                 <button
                   onClick={() => handleRoleSwitch('teacher')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                     role === 'teacher'
                       ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/30'
                       : darkMode ? 'text-slate-400 hover:text-cyan-400' : 'text-slate-600 hover:text-cyan-600'
                   }`}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <span className="flex items-center gap-1 sm:gap-1.5">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
-                    Teacher
+                    <span className="hidden sm:inline">Teacher</span>
                   </span>
                 </button>
                 <button
                   onClick={() => handleRoleSwitch('student')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                     role === 'student'
                       ? 'bg-teal-500/20 text-teal-500 border border-teal-500/30'
                       : darkMode ? 'text-slate-400 hover:text-teal-400' : 'text-slate-600 hover:text-teal-600'
                   }`}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <span className="flex items-center gap-1 sm:gap-1.5">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Student
+                    <span className="hidden sm:inline">Student</span>
                   </span>
                 </button>
               </div>
@@ -279,8 +279,8 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* Role Banner */}
-      <div className={`px-12 py-2 text-center text-sm font-medium border-b transition-colors duration-300 ${
+      {/* Role Banner - hidden on mobile */}
+      <div className={`hidden sm:block px-3 sm:px-6 lg:px-12 py-1.5 sm:py-2 text-center text-xs sm:text-sm font-medium border-b transition-colors duration-300 ${
         role === 'teacher'
           ? darkMode
             ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
@@ -307,9 +307,40 @@ export default function Layout() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 px-12 py-10 max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-12 lg:py-10 pb-20 sm:pb-4 max-w-7xl mx-auto w-full">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation - shown only on mobile */}
+      <nav className={`sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t transition-colors duration-300 ${
+        darkMode
+          ? 'bg-[rgb(26,31,46)] border-cyan-900/30'
+          : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center justify-around h-14">
+          {tabs.map((tab) => (
+            <NavLink
+              key={tab.path}
+              to={tab.path}
+              end={tab.path === '/teacher' || tab.path === '/student'}
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all min-w-[60px] ${
+                  isActive
+                    ? 'text-cyan-500'
+                    : darkMode
+                      ? 'text-slate-500 hover:text-cyan-400'
+                      : 'text-slate-400 hover:text-cyan-600'
+                }`
+              }
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={tab.icon} />
+              </svg>
+              <span>{tab.label.replace('My ', '')}</span>
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

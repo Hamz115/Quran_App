@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import FittedLine from '../components/FittedLine';
 import { getClass, getSurahs, getQuranPageWords, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, getTestByClass, startTest, completeTest, startQuestion, endQuestion, cancelQuestion, addTestMistake, type QuranPageWord, type TestData, type TestQuestion } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -143,6 +144,24 @@ export default function Classroom() {
   const { user } = useAuth();
   const { darkMode } = useTheme();
   const isTeacher = user?.role === 'teacher';
+
+  // Compute mushaf page dimensions based on window size
+  const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const onResize = () => setWindowSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const getPageDimensions = useCallback(() => {
+    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - 160);
+    const w = maxH * 0.7;
+    const clampedW = Math.min(w, 500);
+    const finalH = clampedW / 0.7;
+    return { width: clampedW, height: Math.min(maxH, finalH) };
+  }, [windowSize]);
+
+  const pageDims = getPageDimensions();
 
   const preSelectedStudentId = searchParams.get('student');
 
@@ -1360,7 +1379,7 @@ export default function Classroom() {
           </div>
 
           {/* Quran Display with QPC Fonts */}
-          <div className="flex items-center gap-2 md:gap-4 justify-center">
+          <div className="flex items-center gap-1 justify-center">
             {/* Next Page (Left for RTL) */}
             <button
               onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
@@ -1375,7 +1394,7 @@ export default function Classroom() {
             </button>
 
             {/* Mushaf Page */}
-            <div className="rounded-lg mushaf-page relative" style={{ aspectRatio: '14/20', height: 'calc(100vh - 140px)', maxWidth: '700px', margin: '0 auto', backgroundColor: '#FEF9E7' }}>
+            <div className="rounded-lg mushaf-page relative" style={{ width: pageDims.width, height: pageDims.height, backgroundColor: '#FEF9E7' }}>
               {/* Page Content */}
               <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 1, padding: '4% 6%' }}>
 
@@ -1428,7 +1447,7 @@ export default function Classroom() {
                             بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
                           </div>
                         )}
-                        <div className="flex justify-between items-center text-slate-800 w-full">
+                        <FittedLine className="text-slate-800">
                           {words.map((word) => {
                             const { wholeWordLevel, charMistakes, totalMistakes } = getWordMistakeInfo(word);
                             const hasCharMistakes = charMistakes.length > 0;
@@ -1492,7 +1511,7 @@ export default function Classroom() {
                               </span>
                             );
                           })}
-                        </div>
+                        </FittedLine>
                       </div>
                     );
                   })}

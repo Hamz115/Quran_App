@@ -93,9 +93,6 @@ body {
 /* Mushaf page styling - clean, no borders */
 .mushaf-page {
   position: relative;
-  background: #fffef8;
-  max-width: 645px;
-  width: 100%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   overflow: visible;
 }

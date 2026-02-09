@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getQuranPageWords, getMistakes, type QuranPageWord, type MistakeData } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getPageNumber } from '../data/quranPages';
+import FittedLine from '../components/FittedLine';
 
 // Surah names in Arabic
 const SURAH_NAMES: Record<number, string> = {
@@ -219,6 +220,33 @@ export default function QuranReader() {
     return () => { isMounted = false; };
   }, [user, surahs]);
 
+  // Compute mushaf page dimensions based on window size
+  const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const onResize = () => setWindowSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const isMobile = windowSize.w < 640;
+  const getPageDimensions = useCallback(() => {
+    if (isMobile) {
+      // Mobile: full width, fill entire available vertical space
+      // Viewport minus: header(56px) + bottom nav(56px)
+      const w = windowSize.w;
+      const h = windowSize.h - 112;
+      return { width: w, height: h };
+    }
+    // Desktop: height-based with 0.7 width ratio
+    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - 160);
+    const w = maxH * 0.7;
+    const clampedW = Math.min(w, 500);
+    const finalH = clampedW / 0.7;
+    return { width: clampedW, height: Math.min(maxH, finalH) };
+  }, [isMobile, windowSize]);
+
+  const pageDims = getPageDimensions();
+
   const canGoNext = currentPage < TOTAL_PAGES;
   const canGoPrev = currentPage > 1;
 
@@ -284,12 +312,12 @@ export default function QuranReader() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-2 sm:space-y-4 -mx-3 -mt-4 -mb-20 sm:mx-0 sm:mt-0 sm:mb-0">
+      {/* Header - hidden on mobile */}
+      <div className="hidden sm:flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Quran Reader</h1>
-          <p className={`mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>View Quran pages with mistake highlights</p>
+          <p className={`mt-1 text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>View Quran pages with mistake highlights</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -354,8 +382,8 @@ export default function QuranReader() {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className={`card p-3 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+      {/* Legend - hidden on mobile */}
+      <div className={`hidden sm:block card p-3 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-4 flex-wrap">
           <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Legend:</span>
           <div className="flex items-center gap-2">
@@ -386,8 +414,8 @@ export default function QuranReader() {
         </div>
       </div>
 
-      {/* Page Info */}
-      <div className={`card p-4 flex items-center justify-between ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+      {/* Page Info - hidden on mobile */}
+      <div className={`hidden sm:flex card p-4 items-center justify-between ${darkMode ? '' : 'bg-white border-slate-200'}`}>
         <div className={darkMode ? 'text-slate-300' : 'text-slate-700'}>
           <span className="font-semibold">Page {currentPage}</span>
           {getCurrentSurahNum() && (
@@ -403,29 +431,34 @@ export default function QuranReader() {
       </div>
 
       {/* Mushaf Display */}
-      <div className="flex items-center justify-center gap-2 md:gap-4 min-h-[90vh] relative">
-        {/* Next Page Button - LEFT side (RTL) */}
+      {/* Mobile: full-width page filling the screen | Desktop: centered with nav arrows */}
+      <div className="flex items-center justify-center gap-1 relative">
+        {/* Next Page Button - LEFT side (RTL) - hidden on mobile */}
         <button
           onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
           disabled={!canGoNext}
-          className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
+          className={`hidden sm:flex flex-shrink-0 w-10 h-10 rounded-full transition-all items-center justify-center ${
             canGoNext
               ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white'
               : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
           }`}
           title="Next Page"
         >
-          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
         {/* Mushaf Page */}
         <div
-          className="rounded-lg mushaf-page relative"
-          style={{ aspectRatio: '14/20', height: 'calc(100vh - 140px)', maxWidth: '700px', margin: '0 auto', backgroundColor: '#FEF9E7' }}
+          className={`${isMobile ? 'rounded-none' : 'rounded-lg'} mushaf-page relative`}
+          style={{
+            backgroundColor: '#FEF9E7',
+            width: pageDims.width,
+            height: pageDims.height,
+          }}
         >
-          {/* Page Content - inside the border */}
+          {/* Page Content */}
           <div
             className="absolute inset-0 overflow-hidden"
             style={{ zIndex: 1, padding: '4% 6%' }}
@@ -449,12 +482,10 @@ export default function QuranReader() {
               {lineNumbers.map((lineNum) => {
                 const words = wordsByLine.get(lineNum) || [];
                 const surahStarting = getSurahStartForLine(lineNum);
-                // Show bismillah for surahs 2-114 except surah 9 (At-Tawbah has no bismillah)
                 const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
 
                 return (
                   <div key={lineNum} className="flex-1 flex flex-col justify-center">
-                    {/* Surah Header - shown before the first ayah of a new surah */}
                     {surahStarting && (
                       <div
                         className="text-center mb-1"
@@ -467,7 +498,6 @@ export default function QuranReader() {
                         </div>
                       </div>
                     )}
-                    {/* Bismillah - shown for surahs 2-114 except 9 */}
                     {showBismillah && (
                       <div
                         className="text-center mb-1 text-slate-700"
@@ -479,11 +509,9 @@ export default function QuranReader() {
                         بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
                       </div>
                     )}
-                    <div className="flex justify-between items-center text-slate-800 w-full">
+                    <FittedLine className="text-slate-800">
                       {words.map((word) => {
                         const wordStyle = getWordStyle(word);
-                        // Page 586 has overflow glyphs from page 585 (ayahs 41-42 of Surah 80)
-                        // These glyphs have codes >= 0xFC00 and need the previous page's font
                         const glyphCode = word.codeV1.charCodeAt(0);
                         const needsPrevPageFont = currentPage === 586 && glyphCode >= 0xFC00;
                         const fontFamily = needsPrevPageFont
@@ -508,7 +536,7 @@ export default function QuranReader() {
                           </span>
                         );
                       })}
-                    </div>
+                    </FittedLine>
                   </div>
                 );
               })}
@@ -516,20 +544,78 @@ export default function QuranReader() {
           )}
           </div>
 
+          {/* Mobile overlay controls */}
+          <div className="sm:hidden absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)' }}>
+            <span className="text-white text-xs font-medium bg-black/40 px-2 py-1 rounded-lg">
+              Page {currentPage}
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max={TOTAL_PAGES}
+                value={currentPage}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (val >= 1 && val <= TOTAL_PAGES) {
+                    setCurrentPage(val);
+                  }
+                }}
+                className="w-14 px-1 py-1 rounded-lg border border-white/30 bg-black/40 text-white text-xs text-center focus:outline-none"
+              />
+              <select
+                value={surahs.length > 0 ? surahs[0] : ''}
+                onChange={(e) => {
+                  const surahNum = parseInt(e.target.value);
+                  if (surahNum >= 1 && surahNum <= 114) {
+                    const page = getPageNumber(surahNum, 1);
+                    setCurrentPage(page);
+                  }
+                }}
+                className="px-1 py-1 rounded-lg border border-white/30 bg-black/40 text-white text-xs focus:outline-none"
+                style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif", maxWidth: '100px' }}
+              >
+                {Array.from({ length: 114 }, (_, i) => i + 1).map((num) => (
+                  <option key={num} value={num}>
+                    {num}. {SURAH_NAMES[num]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Mobile swipe hint / nav buttons at bottom */}
+          <div className="sm:hidden absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-2" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }}>
+            <button
+              onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
+              disabled={!canGoNext}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${canGoNext ? 'bg-black/40 text-white' : 'bg-black/20 text-white/40'}`}
+            >
+              &larr; Next
+            </button>
+            <span className="text-white/60 text-xs">{currentPage} / {TOTAL_PAGES}</span>
+            <button
+              onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
+              disabled={!canGoPrev}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${canGoPrev ? 'bg-black/40 text-white' : 'bg-black/20 text-white/40'}`}
+            >
+              Prev &rarr;
+            </button>
+          </div>
         </div>
 
-        {/* Previous Page Button - RIGHT side */}
+        {/* Previous Page Button - RIGHT side - hidden on mobile */}
         <button
           onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
           disabled={!canGoPrev}
-          className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
+          className={`hidden sm:flex flex-shrink-0 w-10 h-10 rounded-full transition-all items-center justify-center ${
             canGoPrev
               ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white'
               : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
           }`}
           title="Previous Page"
         >
-          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </button>

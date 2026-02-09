@@ -13,7 +13,9 @@
       "Bash(python:*)",
       "Bash(xcopy:*)",
       "Bash(if not exist \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\\\\quran-pages\" mkdir \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\\\\quran-pages\")",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Skill(agent-browser)",
+      "Bash(agent-browser:*)"
     ],
     "deny": [],
     "ask": []
