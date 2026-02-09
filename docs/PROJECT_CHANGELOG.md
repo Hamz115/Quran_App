@@ -1224,6 +1224,8 @@ On tablet/small laptop screens, the legend and page info cards are hidden (only 
 | `docs/Technical Implementation Journey/Quran Reader/FLUTTER-RENDERING-REFERENCE.md` | Complete Flutter rendering system reference |
 | `docs/Technical Implementation Journey/Quran Reader/WEB-READER-RENDERING-ISSUES.md` | Updated with all fixes and 3-tier responsive table |
 
+**Final tuning (9 Feb):** Responsive font size `min(28, pageHeight/21)px` to prevent text cutoff on smaller screens. All QuranReader content breakpoints moved from `sm` to `lg` — tablet uses compact overlay controls on the mushaf page (no header pushing content down). Legend shown above page on tablet to fill dead space. chromeHeight tuned to 220px for tablet.
+
 See: [WEB-READER-RENDERING-ISSUES.md](./Technical%20Implementation%20Journey/Quran%20Reader/WEB-READER-RENDERING-ISSUES.md), [FLUTTER-RENDERING-REFERENCE.md](./Technical%20Implementation%20Journey/Quran%20Reader/FLUTTER-RENDERING-REFERENCE.md)
 
 ---

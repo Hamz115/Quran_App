@@ -64,11 +64,11 @@ lineHeight: 1.8,  // Match Flutter's height: 1.8
   - `scale < 1.0`: Line is wider than container → shrink uniformly, `transformOrigin: right center`
   - `scale = 1.0`: Line fits naturally → no transform, centered via `margin: 0 auto`
 
-### 2. Font Size Strategy — Large Base + Scale Down
+### 2. Font Size Strategy — Responsive, Capped at 28px
 - **Files**: `QuranReader.tsx`, `Classroom.tsx`
-- **Mobile**: `pageDims.height / 18` (~40px) — intentionally oversized so FittedLine always scales down
-- **Desktop**: `28px` fixed
-- **lineHeight**: `1.8` — matches Flutter's `height: 1.8`
+- **Formula**: `Math.min(28, Math.floor(pageDims.height / 21))px`
+- Large screens: capped at 28px (sharp text, FittedLine scales down horizontally)
+- Small screens: font scales down proportionally so text always fits vertically within line slots
 - **Why**: QPC glyphs are designed for specific sizes. Scaling down is safe; scaling up distorts them.
 
 ### 3. Surah Header & Bismillah — Fixed Sizes
@@ -78,14 +78,15 @@ lineHeight: 1.8,  // Match Flutter's height: 1.8
 
 ### 4. Page Sizing - 3-Tier Responsive
 - **Phone** (<640px): Full-width page, height = viewport - 112px (header + bottom nav)
-- **Tablet/Small Laptop** (640-1024px): Centered page, height accounts for bottom nav (chromeHeight = 200px), width = height * 0.7, maxWidth 500px
+- **Tablet/Small Laptop** (640-1024px): Centered page, chromeHeight = 220px, width = height * 0.7, maxWidth 500px
 - **Desktop** (>=1024px): Centered page, chromeHeight = 160px, width = height * 0.7, maxWidth 500px
 
-### 5. Mobile Fullscreen Reading Mode
-- Header, Legend, Page Info: hidden on phone (<640px)
-- Mushaf page: full-width, no rounded corners, edge-to-edge
-- Overlay controls at top/bottom with gradient backgrounds
-- Negative margins to negate Layout padding
+### 5. Compact Overlay Mode (below lg)
+- Header, Page Info: hidden below lg (1024px)
+- Legend: shown on sm+ (640px+) to fill space above page
+- Overlay controls (page input, surah dropdown) on mushaf page
+- Nav buttons overlaid at bottom of mushaf page
+- Negative margins below lg to negate Layout padding
 
 ### 6. Bottom Navigation — Below lg (1024px)
 - Fixed bottom nav bar on phones, tablets, and small laptops
@@ -130,13 +131,12 @@ Mushaf: full-screen, no rounded corners, overlay controls
 
 ### Tablet / Small Laptop (640px - 1024px)
 ```
-ChromeHeight: 200px (header + bottom nav + cards + padding)
-Height: min(80vh, calc(100vh - 200px))
+ChromeHeight: 220px (header + bottom nav + legend + padding)
+Height: min(80vh, calc(100vh - 220px))
 Width:  calc(height * 0.7)
 MaxWidth: 500px
-Font: 28px
-Bottom nav: visible (lg:hidden)
-Desktop controls: visible (header, legend, page info, nav arrows)
+Font: min(28, pageHeight/21)px — responsive to page height
+Bottom nav: visible, overlay controls on page, legend above page
 ```
 
 ### Desktop (>= 1024px)
@@ -145,8 +145,8 @@ ChromeHeight: 160px (header + cards + padding, no bottom nav)
 Height: min(80vh, calc(100vh - 160px))
 Width:  calc(height * 0.7)
 MaxWidth: 500px
-Font: 28px
-Top tab nav: visible
+Font: min(28, pageHeight/21)px — capped at 28px on large screens
+Top tab nav: visible, full header + legend + page info
 ```
 
 ---
