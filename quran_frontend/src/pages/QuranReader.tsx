@@ -240,7 +240,7 @@ export default function QuranReader() {
     }
     // Tablet & Desktop: centered page with 0.7 width ratio
     // Account for bottom nav (56px) when present (below lg)
-    const chromeHeight = hasBottomNav ? 200 : 160;
+    const chromeHeight = hasBottomNav ? 240 : 160;
     const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
     const w = maxH * 0.7;
     const clampedW = Math.min(w, 500);
@@ -385,8 +385,8 @@ export default function QuranReader() {
         </div>
       </div>
 
-      {/* Legend - hidden on mobile */}
-      <div className={`hidden sm:block card p-3 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+      {/* Legend - hidden below lg (save vertical space on tablet) */}
+      <div className={`hidden lg:block card p-3 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-4 flex-wrap">
           <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Legend:</span>
           <div className="flex items-center gap-2">
@@ -417,8 +417,8 @@ export default function QuranReader() {
         </div>
       </div>
 
-      {/* Page Info - hidden on mobile */}
-      <div className={`hidden sm:flex card p-4 items-center justify-between ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+      {/* Page Info - hidden below lg (save vertical space on tablet) */}
+      <div className={`hidden lg:flex card p-4 items-center justify-between ${darkMode ? '' : 'bg-white border-slate-200'}`}>
         <div className={darkMode ? 'text-slate-300' : 'text-slate-700'}>
           <span className="font-semibold">Page {currentPage}</span>
           {getCurrentSurahNum() && (
