@@ -50,11 +50,11 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300">
       {/* Navbar */}
-      <header className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-300 ${
+      <header className={`sticky top-0 z-40 border-b transition-colors duration-300 ${
         darkMode
-          ? 'bg-[rgb(26,31,46)]/90 border-cyan-900/30'
-          : 'bg-white/80 border-cyan-200/50'
-      }`}>
+          ? 'bg-[rgb(26,31,46)]/90 backdrop-blur-md border-cyan-900/30'
+          : 'border-cyan-300/50'
+      }`} style={darkMode ? undefined : { background: 'linear-gradient(135deg, rgb(186, 230, 253) 0%, rgb(165, 243, 252) 50%, rgb(207, 250, 254) 100%)' }}>
         <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-6 lg:px-12">
           {/* Logo */}
           <div className="flex items-center gap-3">
@@ -315,8 +315,8 @@ export default function Layout() {
       <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t transition-colors duration-300 ${
         darkMode
           ? 'bg-[rgb(26,31,46)] border-cyan-900/30'
-          : 'bg-white border-slate-200'
-      }`}>
+          : 'border-cyan-300/50'
+      }`} style={darkMode ? undefined : { background: 'linear-gradient(135deg, rgb(186, 230, 253) 0%, rgb(165, 243, 252) 50%, rgb(207, 250, 254) 100%)' }}>
         <div className="flex items-center justify-around h-14">
           {tabs.map((tab) => (
             <NavLink

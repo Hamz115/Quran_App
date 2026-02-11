@@ -249,22 +249,21 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
       .select(`
         *,
         assignments (*),
-        class_students!inner (student_id, performance)
+        class_students!inner (student_id)
       `)
       .eq('class_students.student_id', user.id)
       .eq('is_published', true)
       .order('date', { ascending: false });
 
     if (error) throw new Error(error.message);
-    // For students, extract their own performance from class_students
+    // For students, use class-level performance
     return (data ?? []).map(row => {
-      const studentData = row.class_students?.[0];
       return {
         id: row.id,
         date: row.date,
         day: row.day || '',
         notes: row.notes,
-        performance: studentData?.performance || row.performance, // Use student's own performance
+        performance: row.performance,
         teacher_id: row.teacher_id,
         is_published: row.is_published,
         class_type: row.class_type || 'regular',
@@ -324,7 +323,6 @@ export async function getClass(classId: string): Promise<ClassData> {
       assignments (*),
       class_students (
         student_id,
-        performance,
         student:profiles!student_id (id, student_id, name)
       )
     `)
@@ -472,12 +470,9 @@ export async function updateClassPublish(classId: string, isPublished: boolean):
 }
 
 export async function updateStudentPerformance(classId: string, studentId: string, performance: string): Promise<{ message: string }> {
-  const { error } = await supabase
-    .from('class_students')
-    .update({ performance: performance || null })
-    .eq('class_id', classId)
-    .eq('student_id', studentId);
-
+  // Note: class_students table doesn't have a performance column yet in Supabase.
+  // For now, store performance at the class level instead.
+  const { error } = await (supabase as any).from('classes').update({ performance }).eq('id', classId);
   if (error) throw new Error(error.message);
   return { message: 'Student performance updated' };
 }
