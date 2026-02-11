@@ -279,7 +279,7 @@ final isTeacher = authState.user?.role.name == 'teacher';
 | Fonts | Google Fonts CDN (Amiri) | QPC per-page fonts via `QpcFontService` |
 | Data source | `surahWithAyahsProvider` (SQLite) | `quranPageDataProvider` (bundled JSON assets) |
 
-### Page Navigation UI
+### Page Navigation — Arrows + Swipe
 
 Page navigation shows the position within the assignment's page range:
 
@@ -290,6 +290,9 @@ Page navigation shows the position within the assignment's page range:
 - Left arrow = next page (higher page number, RTL convention)
 - Right arrow = previous page (lower page number)
 - Arrows are disabled at range boundaries
+- **Swipe navigation** via `PageView.builder` with `reverse: true` (RTL)
+  - Swipe left = next page (higher number), swipe right = previous
+  - Arrow buttons animate the PageView when clicked (synced with swipe)
 - Switching sections or portions resets to the first page of the new assignment
 
 ### Interactive Word Tap → WordPopup
@@ -298,17 +301,40 @@ Tapping a QPC glyph word triggers the same `WordPopup` bottom sheet used before,
 
 Word index conversion: QPC JSON uses 1-based `wordPosition`, mistakes use 0-based `wordIndex` → `word.wordPosition - 1`.
 
+### Student Selector (Web Only)
+
+On web, teachers must select which student they are marking mistakes for. The `teacherStudentsProvider` fetches students from the `teacher_students` Supabase table. A dropdown appears at the top of the ClassroomScreen. The first student is auto-selected on load. Changing the student reloads mistakes via `setWebStudentId()`.
+
+This is required by Supabase RLS: the INSERT policy on `mistakes` only allows teachers to insert where `student_id` matches a student in their `teacher_students` records.
+
+### Supabase UUID Fix
+
+Supabase uses UUID primary keys, but Flutter models use `int? id`. The fix:
+- Added `String? supabaseId` to `ClassSession` and `Mistake` models
+- Web parsing uses `row['id'].hashCode` for unique int IDs, stores original UUID in `supabaseId`
+- All Supabase queries (`deleteClass`, `updateNotes`, `updatePerformance`, `removeMistake`) resolve the UUID via `supabaseId` before querying
+- `classProvider` on web finds from the loaded classes list instead of re-querying (avoids UUID/int mismatch)
+
 ### Page Range Computation
 
 Assignment page range is computed via `getPageRange()` in `quran_data.dart`:
 - `firstPage = getPageNumber(startSurah, startAyah ?? 1)`
 - `lastPage = endAyah != null ? getPageNumber(endSurah, endAyah) : getLastPageForSurah(endSurah)`
 
+### Mistakes Summary (Scroll Down)
+
+The mistakes summary is no longer a fixed element in the layout. It lives inside each page's scrollable content — scroll down past the mushaf page to see the list of mistakes for the current section. This gives the mushaf page the full available screen height.
+
 ### Mistake Filtering
 
 Mistakes are filtered by the entire assignment range (not just current page), supporting:
 - Single surah with ayah range
 - Multi-surah assignments with boundary ayah filtering
+
+### Known Issues / TODO
+- **Performance dropdown** — Not yet in ClassroomScreen; only editable from Classes list
+- **Notes button** — Not yet in ClassroomScreen; needs a button/field for teachers
+- **WordPopup letter/haraka selection** — Only whole word marking works reliably; character-level parsing needs fixing
 
 ---
 

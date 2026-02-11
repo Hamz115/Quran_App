@@ -1142,18 +1142,36 @@ Replaced the plain-text Arabic rendering in ClassroomScreen with page-based QPC 
 - **Page range helpers** — Added `getLastPageForSurah()` and `getPageRange()` to `quran_data.dart` for computing mushaf page ranges from assignment surah/ayah boundaries
 - **ClassroomScreen rewrite** — Replaced `surahWithAyahsProvider` + `Wrap` + Google Fonts Amiri with `MushafPageWidget` + `quranPageDataProvider` + `fontReadyProvider` (QPC glyphs)
   - Added page navigation (prev/next arrows) constrained to assignment page range
+  - Added **swipe navigation** via `PageView.builder` (RTL: swipe left = next page)
   - Removed surah selector (page navigation replaces it)
   - Word tap → WordPopup → mistake marking on QPC glyphs
   - Long press highlighted word → removes mistake
   - Mistake filtering now covers entire assignment range (multi-surah aware)
   - Theme-aware colors via `AppColors` (supports light/dark mode)
+  - Mistakes summary moved **below the fold** — scroll down past the mushaf page to see it (no longer steals vertical space)
+- **Supabase UUID bug fix** — Added `supabaseId` field to `ClassSession` and `Mistake` models; all web Supabase queries now use the real UUID instead of broken `int.tryParse` on UUIDs (which returned `0` for every class/mistake)
+  - `classProvider` on web now finds from the loaded classes list instead of re-querying
+  - `deleteClass`, `updateNotes`, `updatePerformance`, `removeMistake` all resolve the UUID before querying
+- **Mistakes RLS fix** — Added `teacherStudentsProvider` to fetch the teacher's students from `teacher_students` table
+  - Added student selector dropdown in ClassroomScreen (web only, for teachers)
+  - `addMistake` now passes the selected student's UUID (not the teacher's own ID), matching the React web app's RLS-compliant flow
+  - Added upsert logic: if same word already has a mistake, increments `error_count` instead of inserting a duplicate
+  - Records `mistake_occurrences` with the class ID when adding mistakes
+
+#### Known Issues / TODO
+- **Performance dropdown** — Not yet available inside the ClassroomScreen; currently only editable from the Classes list. Needs to be added to the classroom header.
+- **Notes button** — Not yet available inside the ClassroomScreen; needs a button/field for teachers to add/edit notes.
+- **WordPopup letter/haraka selection** — Currently only "whole word" mistake marking works reliably. The letter and haraka (diacritics) selection in WordPopup needs fixing — the character parsing from `textUthmani` doesn't correctly isolate individual letters and their harakat.
 
 #### Files Modified
 | File | Change |
 |------|--------|
-| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Added `onWordTap`, `onWordLongPress` callbacks |
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Added `onWordTap`, `onWordLongPress` callbacks; removed unused import |
 | `quran_mobile/lib/data/quran_data.dart` | Added `getLastPageForSurah()`, `getPageRange()` |
-| `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Full rewrite: QPC page rendering + page nav |
+| `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Full rewrite: QPC page rendering + swipe nav + student selector |
+| `quran_mobile/lib/data/models/class_session.dart` | Added `supabaseId` field for web UUID storage |
+| `quran_mobile/lib/data/models/mistake.dart` | Added `supabaseId` field for web UUID storage |
+| `quran_mobile/lib/presentation/providers/providers.dart` | UUID fix, student selector, upsert mistakes, RLS-compliant addMistake |
 
 ---
 

@@ -6,6 +6,7 @@ enum SyncStatus { pending, synced, conflict }
 class ClassSession extends Equatable {
   final int? id;
   final int? serverId;
+  final String? supabaseId; // Original UUID from Supabase (web only)
   final String date;
   final String day;
   final String? notes;
@@ -20,6 +21,7 @@ class ClassSession extends Equatable {
   const ClassSession({
     this.id,
     this.serverId,
+    this.supabaseId,
     required this.date,
     required this.day,
     this.notes,
@@ -87,6 +89,7 @@ class ClassSession extends Equatable {
   ClassSession copyWith({
     int? id,
     int? serverId,
+    String? supabaseId,
     String? date,
     String? day,
     String? notes,
@@ -101,6 +104,7 @@ class ClassSession extends Equatable {
     return ClassSession(
       id: id ?? this.id,
       serverId: serverId ?? this.serverId,
+      supabaseId: supabaseId ?? this.supabaseId,
       date: date ?? this.date,
       day: day ?? this.day,
       notes: notes ?? this.notes,

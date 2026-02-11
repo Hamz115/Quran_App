@@ -208,14 +208,20 @@ When either callback is provided, each word widget is wrapped in a `GestureDetec
 ClassroomScreen
   ├── ref.watch(quranPageDataProvider(pageNum))  → QuranPageData
   ├── ref.watch(fontReadyProvider(pageNum))       → QpcFontService
-  └── MushafPageWidget(
-        pageNumber, pageData, isDarkMode, mistakes,
-        onWordTap: _showWordPopup,        // ← new
-        onWordLongPress: _removeMistake,  // ← new
-      )
+  ├── ref.watch(teacherStudentsProvider)          → Student selector (web)
+  └── PageView.builder (swipe navigation)
+        └── MushafPageWidget(
+              pageNumber, pageData, isDarkMode, mistakes,
+              onWordTap: _showWordPopup,        // ← interactive
+              onWordLongPress: _removeMistake,  // ← interactive
+            )
 ```
 
 The same `QpcFontService`, `QuranPageDataService`, and providers used by `QuranReaderScreen` are reused without modification.
+
+### Navigation
+
+The classroom uses a `PageView.builder` with `reverse: true` for RTL swipe navigation, plus arrow buttons that `animateToPage()`. The `onPageChanged` callback keeps the arrow UI and page counter in sync with swipe gestures.
 
 ### Page Range Helpers
 
@@ -224,23 +230,46 @@ Added to `quran_data.dart`:
 - `getLastPageForSurah(int surahNum)` — Returns the last mushaf page of a surah by looking at the next surah's first page minus one.
 - `getPageRange({startSurah, endSurah, startAyah?, endAyah?})` — Computes `(firstPage, lastPage)` for an assignment's range.
 
+### Supabase UUID Handling
+
+Supabase uses UUID strings as primary keys, but Flutter models use `int? id` for SQLite compatibility. The solution:
+- `ClassSession` and `Mistake` gained a `String? supabaseId` field
+- Web parsing: `id = rawId.hashCode` (unique int), `supabaseId = rawId.toString()` (original UUID)
+- All web Supabase mutations resolve the UUID from `supabaseId` before querying
+- `classProvider` on web finds from the loaded list (avoids re-querying with wrong ID type)
+
+### Mistakes — RLS-Compliant Flow
+
+The `addMistake` web path now matches the React web app:
+1. Teacher selects a student via `teacherStudentsProvider` dropdown
+2. `addMistake` passes `studentId` (the student's Supabase UUID)
+3. Checks for existing mistake (same surah/ayah/word/charIndex) → increments `error_count` if found
+4. Records `mistake_occurrences` linking the mistake to the class
+5. `loadMistakes` targets the selected student via `setWebStudentId()`
+
 ### Architecture
 
 ```
-┌──────────────────┐     ┌──────────────────┐
-│ QuranReaderScreen │     │ ClassroomScreen   │
-│   (read-only)    │     │   (interactive)   │
-└────────┬─────────┘     └────────┬──────────┘
-         │                        │
-         ▼                        ▼
-┌─────────────────────────────────────────┐
-│         MushafPageWidget                │
-│  (onWordTap? / onWordLongPress?)        │
-├─────────────────────────────────────────┤
-│  quranPageDataProvider ← JSON assets    │
-│  fontReadyProvider     ← QpcFontService │
-└─────────────────────────────────────────┘
+┌──────────────────┐     ┌───────────────────────────┐
+│ QuranReaderScreen │     │ ClassroomScreen            │
+│   (read-only)    │     │   (interactive + swipe)    │
+└────────┬─────────┘     │   + student selector (web) │
+         │               │   + mistakes on scroll     │
+         │               └────────────┬────────────────┘
+         ▼                            ▼
+┌──────────────────────────────────────────────┐
+│            MushafPageWidget                  │
+│  (onWordTap? / onWordLongPress?)             │
+├──────────────────────────────────────────────┤
+│  quranPageDataProvider  ← JSON assets        │
+│  fontReadyProvider      ← QpcFontService     │
+│  teacherStudentsProvider ← Supabase (web)    │
+└──────────────────────────────────────────────┘
 ```
+
+### Known Issues / TODO
+- Performance dropdown and notes button not yet in ClassroomScreen
+- WordPopup letter/haraka selection needs fixing (only whole word works)
 
 ---
 

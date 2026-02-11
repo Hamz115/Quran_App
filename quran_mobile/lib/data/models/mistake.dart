@@ -4,6 +4,7 @@ import 'class_session.dart';
 class Mistake extends Equatable {
   final int? id;
   final int? serverId;
+  final String? supabaseId; // Original UUID from Supabase (web only)
   final int surahNumber;
   final int ayahNumber;
   final int wordIndex;
@@ -17,6 +18,7 @@ class Mistake extends Equatable {
   const Mistake({
     this.id,
     this.serverId,
+    this.supabaseId,
     required this.surahNumber,
     required this.ayahNumber,
     required this.wordIndex,

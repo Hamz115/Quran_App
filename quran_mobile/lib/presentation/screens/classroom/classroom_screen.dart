@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_colors.dart';
@@ -27,12 +28,45 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   String _activeSection = 'hifz';
   int _selectedPortionIndex = 0;
   int _currentPage = 0; // 0 = not yet initialized
+  String? _selectedStudentId; // Supabase student UUID (web only)
+  bool _studentInitialized = false;
+
+  PageController? _pageController;
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  void _initPageController(int firstPage, int lastPage) {
+    final pageIndex = _currentPage - firstPage;
+    _pageController?.dispose();
+    _pageController = PageController(initialPage: pageIndex);
+  }
 
   @override
   Widget build(BuildContext context) {
     final classAsync = ref.watch(classProvider(widget.classId));
     final mistakesAsync = ref.watch(mistakesProvider);
     final isDarkMode = ref.watch(themeProvider);
+
+    // On web, fetch teacher's students for the student selector
+    final studentsAsync = kIsWeb ? ref.watch(teacherStudentsProvider) : null;
+
+    // Auto-select first student on web if not yet initialized
+    if (kIsWeb && !_studentInitialized && studentsAsync != null) {
+      studentsAsync.whenData((students) {
+        if (students.isNotEmpty && _selectedStudentId == null) {
+          _selectedStudentId = students.first.id;
+          _studentInitialized = true;
+          // Load mistakes for this student
+          Future.microtask(() {
+            ref.read(mistakesProvider.notifier).setWebStudentId(_selectedStudentId);
+          });
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
@@ -76,13 +110,20 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           // Initialize current page if not set or out of range
           if (_currentPage < firstPage || _currentPage > lastPage) {
             _currentPage = firstPage;
+            _initPageController(firstPage, lastPage);
           }
+
+          final totalPagesInRange = lastPage - firstPage + 1;
 
           return SafeArea(
             child: Column(
               children: [
                 // Header
                 _buildHeader(classData.day, classData.date, isDarkMode),
+
+                // Student selector (web only, for teachers)
+                if (kIsWeb && studentsAsync != null)
+                  _buildStudentSelector(studentsAsync, isDarkMode),
 
                 // Section tabs
                 _buildSectionTabs(availableSections.toList(), classData.assignments, isDarkMode),
@@ -98,10 +139,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 if (currentAssignment != null)
                   _buildPageNav(_currentPage, firstPage, lastPage, isDarkMode),
 
-                // Mushaf page
+                // Mushaf page with swipe (mistakes visible on scroll down)
                 Expanded(
                   child: currentAssignment != null
-                      ? _buildMushafPage(_currentPage, mistakesAsync, isDarkMode)
+                      ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode)
                       : Center(
                           child: Text(
                             'No portion selected',
@@ -109,9 +150,6 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                           ),
                         ),
                 ),
-
-                // Mistakes summary
-                _buildMistakesSummary(mistakesAsync, currentAssignment, firstPage, lastPage, isDarkMode),
               ],
             ),
           );
@@ -128,7 +166,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   Widget _buildHeader(String day, String date, bool isDarkMode) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         children: [
           IconButton(
@@ -148,6 +186,67 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStudentSelector(
+    AsyncValue<List<({String id, String name})>> studentsAsync,
+    bool isDarkMode,
+  ) {
+    return studentsAsync.when(
+      data: (students) {
+        if (students.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              'No students assigned',
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted(isDarkMode)),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Text(
+                'Student: ',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode)),
+              ),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary(isDarkMode).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary(isDarkMode).withOpacity(0.3)),
+                  ),
+                  child: DropdownButton<String>(
+                    value: _selectedStudentId,
+                    isExpanded: true,
+                    isDense: true,
+                    underline: const SizedBox.shrink(),
+                    dropdownColor: AppColors.surface(isDarkMode),
+                    style: TextStyle(fontSize: 13, color: AppColors.primary(isDarkMode)),
+                    items: students.map((s) => DropdownMenuItem(
+                      value: s.id,
+                      child: Text(s.name, style: TextStyle(color: AppColors.text(isDarkMode))),
+                    )).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _selectedStudentId = value);
+                        ref.read(mistakesProvider.notifier).setWebStudentId(value);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -183,7 +282,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   Widget _buildPortionSelector(List<Assignment> assignments, bool isDarkMode) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -238,9 +337,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final relevantMistakes = _getMistakesForAssignment(mistakes, assignment);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: GlassmorphicCard(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Row(
           children: [
             // Legend
@@ -310,7 +409,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final pageInRange = currentPage - firstPage + 1;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -318,7 +417,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           IconButton(
             icon: Icon(Icons.chevron_left, color: AppColors.textSecondary(isDarkMode)),
             onPressed: currentPage < lastPage
-                ? () => setState(() => _currentPage++)
+                ? () {
+                    setState(() => _currentPage++);
+                    _pageController?.animateToPage(
+                      _currentPage - firstPage,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
                 : null,
           ),
           // Page counter
@@ -334,11 +440,72 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           IconButton(
             icon: Icon(Icons.chevron_right, color: AppColors.textSecondary(isDarkMode)),
             onPressed: currentPage > firstPage
-                ? () => setState(() => _currentPage--)
+                ? () {
+                    setState(() => _currentPage--);
+                    _pageController?.animateToPage(
+                      _currentPage - firstPage,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
                 : null,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSwipeableMushafPage(
+    int firstPage,
+    int lastPage,
+    int totalPagesInRange,
+    AsyncValue<List<Mistake>> mistakesAsync,
+    Assignment? assignment,
+    bool isDarkMode,
+  ) {
+    // Ensure page controller exists
+    if (_pageController == null || !_pageController!.hasClients) {
+      _initPageController(firstPage, lastPage);
+    }
+
+    return PageView.builder(
+      controller: _pageController,
+      reverse: true, // RTL: swipe left = next page (higher number)
+      itemCount: totalPagesInRange,
+      onPageChanged: (index) {
+        setState(() => _currentPage = firstPage + index);
+      },
+      itemBuilder: (context, index) {
+        final pageNum = firstPage + index;
+        return _buildScrollablePage(pageNum, mistakesAsync, assignment, isDarkMode);
+      },
+    );
+  }
+
+  /// Each page is vertically scrollable: mushaf fills the viewport,
+  /// mistakes summary appears below when you scroll down.
+  Widget _buildScrollablePage(
+    int pageNum,
+    AsyncValue<List<Mistake>> mistakesAsync,
+    Assignment? assignment,
+    bool isDarkMode,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              // Mushaf page takes full available height
+              SizedBox(
+                height: constraints.maxHeight,
+                child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode),
+              ),
+              // Mistakes summary below (scroll down to see)
+              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -428,8 +595,6 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   Widget _buildMistakesSummary(
     AsyncValue<List<Mistake>> mistakesAsync,
     Assignment? assignment,
-    int firstPage,
-    int lastPage,
     bool isDarkMode,
   ) {
     if (assignment == null) return const SizedBox.shrink();
@@ -440,6 +605,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     if (relevantMistakes.isEmpty) return const SizedBox.shrink();
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface(isDarkMode),
@@ -447,16 +613,17 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Mistakes in this section:',
+            'Mistakes in this section (${relevantMistakes.length}):',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary(isDarkMode),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -484,6 +651,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             wordIndex: word.wordPosition - 1, // QPC is 1-based, mistakes are 0-based
             wordText: word.textUthmani,
             classId: widget.classId,
+            studentId: _selectedStudentId,
           );
           Navigator.pop(ctx);
         },
@@ -495,6 +663,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             wordText: charText,
             charIndex: charIndex,
             classId: widget.classId,
+            studentId: _selectedStudentId,
           );
           Navigator.pop(ctx);
         },

@@ -60,6 +60,27 @@ final surahWithAyahsProvider = FutureProvider.family<SurahWithAyahs?, int>((ref,
   return repo.getSurahWithAyahs(surahNumber);
 });
 
+// Teacher's students provider (web only — fetches from teacher_students)
+final teacherStudentsProvider = FutureProvider<List<({String id, String name})>>((ref) async {
+  if (!kIsWeb) return [];
+  final user = ref.read(authProvider).user;
+  if (user == null) return [];
+
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('teacher_students')
+      .select('student_id, student:profiles!student_id(id, name)')
+      .eq('teacher_id', user.id);
+
+  return (response as List).map((row) {
+    final student = row['student'] as Map<String, dynamic>?;
+    return (
+      id: (student?['id'] ?? row['student_id']).toString(),
+      name: (student?['name'] ?? 'Student').toString(),
+    );
+  }).toList();
+});
+
 // Classes provider
 final classesProvider = StateNotifierProvider<ClassesNotifier, AsyncValue<List<ClassSession>>>((ref) {
   return ClassesNotifier(ref.watch(classRepositoryProvider), ref);
@@ -92,9 +113,12 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
             .order('date', ascending: false);
 
         final classes = (response as List).map((row) {
+          final rawId = row['id'];
+          final supabaseId = rawId.toString();
+
           final assignmentsList = (row['assignments'] as List?)?.map((a) => Assignment(
-            id: a['id'] is String ? int.tryParse(a['id']) ?? 0 : a['id'] ?? 0,
-            classId: a['class_id'] is String ? int.tryParse(a['class_id']) ?? 0 : a['class_id'] ?? 0,
+            id: a['id'].hashCode,
+            classId: rawId is int ? rawId : supabaseId.hashCode,
             type: a['type'] ?? '',
             startSurah: a['start_surah'] ?? 0,
             endSurah: a['end_surah'] ?? 0,
@@ -103,7 +127,8 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
           )).toList() ?? [];
 
           return ClassSession(
-            id: row['id'] is String ? int.tryParse(row['id']) ?? 0 : row['id'] ?? 0,
+            id: rawId is int ? rawId : supabaseId.hashCode,
+            supabaseId: supabaseId,
             date: row['date'] ?? '',
             day: row['day'] ?? '',
             notes: row['notes'],
@@ -168,10 +193,18 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     return newClass;
   }
 
+  /// Find the Supabase UUID for a class by its int id.
+  String? _findSupabaseId(int id) {
+    final classes = state.value ?? [];
+    return classes.where((c) => c.id == id).firstOrNull?.supabaseId;
+  }
+
   Future<void> deleteClass(int id) async {
     if (kIsWeb) {
+      final sbId = _findSupabaseId(id);
+      if (sbId == null) return;
       final supabase = Supabase.instance.client;
-      await supabase.from('classes').update({'is_deleted': true}).eq('id', id);
+      await supabase.from('classes').update({'is_deleted': true}).eq('id', sbId);
       await loadClasses();
       return;
     }
@@ -181,8 +214,10 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
   Future<void> updateNotes(int id, String? notes) async {
     if (kIsWeb) {
+      final sbId = _findSupabaseId(id);
+      if (sbId == null) return;
       final supabase = Supabase.instance.client;
-      await supabase.from('classes').update({'notes': notes}).eq('id', id);
+      await supabase.from('classes').update({'notes': notes}).eq('id', sbId);
       await loadClasses();
       return;
     }
@@ -192,8 +227,10 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
   Future<void> updatePerformance(int id, String? performance) async {
     if (kIsWeb) {
+      final sbId = _findSupabaseId(id);
+      if (sbId == null) return;
       final supabase = Supabase.instance.client;
-      await supabase.from('classes').update({'performance': performance}).eq('id', id);
+      await supabase.from('classes').update({'performance': performance}).eq('id', sbId);
       await loadClasses();
       return;
     }
@@ -205,38 +242,10 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 // Single class provider
 final classProvider = FutureProvider.family<ClassSession?, int>((ref, id) async {
   if (kIsWeb) {
-    final user = ref.read(authProvider).user;
-    if (user == null) return null;
-
-    final supabase = Supabase.instance.client;
-    final response = await supabase
-        .from('classes')
-        .select('*, assignments(*)')
-        .eq('id', id)
-        .eq('teacher_id', user.id)
-        .maybeSingle();
-
-    if (response == null) return null;
-
-    final assignmentsList = (response['assignments'] as List?)?.map((a) => Assignment(
-      id: a['id'] is String ? int.tryParse(a['id']) ?? 0 : a['id'] ?? 0,
-      classId: a['class_id'] is String ? int.tryParse(a['class_id']) ?? 0 : a['class_id'] ?? 0,
-      type: a['type'] ?? '',
-      startSurah: a['start_surah'] ?? 0,
-      endSurah: a['end_surah'] ?? 0,
-      startAyah: a['start_ayah'],
-      endAyah: a['end_ayah'],
-    )).toList() ?? [];
-
-    return ClassSession(
-      id: response['id'] is String ? int.tryParse(response['id']) ?? 0 : response['id'] ?? 0,
-      date: response['date'] ?? '',
-      day: response['day'] ?? '',
-      notes: response['notes'],
-      performance: response['performance'],
-      createdAt: response['created_at'] ?? '',
-      assignments: assignmentsList,
-    );
+    // Web: find from already-loaded classes list (avoids UUID/int mismatch)
+    final classesState = ref.watch(classesProvider);
+    final classes = classesState.value ?? [];
+    return classes.where((c) => c.id == id).firstOrNull;
   }
   final repo = ref.watch(classRepositoryProvider);
   return repo.getClass(id);
@@ -250,9 +259,18 @@ final mistakesProvider = StateNotifierProvider<MistakesNotifier, AsyncValue<List
 class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
   final MistakeRepository _repository;
   final Ref _ref;
+  String? _webStudentId; // Track which student's mistakes are loaded (web only)
 
   MistakesNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
     loadMistakes();
+  }
+
+  /// Set the student ID for web mistake queries (teachers viewing student mistakes).
+  Future<void> setWebStudentId(String? studentId) async {
+    if (_webStudentId != studentId) {
+      _webStudentId = studentId;
+      await loadMistakes();
+    }
   }
 
   Future<void> loadMistakes() async {
@@ -265,12 +283,15 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
           return;
         }
 
+        // Use explicit student ID if set (teacher viewing student), else own
+        final targetId = _webStudentId ?? user.id;
+
         final supabase = Supabase.instance.client;
         // Get mistakes with occurrence counts using RPC or aggregation
         final response = await supabase
             .from('mistakes')
             .select()
-            .eq('student_id', user.id);
+            .eq('student_id', targetId);
 
         // Group by word to count occurrences
         final Map<String, Map<String, dynamic>> grouped = {};
@@ -283,14 +304,18 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
           }
         }
 
-        final mistakes = grouped.values.map((row) => Mistake(
-          id: row['id'] is String ? int.tryParse(row['id']) ?? 0 : row['id'] ?? 0,
-          surahNumber: row['surah_number'] ?? 0,
-          ayahNumber: row['ayah_number'] ?? 0,
-          wordIndex: row['word_index'] ?? 0,
-          wordText: row['word_text'] ?? '',
-          errorCount: row['count'] ?? 1,
-        )).toList();
+        final mistakes = grouped.values.map((row) {
+          final rawId = row['id'];
+          return Mistake(
+            id: rawId is int ? rawId : rawId.toString().hashCode,
+            supabaseId: rawId.toString(),
+            surahNumber: row['surah_number'] ?? 0,
+            ayahNumber: row['ayah_number'] ?? 0,
+            wordIndex: row['word_index'] ?? 0,
+            wordText: row['word_text'] ?? '',
+            errorCount: row['count'] ?? 1,
+          );
+        }).toList();
 
         state = AsyncValue.data(mistakes);
       } else {
@@ -309,24 +334,90 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
     required String wordText,
     int? charIndex,
     int? classId,
+    String? studentId, // Supabase student UUID (web only)
   }) async {
     if (kIsWeb) {
       final user = _ref.read(authProvider).user;
       if (user == null) throw Exception('Not authenticated');
 
+      // Use provided studentId, or fall back to current user
+      final targetStudentId = studentId ?? user.id;
+
       final supabase = Supabase.instance.client;
+
+      // Check for existing mistake (upsert logic matching React web app)
+      var query = supabase
+          .from('mistakes')
+          .select('id, error_count')
+          .eq('student_id', targetStudentId)
+          .eq('surah_number', surahNumber)
+          .eq('ayah_number', ayahNumber)
+          .eq('word_index', wordIndex);
+
+      if (charIndex != null) {
+        query = query.eq('char_index', charIndex);
+      } else {
+        query = query.isFilter('char_index', null);
+      }
+
+      final existing = await query.maybeSingle();
+
+      if (existing != null) {
+        // Update existing — increment error_count
+        final newCount = (existing['error_count'] as int? ?? 1) + 1;
+        await supabase.from('mistakes').update({'error_count': newCount}).eq('id', existing['id']);
+
+        // Add occurrence if class_id provided
+        if (classId != null) {
+          final classes = _ref.read(classesProvider).value ?? [];
+          final cls = classes.where((c) => c.id == classId).firstOrNull;
+          if (cls?.supabaseId != null) {
+            await supabase.from('mistake_occurrences').insert({
+              'mistake_id': existing['id'],
+              'class_id': cls!.supabaseId,
+            });
+          }
+        }
+
+        await loadMistakes();
+        return Mistake(
+          id: existing['id'].hashCode,
+          supabaseId: existing['id'].toString(),
+          surahNumber: surahNumber,
+          ayahNumber: ayahNumber,
+          wordIndex: wordIndex,
+          wordText: wordText,
+          errorCount: newCount,
+        );
+      }
+
+      // Create new mistake
       final response = await supabase.from('mistakes').insert({
-        'student_id': user.id,
+        'student_id': targetStudentId,
         'surah_number': surahNumber,
         'ayah_number': ayahNumber,
         'word_index': wordIndex,
         'word_text': wordText,
         'char_index': charIndex,
+        'error_count': 1,
       }).select().single();
+
+      // Add occurrence if class_id provided
+      if (classId != null) {
+        final classes = _ref.read(classesProvider).value ?? [];
+        final cls = classes.where((c) => c.id == classId).firstOrNull;
+        if (cls?.supabaseId != null) {
+          await supabase.from('mistake_occurrences').insert({
+            'mistake_id': response['id'],
+            'class_id': cls!.supabaseId,
+          });
+        }
+      }
 
       await loadMistakes();
       return Mistake(
-        id: response['id'],
+        id: response['id'].hashCode,
+        supabaseId: response['id'].toString(),
         surahNumber: surahNumber,
         ayahNumber: ayahNumber,
         wordIndex: wordIndex,
@@ -349,8 +440,13 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
 
   Future<void> removeMistake(int id) async {
     if (kIsWeb) {
+      // Find the Supabase UUID from the loaded mistakes list
+      final mistakes = state.value ?? [];
+      final match = mistakes.where((m) => m.id == id).firstOrNull;
+      final sbId = match?.supabaseId;
+      if (sbId == null) return;
       final supabase = Supabase.instance.client;
-      await supabase.from('mistakes').delete().eq('id', id);
+      await supabase.from('mistakes').delete().eq('id', sbId);
       await loadMistakes();
       return;
     }
