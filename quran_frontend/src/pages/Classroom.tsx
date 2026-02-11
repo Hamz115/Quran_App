@@ -925,18 +925,18 @@ export default function Classroom() {
                 }}
                 disabled={performanceSaving}
                 className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium ${
-                  studentPerf === 'Excellent' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                  : studentPerf === 'Very Good' ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
-                  : studentPerf === 'Good' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  : studentPerf === 'Needs Work' ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                  : 'bg-slate-700/50 text-slate-400 border border-slate-600'
+                  studentPerf === 'Excellent' ? darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                  : studentPerf === 'Very Good' ? darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-300'
+                  : studentPerf === 'Good' ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
+                  : studentPerf === 'Needs Work' ? darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-300'
+                  : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
                 }`}
               >
-                <option value="" className="bg-slate-800">Not rated</option>
-                <option value="Excellent" className="bg-slate-800">Excellent</option>
-                <option value="Very Good" className="bg-slate-800">Very Good</option>
-                <option value="Good" className="bg-slate-800">Good</option>
-                <option value="Needs Work" className="bg-slate-800">Needs Work</option>
+                <option value="" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Not rated</option>
+                <option value="Excellent" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Excellent</option>
+                <option value="Very Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Very Good</option>
+                <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
+                <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
               </select>
             </div>
           );
@@ -946,7 +946,9 @@ export default function Classroom() {
           <button
             onClick={() => setShowNotesEditor(!showNotesEditor)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors ${
-              classData.notes ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-700/50 text-slate-400 border border-slate-600'
+              classData.notes
+                ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
+                : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
             }`}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1362,9 +1364,11 @@ export default function Classroom() {
             <div className="flex items-center gap-4">
               {isTeacher && <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Click words to mark. Right-click to remove.</p>}
               <div className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                totalErrors === 0 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-600/50'
-                : totalErrors < 5 ? 'bg-amber-500/20 text-amber-400 border border-amber-600/50'
-                : 'bg-red-500/20 text-red-400 border border-red-600/50'
+                totalErrors === 0
+                  ? darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-600/50' : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                  : totalErrors < 5
+                  ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-600/50' : 'bg-amber-100 text-amber-700 border border-amber-300'
+                  : darkMode ? 'bg-red-500/20 text-red-400 border border-red-600/50' : 'bg-red-100 text-red-700 border border-red-300'
               }`}>
                 {totalErrors} {totalErrors === 1 ? 'mistake' : 'mistakes'}
               </div>
@@ -1552,11 +1556,11 @@ export default function Classroom() {
             );
 
             const getMistakeColor = (errorCount: number) => {
-              if (errorCount >= 5) return 'bg-red-500/20 text-red-400 border-red-600/50';
-              if (errorCount >= 4) return 'bg-purple-500/20 text-purple-400 border-purple-600/50';
-              if (errorCount >= 3) return 'bg-orange-500/20 text-orange-400 border-orange-600/50';
-              if (errorCount >= 2) return 'bg-cyan-500/20 text-cyan-400 border-cyan-600/50';
-              return 'bg-amber-500/20 text-amber-400 border-amber-600/50';
+              if (errorCount >= 5) return darkMode ? 'bg-red-500/20 text-red-400 border-red-600/50' : 'bg-red-100 text-red-700 border-red-300';
+              if (errorCount >= 4) return darkMode ? 'bg-purple-500/20 text-purple-400 border-purple-600/50' : 'bg-purple-100 text-purple-700 border-purple-300';
+              if (errorCount >= 3) return darkMode ? 'bg-orange-500/20 text-orange-400 border-orange-600/50' : 'bg-orange-100 text-orange-700 border-orange-300';
+              if (errorCount >= 2) return darkMode ? 'bg-cyan-500/20 text-cyan-400 border-cyan-600/50' : 'bg-cyan-100 text-cyan-700 border-cyan-300';
+              return darkMode ? 'bg-amber-500/20 text-amber-400 border-amber-600/50' : 'bg-amber-100 text-amber-700 border-amber-300';
             };
 
             const renderMistake = (m: Mistake) => (

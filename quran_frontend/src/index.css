@@ -287,6 +287,23 @@ body {
   padding: 0 2px;
 }
 
+/* Light mode: stronger mistake highlights for visibility on white */
+.light .mistake-1, .light .letter-mistake-1 {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.5) 0%, rgba(251, 191, 36, 0.35) 100%);
+}
+.light .mistake-2, .light .letter-mistake-2 {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.35) 100%);
+}
+.light .mistake-3, .light .letter-mistake-3 {
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.5) 0%, rgba(249, 115, 22, 0.35) 100%);
+}
+.light .mistake-4, .light .letter-mistake-4 {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.55) 0%, rgba(168, 85, 247, 0.4) 100%);
+}
+.light .mistake-5, .light .letter-mistake-5 {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.55) 0%, rgba(239, 68, 68, 0.4) 100%);
+}
+
 /* Character color highlighting - for harakat */
 .char-color-1 {
   color: #f59e0b !important;

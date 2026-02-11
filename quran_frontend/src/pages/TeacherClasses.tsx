@@ -1026,22 +1026,22 @@ export default function TeacherClasses() {
                                       }}
                                       className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                                         student.performance === 'Excellent'
-                                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                          ? darkMode ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-blue-100 text-blue-700 border border-blue-300'
                                           : student.performance === 'Very Good'
-                                          ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                                          ? darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-300'
                                           : student.performance === 'Good'
-                                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                          ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
                                           : student.performance === 'Needs Work'
-                                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                          : 'bg-slate-700/50 text-slate-400 border border-slate-600'
+                                          ? darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-300'
+                                          : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
                                       }`}
-                                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }}
+                                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='${darkMode ? '%2394a3b8' : '%2364748b'}'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }}
                                     >
-                                      <option value="" className="bg-slate-800">Select...</option>
-                                      <option value="Excellent" className="bg-slate-800">Excellent</option>
-                                      <option value="Very Good" className="bg-slate-800">Very Good</option>
-                                      <option value="Good" className="bg-slate-800">Good</option>
-                                      <option value="Needs Work" className="bg-slate-800">Needs Work</option>
+                                      <option value="" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Select...</option>
+                                      <option value="Excellent" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Excellent</option>
+                                      <option value="Very Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Very Good</option>
+                                      <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
+                                      <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
                                     </select>
                                   </div>
                                 </div>
@@ -1049,9 +1049,9 @@ export default function TeacherClasses() {
                                 {/* Portions Grid - Each type on its own row */}
                                 <div className="space-y-2">
                                   {/* Hifz Row */}
-                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                                    <span className="text-xs font-semibold text-blue-400 w-16 flex-shrink-0">HIFZ</span>
-                                    <span className="text-sm text-blue-300 flex-1">{getPortionDisplay(cls, 'hifz', student.id)}</span>
+                                  <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${darkMode ? 'bg-blue-500/5 border border-blue-500/10' : 'bg-blue-50 border border-blue-200/50'}`}>
+                                    <span className={`text-xs font-semibold w-16 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>HIFZ</span>
+                                    <span className={`text-sm flex-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{getPortionDisplay(cls, 'hifz', student.id)}</span>
                                     {(student.mistake_counts?.hifz ?? 0) > 0 && (
                                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                         (student.mistake_counts?.hifz ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
@@ -1063,9 +1063,9 @@ export default function TeacherClasses() {
                                     )}
                                   </div>
                                   {/* Sabqi Row */}
-                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
-                                    <span className="text-xs font-semibold text-cyan-400 w-16 flex-shrink-0">SABQI</span>
-                                    <span className="text-sm text-cyan-300 flex-1">{getPortionDisplay(cls, 'sabqi', student.id)}</span>
+                                  <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${darkMode ? 'bg-cyan-500/5 border border-cyan-500/10' : 'bg-cyan-50 border border-cyan-200/50'}`}>
+                                    <span className={`text-xs font-semibold w-16 flex-shrink-0 ${darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>SABQI</span>
+                                    <span className={`text-sm flex-1 ${darkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>{getPortionDisplay(cls, 'sabqi', student.id)}</span>
                                     {(student.mistake_counts?.sabqi ?? 0) > 0 && (
                                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                         (student.mistake_counts?.sabqi ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
@@ -1077,9 +1077,9 @@ export default function TeacherClasses() {
                                     )}
                                   </div>
                                   {/* Manzil Row */}
-                                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-500/5 border border-slate-500/10">
-                                    <span className="text-xs font-semibold text-slate-400 w-16 flex-shrink-0">MANZIL</span>
-                                    <span className="text-sm text-slate-300 flex-1">{getPortionDisplay(cls, 'revision', student.id)}</span>
+                                  <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${darkMode ? 'bg-slate-500/5 border border-slate-500/10' : 'bg-slate-50 border border-slate-200/50'}`}>
+                                    <span className={`text-xs font-semibold w-16 flex-shrink-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>MANZIL</span>
+                                    <span className={`text-sm flex-1 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>{getPortionDisplay(cls, 'revision', student.id)}</span>
                                     {(student.mistake_counts?.revision ?? 0) > 0 && (
                                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                         (student.mistake_counts?.revision ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
