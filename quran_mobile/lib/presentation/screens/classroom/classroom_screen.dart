@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../../config/theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../../data/models/assignment.dart';
 import '../../../data/models/mistake.dart';
+import '../../../data/models/quran_page_word.dart';
+import '../../../data/quran_data.dart';
 import '../../providers/providers.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/quran_page_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/mushaf_page_widget.dart';
 import '../../widgets/section_badge.dart';
 import 'word_popup.dart';
 
@@ -22,15 +26,16 @@ class ClassroomScreen extends ConsumerStatefulWidget {
 class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   String _activeSection = 'hifz';
   int _selectedPortionIndex = 0;
-  int? _selectedSurahNum;
+  int _currentPage = 0; // 0 = not yet initialized
 
   @override
   Widget build(BuildContext context) {
     final classAsync = ref.watch(classProvider(widget.classId));
     final mistakesAsync = ref.watch(mistakesProvider);
+    final isDarkMode = ref.watch(themeProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.slate900,
+      backgroundColor: AppColors.background(isDarkMode),
       body: classAsync.when(
         data: (classData) {
           if (classData == null) {
@@ -54,51 +59,74 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               ? sectionAssignments[_selectedPortionIndex]
               : null;
 
-          // Set initial surah
-          if (_selectedSurahNum == null && currentAssignment != null) {
-            _selectedSurahNum = currentAssignment.startSurah;
+          // Compute page range from current assignment
+          int firstPage = 1;
+          int lastPage = 1;
+          if (currentAssignment != null) {
+            final range = getPageRange(
+              startSurah: currentAssignment.startSurah,
+              endSurah: currentAssignment.endSurah,
+              startAyah: currentAssignment.startAyah,
+              endAyah: currentAssignment.endAyah,
+            );
+            firstPage = range.$1;
+            lastPage = range.$2;
+          }
+
+          // Initialize current page if not set or out of range
+          if (_currentPage < firstPage || _currentPage > lastPage) {
+            _currentPage = firstPage;
           }
 
           return SafeArea(
             child: Column(
               children: [
                 // Header
-                _buildHeader(classData.day, classData.date),
+                _buildHeader(classData.day, classData.date, isDarkMode),
 
                 // Section tabs
-                _buildSectionTabs(availableSections.toList(), classData.assignments),
+                _buildSectionTabs(availableSections.toList(), classData.assignments, isDarkMode),
 
                 // Portion selector (if multiple)
                 if (sectionAssignments.length > 1)
-                  _buildPortionSelector(sectionAssignments),
-
-                // Surah selector (if multi-surah)
-                if (currentAssignment != null && currentAssignment.isMultiSurah)
-                  _buildSurahSelector(currentAssignment),
+                  _buildPortionSelector(sectionAssignments, isDarkMode),
 
                 // Legend & stats
-                _buildInfoBar(mistakesAsync, currentAssignment),
+                _buildInfoBar(mistakesAsync, currentAssignment, isDarkMode),
 
-                // Quran text
+                // Page navigation
+                if (currentAssignment != null)
+                  _buildPageNav(_currentPage, firstPage, lastPage, isDarkMode),
+
+                // Mushaf page
                 Expanded(
-                  child: currentAssignment != null && _selectedSurahNum != null
-                      ? _buildQuranText(_selectedSurahNum!, currentAssignment, mistakesAsync)
-                      : const Center(child: Text('No portion selected')),
+                  child: currentAssignment != null
+                      ? _buildMushafPage(_currentPage, mistakesAsync, isDarkMode)
+                      : Center(
+                          child: Text(
+                            'No portion selected',
+                            style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                          ),
+                        ),
                 ),
 
                 // Mistakes summary
-                _buildMistakesSummary(mistakesAsync, currentAssignment),
+                _buildMistakesSummary(mistakesAsync, currentAssignment, firstPage, lastPage, isDarkMode),
               ],
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: AppColors.primary(isDarkMode)),
+        ),
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: TextStyle(color: AppColors.text(isDarkMode))),
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(String day, String date) {
+  Widget _buildHeader(String day, String date, bool isDarkMode) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -106,15 +134,15 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           IconButton(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back_rounded),
-            color: AppTheme.slate400,
+            color: AppColors.textSecondary(isDarkMode),
           ),
           Expanded(
             child: Text(
               'Class - $day, $date',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.slate100,
+                color: AppColors.text(isDarkMode),
               ),
             ),
           ),
@@ -123,14 +151,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildSectionTabs(List<String> sections, List<Assignment> allAssignments) {
+  Widget _buildSectionTabs(List<String> sections, List<Assignment> allAssignments, bool isDarkMode) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: sections.map((type) {
           final isSelected = _activeSection == type;
-          final color = AppTheme.getSectionColor(type);
           final count = allAssignments.where((a) => a.type == type).length;
 
           return Padding(
@@ -144,7 +171,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 setState(() {
                   _activeSection = type;
                   _selectedPortionIndex = 0;
-                  _selectedSurahNum = null;
+                  _currentPage = 0; // reset so it re-initializes
                 });
               },
             ),
@@ -154,7 +181,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildPortionSelector(List<Assignment> assignments) {
+  Widget _buildPortionSelector(List<Assignment> assignments, bool isDarkMode) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
@@ -164,7 +191,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             final index = entry.key;
             final assignment = entry.value;
             final isSelected = _selectedPortionIndex == index;
-            final color = AppTheme.getSectionColor(assignment.type);
+            final color = AppColors.getSectionColor(assignment.type);
 
             final surahName = AppConstants.surahNames[assignment.startSurah] ?? '';
             String label = surahName;
@@ -178,23 +205,23 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 onTap: () {
                   setState(() {
                     _selectedPortionIndex = index;
-                    _selectedSurahNum = assignment.startSurah;
+                    _currentPage = 0; // reset so it re-initializes
                   });
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? color.withOpacity(0.2) : AppTheme.slate800,
+                    color: isSelected ? color.withOpacity(0.2) : AppColors.surface(isDarkMode),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isSelected ? color.withOpacity(0.5) : AppTheme.slate700,
+                      color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
                     ),
                   ),
                   child: Text(
                     'Portion ${index + 1}: $label',
                     style: TextStyle(
                       fontSize: 13,
-                      color: isSelected ? color : AppTheme.slate400,
+                      color: isSelected ? color : AppColors.textSecondary(isDarkMode),
                     ),
                   ),
                 ),
@@ -206,59 +233,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildSurahSelector(Assignment assignment) {
-    final surahs = assignment.surahNumbers;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: surahs.map((num) {
-            final isSelected = _selectedSurahNum == num;
-            final name = AppConstants.surahNames[num] ?? 'Surah $num';
-
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedSurahNum = num),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.emerald500 : AppTheme.slate800,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$num. $name',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? Colors.white : AppTheme.slate400,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoBar(AsyncValue<List<Mistake>> mistakesAsync, Assignment? assignment) {
+  Widget _buildInfoBar(AsyncValue<List<Mistake>> mistakesAsync, Assignment? assignment, bool isDarkMode) {
     final mistakes = mistakesAsync.value ?? [];
-    final relevantMistakes = assignment == null
-        ? []
-        : mistakes.where((m) {
-            if (m.surahNumber != _selectedSurahNum) return false;
-            if (assignment.hasAyahRange) {
-              return m.ayahNumber >= assignment.startAyah! && m.ayahNumber <= assignment.endAyah!;
-            }
-            return true;
-          }).toList();
+    final relevantMistakes = _getMistakesForAssignment(mistakes, assignment);
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GlassmorphicCard(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -269,11 +249,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  _buildLegendItem('1x', AppTheme.mistake1),
-                  _buildLegendItem('2x', AppTheme.mistake2),
-                  _buildLegendItem('3x', AppTheme.mistake3),
-                  _buildLegendItem('4x', AppTheme.mistake4),
-                  _buildLegendItem('5+', AppTheme.mistake5),
+                  _buildLegendItem('1x', AppColors.mistake1, isDarkMode),
+                  _buildLegendItem('2x', AppColors.mistake2, isDarkMode),
+                  _buildLegendItem('3x', AppColors.mistake3, isDarkMode),
+                  _buildLegendItem('4x', AppColors.mistake4, isDarkMode),
+                  _buildLegendItem('5+', AppColors.mistake5, isDarkMode),
                 ],
               ),
             ),
@@ -282,13 +262,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: relevantMistakes.isEmpty
-                    ? AppTheme.emerald500.withOpacity(0.2)
-                    : AppTheme.mistake1.withOpacity(0.2),
+                    ? AppColors.emerald500.withOpacity(0.2)
+                    : AppColors.mistake1.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: relevantMistakes.isEmpty
-                      ? AppTheme.emerald500.withOpacity(0.3)
-                      : AppTheme.mistake1.withOpacity(0.3),
+                      ? AppColors.emerald500.withOpacity(0.3)
+                      : AppColors.mistake1.withOpacity(0.3),
                 ),
               ),
               child: Text(
@@ -296,7 +276,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: relevantMistakes.isEmpty ? AppTheme.emerald400 : AppTheme.mistake1,
+                  color: relevantMistakes.isEmpty ? AppColors.emerald400 : AppColors.mistake1,
                 ),
               ),
             ),
@@ -306,7 +286,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
+  Widget _buildLegendItem(String label, Color color, bool isDarkMode) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -320,193 +300,161 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.slate400)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary(isDarkMode))),
       ],
     );
   }
 
-  Widget _buildQuranText(int surahNumber, Assignment assignment, AsyncValue<List<Mistake>> mistakesAsync) {
-    final surahAsync = ref.watch(surahWithAyahsProvider(surahNumber));
+  Widget _buildPageNav(int currentPage, int firstPage, int lastPage, bool isDarkMode) {
+    final totalPagesInRange = lastPage - firstPage + 1;
+    final pageInRange = currentPage - firstPage + 1;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Next page (higher page number) — RTL: left arrow goes forward
+          IconButton(
+            icon: Icon(Icons.chevron_left, color: AppColors.textSecondary(isDarkMode)),
+            onPressed: currentPage < lastPage
+                ? () => setState(() => _currentPage++)
+                : null,
+          ),
+          // Page counter
+          Text(
+            '$pageInRange / $totalPagesInRange  (p. $currentPage)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text(isDarkMode),
+            ),
+          ),
+          // Previous page (lower page number) — RTL: right arrow goes back
+          IconButton(
+            icon: Icon(Icons.chevron_right, color: AppColors.textSecondary(isDarkMode)),
+            onPressed: currentPage > firstPage
+                ? () => setState(() => _currentPage--)
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMushafPage(int pageNum, AsyncValue<List<Mistake>> mistakesAsync, bool isDarkMode) {
+    final pageDataAsync = ref.watch(quranPageDataProvider(pageNum));
+    final fontReadyAsync = ref.watch(fontReadyProvider(pageNum));
     final mistakes = mistakesAsync.value ?? [];
 
-    return surahAsync.when(
-      data: (surahData) {
-        if (surahData == null) return const Center(child: Text('Surah not found'));
-
-        var ayahs = surahData.ayahs;
-
-        // Filter ayahs if specific range
-        if (assignment.startSurah == assignment.endSurah && assignment.hasAyahRange) {
-          ayahs = ayahs.where((a) => a.ayahNumber >= assignment.startAyah! && a.ayahNumber <= assignment.endAyah!).toList();
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: GlassmorphicCard(
-            padding: const EdgeInsets.all(20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: pageDataAsync.when(
+        data: (pageData) => fontReadyAsync.when(
+          data: (_) => MushafPageWidget(
+            pageNumber: pageNum,
+            pageData: pageData,
+            isDarkMode: isDarkMode,
+            mistakes: mistakes,
+            onWordTap: (word) => _showWordPopup(context, word),
+            onWordLongPress: (word) => _removeMistake(word, mistakes),
+          ),
+          loading: () => Center(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Surah header
-                Text(
-                  surahData.surah.name,
-                  style: GoogleFonts.amiri(
-                    fontSize: 28,
-                    color: AppTheme.slate100,
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary(isDarkMode),
                   ),
                 ),
+                const SizedBox(height: 8),
                 Text(
-                  '${surahData.surah.englishName} - ${surahData.surah.englishNameTranslation}',
-                  style: const TextStyle(fontSize: 14, color: AppTheme.slate400),
-                ),
-                const SizedBox(height: 20),
-
-                // Bismillah
-                if (surahNumber != 9 && surahNumber != 1)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Text(
-                      'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                      style: GoogleFonts.amiri(
-                        fontSize: 24,
-                        color: AppTheme.emerald400,
-                      ),
-                      textDirection: TextDirection.rtl,
-                    ),
-                  ),
-
-                // Ayahs
-                Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: Wrap(
-                    alignment: WrapAlignment.start,
-                    children: ayahs.expand((ayah) {
-                      // Strip bismillah from first ayah
-                      final shouldStripBismillah = ayah.ayahNumber == 1 && surahNumber != 1 && surahNumber != 9;
-                      final words = ayah.text.split(' ');
-                      final displayWords = shouldStripBismillah ? words.skip(4).toList() : words;
-                      final wordOffset = shouldStripBismillah ? 4 : 0;
-
-                      return [
-                        ...displayWords.asMap().entries.map((entry) {
-                          final wordIndex = entry.key + wordOffset;
-                          final word = entry.value;
-
-                          // Find whole-word mistake
-                          final wordMistake = mistakes.where((m) =>
-                              m.surahNumber == surahNumber &&
-                              m.ayahNumber == ayah.ayahNumber &&
-                              m.wordIndex == wordIndex &&
-                              m.charIndex == null).firstOrNull;
-
-                          // Find character-level mistakes for this word
-                          final charMistakes = mistakes.where((m) =>
-                              m.surahNumber == surahNumber &&
-                              m.ayahNumber == ayah.ayahNumber &&
-                              m.wordIndex == wordIndex &&
-                              m.charIndex != null).toList();
-
-                          final mistakeLevel = wordMistake?.severityLevel ?? 0;
-                          final hasCharMistakes = charMistakes.isNotEmpty;
-
-                          return GestureDetector(
-                            onTap: () => _showWordPopup(
-                              context,
-                              word,
-                              surahNumber,
-                              ayah.ayahNumber,
-                              wordIndex,
-                            ),
-                            onLongPress: () {
-                              if (wordMistake != null) {
-                                ref.read(mistakesProvider.notifier).removeMistake(wordMistake.id!);
-                              }
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              decoration: mistakeLevel > 0
-                                  ? BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          AppTheme.getMistakeColor(mistakeLevel).withOpacity(0.3),
-                                          AppTheme.getMistakeColor(mistakeLevel).withOpacity(0.1),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: AppTheme.getMistakeColor(mistakeLevel),
-                                          width: 2,
-                                        ),
-                                      ),
-                                    )
-                                  : null,
-                              child: hasCharMistakes
-                                  ? _buildHighlightedWord(word, charMistakes)
-                                  : Text(
-                                      word,
-                                      style: GoogleFonts.amiri(
-                                        fontSize: 24,
-                                        height: 2.2,
-                                        color: AppTheme.slate200,
-                                      ),
-                                    ),
-                            ),
-                          );
-                        }),
-                        // Ayah number
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            ' ﴿${ayah.ayahNumber}﴾ ',
-                            style: GoogleFonts.amiri(
-                              fontSize: 18,
-                              color: AppTheme.emerald400,
-                            ),
-                          ),
-                        ),
-                      ];
-                    }).toList(),
-                  ),
+                  'Loading fonts...',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted(isDarkMode)),
                 ),
               ],
             ),
           ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => MushafPageWidget(
+            pageNumber: pageNum,
+            pageData: pageData,
+            isDarkMode: isDarkMode,
+            mistakes: mistakes,
+            onWordTap: (word) => _showWordPopup(context, word),
+            onWordLongPress: (word) => _removeMistake(word, mistakes),
+          ),
+        ),
+        loading: () => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary(isDarkMode),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Loading page $pageNum...',
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted(isDarkMode)),
+              ),
+            ],
+          ),
+        ),
+        error: (e, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: AppColors.error, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'Error loading page $pageNum',
+                style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildMistakesSummary(AsyncValue<List<Mistake>> mistakesAsync, Assignment? assignment) {
+  Widget _buildMistakesSummary(
+    AsyncValue<List<Mistake>> mistakesAsync,
+    Assignment? assignment,
+    int firstPage,
+    int lastPage,
+    bool isDarkMode,
+  ) {
     if (assignment == null) return const SizedBox.shrink();
 
     final mistakes = mistakesAsync.value ?? [];
-    final relevantMistakes = mistakes.where((m) {
-      if (m.surahNumber != _selectedSurahNum) return false;
-      if (assignment.hasAyahRange) {
-        return m.ayahNumber >= assignment.startAyah! && m.ayahNumber <= assignment.endAyah!;
-      }
-      return true;
-    }).toList();
+    final relevantMistakes = _getMistakesForAssignment(mistakes, assignment);
 
     if (relevantMistakes.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.slate800,
-        border: Border(top: BorderSide(color: AppTheme.slate700.withOpacity(0.5))),
+        color: AppColors.surface(isDarkMode),
+        border: Border(top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Mistakes in this section:',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.slate300),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(isDarkMode),
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -523,81 +471,74 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  void _showWordPopup(BuildContext context, String word, int surahNumber, int ayahNumber, int wordIndex) {
+  void _showWordPopup(BuildContext context, QuranPageWord word) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => WordPopup(
-        word: word,
+      builder: (ctx) => WordPopup(
+        word: word.textUthmani,
         onSelectWhole: () {
           ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: surahNumber,
-            ayahNumber: ayahNumber,
-            wordIndex: wordIndex,
-            wordText: word,
+            surahNumber: word.surahNum,
+            ayahNumber: word.ayahNum,
+            wordIndex: word.wordPosition - 1, // QPC is 1-based, mistakes are 0-based
+            wordText: word.textUthmani,
             classId: widget.classId,
           );
-          Navigator.pop(context);
+          Navigator.pop(ctx);
         },
         onSelectChar: (charIndex, charText) {
           ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: surahNumber,
-            ayahNumber: ayahNumber,
-            wordIndex: wordIndex,
-            wordText: charText,  // Store only the letter/harakat
+            surahNumber: word.surahNum,
+            ayahNumber: word.ayahNum,
+            wordIndex: word.wordPosition - 1,
+            wordText: charText,
             charIndex: charIndex,
             classId: widget.classId,
           );
-          Navigator.pop(context);
+          Navigator.pop(ctx);
         },
       ),
     );
   }
 
-  /// Builds a word with highlighted characters for character-level mistakes
-  Widget _buildHighlightedWord(String word, List<Mistake> charMistakes) {
-    // Build a map of charIndex -> mistake for quick lookup
-    final mistakeMap = <int, Mistake>{};
-    for (final m in charMistakes) {
-      if (m.charIndex != null) {
-        mistakeMap[m.charIndex!] = m;
-      }
+  void _removeMistake(QuranPageWord word, List<Mistake> mistakes) {
+    final wordIndex = word.wordPosition - 1;
+    final match = mistakes.where((m) =>
+      m.surahNumber == word.surahNum &&
+      m.ayahNumber == word.ayahNum &&
+      m.wordIndex == wordIndex &&
+      m.charIndex == null
+    ).firstOrNull;
+    if (match != null) {
+      ref.read(mistakesProvider.notifier).removeMistake(match.id!);
     }
+  }
 
-    // Build TextSpan for each character using raw code units (same as word_popup.dart)
-    final spans = <TextSpan>[];
+  /// Get all mistakes relevant to the entire assignment (across all pages).
+  List<Mistake> _getMistakesForAssignment(List<Mistake> allMistakes, Assignment? assignment) {
+    if (assignment == null) return [];
 
-    for (int i = 0; i < word.length; i++) {
-      final char = word[i];
-      final mistake = mistakeMap[i];
-
-      if (mistake != null) {
-        // This character has a mistake - highlight it
-        final color = AppTheme.getMistakeColor(mistake.severityLevel);
-        spans.add(TextSpan(
-          text: char,
-          style: GoogleFonts.amiri(
-            fontSize: 24,
-            height: 2.2,
-            color: color,
-            backgroundColor: color.withOpacity(0.3),
-          ),
-        ));
-      } else {
-        // Normal character
-        spans.add(TextSpan(
-          text: char,
-          style: GoogleFonts.amiri(
-            fontSize: 24,
-            height: 2.2,
-            color: AppTheme.slate200,
-          ),
-        ));
+    return allMistakes.where((m) {
+      // Check if mistake's surah is within the assignment range
+      if (m.surahNumber < assignment.startSurah || m.surahNumber > assignment.endSurah) {
+        return false;
       }
-    }
 
-    return RichText(
-      text: TextSpan(children: spans),
-    );
+      // If single surah with ayah range, filter by ayah
+      if (assignment.startSurah == assignment.endSurah && assignment.hasAyahRange) {
+        return m.ayahNumber >= assignment.startAyah! && m.ayahNumber <= assignment.endAyah!;
+      }
+
+      // Multi-surah: filter ayahs at the boundaries
+      if (m.surahNumber == assignment.startSurah && assignment.startAyah != null) {
+        if (m.ayahNumber < assignment.startAyah!) return false;
+      }
+      if (m.surahNumber == assignment.endSurah && assignment.endAyah != null) {
+        if (m.ayahNumber > assignment.endAyah!) return false;
+      }
+
+      return true;
+    }).toList();
   }
 }

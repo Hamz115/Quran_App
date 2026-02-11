@@ -189,6 +189,61 @@ cd quran_mobile && flutter run
 # Navigate to Quran Reader tab
 ```
 
+## Classroom Integration (Phase 13.5)
+
+### How MushafPageWidget Was Extended
+
+`MushafPageWidget` gained two optional callbacks:
+
+```dart
+final void Function(QuranPageWord word)? onWordTap;
+final void Function(QuranPageWord word)? onWordLongPress;
+```
+
+When either callback is provided, each word widget is wrapped in a `GestureDetector`. This keeps the widget **backwards-compatible** — `QuranReaderScreen` passes no callbacks (read-only mode), while `ClassroomScreen` passes callbacks for mistake marking.
+
+### Classroom Reuses the Same QPC Pipeline
+
+```
+ClassroomScreen
+  ├── ref.watch(quranPageDataProvider(pageNum))  → QuranPageData
+  ├── ref.watch(fontReadyProvider(pageNum))       → QpcFontService
+  └── MushafPageWidget(
+        pageNumber, pageData, isDarkMode, mistakes,
+        onWordTap: _showWordPopup,        // ← new
+        onWordLongPress: _removeMistake,  // ← new
+      )
+```
+
+The same `QpcFontService`, `QuranPageDataService`, and providers used by `QuranReaderScreen` are reused without modification.
+
+### Page Range Helpers
+
+Added to `quran_data.dart`:
+
+- `getLastPageForSurah(int surahNum)` — Returns the last mushaf page of a surah by looking at the next surah's first page minus one.
+- `getPageRange({startSurah, endSurah, startAyah?, endAyah?})` — Computes `(firstPage, lastPage)` for an assignment's range.
+
+### Architecture
+
+```
+┌──────────────────┐     ┌──────────────────┐
+│ QuranReaderScreen │     │ ClassroomScreen   │
+│   (read-only)    │     │   (interactive)   │
+└────────┬─────────┘     └────────┬──────────┘
+         │                        │
+         ▼                        ▼
+┌─────────────────────────────────────────┐
+│         MushafPageWidget                │
+│  (onWordTap? / onWordLongPress?)        │
+├─────────────────────────────────────────┤
+│  quranPageDataProvider ← JSON assets    │
+│  fontReadyProvider     ← QpcFontService │
+└─────────────────────────────────────────┘
+```
+
+---
+
 ## Verification Checklist
 
 - [ ] Font conversion: 604 .ttf files generated

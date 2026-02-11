@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_colors.dart';
 import '../../core/services/qpc_font_service.dart';
 import '../../data/models/quran_page_data.dart';
@@ -15,6 +14,8 @@ class MushafPageWidget extends StatelessWidget {
   final QuranPageData pageData;
   final bool isDarkMode;
   final List<Mistake> mistakes;
+  final void Function(QuranPageWord word)? onWordTap;
+  final void Function(QuranPageWord word)? onWordLongPress;
 
   const MushafPageWidget({
     super.key,
@@ -22,6 +23,8 @@ class MushafPageWidget extends StatelessWidget {
     required this.pageData,
     required this.isDarkMode,
     this.mistakes = const [],
+    this.onWordTap,
+    this.onWordLongPress,
   });
 
   @override
@@ -125,9 +128,11 @@ class MushafPageWidget extends StatelessWidget {
       textDirection: TextDirection.rtl,
     );
 
+    Widget wordWidget;
+
     if (mistakeLevel > 0) {
       final mistakeColor = AppColors.getMistakeColor(mistakeLevel);
-      return Container(
+      wordWidget = Container(
         margin: const EdgeInsets.symmetric(horizontal: 1),
         padding: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
@@ -146,12 +151,22 @@ class MushafPageWidget extends StatelessWidget {
         ),
         child: textWidget,
       );
+    } else {
+      wordWidget = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1),
+        child: textWidget,
+      );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: textWidget,
-    );
+    if (onWordTap != null || onWordLongPress != null) {
+      wordWidget = GestureDetector(
+        onTap: onWordTap != null ? () => onWordTap!(word) : null,
+        onLongPress: onWordLongPress != null ? () => onWordLongPress!(word) : null,
+        child: wordWidget,
+      );
+    }
+
+    return wordWidget;
   }
 
   /// Get mistake severity for a word (0 = no mistake).

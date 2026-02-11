@@ -267,6 +267,51 @@ final isTeacher = authState.user?.role.name == 'teacher';
 
 ---
 
+## Phase 13.5: ClassroomScreen — QPC Quran Reader Integration
+
+### Before vs After
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Text rendering | Plain Arabic via `GoogleFonts.amiri` | QPC glyphs via `MushafPageWidget` |
+| Layout | `Wrap` widget with inline words | Page-based Column layout matching printed Mushaf |
+| Navigation | Surah selector dropdown | Page prev/next arrows constrained to assignment range |
+| Fonts | Google Fonts CDN (Amiri) | QPC per-page fonts via `QpcFontService` |
+| Data source | `surahWithAyahsProvider` (SQLite) | `quranPageDataProvider` (bundled JSON assets) |
+
+### Page Navigation UI
+
+Page navigation shows the position within the assignment's page range:
+
+```
+  [<]  2 / 5  (p. 563)  [>]
+```
+
+- Left arrow = next page (higher page number, RTL convention)
+- Right arrow = previous page (lower page number)
+- Arrows are disabled at range boundaries
+- Switching sections or portions resets to the first page of the new assignment
+
+### Interactive Word Tap → WordPopup
+
+Tapping a QPC glyph word triggers the same `WordPopup` bottom sheet used before, but now receives `word.textUthmani` (plain Arabic from the page JSON) for letter/haraka parsing. The QPC `codeV1` glyph is what's displayed, but the popup parses the `textUthmani` field.
+
+Word index conversion: QPC JSON uses 1-based `wordPosition`, mistakes use 0-based `wordIndex` → `word.wordPosition - 1`.
+
+### Page Range Computation
+
+Assignment page range is computed via `getPageRange()` in `quran_data.dart`:
+- `firstPage = getPageNumber(startSurah, startAyah ?? 1)`
+- `lastPage = endAyah != null ? getPageNumber(endSurah, endAyah) : getLastPageForSurah(endSurah)`
+
+### Mistake Filtering
+
+Mistakes are filtered by the entire assignment range (not just current page), supporting:
+- Single surah with ayah range
+- Multi-surah assignments with boundary ayah filtering
+
+---
+
 ## Features by Role
 
 ### Teacher Features

@@ -1130,11 +1130,30 @@ See: [06-QURAN-READER.md](./Technical%20Implementation%20Journey/Flutter%20App%2
 
 ---
 
-### Phase 13.5 - Integrate Quran Reader into Classes (Next)
+### Phase 13.5 - Integrate QPC Quran Reader into Flutter Classroom ✅
 
-**Status:** Planned
+**Status:** DONE
+**Date:** 11 February 2026
 
-Integrate the page-based QPC Quran Reader into the Flutter Classes/Classroom screen, so teachers can navigate Quran pages, assign portions, and mark mistakes directly from the classroom view — matching the React web app's classroom experience.
+Replaced the plain-text Arabic rendering in ClassroomScreen with page-based QPC glyph rendering using the existing MushafPageWidget, matching the React web app's classroom experience.
+
+#### What Changed
+- **MushafPageWidget** — Added optional `onWordTap` and `onWordLongPress` callbacks for interactive word selection (backwards-compatible: QuranReaderScreen passes no callbacks)
+- **Page range helpers** — Added `getLastPageForSurah()` and `getPageRange()` to `quran_data.dart` for computing mushaf page ranges from assignment surah/ayah boundaries
+- **ClassroomScreen rewrite** — Replaced `surahWithAyahsProvider` + `Wrap` + Google Fonts Amiri with `MushafPageWidget` + `quranPageDataProvider` + `fontReadyProvider` (QPC glyphs)
+  - Added page navigation (prev/next arrows) constrained to assignment page range
+  - Removed surah selector (page navigation replaces it)
+  - Word tap → WordPopup → mistake marking on QPC glyphs
+  - Long press highlighted word → removes mistake
+  - Mistake filtering now covers entire assignment range (multi-surah aware)
+  - Theme-aware colors via `AppColors` (supports light/dark mode)
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Added `onWordTap`, `onWordLongPress` callbacks |
+| `quran_mobile/lib/data/quran_data.dart` | Added `getLastPageForSurah()`, `getPageRange()` |
+| `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Full rewrite: QPC page rendering + page nav |
 
 ---
 

@@ -660,6 +660,26 @@ int getPageNumber(int surahNum, int ayahNum) {
   return 1;
 }
 
+/// Get the last page of a surah.
+int getLastPageForSurah(int surahNum) {
+  if (surahNum >= 114) return totalPages;
+  return getPageForSurah(surahNum + 1) - 1;
+}
+
+/// Get the page range (first, last) for an assignment's surah/ayah range.
+(int firstPage, int lastPage) getPageRange({
+  required int startSurah,
+  required int endSurah,
+  int? startAyah,
+  int? endAyah,
+}) {
+  final firstPage = getPageNumber(startSurah, startAyah ?? 1);
+  final lastPage = (endAyah != null)
+      ? getPageNumber(endSurah, endAyah)
+      : getLastPageForSurah(endSurah);
+  return (firstPage, lastPage);
+}
+
 /// Get all surahs that appear on a given page.
 List<int> getSurahsOnPage(int pageNumber) {
   if (pageNumber < 1 || pageNumber > totalPages) return [];
