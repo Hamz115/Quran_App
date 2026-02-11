@@ -1140,10 +1140,10 @@ Integrate the page-based QPC Quran Reader into the Flutter Classes/Classroom scr
 
 ---
 
-## Phase 14: Web Quran Reader — Responsive Overhaul
+## Phase 14: Web Quran Reader — Responsive Overhaul ✅
 
-**Status:** Complete
-**Date:** 8-9 February 2026
+**Status:** DONE
+**Date:** 8-11 February 2026
 
 Complete rewrite of the web Quran Reader rendering system to match the Flutter app's quality. The reader is now fully responsive across phones, tablets, and desktops with crisp, properly-sized text on every page.
 
@@ -1226,7 +1226,43 @@ On tablet/small laptop screens, the legend and page info cards are hidden (only 
 
 **Final tuning (9 Feb):** Responsive font size `min(28, pageHeight/21)px` to prevent text cutoff on smaller screens. All QuranReader content breakpoints moved from `sm` to `lg` — tablet uses compact overlay controls on the mushaf page (no header pushing content down). Legend shown above page on tablet to fill dead space. chromeHeight tuned to 220px for tablet.
 
+**Overflow line fix (11 Feb):** Pulled surah headers and bismillahs out of line flex items into their own `flex-none` slots. Previously, lines with headers (e.g. page 591 with Surah 87 starting mid-page) had header + bismillah + QPC text all inside one `flex-1` item, causing overflow that clipped the last verses. Now headers/bismillahs are separate flex items so the layout properly accounts for their height. Fixes all 13 pages with overflow lines (pages 144, 587-599). Uses `React.Fragment` to return multiple flex children per line iteration.
+
 See: [WEB-READER-RENDERING-ISSUES.md](./Technical%20Implementation%20Journey/Quran%20Reader/WEB-READER-RENDERING-ISSUES.md), [FLUTTER-RENDERING-REFERENCE.md](./Technical%20Implementation%20Journey/Quran%20Reader/FLUTTER-RENDERING-REFERENCE.md)
+
+---
+
+## Phase 15: Light Mode Overhaul & Bug Fixes
+
+**Status:** DONE
+**Date:** 11 February 2026
+
+### Light Mode Theme
+
+Redesigned the light mode for better contrast and visual hierarchy:
+
+- **Navbar gradient:** Moved the cyan gradient (`rgb(186,230,253)` → `rgb(165,243,252)` → `rgb(207,250,254)`) from the page body to the top navbar and bottom nav. Body is now neutral `#f8fafc`.
+- **Nav tab contrast:** Active tabs use white backgrounds (`bg-white`) with `text-cyan-700` that pop against the cyan gradient. Inactive tabs use `text-slate-700` for readability. Same for role switcher (Teacher/Student), theme toggle, and user menu.
+- **Performance dropdowns:** Added dark/light conditionals — light mode uses solid backgrounds (`bg-blue-100 text-blue-700`, `bg-teal-100 text-teal-700`, etc.) instead of transparent dark-mode-only styles.
+- **Portion rows** (HIFZ/SABQI/MANZIL on classes page): `bg-blue-50 text-blue-600` etc. instead of invisible `bg-blue-500/5 text-blue-400`.
+- **Mistake highlights:** CSS `.light .mistake-*` overrides increase opacity from ~30% to ~50% so amber/yellow highlights are visible on white card backgrounds.
+- **Notes button, mistake badges, previous mistake colors:** All have proper light mode variants.
+
+### Bug Fix: "Class not found"
+
+All classes showed "Class not found" when clicked. Root cause: `getClass()` in `supabase-api.ts` selected a `performance` column from the `class_students` join that doesn't exist in the Supabase table schema. Supabase returned error `column class_students_1.performance does not exist`, caught silently by `.catch(console.error)`.
+
+**Fix:** Removed `performance` from `class_students` select in `getClass()` and student `fetchClassesFromSupabase()`. Redirected `updateStudentPerformance()` to write to `classes` table instead.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_frontend/src/index.css` | Neutral light body, `.light .mistake-*` opacity overrides |
+| `quran_frontend/src/components/Layout.tsx` | Navbar gradient, nav tab/button contrast for light mode |
+| `quran_frontend/src/lib/supabase-api.ts` | Removed non-existent `performance` column from class_students queries |
+| `quran_frontend/src/pages/TeacherClasses.tsx` | Performance dropdown + portion row light mode styles |
+| `quran_frontend/src/pages/Classroom.tsx` | Performance dropdown, notes button, mistake colors for light mode |
 
 ---
 

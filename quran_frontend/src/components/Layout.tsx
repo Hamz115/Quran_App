@@ -78,10 +78,12 @@ export default function Layout() {
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-cyan-500/20 text-cyan-500 shadow-sm border border-cyan-500/30'
+                      ? darkMode
+                        ? 'bg-cyan-500/20 text-cyan-500 shadow-sm border border-cyan-500/30'
+                        : 'bg-white text-cyan-700 shadow-sm border border-white/80'
                       : darkMode
                         ? 'text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10'
-                        : 'text-slate-600 hover:text-cyan-600 hover:bg-cyan-50'
+                        : 'text-slate-700 hover:text-cyan-800 hover:bg-white/40'
                   }`
                 }
               >
@@ -101,7 +103,7 @@ export default function Layout() {
               className={`p-2.5 rounded-lg transition-all duration-300 ${
                 darkMode
                   ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
-                  : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200 border border-cyan-200'
+                  : 'bg-white/70 text-slate-700 hover:bg-white border border-white/80'
               }`}
               aria-label="Toggle dark mode"
             >
@@ -127,8 +129,8 @@ export default function Layout() {
                   onClick={() => handleRoleSwitch('teacher')}
                   className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                     role === 'teacher'
-                      ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/30'
-                      : darkMode ? 'text-slate-400 hover:text-cyan-400' : 'text-slate-600 hover:text-cyan-600'
+                      ? darkMode ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/30' : 'bg-white text-cyan-700 border border-white/80 shadow-sm'
+                      : darkMode ? 'text-slate-400 hover:text-cyan-400' : 'text-slate-700 hover:text-cyan-800 hover:bg-white/40'
                   }`}
                 >
                   <span className="flex items-center gap-1 sm:gap-1.5">
@@ -142,8 +144,8 @@ export default function Layout() {
                   onClick={() => handleRoleSwitch('student')}
                   className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                     role === 'student'
-                      ? 'bg-teal-500/20 text-teal-500 border border-teal-500/30'
-                      : darkMode ? 'text-slate-400 hover:text-teal-400' : 'text-slate-600 hover:text-teal-600'
+                      ? darkMode ? 'bg-teal-500/20 text-teal-500 border border-teal-500/30' : 'bg-white text-teal-700 border border-white/80 shadow-sm'
+                      : darkMode ? 'text-slate-400 hover:text-teal-400' : 'text-slate-700 hover:text-teal-800 hover:bg-white/40'
                   }`}
                 >
                   <span className="flex items-center gap-1 sm:gap-1.5">
@@ -163,7 +165,7 @@ export default function Layout() {
                 className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
                   darkMode
                     ? 'bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20'
-                    : 'bg-cyan-50 hover:bg-cyan-100 border border-cyan-200/50'
+                    : 'bg-white/70 hover:bg-white border border-white/80'
                 }`}
               >
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
@@ -326,10 +328,10 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all min-w-[60px] ${
                   isActive
-                    ? 'text-cyan-500'
+                    ? darkMode ? 'text-cyan-500' : 'text-cyan-700 font-bold'
                     : darkMode
                       ? 'text-slate-500 hover:text-cyan-400'
-                      : 'text-slate-400 hover:text-cyan-600'
+                      : 'text-slate-600 hover:text-cyan-700'
                 }`
               }
             >

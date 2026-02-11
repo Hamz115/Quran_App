@@ -154,7 +154,32 @@ Top tab nav: visible, full header + legend + page info
 ## Known Remaining Issues
 
 1. **Page 586 overflow**: Uses previous page's font for high glyph codes (>= 0xFC00) — handled correctly
-2. **Multi-surah pages**: Pages with multiple surah starts have compressed vertical space due to headers + bismillah taking up line slots
+2. ~~**Multi-surah pages**: Pages with multiple surah starts have compressed vertical space due to headers + bismillah taking up line slots~~ — **FIXED** (11 Feb): Surah headers and bismillahs are now separate `flex-none` items outside the line divs, so the flex layout properly accounts for their height. Fixes all 13 overflow pages (144, 587-599).
+
+### Overflow Line Fix (11 Feb)
+
+**Problem:** Pages with overflow lines (lines 16-18) AND surah headers had the last verses clipped. The header + bismillah + QPC text were all inside one `flex-1` div, needing ~80px but only getting ~37px.
+
+**Fix:** Pull headers/bismillahs out of line divs using `React.Fragment`:
+```tsx
+// Before: header inside line div (broken)
+<div className="flex-1">
+  {surahHeader}
+  {bismillah}
+  <FittedLine>words</FittedLine>
+</div>
+
+// After: header as separate flex item (fixed)
+<Fragment key={lineNum}>
+  {surahHeader && <div className="flex-none">{surahHeader}</div>}
+  {bismillah && <div className="flex-none">{bismillah}</div>}
+  <div className="flex-1 min-h-0">
+    <FittedLine>words</FittedLine>
+  </div>
+</Fragment>
+```
+
+**13 pages affected:** 144, 587, 588, 589, 591, 592, 593, 594, 595, 596, 597, 598, 599
 
 ---
 
