@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import FittedLine from '../components/FittedLine';
 import { getClass, getSurahs, getQuranPageWords, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, getTestByClass, startTest, completeTest, startQuestion, endQuestion, cancelQuestion, addTestMistake, type QuranPageWord, type TestData, type TestQuestion } from '../api';
@@ -1424,11 +1424,11 @@ export default function Classroom() {
                     const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
 
                     return (
-                      <div key={lineNum} className="flex-1 flex flex-col justify-center">
+                      <Fragment key={lineNum}>
                         {/* Surah Header - shown before the first ayah of a new surah */}
                         {surahStarting && (
                           <div
-                            className="w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
+                            className="flex-none w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
                             style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
                           >
                             <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
@@ -1439,7 +1439,7 @@ export default function Classroom() {
                         {/* Bismillah - shown for surahs 2-114 except 9 */}
                         {showBismillah && (
                           <div
-                            className="text-center mb-1 text-cyan-700"
+                            className="flex-none text-center text-cyan-700"
                             style={{
                               fontFamily: "'Amiri Quran', 'Amiri', serif",
                               fontSize: '18px',
@@ -1448,6 +1448,7 @@ export default function Classroom() {
                             بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
                           </div>
                         )}
+                        <div className={`${lineNum >= 16 ? 'flex-none' : 'flex-1 min-h-0'} flex items-center justify-center`}>
                         <FittedLine className="text-slate-800">
                           {words.map((word) => {
                             const { wholeWordLevel, charMistakes, totalMistakes } = getWordMistakeInfo(word);
@@ -1513,7 +1514,8 @@ export default function Classroom() {
                             );
                           })}
                         </FittedLine>
-                      </div>
+                        </div>
+                      </Fragment>
                     );
                   })}
                 </div>
