@@ -34,6 +34,7 @@ docs/
 │   │   ├── 05-SHARED-WIDGETS.md            # Reusable widgets
 │   │   └── 06-QURAN-READER.md              # QPC page-based reader rewrite
 │   ├── Settings_Password_Reset.md          # Settings page & password reset flow
+│   ├── Student_Reports.md                  # Student reports feature (data, export, UI)
 │   └── Quran Reader/                       # Web Quran Reader rendering docs
 │       ├── WEB-READER-RENDERING-ISSUES.md  # All rendering fixes & approaches
 │       └── FLUTTER-RENDERING-REFERENCE.md  # Flutter rendering gold standard
@@ -1213,6 +1214,148 @@ All classes showed "Class not found" when clicked. Root cause: `getClass()` in `
 | `quran_frontend/src/lib/supabase-api.ts` | Removed non-existent `performance` column from class_students queries |
 | `quran_frontend/src/pages/TeacherClasses.tsx` | Performance dropdown + portion row light mode styles |
 | `quran_frontend/src/pages/Classroom.tsx` | Performance dropdown, notes button, mistake colors for light mode |
+
+---
+
+## Phase 16: Student Reports Feature
+
+**Status:** DONE
+**Date:** 15 February 2026
+
+### Overview
+
+Added comprehensive student reports feature for teachers to generate individual progress reports for each student. Reports include mistake analysis, class attendance, performance history, and export functionality.
+
+### Backend
+
+- Added new endpoint: `GET /api/students/{student_id}/report`
+- Returns: student profile, summary stats (classes, mistakes), classes attended, mistakes grouped by surah, repeated mistakes (error_count > 1), performance trend over time
+
+### Frontend
+
+- Created `report-types.ts` - TypeScript interfaces for report data structures
+- Added `getStudentReport()` function to `supabase-api.ts` - fetches directly from Supabase
+- Created `StudentReport.tsx` page with:
+  - Student info header with quick stats cards
+  - Mistakes by surah visualization (bar chart)
+  - Repeated mistakes table (needs focus)
+  - Performance history timeline
+  - Class attendance list
+- Added route: `/teacher/students/:studentId/report`
+- Added "View Report" button on Teacher Dashboard student cards
+
+### Export Functionality
+
+Added client-side export with libraries:
+- **PDF** - jsPDF with jspdf-autotable for formatted tables
+- **CSV** - Simple CSV string export
+- **Word** - docx library for Word documents
+
+Dependencies added: `jspdf`, `jspdf-autotable`, `docx`, `file-saver`, `@types/file-saver`
+
+### Build Fixes (same session)
+
+Fixed multiple build-breaking issues across the codebase:
+
+- **TeacherClasses.tsx** — Removed ~200 lines of orphaned "Test Portion" JSX left behind from the test feature removal (commit `22dd67c`). The `classType === 'test'` ternary condition had been removed but its entire UI branch (page/surah picker) was left in place, creating a broken ternary chain. Also removed stale `setClassType('regular')` call and unused `updateClassPublish` import.
+- **report-export.ts** — Fixed unused `BorderStyle` import, removed unused `surahNames` constant, changed `children` type from `Paragraph[]` to `(Paragraph | Table)[]` for Word export tables.
+- **supabase-api.ts** — Added `as any` casts to new Supabase queries (`profiles`, `class_students`, `mistakes`) to match existing file pattern. Cast query results to `any[]` to resolve `never` type errors. Fixed unused `studentId` parameter.
+- **StudentReport.tsx** — Removed unused `useAuth` import, added non-null assertion for `studentId` param.
+- **Classroom.tsx** — Added `student_id` to local `Mistake` interface and made `MistakeOccurrence` fields optional for type compatibility with `MistakeWithOccurrences`.
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `quran_frontend/src/lib/report-types.ts` | TypeScript interfaces for student reports |
+| `quran_frontend/src/lib/report-export.ts` | Export utilities (PDF, CSV, Word) |
+| `quran_frontend/src/pages/StudentReport.tsx` | Report viewer page with all visualizations |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_backend/main.py` | Added `/api/students/{student_id}/report` endpoint |
+| `quran_frontend/src/lib/supabase-api.ts` | Added `getStudentReport()`, fixed type casts |
+| `quran_frontend/src/App.tsx` | Added route for student report |
+| `quran_frontend/src/pages/TeacherDashboard.tsx` | Added "View Report" buttons to student cards |
+| `quran_frontend/src/pages/TeacherClasses.tsx` | Removed orphaned Test Portion JSX, cleanup |
+| `quran_frontend/src/pages/Classroom.tsx` | Fixed Mistake interface compatibility |
+| `quran_frontend/package.json` | Added export dependencies |
+
+### Documentation
+
+- Technical doc: [`Student_Reports.md`](./Technical%20Implementation%20Journey/Student_Reports.md)
+- Session log: `docs/Logs/2026-02-15-003-student-reports-feature.md`
+
+---
+
+## Phase 16.1: Student Report Redesign — Tab-Based Dashboard
+
+**Status:** DONE
+**Date:** 15 February 2026
+
+### Overview
+
+Redesigned the Student Report from a simple stacked layout into a comprehensive tab-based dashboard with client-side filtering, per-class mistake breakdowns, and a configurable export modal.
+
+### New: Quran Utilities Module
+
+- Created `quran-utils.ts` with centralized `surahNames` map (previously duplicated in 4+ files), `JUZ_BOUNDARIES` (30 entries), and helper functions (`getSurahRangeForJuz`, `getJuzForSurah`, `isSurahInJuz`)
+- Replaced all duplicate `surahNames` in `TeacherClasses.tsx`, `StudentClasses.tsx`, `StudentDashboard.tsx`, `supabase-api.ts`
+
+### API Changes
+
+- Updated `getStudentReport()` to join `mistake_occurrences` table (links mistakes to specific classes)
+- Built per-class mistake mapping from occurrence data
+- Added `avg_performance` computation (maps ratings Excellent/Very Good/Good/Needs Work to 4/3/2/1 scale and back)
+- Each class now includes `mistakes[]` and `mistake_count`
+
+### New Tab-Based Dashboard
+
+**Filter Bar** (3 filter types, all client-side via `useMemo`):
+- Date range: Presets (1 Month, 2 Months, 6 Months, All Time) + custom date pickers
+- Surah range: From/To dropdowns (114 surahs)
+- Juz: Dropdown (1-30), overrides surah range when selected
+
+**Summary Strip**: 5 stats — Classes, Total Mistakes, Unique, Repeated, Avg Performance
+
+**3 Tabs**:
+- **Classes**: Table with expandable rows showing per-class mistakes and teacher notes. Columns: Date, Portions (HIFZ/SABQI/MANZIL tags), Mistake count (color-coded), Performance badge, Notes preview
+- **Mistakes**: Two-panel layout — Mistakes by Surah (CSS bar chart) + Repeated Mistakes (ranked list)
+- **Performance**: CSS bar chart (color-coded by rating) + Stat cards (Current Streak, Best Streak, Mistakes/Class with sparkline, Trend)
+
+### Export Modal
+
+- Format selector: PDF, CSV, Word
+- 6 section toggles: Summary, Class Details, Mistakes by Surah, Repeated Mistakes, Performance Chart, Teacher Notes
+- Filter summary display (shows active filters and data count)
+- All export functions updated to accept `ExportConfig` with conditional sections and filter headers
+
+### New Interfaces
+
+- `ReportFilters` — date/surah/juz filter state
+- `ClassMistake` — mistake linked to a specific class
+- `ExportConfig` — format, section toggles, filters, filtered report data
+- `PerformanceStats` — streaks, mistakes/class, trend computation
+
+### Files
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/quran-utils.ts` | Created | Centralized surahNames, Juz boundaries, helpers |
+| `src/lib/report-types.ts` | Modified | Added 4 new interfaces, updated StudentClass + summary |
+| `src/lib/supabase-api.ts` | Modified | mistake_occurrences join, per-class mapping, avg_performance |
+| `src/pages/StudentReport.tsx` | Rewritten | Tab-based dashboard (~1060 lines) |
+| `src/lib/report-export.ts` | Modified | ExportConfig, conditional sections, filter headers |
+| `src/pages/TeacherClasses.tsx` | Modified | Import surahNames from quran-utils |
+| `src/pages/StudentClasses.tsx` | Modified | Import surahNames from quran-utils |
+| `src/pages/StudentDashboard.tsx` | Modified | Import surahNames from quran-utils |
+
+### Documentation
+
+- Technical doc: [`Student_Reports.md`](./Technical%20Implementation%20Journey/Student_Reports.md) (updated)
+- Session log: `docs/Logs/2026-02-15-004-student-report-redesign.md`
 
 ---
 

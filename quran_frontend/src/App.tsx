@@ -16,6 +16,7 @@ import TeacherClasses from './pages/TeacherClasses';
 import StudentClasses from './pages/StudentClasses';
 import Classroom from './pages/Classroom';
 import QuranReader from './pages/QuranReader';
+import StudentReport from './pages/StudentReport';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
             <Route path="teacher" element={<TeacherDashboard />} />
             <Route path="teacher/classes" element={<TeacherClasses />} />
             <Route path="teacher/classes/:id" element={<Classroom />} />
+            <Route path="teacher/students/:studentId/report" element={<StudentReport />} />
 
             {/* Student Routes */}
             <Route path="student" element={<StudentDashboard />} />

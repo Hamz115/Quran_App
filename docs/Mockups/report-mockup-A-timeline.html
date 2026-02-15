@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Mockup A - Timeline Layout</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 24px; }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* Header */
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .back-btn { width: 40px; height: 40px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .back-btn:hover { background: #1e293b; }
+  .header h1 { font-size: 24px; font-weight: 700; color: #f1f5f9; }
+  .header p { color: #94a3b8; margin-top: 4px; }
+  .export-btn { padding: 10px 20px; background: #0891b2; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .export-btn:hover { background: #0e7490; }
+
+  /* Date Range */
+  .date-range { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 16px; background: #1e293b; border-radius: 12px; border: 1px solid #334155; }
+  .date-range label { font-size: 14px; color: #94a3b8; font-weight: 500; }
+  .date-range input { padding: 8px 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 14px; }
+  .date-range .preset-btns { margin-left: auto; display: flex; gap: 8px; }
+  .preset-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid #475569; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; font-weight: 500; }
+  .preset-btn:hover, .preset-btn.active { background: #0891b2; border-color: #0891b2; color: white; }
+
+  /* Summary Cards */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .stat-card { padding: 20px; background: #1e293b; border-radius: 16px; border: 1px solid #334155; }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: #f1f5f9; }
+  .stat-card .label { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+  .stat-card.highlight { border-color: #0891b2; background: linear-gradient(135deg, #1e293b, #0c4a6e20); }
+
+  /* Section */
+  .section { margin-bottom: 32px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 18px; font-weight: 600; color: #f1f5f9; }
+  .section-subtitle { font-size: 13px; color: #64748b; }
+
+  /* Class Timeline */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before { content: ''; position: absolute; left: 11px; top: 8px; bottom: 8px; width: 2px; background: #334155; }
+  .class-card { position: relative; margin-bottom: 20px; }
+  .class-card .dot { position: absolute; left: -32px; top: 16px; width: 22px; height: 22px; border-radius: 50%; background: #1e293b; border: 2px solid #0891b2; z-index: 1; }
+  .class-card .dot.excellent { border-color: #22c55e; }
+  .class-card .dot.very-good { border-color: #06b6d4; }
+  .class-card .dot.good { border-color: #f59e0b; }
+  .class-card .dot.needs-work { border-color: #ef4444; }
+  .class-card .card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+  .class-card .card:hover { border-color: #475569; }
+
+  .class-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; }
+  .class-header:hover { background: #1e293b80; }
+  .class-date { font-weight: 600; font-size: 15px; color: #e2e8f0; }
+  .class-day { font-size: 13px; color: #64748b; margin-left: 8px; }
+  .class-meta { display: flex; align-items: center; gap: 12px; }
+  .perf-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .perf-badge.excellent { background: #22c55e20; color: #4ade80; }
+  .perf-badge.very-good { background: #06b6d420; color: #22d3ee; }
+  .perf-badge.good { background: #f59e0b20; color: #fbbf24; }
+  .perf-badge.needs-work { background: #ef444420; color: #f87171; }
+  .mistake-count { font-size: 12px; color: #94a3b8; }
+  .mistake-count span { color: #f87171; font-weight: 600; }
+  .chevron { color: #64748b; transition: transform 0.2s; font-size: 18px; }
+
+  .class-body { padding: 0 20px 16px 20px; display: none; border-top: 1px solid #334155; }
+  .class-body.open { display: block; padding-top: 16px; }
+
+  /* Portions */
+  .portions { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .portion-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; }
+  .portion-row.hifz { background: #3b82f610; border: 1px solid #3b82f620; }
+  .portion-row.sabqi { background: #06b6d410; border: 1px solid #06b6d420; }
+  .portion-row.manzil { background: #64748b10; border: 1px solid #64748b20; }
+  .portion-label { font-size: 11px; font-weight: 700; width: 56px; flex-shrink: 0; }
+  .portion-label.hifz { color: #60a5fa; }
+  .portion-label.sabqi { color: #22d3ee; }
+  .portion-label.manzil { color: #94a3b8; }
+  .portion-text { font-size: 13px; color: #cbd5e1; flex: 1; }
+  .portion-mistakes { font-size: 12px; color: #f87171; font-weight: 500; }
+
+  /* Mistakes in class */
+  .class-mistakes { margin-bottom: 12px; }
+  .class-mistakes h4 { font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; }
+  .mistake-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mistake-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #ef444415; border: 1px solid #ef444430; border-radius: 20px; font-size: 12px; color: #fca5a5; }
+  .mistake-pill .arabic { font-family: 'Amiri', serif; font-size: 14px; direction: rtl; }
+  .mistake-pill .count { font-weight: 600; color: #f87171; }
+
+  /* Notes */
+  .class-notes { padding: 10px 14px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b; }
+  .class-notes p { font-size: 13px; color: #94a3b8; font-style: italic; line-height: 1.5; }
+
+  /* Mistakes by Surah (bar chart) */
+  .surah-bars { display: flex; flex-direction: column; gap: 10px; }
+  .surah-bar { display: flex; align-items: center; gap: 12px; }
+  .surah-bar .name { width: 120px; font-size: 13px; font-weight: 500; color: #cbd5e1; text-align: right; flex-shrink: 0; }
+  .surah-bar .bar-track { flex: 1; height: 24px; background: #334155; border-radius: 6px; overflow: hidden; position: relative; }
+  .surah-bar .bar-fill { height: 100%; background: linear-gradient(90deg, #0891b2, #14b8a6); border-radius: 6px; min-width: 2px; }
+  .surah-bar .count { width: 70px; font-size: 13px; color: #94a3b8; }
+  .surah-bar .count span { color: #e2e8f0; font-weight: 600; }
+
+  /* Repeated Mistakes Table */
+  .mistakes-table { width: 100%; border-collapse: collapse; }
+  .mistakes-table th { text-align: left; padding: 10px 16px; font-size: 12px; font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .mistakes-table td { padding: 10px 16px; border-top: 1px solid #1e293b; font-size: 13px; color: #cbd5e1; }
+  .mistakes-table .arabic { font-family: 'Amiri', serif; font-size: 16px; direction: rtl; }
+  .mistakes-table .error-badge { display: inline-block; padding: 2px 10px; background: #ef444420; color: #f87171; border-radius: 20px; font-size: 12px; font-weight: 600; }
+
+  /* Export Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: #00000080; z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #1e293b; border-radius: 16px; border: 1px solid #334155; width: 500px; max-height: 80vh; overflow-y: auto; }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid #334155; }
+  .modal-header h2 { font-size: 18px; font-weight: 600; }
+  .modal-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .modal-body { padding: 20px 24px; }
+  .modal-section { margin-bottom: 20px; }
+  .modal-section h3 { font-size: 14px; font-weight: 600; color: #cbd5e1; margin-bottom: 10px; }
+  .checkbox-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .checkbox-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0891b2; }
+  .checkbox-item label { font-size: 14px; color: #e2e8f0; cursor: pointer; }
+  .checkbox-item .desc { font-size: 12px; color: #64748b; margin-left: 28px; margin-top: 2px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid #334155; display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-footer button { padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; }
+  .btn-cancel { background: #334155; color: #94a3b8; }
+  .btn-cancel:hover { background: #475569; }
+  .btn-pdf { background: #dc2626; color: white; }
+  .btn-pdf:hover { background: #b91c1c; }
+  .btn-word { background: #2563eb; color: white; }
+  .btn-word:hover { background: #1d4ed8; }
+  .btn-csv { background: #16a34a; color: white; }
+  .btn-csv:hover { background: #15803d; }
+
+  /* Format selector */
+  .format-selector { display: flex; gap: 8px; margin-bottom: 16px; }
+  .format-btn { flex: 1; padding: 12px; border-radius: 10px; border: 2px solid #334155; background: transparent; color: #94a3b8; font-weight: 600; font-size: 14px; cursor: pointer; text-align: center; }
+  .format-btn:hover { border-color: #475569; }
+  .format-btn.active { border-color: #0891b2; color: #22d3ee; background: #0891b215; }
+  .format-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <button class="back-btn">&larr;</button>
+      <div>
+        <h1>Student Report</h1>
+        <p>Hamza Reyal (hamza@iiotsolutions.sa)</p>
+      </div>
+    </div>
+    <button class="export-btn" onclick="openModal()">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Export Report
+    </button>
+  </div>
+
+  <!-- Date Range Picker -->
+  <div class="date-range">
+    <label>From:</label>
+    <input type="date" value="2026-01-01">
+    <label style="margin-left: 8px;">To:</label>
+    <input type="date" value="2026-02-15">
+    <div class="preset-btns">
+      <button class="preset-btn">Last Week</button>
+      <button class="preset-btn">Last Month</button>
+      <button class="preset-btn active">This Term</button>
+      <button class="preset-btn">All Time</button>
+    </div>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="value">12</div>
+      <div class="label">Classes Attended</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">47</div>
+      <div class="label">Total Mistakes</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="value">8</div>
+      <div class="label">Repeated Mistakes</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" style="color: #4ade80;">Very Good</div>
+      <div class="label">Average Performance</div>
+    </div>
+  </div>
+
+  <!-- Class-by-Class Timeline -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Class History</div>
+        <div class="section-subtitle">Click a class to expand details</div>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <!-- Class 1 -->
+      <div class="class-card">
+        <div class="dot excellent"></div>
+        <div class="card">
+          <div class="class-header" onclick="toggleClass(this)">
+            <div>
+              <span class="class-date">15 Feb 2026</span>
+              <span class="class-day">Saturday</span>
+            </div>
+            <div class="class-meta">
+              <span class="mistake-count"><span>2</span> mistakes</span>
+              <span class="perf-badge excellent">Excellent</span>
+              <span class="chevron">&#9662;</span>
+            </div>
+          </div>
+          <div class="class-body">
+            <div class="portions">
+              <div class="portion-row hifz">
+                <span class="portion-label hifz">HIFZ</span>
+                <span class="portion-text">Al-Mulk (67) - Ayah 1-15</span>
+                <span class="portion-mistakes">1 mistake</span>
+              </div>
+              <div class="portion-row sabqi">
+                <span class="portion-label sabqi">SABQI</span>
+                <span class="portion-text">Al-Qalam (68) - Ayah 1-30</span>
+                <span class="portion-mistakes">1 mistake</span>
+              </div>
+              <div class="portion-row manzil">
+                <span class="portion-label manzil">MANZIL</span>
+                <span class="portion-text">Ya-Sin (36) - Full Surah</span>
+                <span class="portion-mistakes">0 mistakes</span>
+              </div>
+            </div>
+            <div class="class-mistakes">
+              <h4>Mistakes in this class:</h4>
+              <div class="mistake-pills">
+                <span class="mistake-pill"><span class="arabic">يُنفِقُونَ</span> Al-Mulk:5 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">وَلَقَدْ</span> Al-Qalam:17 <span class="count">2x</span></span>
+              </div>
+            </div>
+            <div class="class-notes">
+              <p>"Good session. Fluent reading of Ya-Sin. Minor hesitation on Al-Mulk ayah 5."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class 2 -->
+      <div class="class-card">
+        <div class="dot very-good"></div>
+        <div class="card">
+          <div class="class-header" onclick="toggleClass(this)">
+            <div>
+              <span class="class-date">12 Feb 2026</span>
+              <span class="class-day">Wednesday</span>
+            </div>
+            <div class="class-meta">
+              <span class="mistake-count"><span>5</span> mistakes</span>
+              <span class="perf-badge very-good">Very Good</span>
+              <span class="chevron">&#9662;</span>
+            </div>
+          </div>
+          <div class="class-body">
+            <div class="portions">
+              <div class="portion-row hifz">
+                <span class="portion-label hifz">HIFZ</span>
+                <span class="portion-text">Al-Mulk (67) - Ayah 16-30</span>
+                <span class="portion-mistakes">3 mistakes</span>
+              </div>
+              <div class="portion-row sabqi">
+                <span class="portion-label sabqi">SABQI</span>
+                <span class="portion-text">Al-Mulk (67) - Ayah 1-15</span>
+                <span class="portion-mistakes">1 mistake</span>
+              </div>
+              <div class="portion-row manzil">
+                <span class="portion-label manzil">MANZIL</span>
+                <span class="portion-text">Ar-Rahman (55) - Full Surah</span>
+                <span class="portion-mistakes">1 mistake</span>
+              </div>
+            </div>
+            <div class="class-mistakes">
+              <h4>Mistakes in this class:</h4>
+              <div class="mistake-pills">
+                <span class="mistake-pill"><span class="arabic">تَكَادُ</span> Al-Mulk:8 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">فَسُحْقًا</span> Al-Mulk:11 <span class="count">3x</span></span>
+                <span class="mistake-pill"><span class="arabic">نُشُورُ</span> Al-Mulk:15 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">يُنفِقُونَ</span> Al-Mulk:5 <span class="count">2x</span></span>
+                <span class="mistake-pill"><span class="arabic">مَرَجَ</span> Ar-Rahman:19 <span class="count">1x</span></span>
+              </div>
+            </div>
+            <div class="class-notes">
+              <p>"Needs to review Al-Mulk ayah 8-15 more carefully. Good manzil recitation."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class 3 -->
+      <div class="class-card">
+        <div class="dot good"></div>
+        <div class="card">
+          <div class="class-header" onclick="toggleClass(this)">
+            <div>
+              <span class="class-date">8 Feb 2026</span>
+              <span class="class-day">Saturday</span>
+            </div>
+            <div class="class-meta">
+              <span class="mistake-count"><span>7</span> mistakes</span>
+              <span class="perf-badge good">Good</span>
+              <span class="chevron">&#9662;</span>
+            </div>
+          </div>
+          <div class="class-body">
+            <div class="portions">
+              <div class="portion-row hifz">
+                <span class="portion-label hifz">HIFZ</span>
+                <span class="portion-text">Al-Qalam (68) - Ayah 1-20</span>
+                <span class="portion-mistakes">4 mistakes</span>
+              </div>
+              <div class="portion-row sabqi">
+                <span class="portion-label sabqi">SABQI</span>
+                <span class="portion-text">Al-Mulk (67) - Ayah 16-30</span>
+                <span class="portion-mistakes">2 mistakes</span>
+              </div>
+              <div class="portion-row manzil">
+                <span class="portion-label manzil">MANZIL</span>
+                <span class="portion-text">Al-Waqiah (56) - Full Surah</span>
+                <span class="portion-mistakes">1 mistake</span>
+              </div>
+            </div>
+            <div class="class-mistakes">
+              <h4>Mistakes in this class:</h4>
+              <div class="mistake-pills">
+                <span class="mistake-pill"><span class="arabic">وَلَقَدْ</span> Al-Qalam:17 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">كَذَّبُوا</span> Al-Qalam:9 <span class="count">2x</span></span>
+                <span class="mistake-pill"><span class="arabic">فَسُحْقًا</span> Al-Mulk:11 <span class="count">2x</span></span>
+                <span class="mistake-pill"><span class="arabic">مَّهِينٍ</span> Al-Qalam:10 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">مَّشَّآءٍ</span> Al-Qalam:11 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">تَكَادُ</span> Al-Mulk:8 <span class="count">1x</span></span>
+                <span class="mistake-pill"><span class="arabic">ثُلَّةٌ</span> Al-Waqiah:39 <span class="count">1x</span></span>
+              </div>
+            </div>
+            <div class="class-notes">
+              <p>"Struggled with new hifz portion. Sabqi from previous week still shaky. Manzil was solid except one slip."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class 4 (collapsed) -->
+      <div class="class-card">
+        <div class="dot excellent"></div>
+        <div class="card">
+          <div class="class-header" onclick="toggleClass(this)">
+            <div>
+              <span class="class-date">5 Feb 2026</span>
+              <span class="class-day">Wednesday</span>
+            </div>
+            <div class="class-meta">
+              <span class="mistake-count"><span>1</span> mistake</span>
+              <span class="perf-badge excellent">Excellent</span>
+              <span class="chevron">&#9662;</span>
+            </div>
+          </div>
+          <div class="class-body">
+            <div class="portions">
+              <div class="portion-row hifz">
+                <span class="portion-label hifz">HIFZ</span>
+                <span class="portion-text">Al-Haqqah (69) - Ayah 1-18</span>
+                <span class="portion-mistakes">1 mistake</span>
+              </div>
+              <div class="portion-row sabqi">
+                <span class="portion-label sabqi">SABQI</span>
+                <span class="portion-text">Al-Qalam (68) - Ayah 1-20</span>
+                <span class="portion-mistakes">0 mistakes</span>
+              </div>
+              <div class="portion-row manzil">
+                <span class="portion-label manzil">MANZIL</span>
+                <span class="portion-text">Al-Hadid (57) - Ayah 1-15</span>
+                <span class="portion-mistakes">0 mistakes</span>
+              </div>
+            </div>
+            <div class="class-mistakes">
+              <h4>Mistakes in this class:</h4>
+              <div class="mistake-pills">
+                <span class="mistake-pill"><span class="arabic">الطَّامَّةُ</span> Al-Haqqah:4 <span class="count">1x</span></span>
+              </div>
+            </div>
+            <div class="class-notes">
+              <p>"Excellent session. Clean recitation across all portions. Very well prepared."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mistakes by Surah -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Mistakes by Surah</div>
+    </div>
+    <div style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 24px;">
+      <div class="surah-bars">
+        <div class="surah-bar">
+          <div class="name">Al-Mulk</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 45%;"></div></div>
+          <div class="count"><span>18</span> (12 unique)</div>
+        </div>
+        <div class="surah-bar">
+          <div class="name">Al-Qalam</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 30%;"></div></div>
+          <div class="count"><span>12</span> (8 unique)</div>
+        </div>
+        <div class="surah-bar">
+          <div class="name">Al-Haqqah</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 15%;"></div></div>
+          <div class="count"><span>6</span> (5 unique)</div>
+        </div>
+        <div class="surah-bar">
+          <div class="name">Ar-Rahman</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 12%;"></div></div>
+          <div class="count"><span>5</span> (4 unique)</div>
+        </div>
+        <div class="surah-bar">
+          <div class="name">Al-Waqiah</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 10%;"></div></div>
+          <div class="count"><span>4</span> (3 unique)</div>
+        </div>
+        <div class="surah-bar">
+          <div class="name">Ya-Sin</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 5%;"></div></div>
+          <div class="count"><span>2</span> (2 unique)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repeated Mistakes -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Repeated Mistakes (Needs Focus)</div>
+    </div>
+    <div style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 4px 0;">
+      <table class="mistakes-table">
+        <thead>
+          <tr><th>Surah</th><th>Ayah</th><th>Word</th><th style="text-align:center;">Times</th><th>Last Seen</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Al-Mulk</td><td>11</td><td class="arabic">فَسُحْقًا</td><td style="text-align:center;"><span class="error-badge">5x</span></td><td style="color:#64748b;">12 Feb</td></tr>
+          <tr><td>Al-Qalam</td><td>9</td><td class="arabic">كَذَّبُوا</td><td style="text-align:center;"><span class="error-badge">3x</span></td><td style="color:#64748b;">8 Feb</td></tr>
+          <tr><td>Al-Mulk</td><td>5</td><td class="arabic">يُنفِقُونَ</td><td style="text-align:center;"><span class="error-badge">3x</span></td><td style="color:#64748b;">15 Feb</td></tr>
+          <tr><td>Al-Qalam</td><td>17</td><td class="arabic">وَلَقَدْ</td><td style="text-align:center;"><span class="error-badge">3x</span></td><td style="color:#64748b;">15 Feb</td></tr>
+          <tr><td>Al-Mulk</td><td>8</td><td class="arabic">تَكَادُ</td><td style="text-align:center;"><span class="error-badge">2x</span></td><td style="color:#64748b;">12 Feb</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Export Report</h2>
+      <p>Choose format and what to include</p>
+    </div>
+    <div class="modal-body">
+      <!-- Format -->
+      <div class="format-selector">
+        <button class="format-btn active" onclick="selectFormat(this)"><span class="icon">&#128196;</span>PDF</button>
+        <button class="format-btn" onclick="selectFormat(this)"><span class="icon">&#128202;</span>CSV</button>
+        <button class="format-btn" onclick="selectFormat(this)"><span class="icon">&#128209;</span>Word</button>
+      </div>
+
+      <!-- Sections to include -->
+      <div class="modal-section">
+        <h3>Sections to Include</h3>
+        <div class="checkbox-item">
+          <input type="checkbox" id="inc-summary" checked>
+          <label for="inc-summary">Summary Stats</label>
+        </div>
+        <div class="desc">Total classes, mistakes, average performance</div>
+
+        <div class="checkbox-item">
+          <input type="checkbox" id="inc-classes" checked>
+          <label for="inc-classes">Class-by-Class Details</label>
+        </div>
+        <div class="desc">Date, portions assigned, mistakes per class, performance, notes</div>
+
+        <div class="checkbox-item">
+          <input type="checkbox" id="inc-surah" checked>
+          <label for="inc-surah">Mistakes by Surah</label>
+        </div>
+        <div class="desc">Mistake distribution across surahs</div>
+
+        <div class="checkbox-item">
+          <input type="checkbox" id="inc-repeated" checked>
+          <label for="inc-repeated">Repeated Mistakes</label>
+        </div>
+        <div class="desc">Words missed multiple times (needs focus areas)</div>
+
+        <div class="checkbox-item">
+          <input type="checkbox" id="inc-perf">
+          <label for="inc-perf">Performance Trend</label>
+        </div>
+        <div class="desc">Performance rating over time chart</div>
+
+        <div class="checkbox-item">
+          <input type="checkbox" id="inc-notes">
+          <label for="inc-notes">Teacher Notes</label>
+        </div>
+        <div class="desc">Include notes from each class session</div>
+      </div>
+
+      <!-- Date Range Reminder -->
+      <div style="padding: 12px 16px; background: #0891b215; border-radius: 10px; border: 1px solid #0891b230;">
+        <div style="font-size: 13px; color: #22d3ee;">Report period: <strong>1 Jan 2026 - 15 Feb 2026</strong></div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">12 classes, 47 mistakes in this range</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-pdf">Export PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleClass(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+  const chevron = header.querySelector('.chevron');
+  chevron.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+function openModal() {
+  document.getElementById('exportModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+
+function selectFormat(btn) {
+  document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const footer = document.querySelector('.modal-footer');
+  const text = btn.textContent.trim();
+  const exportBtn = footer.querySelector('.btn-pdf, .btn-word, .btn-csv');
+  if (text === 'PDF') { exportBtn.className = 'btn-pdf'; exportBtn.textContent = 'Export PDF'; }
+  else if (text === 'Word') { exportBtn.className = 'btn-word'; exportBtn.textContent = 'Export Word'; }
+  else { exportBtn.className = 'btn-csv'; exportBtn.textContent = 'Export CSV'; }
+}
+
+// Auto-expand first class
+document.querySelector('.class-body').classList.add('open');
+document.querySelector('.chevron').style.transform = 'rotate(180deg)';
+</script>
+
+</body>
+</html>

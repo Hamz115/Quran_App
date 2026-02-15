@@ -2263,3 +2263,213 @@ def get_local_mistakes(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# ============ STUDENT REPORT ENDPOINT ============
+
+@app.get("/api/students/{student_id}/report")
+def get_student_report(
+    student_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get comprehensive student report including:
+    - Student profile
+    - Summary stats (classes, mistakes)
+    - Classes attended
+    - Mistakes grouped by surah
+    - Repeated mistakes (error_count > 1)
+    - Performance trend over time
+    """
+    # Only teachers can view reports
+    is_teacher = current_user.get("is_verified", False)
+    if not is_teacher:
+        raise HTTPException(status_code=403, detail="Only teachers can view student reports")
+
+    conn = get_app_db()
+    quran_conn = get_quran_db()
+
+    # Get student profile
+    cursor = conn.execute("""
+        SELECT id, name, email, student_id, created_at
+        FROM users
+        WHERE id = ?
+    """, (student_id,))
+    student_row = cursor.fetchone()
+
+    if not student_row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    student = {
+        "id": student_row["id"],
+        "name": student_row["name"],
+        "email": student_row["email"],
+        "student_id": student_row["student_id"],
+        "added_at": student_row["created_at"]
+    }
+
+    # Get total classes attended
+    cursor = conn.execute("""
+        SELECT COUNT(DISTINCT cs.class_id) as total
+        FROM class_students cs
+        WHERE cs.student_id = ?
+    """, (student_id,))
+    total_classes = cursor.fetchone()["total"]
+
+    # Get total mistakes
+    cursor = conn.execute("""
+        SELECT COUNT(*) as total FROM mistakes WHERE supabase_student_id = ?
+    """, (student_id,))
+    total_mistakes = cursor.fetchone()["total"]
+
+    # Get unique mistakes (distinct words)
+    cursor = conn.execute("""
+        SELECT COUNT(DISTINCT surah_number || '-' || ayah_number || '-' || word_index) as total
+        FROM mistakes WHERE supabase_student_id = ?
+    """, (student_id,))
+    unique_mistakes = cursor.fetchone()["total"]
+
+    # Get repeated mistakes (error_count > 1)
+    cursor = conn.execute("""
+        SELECT COUNT(*) as total FROM mistakes WHERE supabase_student_id = ? AND error_count > 1
+    """, (student_id,))
+    repeated_mistakes_count = cursor.fetchone()["total"]
+
+    summary = {
+        "total_classes": total_classes,
+        "total_mistakes": total_mistakes,
+        "unique_mistakes": unique_mistakes,
+        "repeated_mistakes": repeated_mistakes_count
+    }
+
+    # Get classes attended with details
+    cursor = conn.execute("""
+        SELECT
+            c.id,
+            c.date,
+            c.day,
+            c.notes,
+            c.performance,
+            c.class_type
+        FROM classes c
+        JOIN class_students cs ON cs.class_id = c.id
+        WHERE cs.student_id = ?
+        ORDER BY c.date DESC
+    """, (student_id,))
+    class_rows = cursor.fetchall()
+
+    classes = []
+    for row in class_rows:
+        # Get assignments for this class
+        assign_cursor = conn.execute("""
+            SELECT type, start_surah, end_surah, start_ayah, end_ayah
+            FROM assignments
+            WHERE class_id = ? AND (student_id IS NULL OR student_id = ?)
+        """, (row["id"], student_id))
+        assignments = [dict(a) for a in assign_cursor.fetchall()]
+
+        classes.append({
+            "id": row["id"],
+            "date": row["date"],
+            "day": row["day"],
+            "notes": row["notes"],
+            "performance": row["performance"],
+            "assignments": assignments
+        })
+
+    # Get mistakes grouped by surah
+    cursor = conn.execute("""
+        SELECT
+            surah_number,
+            COUNT(*) as total_mistakes,
+            COUNT(DISTINCT ayah_number || '-' || word_index) as unique_mistakes
+        FROM mistakes
+        WHERE supabase_student_id = ?
+        GROUP BY surah_number
+        ORDER BY surah_number
+    """, (student_id,))
+    mistake_rows = cursor.fetchall()
+
+    mistakes_by_surah = []
+    for row in mistake_rows:
+        # Get surah name from quran.db
+        surah_cursor = quran_conn.execute(
+            "SELECT englishName FROM surahs WHERE number = ?",
+            (row["surah_number"],)
+        )
+        surah_row = surah_cursor.fetchone()
+        surah_name = surah_row["englishName"] if surah_row else f"Surah {row['surah_number']}"
+
+        mistakes_by_surah.append({
+            "surah_number": row["surah_number"],
+            "surah_name": surah_name,
+            "total_mistakes": row["total_mistakes"],
+            "unique_mistakes": row["unique_mistakes"]
+        })
+
+    # Get repeated mistakes list
+    cursor = conn.execute("""
+        SELECT
+            id,
+            surah_number,
+            ayah_number,
+            word_index,
+            word_text,
+            error_count
+        FROM mistakes
+        WHERE supabase_student_id = ? AND error_count > 1
+        ORDER BY error_count DESC
+    """, (student_id,))
+    repeated_mistake_rows = cursor.fetchall()
+
+    repeated_mistakes = []
+    for row in repeated_mistake_rows:
+        # Get surah name
+        surah_cursor = quran_conn.execute(
+            "SELECT englishName FROM surahs WHERE number = ?",
+            (row["surah_number"],)
+        )
+        surah_row = surah_cursor.fetchone()
+        surah_name = surah_row["englishName"] if surah_row else f"Surah {row['surah_number']}"
+
+        repeated_mistakes.append({
+            "id": row["id"],
+            "surah_number": row["surah_number"],
+            "surah_name": surah_name,
+            "ayah_number": row["ayah_number"],
+            "word_text": row["word_text"],
+            "error_count": row["error_count"]
+        })
+
+    # Get performance trend over time
+    cursor = conn.execute("""
+        SELECT
+            c.date,
+            c.performance
+        FROM classes c
+        JOIN class_students cs ON cs.class_id = c.id
+        WHERE cs.student_id = ? AND c.performance IS NOT NULL AND c.performance != ''
+        ORDER BY c.date ASC
+    """, (student_id,))
+    performance_rows = cursor.fetchall()
+
+    performance_trend = []
+    for row in performance_rows:
+        performance_trend.append({
+            "date": row["date"],
+            "performance": row["performance"]
+        })
+
+    conn.close()
+    quran_conn.close()
+
+    return {
+        "student": student,
+        "summary": summary,
+        "classes": classes,
+        "mistakes_by_surah": mistakes_by_surah,
+        "repeated_mistakes": repeated_mistakes,
+        "performance_trend": performance_trend
+    }
+

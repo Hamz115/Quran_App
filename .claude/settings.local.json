@@ -22,7 +22,11 @@
       "Bash(move:*)",
       "Bash(python3 -c:*)",
       "Bash(python3 ~/.claude/skills/codebase-investigator/scripts/investigate.py . -o scan_result.json)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx vite:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

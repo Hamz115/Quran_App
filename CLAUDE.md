@@ -57,6 +57,7 @@ Quran_App/
 │   │   │   ├── Classes.tsx             # Legacy classes page
 │   │   │   ├── Classroom.tsx           # Active class session (QPC reader + mistakes)
 │   │   │   ├── QuranReader.tsx         # Standalone Quran reader (read-only)
+│   │   │   ├── StudentReport.tsx      # Individual student progress report
 │   │   │   └── Settings.tsx            # Profile update, password change
 │   │   │
 │   │   ├── components/
@@ -72,7 +73,10 @@ Quran_App/
 │   │   │   ├── supabase.ts             # Supabase client init
 │   │   │   ├── supabase-api.ts         # Supabase RLS queries (classes, mistakes, students)
 │   │   │   ├── quran-api.ts            # Quran data API (pages, surahs)
+│   │   │   ├── quran-utils.ts          # Centralized surahNames, Juz boundaries, helpers
 │   │   │   ├── local-api.ts            # Local FastAPI calls (fallback)
+│   │   │   ├── report-types.ts        # Student report TypeScript interfaces
+│   │   │   ├── report-export.ts       # PDF, CSV, Word export utilities
 │   │   │   ├── cache.ts                # Client-side caching
 │   │   │   └── database.types.ts       # Auto-generated Supabase TypeScript types
 │   │   │
@@ -125,6 +129,7 @@ Quran_App/
     │   ├── Light_Dark_Mode_Implementation.md
     │   ├── Settings_Password_Reset.md
     │   ├── Auth_Navigation_Fixes.md
+    │   ├── Student_Reports.md         # Student reports (data, export, UI)
     │   ├── Supabase Implementation/    # Schema, RLS policies, frontend integration
     │   ├── Quran Reader/               # Web & Flutter rendering docs
     │   └── Flutter App Overhaul/       # Mobile UI overhaul (6 docs)

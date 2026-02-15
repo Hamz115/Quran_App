@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Mockup B - Tab-Based Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+  /* ── Top Bar ── */
+  .topbar { padding: 14px 32px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .back-btn { width: 34px; height: 34px; border-radius: 8px; background: transparent; border: 1px solid #334155; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .back-btn:hover { background: #334155; }
+  .topbar h1 { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+  .student-info { font-size: 13px; color: #64748b; margin-top: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .export-btn { padding: 8px 18px; background: #0891b2; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .export-btn:hover { background: #0e7490; }
+
+  /* ── Filter Bar ── */
+  .filter-bar { padding: 14px 32px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 8px; }
+  .filter-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .filter-sep { width: 1px; height: 30px; background: #334155; margin: 0 4px; }
+
+  /* Date presets */
+  .preset-row { display: flex; gap: 4px; }
+  .preset { padding: 5px 12px; border-radius: 6px; border: 1px solid #334155; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+  .preset:hover { border-color: #475569; color: #cbd5e1; }
+  .preset.active { background: #0891b2; border-color: #0891b2; color: white; }
+
+  /* Date inputs */
+  .date-input { padding: 5px 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 12px; width: 130px; }
+  .date-sep { color: #475569; font-size: 12px; }
+
+  /* Selects */
+  .filter-select { padding: 5px 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 12px; cursor: pointer; min-width: 120px; }
+  .filter-select:focus { border-color: #0891b2; outline: none; }
+
+  .clear-filters { padding: 5px 12px; border-radius: 6px; border: none; background: transparent; color: #64748b; font-size: 12px; cursor: pointer; margin-left: auto; }
+  .clear-filters:hover { color: #94a3b8; text-decoration: underline; }
+
+  /* ── Summary Strip ── */
+  .summary-strip { display: flex; gap: 1px; background: #334155; border-bottom: 1px solid #334155; }
+  .summary-item { flex: 1; padding: 14px 20px; background: #1e293b; text-align: center; }
+  .summary-item .value { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+  .summary-item .label { font-size: 11px; color: #64748b; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-item.cyan .value { color: #22d3ee; }
+  .summary-item.red .value { color: #f87171; }
+  .summary-item.green .value { color: #4ade80; }
+
+  /* ── Tab Nav ── */
+  .tab-nav { display: flex; background: #1e293b; border-bottom: 1px solid #334155; padding: 0 32px; }
+  .tab-btn { padding: 12px 22px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border: none; background: none; position: relative; transition: color 0.2s; }
+  .tab-btn:hover { color: #cbd5e1; }
+  .tab-btn.active { color: #22d3ee; }
+  .tab-btn.active::after { content: ''; position: absolute; left: 0; bottom: -1px; width: 100%; height: 2px; background: #0891b2; border-radius: 2px 2px 0 0; }
+  .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; border-radius: 9px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+  .tab-count.cyan { background: #0891b220; color: #22d3ee; }
+  .tab-count.red { background: #ef444420; color: #f87171; }
+
+  /* ── Tab Content ── */
+  .tab-content { display: none; padding: 24px 32px; }
+  .tab-content.active { display: block; }
+
+  /* ════════════ TAB 1: CLASSES ════════════ */
+  .class-table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; }
+  .class-table thead { background: #0f172a; }
+  .class-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #334155; }
+  .class-table td { padding: 12px 14px; border-bottom: 1px solid #1e293b40; font-size: 13px; color: #cbd5e1; vertical-align: middle; }
+  .class-table tbody tr { transition: background 0.15s; }
+  .class-table tbody tr:hover { background: #1e293b; }
+  .class-table tbody tr:last-child td { border-bottom: none; }
+  .class-table .date-cell { font-weight: 600; color: #e2e8f0; white-space: nowrap; }
+  .class-table .day-sub { font-size: 11px; color: #64748b; font-weight: 400; }
+
+  /* Portions on one line */
+  .portions-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ptag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .ptag .type { font-weight: 700; font-size: 9px; letter-spacing: 0.3px; }
+  .ptag.hifz { background: #3b82f612; color: #60a5fa; border: 1px solid #3b82f620; }
+  .ptag.sabqi { background: #06b6d412; color: #22d3ee; border: 1px solid #06b6d420; }
+  .ptag.manzil { background: #64748b12; color: #94a3b8; border: 1px solid #64748b20; }
+  .ptag-sep { color: #334155; font-size: 10px; }
+
+  /* Performance badge */
+  .perf { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; white-space: nowrap; }
+  .perf.excellent { background: #22c55e20; color: #4ade80; }
+  .perf.very-good { background: #06b6d420; color: #22d3ee; }
+  .perf.good { background: #f59e0b20; color: #fbbf24; }
+  .perf.needs-work { background: #ef444420; color: #f87171; }
+
+  /* Mistake count circle */
+  .m-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-size: 12px; font-weight: 700; }
+  .m-num.lo { background: #22c55e15; color: #4ade80; }
+  .m-num.md { background: #f59e0b15; color: #fbbf24; }
+  .m-num.hi { background: #ef444415; color: #f87171; }
+
+  /* Notes preview */
+  .notes-preview { font-size: 12px; color: #64748b; font-style: italic; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Expandable detail row */
+  .expand-toggle { background: none; border: none; color: #475569; cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: 4px; transition: all 0.15s; }
+  .expand-toggle:hover { background: #334155; color: #94a3b8; }
+  .detail-row { display: none; }
+  .detail-row.open { display: table-row; }
+  .detail-row td { padding: 0 14px 14px 14px; background: #0f172a; }
+  .detail-inner { display: flex; gap: 24px; padding: 14px 16px; background: #0f172a; border-radius: 8px; }
+  .detail-col { flex: 1; }
+  .detail-col-title { font-size: 11px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .mistake-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: #ef444410; border: 1px solid #ef444420; border-radius: 14px; font-size: 11px; color: #fca5a5; }
+  .chip .ar { font-family: 'Amiri', serif; font-size: 13px; direction: rtl; }
+  .chip .cx { font-weight: 700; color: #f87171; font-size: 10px; }
+  .detail-note { font-size: 12px; color: #94a3b8; font-style: italic; line-height: 1.5; padding: 10px 14px; background: #1e293b; border-radius: 6px; border-left: 3px solid #334155; }
+
+  /* ════════════ TAB 2: MISTAKES ════════════ */
+  .mistakes-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+  .panel-head { padding: 14px 18px; border-bottom: 1px solid #334155; font-size: 14px; font-weight: 600; color: #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+  .panel-head .badge { padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .panel-head .badge.cyan { background: #0891b220; color: #22d3ee; }
+  .panel-head .badge.red { background: #ef444420; color: #f87171; }
+  .panel-body { padding: 16px 18px; }
+
+  /* Horizontal bar chart */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-row .name { width: 100px; font-size: 12px; color: #cbd5e1; text-align: right; flex-shrink: 0; font-weight: 500; }
+  .bar-row .track { flex: 1; height: 22px; background: #334155; border-radius: 5px; overflow: hidden; position: relative; }
+  .bar-row .fill { height: 100%; background: linear-gradient(90deg, #0891b2, #14b8a6); border-radius: 5px; transition: width 0.4s ease; }
+  .bar-row .stat { width: 90px; font-size: 11px; color: #64748b; white-space: nowrap; }
+  .bar-row .stat strong { color: #e2e8f0; }
+
+  /* Repeated mistakes ranked list */
+  .rpt-list { list-style: none; }
+  .rpt-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1e293b; }
+  .rpt-item:last-child { border-bottom: none; }
+  .rpt-rank { width: 26px; height: 26px; border-radius: 50%; background: #ef444418; color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .rpt-word { font-family: 'Amiri', serif; font-size: 18px; direction: rtl; color: #e2e8f0; flex: 1; }
+  .rpt-ref { font-size: 11px; color: #64748b; width: 110px; }
+  .rpt-times { font-size: 13px; font-weight: 700; color: #f87171; width: 36px; text-align: right; }
+
+  /* ════════════ TAB 3: PERFORMANCE ════════════ */
+  .perf-layout { display: grid; grid-template-columns: 5fr 2fr; gap: 20px; }
+
+  /* Chart area */
+  .chart-card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 20px; }
+  .chart-title { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 16px; }
+
+  /* Grid-based bar chart — uses fixed pixel heights for reliability */
+  .chart-grid { position: relative; padding-left: 90px; }
+  .chart-y-labels { position: absolute; left: 0; top: 0; height: 200px; width: 84px; display: flex; flex-direction: column; justify-content: space-between; }
+  .chart-y-label { font-size: 11px; color: #64748b; text-align: right; padding-right: 10px; line-height: 1; }
+  .chart-plot { position: relative; height: 200px; border-left: 1px solid #475569; border-bottom: 1px solid #475569; background: #0f172a20; }
+  .chart-gridlines { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; padding: 0; }
+  .chart-gridline { width: 100%; border-bottom: 1px dashed #33415580; }
+  .chart-bars-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 200px; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 20px; }
+  .chart-col { display: flex; flex-direction: column; align-items: center; width: 40px; }
+  /* Fixed pixel heights: Excellent=170px, VeryGood=120px, Good=70px, NeedsWork=30px */
+  .chart-bar { width: 36px; border-radius: 4px 4px 0 0; }
+  .chart-bar.excellent { height: 170px; background: linear-gradient(180deg, #4ade80, #22c55e); }
+  .chart-bar.very-good { height: 120px; background: linear-gradient(180deg, #22d3ee, #06b6d4); }
+  .chart-bar.good { height: 70px; background: linear-gradient(180deg, #fbbf24, #f59e0b); }
+  .chart-bar.needs-work { height: 30px; background: linear-gradient(180deg, #f87171, #ef4444); }
+  .chart-x-labels { padding-left: 90px; display: flex; justify-content: space-around; padding-right: 0; margin-top: 8px; }
+  .chart-x-label { width: 40px; text-align: center; font-size: 10px; color: #64748b; }
+  .chart-legend { display: flex; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #334155; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* Stats column */
+  .stats-col { display: flex; flex-direction: column; gap: 12px; }
+  .stat-card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 16px; }
+  .stat-card .title { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-card .big { font-size: 24px; font-weight: 700; }
+  .stat-card .sub { font-size: 11px; color: #64748b; margin-top: 3px; }
+  .up { color: #4ade80; }
+  .down { color: #f87171; }
+
+  /* Mini sparkline bars */
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 40px; margin-top: 10px; }
+  .spark-bar { flex: 1; border-radius: 2px 2px 0 0; background: #0891b2; min-height: 2px; }
+
+  /* ── Export Modal ── */
+  .modal-bg { display: none; position: fixed; inset: 0; background: #00000070; z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #1e293b; border-radius: 14px; border: 1px solid #334155; width: 480px; max-height: 85vh; overflow-y: auto; }
+  .modal-head { padding: 18px 22px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+  .modal-head h2 { font-size: 16px; font-weight: 600; }
+  .modal-close { background: none; border: none; color: #64748b; font-size: 20px; cursor: pointer; }
+  .modal-close:hover { color: #94a3b8; }
+  .modal-body { padding: 18px 22px; }
+
+  .fmt-row { display: flex; gap: 8px; margin-bottom: 18px; }
+  .fmt { flex: 1; padding: 12px; border: 2px solid #334155; border-radius: 10px; background: transparent; color: #94a3b8; font-weight: 600; cursor: pointer; text-align: center; font-size: 13px; }
+  .fmt:hover { border-color: #475569; }
+  .fmt.active { border-color: #0891b2; color: #22d3ee; background: #0891b212; }
+  .fmt .ico { font-size: 18px; display: block; margin-bottom: 3px; }
+
+  .toggle-section h3 { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .toggle-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1e293b; }
+  .toggle-item:last-child { border-bottom: none; }
+  .toggle-item label { font-size: 13px; color: #e2e8f0; }
+  .toggle-item .desc { font-size: 11px; color: #64748b; }
+  .sw { width: 38px; height: 20px; background: #475569; border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; display: inline-block; }
+  .sw.on { background: #0891b2; }
+  .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform 0.2s; }
+  .sw.on::after { transform: translateX(18px); }
+
+  .range-info { padding: 10px 14px; background: #0891b210; border-radius: 8px; border: 1px solid #0891b220; font-size: 12px; color: #22d3ee; margin-top: 14px; }
+
+  .modal-foot { padding: 14px 22px; border-top: 1px solid #334155; display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-foot button { padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; border: none; }
+  .btn-cancel { background: #334155; color: #94a3b8; }
+  .btn-go { background: #0891b2; color: white; }
+  .btn-go:hover { background: #0e7490; }
+</style>
+</head>
+<body>
+
+<!-- ══ Top Bar ══ -->
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn">&larr;</button>
+    <div>
+      <h1>Student Report</h1>
+      <div class="student-info">Hamza Reyal &middot; hamza@iiotsolutions.sa &middot; Student since Jan 2026</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="export-btn" onclick="openModal()">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      Export
+    </button>
+  </div>
+</div>
+
+<!-- ══ Filter Bar ══ -->
+<div class="filter-bar">
+  <!-- Date Range -->
+  <div class="filter-group">
+    <span class="filter-label">Date</span>
+    <div class="preset-row">
+      <button class="preset" onclick="pickPreset(this)">1 Month</button>
+      <button class="preset active" onclick="pickPreset(this)">2 Months</button>
+      <button class="preset" onclick="pickPreset(this)">6 Months</button>
+      <button class="preset" onclick="pickPreset(this)">All Time</button>
+    </div>
+    <input type="date" class="date-input" value="2025-12-15">
+    <span class="date-sep">&ndash;</span>
+    <input type="date" class="date-input" value="2026-02-15">
+  </div>
+
+  <div class="filter-sep"></div>
+
+  <!-- Surah Range -->
+  <div class="filter-group">
+    <span class="filter-label">Surah</span>
+    <select class="filter-select">
+      <option value="">From (any)</option>
+      <option value="1">1 &middot; Al-Fatihah</option>
+      <option value="2">2 &middot; Al-Baqarah</option>
+      <option value="36">36 &middot; Ya-Sin</option>
+      <option value="55">55 &middot; Ar-Rahman</option>
+      <option value="56">56 &middot; Al-Waqiah</option>
+      <option value="57">57 &middot; Al-Hadid</option>
+      <option value="58">58 &middot; Al-Mujadila</option>
+      <option value="67" selected>67 &middot; Al-Mulk</option>
+      <option value="68">68 &middot; Al-Qalam</option>
+      <option value="69">69 &middot; Al-Haqqah</option>
+      <option value="114">114 &middot; An-Nas</option>
+    </select>
+    <span class="date-sep">&ndash;</span>
+    <select class="filter-select">
+      <option value="">To (any)</option>
+      <option value="1">1 &middot; Al-Fatihah</option>
+      <option value="2">2 &middot; Al-Baqarah</option>
+      <option value="36">36 &middot; Ya-Sin</option>
+      <option value="55">55 &middot; Ar-Rahman</option>
+      <option value="56">56 &middot; Al-Waqiah</option>
+      <option value="57">57 &middot; Al-Hadid</option>
+      <option value="58">58 &middot; Al-Mujadila</option>
+      <option value="67">67 &middot; Al-Mulk</option>
+      <option value="68">68 &middot; Al-Qalam</option>
+      <option value="69" selected>69 &middot; Al-Haqqah</option>
+      <option value="114">114 &middot; An-Nas</option>
+    </select>
+  </div>
+
+  <div class="filter-sep"></div>
+
+  <!-- Juz -->
+  <div class="filter-group">
+    <span class="filter-label">Juz</span>
+    <select class="filter-select" style="min-width:100px;">
+      <option value="">All Juz</option>
+      <option value="1">Juz 1</option>
+      <option value="2">Juz 2</option>
+      <option value="3">Juz 3</option>
+      <option value="10">Juz 10</option>
+      <option value="20">Juz 20</option>
+      <option value="28">Juz 28</option>
+      <option value="29" selected>Juz 29</option>
+      <option value="30">Juz 30</option>
+    </select>
+  </div>
+
+  <button class="clear-filters" onclick="clearFilters()">Clear all filters</button>
+</div>
+
+<!-- ══ Summary Strip ══ -->
+<div class="summary-strip">
+  <div class="summary-item cyan">
+    <div class="value">12</div>
+    <div class="label">Classes</div>
+  </div>
+  <div class="summary-item">
+    <div class="value">47</div>
+    <div class="label">Total Mistakes</div>
+  </div>
+  <div class="summary-item">
+    <div class="value">31</div>
+    <div class="label">Unique Mistakes</div>
+  </div>
+  <div class="summary-item red">
+    <div class="value">8</div>
+    <div class="label">Repeated</div>
+  </div>
+  <div class="summary-item green">
+    <div class="value">Very Good</div>
+    <div class="label">Avg Performance</div>
+  </div>
+</div>
+
+<!-- ══ Tabs ══ -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab(this,'tab-classes')">Classes <span class="tab-count cyan">12</span></button>
+  <button class="tab-btn" onclick="switchTab(this,'tab-mistakes')">Mistakes <span class="tab-count red">47</span></button>
+  <button class="tab-btn" onclick="switchTab(this,'tab-performance')">Performance</button>
+</div>
+
+<!-- ══════════ TAB 1: CLASSES ══════════ -->
+<div class="tab-content active" id="tab-classes">
+  <table class="class-table">
+    <thead>
+      <tr>
+        <th style="width:28px;"></th>
+        <th>Date</th>
+        <th>Portions</th>
+        <th style="text-align:center;">Mistakes</th>
+        <th>Performance</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- Row 1 -->
+      <tr>
+        <td><button class="expand-toggle" onclick="toggle(this)">&#9654;</button></td>
+        <td><div class="date-cell">15 Feb 2026 <span class="day-sub">Sat</span></div></td>
+        <td>
+          <div class="portions-line">
+            <span class="ptag hifz"><span class="type">HIFZ</span> Al-Mulk 1-15</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag sabqi"><span class="type">SABQI</span> Al-Qalam 1-30</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag manzil"><span class="type">MANZIL</span> Ya-Sin (Full)</span>
+          </div>
+        </td>
+        <td style="text-align:center;"><span class="m-num lo">2</span></td>
+        <td><span class="perf excellent">Excellent</span></td>
+        <td><div class="notes-preview">Good session. Fluent reading of Ya-Sin.</div></td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-col" style="flex:2;">
+              <div class="detail-col-title">Mistakes in this class</div>
+              <div class="mistake-chips">
+                <span class="chip"><span class="ar">يُنفِقُونَ</span> Al-Mulk:5 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">وَلَقَدْ</span> Al-Qalam:17 <span class="cx">2x</span></span>
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="detail-col-title">Teacher Notes</div>
+              <div class="detail-note">"Good session. Fluent reading of Ya-Sin. Minor hesitation on Al-Mulk ayah 5."</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Row 2 -->
+      <tr>
+        <td><button class="expand-toggle" onclick="toggle(this)">&#9654;</button></td>
+        <td><div class="date-cell">12 Feb 2026 <span class="day-sub">Wed</span></div></td>
+        <td>
+          <div class="portions-line">
+            <span class="ptag hifz"><span class="type">HIFZ</span> Al-Mulk 16-30</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag sabqi"><span class="type">SABQI</span> Al-Mulk 1-15</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag manzil"><span class="type">MANZIL</span> Ar-Rahman (Full)</span>
+          </div>
+        </td>
+        <td style="text-align:center;"><span class="m-num md">5</span></td>
+        <td><span class="perf very-good">Very Good</span></td>
+        <td><div class="notes-preview">Needs to review Al-Mulk ayah 8-15 more carefully.</div></td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-col" style="flex:2;">
+              <div class="detail-col-title">Mistakes in this class</div>
+              <div class="mistake-chips">
+                <span class="chip"><span class="ar">تَكَادُ</span> Al-Mulk:8 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">فَسُحْقًا</span> Al-Mulk:11 <span class="cx">3x</span></span>
+                <span class="chip"><span class="ar">نُشُورُ</span> Al-Mulk:15 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">يُنفِقُونَ</span> Al-Mulk:5 <span class="cx">2x</span></span>
+                <span class="chip"><span class="ar">مَرَجَ</span> Ar-Rahman:19 <span class="cx">1x</span></span>
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="detail-col-title">Teacher Notes</div>
+              <div class="detail-note">"Needs to review Al-Mulk ayah 8-15 more carefully. Good manzil recitation."</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Row 3 -->
+      <tr>
+        <td><button class="expand-toggle" onclick="toggle(this)">&#9654;</button></td>
+        <td><div class="date-cell">8 Feb 2026 <span class="day-sub">Sat</span></div></td>
+        <td>
+          <div class="portions-line">
+            <span class="ptag hifz"><span class="type">HIFZ</span> Al-Qalam 1-20</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag sabqi"><span class="type">SABQI</span> Al-Mulk 16-30</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag manzil"><span class="type">MANZIL</span> Al-Waqiah (Full)</span>
+          </div>
+        </td>
+        <td style="text-align:center;"><span class="m-num hi">7</span></td>
+        <td><span class="perf good">Good</span></td>
+        <td><div class="notes-preview">Struggled with new hifz portion. Sabqi still shaky.</div></td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-col" style="flex:2;">
+              <div class="detail-col-title">Mistakes in this class</div>
+              <div class="mistake-chips">
+                <span class="chip"><span class="ar">وَلَقَدْ</span> Al-Qalam:17 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">كَذَّبُوا</span> Al-Qalam:9 <span class="cx">2x</span></span>
+                <span class="chip"><span class="ar">فَسُحْقًا</span> Al-Mulk:11 <span class="cx">2x</span></span>
+                <span class="chip"><span class="ar">مَّهِينٍ</span> Al-Qalam:10 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">مَّشَّآءٍ</span> Al-Qalam:11 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">تَكَادُ</span> Al-Mulk:8 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">ثُلَّةٌ</span> Al-Waqiah:39 <span class="cx">1x</span></span>
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="detail-col-title">Teacher Notes</div>
+              <div class="detail-note">"Struggled with new hifz portion. Sabqi from previous week still shaky. Manzil was solid except one slip."</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Row 4 -->
+      <tr>
+        <td><button class="expand-toggle" onclick="toggle(this)">&#9654;</button></td>
+        <td><div class="date-cell">5 Feb 2026 <span class="day-sub">Wed</span></div></td>
+        <td>
+          <div class="portions-line">
+            <span class="ptag hifz"><span class="type">HIFZ</span> Al-Haqqah 1-18</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag sabqi"><span class="type">SABQI</span> Al-Qalam 1-20</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag manzil"><span class="type">MANZIL</span> Al-Hadid 1-15</span>
+          </div>
+        </td>
+        <td style="text-align:center;"><span class="m-num lo">1</span></td>
+        <td><span class="perf excellent">Excellent</span></td>
+        <td><div class="notes-preview">Excellent session. Clean recitation across all portions.</div></td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-col" style="flex:2;">
+              <div class="detail-col-title">Mistakes in this class</div>
+              <div class="mistake-chips">
+                <span class="chip"><span class="ar">الطَّامَّةُ</span> Al-Haqqah:4 <span class="cx">1x</span></span>
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="detail-col-title">Teacher Notes</div>
+              <div class="detail-note">"Excellent session. Clean recitation across all portions. Very well prepared."</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Row 5 -->
+      <tr>
+        <td><button class="expand-toggle" onclick="toggle(this)">&#9654;</button></td>
+        <td><div class="date-cell">1 Feb 2026 <span class="day-sub">Sat</span></div></td>
+        <td>
+          <div class="portions-line">
+            <span class="ptag hifz"><span class="type">HIFZ</span> Al-Haqqah 19-34</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag sabqi"><span class="type">SABQI</span> Al-Haqqah 1-18</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag manzil"><span class="type">MANZIL</span> Al-Mujadila (Full)</span>
+          </div>
+        </td>
+        <td style="text-align:center;"><span class="m-num md">4</span></td>
+        <td><span class="perf very-good">Very Good</span></td>
+        <td><div class="notes-preview">Good review. Focus on tajweed rules in Al-Haqqah.</div></td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-col" style="flex:2;">
+              <div class="detail-col-title">Mistakes in this class</div>
+              <div class="mistake-chips">
+                <span class="chip"><span class="ar">الحَاقَّةُ</span> Al-Haqqah:1 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">القَارِعَةُ</span> Al-Haqqah:4 <span class="cx">2x</span></span>
+                <span class="chip"><span class="ar">وَأَمَّا</span> Al-Haqqah:25 <span class="cx">1x</span></span>
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="detail-col-title">Teacher Notes</div>
+              <div class="detail-note">"Good review of previous portion. Focus on tajweed rules in Al-Haqqah."</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Row 6 -->
+      <tr>
+        <td><button class="expand-toggle" onclick="toggle(this)">&#9654;</button></td>
+        <td><div class="date-cell">29 Jan 2026 <span class="day-sub">Wed</span></div></td>
+        <td>
+          <div class="portions-line">
+            <span class="ptag hifz"><span class="type">HIFZ</span> Al-Ma'arij 1-18</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag sabqi"><span class="type">SABQI</span> Al-Haqqah 19-34</span>
+            <span class="ptag-sep">|</span>
+            <span class="ptag manzil"><span class="type">MANZIL</span> Al-Hashr (Full)</span>
+          </div>
+        </td>
+        <td style="text-align:center;"><span class="m-num lo">2</span></td>
+        <td><span class="perf excellent">Excellent</span></td>
+        <td><div class="notes-preview">Strong recitation. Minimal mistakes.</div></td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-col" style="flex:2;">
+              <div class="detail-col-title">Mistakes in this class</div>
+              <div class="mistake-chips">
+                <span class="chip"><span class="ar">سَأَلَ</span> Al-Ma'arij:1 <span class="cx">1x</span></span>
+                <span class="chip"><span class="ar">بِالْمَعَارِجِ</span> Al-Ma'arij:3 <span class="cx">1x</span></span>
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="detail-col-title">Teacher Notes</div>
+              <div class="detail-note">"Strong recitation. Minimal mistakes. Good preparation."</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════ TAB 2: MISTAKES ══════════ -->
+<div class="tab-content" id="tab-mistakes">
+  <div class="mistakes-layout">
+    <!-- By Surah -->
+    <div class="panel">
+      <div class="panel-head">Mistakes by Surah <span class="badge cyan">6 surahs</span></div>
+      <div class="panel-body">
+        <div class="bar-row">
+          <div class="name">Al-Mulk</div>
+          <div class="track"><div class="fill" style="width:100%;"></div></div>
+          <div class="stat"><strong>18</strong> (12 unique)</div>
+        </div>
+        <div class="bar-row">
+          <div class="name">Al-Qalam</div>
+          <div class="track"><div class="fill" style="width:67%;"></div></div>
+          <div class="stat"><strong>12</strong> (8 unique)</div>
+        </div>
+        <div class="bar-row">
+          <div class="name">Al-Haqqah</div>
+          <div class="track"><div class="fill" style="width:33%;"></div></div>
+          <div class="stat"><strong>6</strong> (5 unique)</div>
+        </div>
+        <div class="bar-row">
+          <div class="name">Ar-Rahman</div>
+          <div class="track"><div class="fill" style="width:28%;"></div></div>
+          <div class="stat"><strong>5</strong> (4 unique)</div>
+        </div>
+        <div class="bar-row">
+          <div class="name">Al-Waqiah</div>
+          <div class="track"><div class="fill" style="width:22%;"></div></div>
+          <div class="stat"><strong>4</strong> (3 unique)</div>
+        </div>
+        <div class="bar-row">
+          <div class="name">Ya-Sin</div>
+          <div class="track"><div class="fill" style="width:11%;"></div></div>
+          <div class="stat"><strong>2</strong> (2 unique)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Repeated -->
+    <div class="panel">
+      <div class="panel-head">Repeated Mistakes <span class="badge red">8 words</span></div>
+      <div class="panel-body">
+        <ul class="rpt-list">
+          <li class="rpt-item">
+            <span class="rpt-rank">1</span>
+            <span class="rpt-word">فَسُحْقًا</span>
+            <span class="rpt-ref">Al-Mulk : 11</span>
+            <span class="rpt-times">5x</span>
+          </li>
+          <li class="rpt-item">
+            <span class="rpt-rank">2</span>
+            <span class="rpt-word">كَذَّبُوا</span>
+            <span class="rpt-ref">Al-Qalam : 9</span>
+            <span class="rpt-times">3x</span>
+          </li>
+          <li class="rpt-item">
+            <span class="rpt-rank">3</span>
+            <span class="rpt-word">يُنفِقُونَ</span>
+            <span class="rpt-ref">Al-Mulk : 5</span>
+            <span class="rpt-times">3x</span>
+          </li>
+          <li class="rpt-item">
+            <span class="rpt-rank">4</span>
+            <span class="rpt-word">وَلَقَدْ</span>
+            <span class="rpt-ref">Al-Qalam : 17</span>
+            <span class="rpt-times">3x</span>
+          </li>
+          <li class="rpt-item">
+            <span class="rpt-rank">5</span>
+            <span class="rpt-word">تَكَادُ</span>
+            <span class="rpt-ref">Al-Mulk : 8</span>
+            <span class="rpt-times">2x</span>
+          </li>
+          <li class="rpt-item">
+            <span class="rpt-rank">6</span>
+            <span class="rpt-word">القَارِعَةُ</span>
+            <span class="rpt-ref">Al-Haqqah : 4</span>
+            <span class="rpt-times">2x</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TAB 3: PERFORMANCE ══════════ -->
+<div class="tab-content" id="tab-performance">
+  <div class="perf-layout">
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="chart-title">Performance Over Time</div>
+      <div class="chart-grid">
+        <!-- Y axis labels -->
+        <div class="chart-y-labels">
+          <div class="chart-y-label">Excellent</div>
+          <div class="chart-y-label">Very Good</div>
+          <div class="chart-y-label">Good</div>
+          <div class="chart-y-label">Needs Work</div>
+        </div>
+        <!-- Plot area -->
+        <div class="chart-plot">
+          <div class="chart-gridlines">
+            <div class="chart-gridline"></div>
+            <div class="chart-gridline"></div>
+            <div class="chart-gridline"></div>
+            <div class="chart-gridline"></div>
+          </div>
+          <div class="chart-bars-wrap">
+            <div class="chart-col"><div class="chart-bar very-good"></div></div>
+            <div class="chart-col"><div class="chart-bar good"></div></div>
+            <div class="chart-col"><div class="chart-bar very-good"></div></div>
+            <div class="chart-col"><div class="chart-bar excellent"></div></div>
+            <div class="chart-col"><div class="chart-bar very-good"></div></div>
+            <div class="chart-col"><div class="chart-bar excellent"></div></div>
+            <div class="chart-col"><div class="chart-bar good"></div></div>
+            <div class="chart-col"><div class="chart-bar very-good"></div></div>
+            <div class="chart-col"><div class="chart-bar excellent"></div></div>
+          </div>
+        </div>
+      </div>
+      <!-- X axis labels -->
+      <div class="chart-x-labels">
+        <div class="chart-x-label">18 Jan</div>
+        <div class="chart-x-label">22 Jan</div>
+        <div class="chart-x-label">25 Jan</div>
+        <div class="chart-x-label">29 Jan</div>
+        <div class="chart-x-label">1 Feb</div>
+        <div class="chart-x-label">5 Feb</div>
+        <div class="chart-x-label">8 Feb</div>
+        <div class="chart-x-label">12 Feb</div>
+        <div class="chart-x-label">15 Feb</div>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Excellent</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#06b6d4;"></div>Very Good</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>Good</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Needs Work</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-col">
+      <div class="stat-card">
+        <div class="title">Current Streak</div>
+        <div class="big up">3 classes</div>
+        <div class="sub">Very Good or above</div>
+      </div>
+      <div class="stat-card">
+        <div class="title">Best Streak</div>
+        <div class="big" style="color:#22d3ee;">4 classes</div>
+        <div class="sub">Jan 25 &ndash; Feb 5</div>
+      </div>
+      <div class="stat-card">
+        <div class="title">Mistakes / Class</div>
+        <div class="big" style="color:#f1f5f9;">3.9 <span style="font-size:14px; color:#64748b; font-weight:400;">avg</span></div>
+        <div class="spark">
+          <div class="spark-bar" style="height:50%;"></div>
+          <div class="spark-bar" style="height:30%;"></div>
+          <div class="spark-bar" style="height:55%;"></div>
+          <div class="spark-bar" style="height:15%;"></div>
+          <div class="spark-bar" style="height:70%;"></div>
+          <div class="spark-bar" style="height:10%;"></div>
+          <div class="spark-bar" style="height:85%;"></div>
+          <div class="spark-bar" style="height:45%;"></div>
+          <div class="spark-bar" style="height:35%;"></div>
+          <div class="spark-bar" style="height:55%;"></div>
+          <div class="spark-bar" style="height:40%;"></div>
+          <div class="spark-bar" style="height:15%;"></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="title">Trend</div>
+        <div class="big up">&#8599; Improving</div>
+        <div class="sub">Last 4 vs previous 4</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Export Modal ══ -->
+<div class="modal-bg" id="exportModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Export Report</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="range-info" style="margin-top:0; margin-bottom:14px;">
+        Filters active: <strong>Dec 15 2025 &ndash; Feb 15 2026</strong> &middot; Surah 67&ndash;69 &middot; Juz 29<br>
+        <span style="opacity:0.7;">12 classes, 47 mistakes in this range</span>
+      </div>
+
+      <div class="fmt-row">
+        <button class="fmt active" onclick="pickFmt(this)"><span class="ico">&#128196;</span>PDF</button>
+        <button class="fmt" onclick="pickFmt(this)"><span class="ico">&#128202;</span>CSV</button>
+        <button class="fmt" onclick="pickFmt(this)"><span class="ico">&#128209;</span>Word</button>
+      </div>
+
+      <div class="toggle-section">
+        <h3>Include in Report</h3>
+        <div class="toggle-item">
+          <div><label>Summary Statistics</label><div class="desc">Classes, total/unique/repeated mistakes, avg performance</div></div>
+          <span class="sw on" onclick="this.classList.toggle('on')"></span>
+        </div>
+        <div class="toggle-item">
+          <div><label>Class-by-Class Details</label><div class="desc">Date, portions (Hifz/Sabqi/Manzil), mistakes per class</div></div>
+          <span class="sw on" onclick="this.classList.toggle('on')"></span>
+        </div>
+        <div class="toggle-item">
+          <div><label>Mistakes by Surah</label><div class="desc">Mistake distribution across surahs</div></div>
+          <span class="sw on" onclick="this.classList.toggle('on')"></span>
+        </div>
+        <div class="toggle-item">
+          <div><label>Repeated Mistakes</label><div class="desc">Words missed multiple times &mdash; focus areas</div></div>
+          <span class="sw on" onclick="this.classList.toggle('on')"></span>
+        </div>
+        <div class="toggle-item">
+          <div><label>Performance Chart</label><div class="desc">Performance trend over time</div></div>
+          <span class="sw" onclick="this.classList.toggle('on')"></span>
+        </div>
+        <div class="toggle-item">
+          <div><label>Teacher Notes</label><div class="desc">Session notes from each class</div></div>
+          <span class="sw" onclick="this.classList.toggle('on')"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-go">Export PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+function toggle(btn) {
+  const row = btn.closest('tr').nextElementSibling;
+  const isOpen = row.classList.contains('open');
+  document.querySelectorAll('.detail-row').forEach(r => r.classList.remove('open'));
+  document.querySelectorAll('.expand-toggle').forEach(b => b.innerHTML = '&#9654;');
+  if (!isOpen) { row.classList.add('open'); btn.innerHTML = '&#9660;'; }
+}
+
+function pickPreset(btn) {
+  document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function clearFilters() {
+  document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-select').forEach(s => s.selectedIndex = 0);
+}
+
+function openModal() { document.getElementById('exportModal').classList.add('open'); }
+function closeModal() { document.getElementById('exportModal').classList.remove('open'); }
+function pickFmt(btn) {
+  document.querySelectorAll('.fmt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelector('.btn-go').textContent = 'Export ' + btn.textContent.trim();
+}
+</script>
+
+</body>
+</html>

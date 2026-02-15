@@ -29,13 +29,14 @@ interface ClassData {
 
 interface MistakeOccurrence {
   class_id: string;
-  occurred_at: string;
-  class_date: string;
-  class_day: string;
+  occurred_at?: string;
+  class_date?: string;
+  class_day?: string;
 }
 
 interface Mistake {
   id: string;
+  student_id?: string;
   surah_number: number;
   ayah_number: number;
   word_index: number;
@@ -877,48 +878,46 @@ export default function Classroom() {
       )}
 
       {/* Section Tabs */}
-          <div className="flex items-center gap-3">
-            {availableSections.map((type) => {
-              const config = SECTION_LABELS[type];
-              const typeAssignments = classData.assignments.filter(a => a.type === type);
-              const isActive = activeSection === type;
+      <div className="flex items-center gap-3">
+        {availableSections.map((type) => {
+          const config = SECTION_LABELS[type];
+          const typeAssignments = classData.assignments.filter(a => a.type === type);
+          const isActive = activeSection === type;
 
-              return (
-                <button
-                  key={type}
-                  onClick={() => setActiveSection(type)}
-                  className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                    isActive ? `${config.bgColor} ${config.borderColor} ${config.color}` : darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-                  }`}
-                >
-                  <div className="text-left">
-                    <p className={`font-semibold ${isActive ? config.color : darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{config.label}</p>
-                    {typeAssignments.length > 0 && (
-                      <p className={`text-sm mt-1 ${isActive ? 'opacity-80' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {typeAssignments.map((a, i) => <span key={a.id}>{i > 0 && ' + '}{formatAssignmentRange(a)}</span>)}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          return (
+            <button
+              key={type}
+              onClick={() => setActiveSection(type)}
+              className={`flex-1 p-4 rounded-xl border-2 transition-all ${
+                isActive ? `${config.bgColor} ${config.borderColor} ${config.color}` : darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+              }`}
+            >
+              <div className="text-left">
+                <p className={`font-semibold ${isActive ? config.color : darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{config.label}</p>
+                {typeAssignments.length > 0 && (
+                  <p className={`text-sm mt-1 ${isActive ? 'opacity-80' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {typeAssignments.map((a, i) => <span key={a.id}>{i > 0 && ' + '}{formatAssignmentRange(a)}</span>)}
+                  </p>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-          {/* Add Portion Button */}
-          {isTeacher && (
-            <div className="flex justify-end">
-              <button
-                onClick={() => { setNewPortionType(activeSection); setShowAddPortionModal(true); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'}`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Add Portion
-              </button>
-            </div>
-          )}
-        </>
+      {/* Add Portion Button */}
+      {isTeacher && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => { setNewPortionType(activeSection); setShowAddPortionModal(true); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Portion
+          </button>
+        </div>
       )}
 
       {/* Content */}
@@ -1207,7 +1206,7 @@ export default function Classroom() {
                       // Check if this class_id entry exists
                       let classEntry = mistakesByDay[key].find(e => e.class_id === o.class_id);
                       if (!classEntry) {
-                        classEntry = { day: o.class_day, date: o.class_date, class_id: o.class_id, mistakes: [] };
+                        classEntry = { day: o.class_day || '', date: o.class_date || '', class_id: o.class_id, mistakes: [] };
                         mistakesByDay[key].push(classEntry);
                       }
                       // Add mistake if not already there

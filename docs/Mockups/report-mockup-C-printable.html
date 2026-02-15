@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Mockup C - Print-Friendly Document</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* Screen-only toolbar */
+  .toolbar {
+    max-width: 900px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #1e293b;
+    border-radius: 12px;
+    border: 1px solid #334155;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 12px; }
+  .toolbar-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #334155; background: transparent; color: #94a3b8; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .toolbar-btn:hover { background: #334155; color: #e2e8f0; }
+  .toolbar-btn.primary { background: #0891b2; border-color: #0891b2; color: white; }
+  .toolbar-btn.primary:hover { background: #0e7490; }
+  .toolbar-info { font-size: 13px; color: #64748b; }
+
+  .config-bar {
+    max-width: 900px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #1e293b;
+    border-radius: 12px;
+    border: 1px solid #334155;
+    flex-wrap: wrap;
+  }
+  .config-bar label { font-size: 12px; color: #64748b; font-weight: 500; }
+  .config-bar input[type="date"] { padding: 6px 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 13px; }
+  .config-bar .sep { width: 1px; height: 28px; background: #334155; margin: 0 4px; }
+  .config-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid #334155; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; font-weight: 500; }
+  .config-chip.on { background: #0891b215; border-color: #0891b2; color: #22d3ee; }
+
+  /* ── Document (the printable area) ── */
+  .document {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #f8fafc;
+    color: #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+
+  /* Document header / banner */
+  .doc-header {
+    background: linear-gradient(135deg, #0c4a6e, #0891b2);
+    color: white;
+    padding: 40px 48px;
+  }
+  .doc-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  .doc-header .subtitle { font-size: 15px; opacity: 0.85; }
+  .doc-header .meta-row { display: flex; gap: 32px; margin-top: 20px; font-size: 13px; opacity: 0.8; }
+  .doc-header .meta-row strong { opacity: 1; }
+
+  /* Content area */
+  .doc-body { padding: 40px 48px; }
+
+  /* Section divider */
+  .doc-section { margin-bottom: 36px; }
+  .doc-section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #0891b2; display: flex; align-items: center; gap: 8px; }
+  .doc-section-title .num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #0891b2; color: white; font-size: 13px; font-weight: 700; }
+
+  /* Summary cards (in document) */
+  .doc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 0; }
+  .doc-stat { padding: 16px; background: #f1f5f9; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center; }
+  .doc-stat .val { font-size: 24px; font-weight: 700; color: #0f172a; }
+  .doc-stat .lbl { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .doc-stat.accent .val { color: #0891b2; }
+  .doc-stat.warn .val { color: #dc2626; }
+  .doc-stat.ok .val { color: #16a34a; }
+
+  /* Class list (document style) */
+  .class-list { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+  .class-entry { border-bottom: 1px solid #e2e8f0; }
+  .class-entry:last-child { border-bottom: none; }
+  .class-entry-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; }
+  .class-entry-header .date { font-weight: 700; font-size: 14px; color: #0f172a; }
+  .class-entry-header .day { color: #64748b; font-size: 13px; margin-left: 8px; }
+  .class-entry-header .right { display: flex; align-items: center; gap: 12px; }
+  .doc-perf { padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .doc-perf.excellent { background: #dcfce7; color: #16a34a; }
+  .doc-perf.very-good { background: #cffafe; color: #0891b2; }
+  .doc-perf.good { background: #fef3c7; color: #d97706; }
+  .doc-perf.needs-work { background: #fecaca; color: #dc2626; }
+  .doc-mistakes-num { font-size: 12px; color: #64748b; }
+  .doc-mistakes-num strong { color: #dc2626; }
+
+  .class-entry-body { padding: 12px 16px; display: flex; gap: 20px; }
+  .class-entry-body .col { flex: 1; }
+  .class-entry-body .col-title { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+
+  .doc-portion { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; padding: 2px 0; }
+  .doc-portion .type-tag { font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+  .doc-portion .type-tag.hifz { background: #dbeafe; color: #2563eb; }
+  .doc-portion .type-tag.sabqi { background: #cffafe; color: #0891b2; }
+  .doc-portion .type-tag.manzil { background: #f1f5f9; color: #64748b; }
+
+  .doc-mistake-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .doc-mistake-item { font-size: 11px; padding: 2px 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; color: #b91c1c; font-family: 'Amiri', sans-serif; }
+
+  .doc-note { font-size: 12px; color: #64748b; font-style: italic; padding: 8px 16px; background: #f1f5f9; border-left: 3px solid #cbd5e1; margin: 0 16px 12px 16px; border-radius: 0 6px 6px 0; }
+
+  /* Surah bars (document style) */
+  .doc-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .doc-bar-row .name { width: 100px; font-size: 13px; color: #475569; text-align: right; flex-shrink: 0; font-weight: 500; }
+  .doc-bar-row .track { flex: 1; height: 22px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+  .doc-bar-row .fill { height: 100%; background: linear-gradient(90deg, #0891b2, #14b8a6); border-radius: 4px; }
+  .doc-bar-row .val { width: 80px; font-size: 12px; color: #64748b; }
+  .doc-bar-row .val strong { color: #0f172a; }
+
+  /* Repeated mistakes table (document style) */
+  .doc-table { width: 100%; border-collapse: collapse; }
+  .doc-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; }
+  .doc-table td { padding: 8px 12px; font-size: 13px; color: #475569; border-bottom: 1px solid #f1f5f9; }
+  .doc-table .arabic { font-family: 'Amiri', serif; font-size: 16px; direction: rtl; color: #0f172a; }
+  .doc-table .error-num { display: inline-block; padding: 2px 10px; background: #fef2f2; color: #dc2626; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+  /* Performance timeline (document) */
+  .perf-timeline { display: flex; flex-direction: column; gap: 6px; }
+  .perf-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+  .perf-row .p-date { width: 100px; font-size: 13px; color: #64748b; font-weight: 500; }
+  .perf-row .p-bar-area { flex: 1; display: flex; align-items: center; }
+  .perf-row .p-bar { height: 20px; border-radius: 4px; }
+  .perf-row .p-bar.excellent { background: #22c55e; width: 90%; }
+  .perf-row .p-bar.very-good { background: #06b6d4; width: 70%; }
+  .perf-row .p-bar.good { background: #f59e0b; width: 50%; }
+  .perf-row .p-bar.needs-work { background: #ef4444; width: 30%; }
+  .perf-row .p-label { margin-left: 8px; font-size: 12px; color: #475569; font-weight: 500; }
+
+  /* Footer */
+  .doc-footer { padding: 24px 48px; background: #f1f5f9; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; }
+
+  /* Print styles */
+  @media print {
+    body { background: white; padding: 0; }
+    .toolbar, .config-bar { display: none !important; }
+    .document { box-shadow: none; border-radius: 0; }
+    .doc-header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .doc-stat, .doc-perf, .doc-table th, .doc-mistake-item, .error-num, .type-tag, .perf-row .p-bar {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Screen-only toolbar -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <button class="toolbar-btn">&larr; Back</button>
+    <span class="toolbar-info">Preview &mdash; this is how the report will look when exported</span>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="toolbar-btn" onclick="window.print()">&#128424; Print</button>
+    <button class="toolbar-btn primary" onclick="openConfig()">&#9881; Configure &amp; Export</button>
+  </div>
+</div>
+
+<!-- Screen-only config bar -->
+<div class="config-bar" id="configBar" style="display:none;">
+  <label>Date Range:</label>
+  <input type="date" value="2026-01-01">
+  <span style="color:#64748b;">to</span>
+  <input type="date" value="2026-02-15">
+  <div class="sep"></div>
+  <label>Sections:</label>
+  <span class="config-chip on" onclick="this.classList.toggle('on')">Summary</span>
+  <span class="config-chip on" onclick="this.classList.toggle('on')">Classes</span>
+  <span class="config-chip on" onclick="this.classList.toggle('on')">Mistakes by Surah</span>
+  <span class="config-chip on" onclick="this.classList.toggle('on')">Repeated Mistakes</span>
+  <span class="config-chip on" onclick="this.classList.toggle('on')">Performance</span>
+  <span class="config-chip" onclick="this.classList.toggle('on')">Notes</span>
+  <div class="sep"></div>
+  <label>Format:</label>
+  <span class="config-chip on">PDF</span>
+  <span class="config-chip">Word</span>
+  <span class="config-chip">CSV</span>
+  <div style="margin-left:auto;">
+    <button class="toolbar-btn primary" style="padding:6px 14px; font-size:12px;">Download</button>
+  </div>
+</div>
+
+<!-- ══════════ THE DOCUMENT ══════════ -->
+<div class="document">
+
+  <!-- Header Banner -->
+  <div class="doc-header">
+    <h1>Student Progress Report</h1>
+    <div class="subtitle">Hamza Reyal &mdash; hamza@iiotsolutions.sa</div>
+    <div class="meta-row">
+      <span>Report Period: <strong>1 January 2026 &ndash; 15 February 2026</strong></span>
+      <span>Generated: <strong>15 February 2026</strong></span>
+      <span>Teacher: <strong>Sheikh Ahmad</strong></span>
+    </div>
+  </div>
+
+  <div class="doc-body">
+
+    <!-- Section 1: Summary -->
+    <div class="doc-section">
+      <div class="doc-section-title"><span class="num">1</span> Summary</div>
+      <div class="doc-stats">
+        <div class="doc-stat accent">
+          <div class="val">12</div>
+          <div class="lbl">Classes Attended</div>
+        </div>
+        <div class="doc-stat">
+          <div class="val">47</div>
+          <div class="lbl">Total Mistakes</div>
+        </div>
+        <div class="doc-stat warn">
+          <div class="val">8</div>
+          <div class="lbl">Repeated Mistakes</div>
+        </div>
+        <div class="doc-stat ok">
+          <div class="val">Very Good</div>
+          <div class="lbl">Average Performance</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Class-by-Class -->
+    <div class="doc-section">
+      <div class="doc-section-title"><span class="num">2</span> Class-by-Class Details</div>
+      <div class="class-list">
+
+        <!-- Class 1 -->
+        <div class="class-entry">
+          <div class="class-entry-header">
+            <div>
+              <span class="date">15 February 2026</span>
+              <span class="day">Saturday</span>
+            </div>
+            <div class="right">
+              <span class="doc-mistakes-num"><strong>2</strong> mistakes</span>
+              <span class="doc-perf excellent">Excellent</span>
+            </div>
+          </div>
+          <div class="class-entry-body">
+            <div class="col">
+              <div class="col-title">Portions Assigned</div>
+              <div class="doc-portion"><span class="type-tag hifz">HIFZ</span> Al-Mulk (67) &mdash; Ayah 1-15</div>
+              <div class="doc-portion"><span class="type-tag sabqi">SABQI</span> Al-Qalam (68) &mdash; Ayah 1-30</div>
+              <div class="doc-portion"><span class="type-tag manzil">MANZIL</span> Ya-Sin (36) &mdash; Full Surah</div>
+            </div>
+            <div class="col">
+              <div class="col-title">Mistakes</div>
+              <div class="doc-mistake-list">
+                <span class="doc-mistake-item">يُنفِقُونَ Al-Mulk:5</span>
+                <span class="doc-mistake-item">وَلَقَدْ Al-Qalam:17 (2x)</span>
+              </div>
+            </div>
+          </div>
+          <div class="doc-note">"Good session. Fluent reading of Ya-Sin. Minor hesitation on Al-Mulk ayah 5."</div>
+        </div>
+
+        <!-- Class 2 -->
+        <div class="class-entry">
+          <div class="class-entry-header">
+            <div>
+              <span class="date">12 February 2026</span>
+              <span class="day">Wednesday</span>
+            </div>
+            <div class="right">
+              <span class="doc-mistakes-num"><strong>5</strong> mistakes</span>
+              <span class="doc-perf very-good">Very Good</span>
+            </div>
+          </div>
+          <div class="class-entry-body">
+            <div class="col">
+              <div class="col-title">Portions Assigned</div>
+              <div class="doc-portion"><span class="type-tag hifz">HIFZ</span> Al-Mulk (67) &mdash; Ayah 16-30</div>
+              <div class="doc-portion"><span class="type-tag sabqi">SABQI</span> Al-Mulk (67) &mdash; Ayah 1-15</div>
+              <div class="doc-portion"><span class="type-tag manzil">MANZIL</span> Ar-Rahman (55) &mdash; Full Surah</div>
+            </div>
+            <div class="col">
+              <div class="col-title">Mistakes</div>
+              <div class="doc-mistake-list">
+                <span class="doc-mistake-item">تَكَادُ Al-Mulk:8</span>
+                <span class="doc-mistake-item">فَسُحْقًا Al-Mulk:11 (3x)</span>
+                <span class="doc-mistake-item">نُشُورُ Al-Mulk:15</span>
+                <span class="doc-mistake-item">يُنفِقُونَ Al-Mulk:5 (2x)</span>
+                <span class="doc-mistake-item">مَرَجَ Ar-Rahman:19</span>
+              </div>
+            </div>
+          </div>
+          <div class="doc-note">"Needs to review Al-Mulk ayah 8-15 more carefully. Good manzil recitation."</div>
+        </div>
+
+        <!-- Class 3 -->
+        <div class="class-entry">
+          <div class="class-entry-header">
+            <div>
+              <span class="date">8 February 2026</span>
+              <span class="day">Saturday</span>
+            </div>
+            <div class="right">
+              <span class="doc-mistakes-num"><strong>7</strong> mistakes</span>
+              <span class="doc-perf good">Good</span>
+            </div>
+          </div>
+          <div class="class-entry-body">
+            <div class="col">
+              <div class="col-title">Portions Assigned</div>
+              <div class="doc-portion"><span class="type-tag hifz">HIFZ</span> Al-Qalam (68) &mdash; Ayah 1-20</div>
+              <div class="doc-portion"><span class="type-tag sabqi">SABQI</span> Al-Mulk (67) &mdash; Ayah 16-30</div>
+              <div class="doc-portion"><span class="type-tag manzil">MANZIL</span> Al-Waqiah (56) &mdash; Full Surah</div>
+            </div>
+            <div class="col">
+              <div class="col-title">Mistakes</div>
+              <div class="doc-mistake-list">
+                <span class="doc-mistake-item">وَلَقَدْ Al-Qalam:17</span>
+                <span class="doc-mistake-item">كَذَّبُوا Al-Qalam:9 (2x)</span>
+                <span class="doc-mistake-item">فَسُحْقًا Al-Mulk:11 (2x)</span>
+                <span class="doc-mistake-item">مَّهِينٍ Al-Qalam:10</span>
+                <span class="doc-mistake-item">مَّشَّآءٍ Al-Qalam:11</span>
+                <span class="doc-mistake-item">تَكَادُ Al-Mulk:8</span>
+                <span class="doc-mistake-item">ثُلَّةٌ Al-Waqiah:39</span>
+              </div>
+            </div>
+          </div>
+          <div class="doc-note">"Struggled with new hifz portion. Sabqi from previous week still shaky. Manzil was solid except one slip."</div>
+        </div>
+
+        <!-- Class 4 -->
+        <div class="class-entry">
+          <div class="class-entry-header">
+            <div>
+              <span class="date">5 February 2026</span>
+              <span class="day">Wednesday</span>
+            </div>
+            <div class="right">
+              <span class="doc-mistakes-num"><strong>1</strong> mistake</span>
+              <span class="doc-perf excellent">Excellent</span>
+            </div>
+          </div>
+          <div class="class-entry-body">
+            <div class="col">
+              <div class="col-title">Portions Assigned</div>
+              <div class="doc-portion"><span class="type-tag hifz">HIFZ</span> Al-Haqqah (69) &mdash; Ayah 1-18</div>
+              <div class="doc-portion"><span class="type-tag sabqi">SABQI</span> Al-Qalam (68) &mdash; Ayah 1-20</div>
+              <div class="doc-portion"><span class="type-tag manzil">MANZIL</span> Al-Hadid (57) &mdash; Ayah 1-15</div>
+            </div>
+            <div class="col">
+              <div class="col-title">Mistakes</div>
+              <div class="doc-mistake-list">
+                <span class="doc-mistake-item">الطَّامَّةُ Al-Haqqah:4</span>
+              </div>
+            </div>
+          </div>
+          <div class="doc-note">"Excellent session. Clean recitation across all portions. Very well prepared."</div>
+        </div>
+
+        <!-- Class 5 -->
+        <div class="class-entry">
+          <div class="class-entry-header">
+            <div>
+              <span class="date">1 February 2026</span>
+              <span class="day">Saturday</span>
+            </div>
+            <div class="right">
+              <span class="doc-mistakes-num"><strong>4</strong> mistakes</span>
+              <span class="doc-perf very-good">Very Good</span>
+            </div>
+          </div>
+          <div class="class-entry-body">
+            <div class="col">
+              <div class="col-title">Portions Assigned</div>
+              <div class="doc-portion"><span class="type-tag hifz">HIFZ</span> Al-Haqqah (69) &mdash; Ayah 19-34</div>
+              <div class="doc-portion"><span class="type-tag sabqi">SABQI</span> Al-Haqqah (69) &mdash; Ayah 1-18</div>
+              <div class="doc-portion"><span class="type-tag manzil">MANZIL</span> Al-Mujadila (58) &mdash; Full Surah</div>
+            </div>
+            <div class="col">
+              <div class="col-title">Mistakes</div>
+              <div class="doc-mistake-list">
+                <span class="doc-mistake-item">الحَاقَّةُ Al-Haqqah:1</span>
+                <span class="doc-mistake-item">القَارِعَةُ Al-Haqqah:4 (2x)</span>
+                <span class="doc-mistake-item">وَأَمَّا Al-Haqqah:25</span>
+              </div>
+            </div>
+          </div>
+          <div class="doc-note">"Good review of previous portion. Focus on tajweed rules in Al-Haqqah."</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: Mistakes by Surah -->
+    <div class="doc-section">
+      <div class="doc-section-title"><span class="num">3</span> Mistakes by Surah</div>
+      <div class="doc-bar-row">
+        <div class="name">Al-Mulk</div>
+        <div class="track"><div class="fill" style="width:100%;"></div></div>
+        <div class="val"><strong>18</strong> total (12 unique)</div>
+      </div>
+      <div class="doc-bar-row">
+        <div class="name">Al-Qalam</div>
+        <div class="track"><div class="fill" style="width:67%;"></div></div>
+        <div class="val"><strong>12</strong> total (8 unique)</div>
+      </div>
+      <div class="doc-bar-row">
+        <div class="name">Al-Haqqah</div>
+        <div class="track"><div class="fill" style="width:33%;"></div></div>
+        <div class="val"><strong>6</strong> total (5 unique)</div>
+      </div>
+      <div class="doc-bar-row">
+        <div class="name">Ar-Rahman</div>
+        <div class="track"><div class="fill" style="width:28%;"></div></div>
+        <div class="val"><strong>5</strong> total (4 unique)</div>
+      </div>
+      <div class="doc-bar-row">
+        <div class="name">Al-Waqiah</div>
+        <div class="track"><div class="fill" style="width:22%;"></div></div>
+        <div class="val"><strong>4</strong> total (3 unique)</div>
+      </div>
+      <div class="doc-bar-row">
+        <div class="name">Ya-Sin</div>
+        <div class="track"><div class="fill" style="width:11%;"></div></div>
+        <div class="val"><strong>2</strong> total (2 unique)</div>
+      </div>
+    </div>
+
+    <!-- Section 4: Repeated Mistakes -->
+    <div class="doc-section">
+      <div class="doc-section-title"><span class="num">4</span> Repeated Mistakes &mdash; Needs Focus</div>
+      <table class="doc-table">
+        <thead>
+          <tr><th>Surah</th><th>Ayah</th><th>Word</th><th style="text-align:center;">Times Missed</th><th>Last Occurrence</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Al-Mulk</td><td>11</td><td class="arabic">فَسُحْقًا</td><td style="text-align:center;"><span class="error-num">5x</span></td><td>12 Feb 2026</td></tr>
+          <tr><td>Al-Qalam</td><td>9</td><td class="arabic">كَذَّبُوا</td><td style="text-align:center;"><span class="error-num">3x</span></td><td>8 Feb 2026</td></tr>
+          <tr><td>Al-Mulk</td><td>5</td><td class="arabic">يُنفِقُونَ</td><td style="text-align:center;"><span class="error-num">3x</span></td><td>15 Feb 2026</td></tr>
+          <tr><td>Al-Qalam</td><td>17</td><td class="arabic">وَلَقَدْ</td><td style="text-align:center;"><span class="error-num">3x</span></td><td>15 Feb 2026</td></tr>
+          <tr><td>Al-Mulk</td><td>8</td><td class="arabic">تَكَادُ</td><td style="text-align:center;"><span class="error-num">2x</span></td><td>12 Feb 2026</td></tr>
+          <tr><td>Al-Haqqah</td><td>4</td><td class="arabic">القَارِعَةُ</td><td style="text-align:center;"><span class="error-num">2x</span></td><td>1 Feb 2026</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Section 5: Performance Trend -->
+    <div class="doc-section">
+      <div class="doc-section-title"><span class="num">5</span> Performance History</div>
+      <div class="perf-timeline">
+        <div class="perf-row">
+          <div class="p-date">15 Feb</div>
+          <div class="p-bar-area"><div class="p-bar excellent"></div><span class="p-label">Excellent</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">12 Feb</div>
+          <div class="p-bar-area"><div class="p-bar very-good"></div><span class="p-label">Very Good</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">8 Feb</div>
+          <div class="p-bar-area"><div class="p-bar good"></div><span class="p-label">Good</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">5 Feb</div>
+          <div class="p-bar-area"><div class="p-bar excellent"></div><span class="p-label">Excellent</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">1 Feb</div>
+          <div class="p-bar-area"><div class="p-bar very-good"></div><span class="p-label">Very Good</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">29 Jan</div>
+          <div class="p-bar-area"><div class="p-bar excellent"></div><span class="p-label">Excellent</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">25 Jan</div>
+          <div class="p-bar-area"><div class="p-bar very-good"></div><span class="p-label">Very Good</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">22 Jan</div>
+          <div class="p-bar-area"><div class="p-bar good"></div><span class="p-label">Good</span></div>
+        </div>
+        <div class="perf-row">
+          <div class="p-date">18 Jan</div>
+          <div class="p-bar-area"><div class="p-bar very-good"></div><span class="p-label">Very Good</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Document footer -->
+  <div class="doc-footer">
+    <span>QuranTrack &mdash; Student Progress Report</span>
+    <span>Page 1 of 1</span>
+  </div>
+
+</div>
+
+<script>
+function openConfig() {
+  const bar = document.getElementById('configBar');
+  bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+}
+</script>
+
+</body>
+</html>

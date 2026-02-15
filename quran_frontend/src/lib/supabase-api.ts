@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { cacheFirst, invalidateCache, saveToCache, getFromCache } from './cache';
+import { surahNames } from './quran-utils';
 import type { StudentListItem, StudentLookup, TeacherListItem } from '../types';
 
 // Cache keys
@@ -256,7 +257,7 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
 
     if (error) throw new Error(error.message);
     // For students, use class-level performance
-    return (data ?? []).map(row => {
+    return ((data ?? []) as any[]).map(row => {
       return {
         id: row.id,
         date: row.date,
@@ -465,7 +466,7 @@ export async function updateClassPublish(classId: string, isPublished: boolean):
   return { message: isPublished ? 'Class published' : 'Class unpublished' };
 }
 
-export async function updateStudentPerformance(classId: string, studentId: string, performance: string): Promise<{ message: string }> {
+export async function updateStudentPerformance(classId: string, _studentId: string, performance: string): Promise<{ message: string }> {
   // Note: class_students table doesn't have a performance column yet in Supabase.
   // For now, store performance at the class level instead.
   const { error } = await (supabase as any).from('classes').update({ performance }).eq('id', classId);
@@ -712,33 +713,6 @@ export interface SuggestedPortions {
   } | null;
 }
 
-// Surah names for display
-const surahNames: Record<number, string> = {
-  1: 'Al-Fatihah', 2: 'Al-Baqarah', 3: 'Aal-Imran', 4: 'An-Nisa', 5: 'Al-Maidah',
-  6: 'Al-Anam', 7: 'Al-Araf', 8: 'Al-Anfal', 9: 'At-Tawbah', 10: 'Yunus',
-  11: 'Hud', 12: 'Yusuf', 13: "Ar-Ra'd", 14: 'Ibrahim', 15: 'Al-Hijr',
-  16: 'An-Nahl', 17: 'Al-Isra', 18: 'Al-Kahf', 19: 'Maryam', 20: 'Ta-Ha',
-  21: 'Al-Anbiya', 22: 'Al-Hajj', 23: 'Al-Muminun', 24: 'An-Nur', 25: 'Al-Furqan',
-  26: 'Ash-Shuara', 27: 'An-Naml', 28: 'Al-Qasas', 29: 'Al-Ankabut', 30: 'Ar-Rum',
-  31: 'Luqman', 32: 'As-Sajdah', 33: 'Al-Ahzab', 34: 'Saba', 35: 'Fatir',
-  36: 'Ya-Sin', 37: 'As-Saffat', 38: 'Sad', 39: 'Az-Zumar', 40: 'Ghafir',
-  41: 'Fussilat', 42: 'Ash-Shura', 43: 'Az-Zukhruf', 44: 'Ad-Dukhan', 45: 'Al-Jathiyah',
-  46: 'Al-Ahqaf', 47: 'Muhammad', 48: 'Al-Fath', 49: 'Al-Hujurat', 50: 'Qaf',
-  51: 'Adh-Dhariyat', 52: 'At-Tur', 53: 'An-Najm', 54: 'Al-Qamar', 55: 'Ar-Rahman',
-  56: 'Al-Waqiah', 57: 'Al-Hadid', 58: 'Al-Mujadila', 59: 'Al-Hashr', 60: 'Al-Mumtahanah',
-  61: 'As-Saff', 62: 'Al-Jumuah', 63: 'Al-Munafiqun', 64: 'At-Taghabun', 65: 'At-Talaq',
-  66: 'At-Tahrim', 67: 'Al-Mulk', 68: 'Al-Qalam', 69: 'Al-Haqqah', 70: 'Al-Maarij',
-  71: 'Nuh', 72: 'Al-Jinn', 73: 'Al-Muzzammil', 74: 'Al-Muddaththir', 75: 'Al-Qiyamah',
-  76: 'Al-Insan', 77: 'Al-Mursalat', 78: 'An-Naba', 79: 'An-Naziat', 80: 'Abasa',
-  81: 'At-Takwir', 82: 'Al-Infitar', 83: 'Al-Mutaffifin', 84: 'Al-Inshiqaq', 85: 'Al-Buruj',
-  86: 'At-Tariq', 87: 'Al-Ala', 88: 'Al-Ghashiyah', 89: 'Al-Fajr', 90: 'Al-Balad',
-  91: 'Ash-Shams', 92: 'Al-Layl', 93: 'Ad-Duha', 94: 'Ash-Sharh', 95: 'At-Tin',
-  96: 'Al-Alaq', 97: 'Al-Qadr', 98: 'Al-Bayyinah', 99: 'Az-Zalzalah', 100: 'Al-Adiyat',
-  101: 'Al-Qariah', 102: 'At-Takathur', 103: 'Al-Asr', 104: 'Al-Humazah', 105: 'Al-Fil',
-  106: 'Quraysh', 107: 'Al-Maun', 108: 'Al-Kawthar', 109: 'Al-Kafirun', 110: 'An-Nasr',
-  111: 'Al-Masad', 112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas'
-};
-
 export async function getSuggestedPortions(studentId: string): Promise<SuggestedPortions> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
@@ -752,8 +726,8 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
   };
 
   // Find student's most recent class with assignments
-  const { data: classStudents, error: csError } = await supabase
-    .from('class_students')
+  const { data: classStudentsData, error: csError } = await supabase
+    .from('class_students' as any)
     .select(`
       class_id,
       classes (
@@ -779,6 +753,7 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
     throw new Error(csError.message);
   }
 
+  const classStudents = classStudentsData as any[];
   // Find the most recent class
   const lastClassEntry = classStudents?.[0];
 
@@ -853,4 +828,185 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
   }
 
   return suggestions;
+}
+
+// ============ STUDENT REPORT ============
+
+export async function getStudentReport(studentId: string): Promise<any> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Fetch student profile
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles' as any)
+    .select('*')
+    .eq('id', studentId)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error('Student not found');
+  }
+  const profileData = profile as any;
+
+  // Get student's classes (as teacher)
+  const { data: classStudentsRaw, error: csError } = await supabase
+    .from('class_students' as any)
+    .select(`
+      class_id,
+      classes (
+        id,
+        date,
+        day,
+        notes,
+        performance,
+        teacher_id,
+        is_published,
+        assignments (*)
+      )
+    `)
+    .eq('student_id', studentId);
+
+  if (csError) {
+    console.error('Error fetching classes:', csError);
+  }
+  const classStudents = (classStudentsRaw ?? []) as any[];
+
+  // Get student's mistakes WITH occurrences (links mistakes to classes)
+  const { data: mistakesRaw, error: mistakesError } = await supabase
+    .from('mistakes' as any)
+    .select('*, mistake_occurrences(id, class_id, occurred_at)')
+    .eq('student_id', studentId);
+
+  if (mistakesError) {
+    console.error('Error fetching mistakes:', mistakesError);
+  }
+  const mistakes = (mistakesRaw ?? []) as any[];
+
+  // Build per-class mistake mapping
+  const classMistakeMap = new Map<string, any[]>();
+  for (const m of mistakes) {
+    const occurrences = m.mistake_occurrences ?? [];
+    for (const occ of occurrences) {
+      if (!occ.class_id) continue;
+      const existing = classMistakeMap.get(occ.class_id) || [];
+      existing.push({
+        id: m.id,
+        surah_number: m.surah_number,
+        surah_name: surahNames[m.surah_number] || `Surah ${m.surah_number}`,
+        ayah_number: m.ayah_number,
+        word_text: m.word_text,
+        error_count: m.error_count
+      });
+      classMistakeMap.set(occ.class_id, existing);
+    }
+  }
+
+  // Build student info
+  const student = {
+    id: profileData.id,
+    name: profileData.name,
+    email: profileData.email,
+    student_id: profileData.student_id || '',
+    added_at: profileData.created_at
+  };
+
+  // Build classes list with per-class mistakes
+  const classes = (classStudents || []).map((cs: any) => {
+    const classId = cs.classes?.id || '';
+    const classMistakes = classMistakeMap.get(classId) || [];
+    return {
+      id: classId,
+      date: cs.classes?.date || '',
+      day: cs.classes?.day || '',
+      notes: cs.classes?.notes || '',
+      performance: cs.classes?.performance || '',
+      assignments: (cs.classes?.assignments || []).map((a: any) => ({
+        type: a.type,
+        start_surah: a.start_surah,
+        end_surah: a.end_surah,
+        start_ayah: a.start_ayah,
+        end_ayah: a.end_ayah
+      })),
+      mistakes: classMistakes,
+      mistake_count: classMistakes.length
+    };
+  });
+
+  // Calculate summary stats
+  const totalMistakes = mistakes.length;
+  const uniqueMistakes = new Set(mistakes.map(m => `${m.surah_number}-${m.ayah_number}-${m.word_index}`)).size;
+  const repeatedMistakes = mistakes.filter(m => m.error_count > 1).length;
+  const totalClasses = classStudents.length;
+
+  // Compute avg performance
+  const perfMap: Record<string, number> = {
+    'excellent': 4, 'Excellent': 4,
+    'very good': 3, 'Very Good': 3,
+    'good': 2, 'Good': 2,
+    'needs improvement': 1, 'Needs Improvement': 1,
+    'needs work': 1, 'Needs Work': 1
+  };
+  const perfLabels = ['', 'Needs Work', 'Good', 'Very Good', 'Excellent'];
+  const perfScores = classes
+    .map(c => perfMap[c.performance] || 0)
+    .filter(s => s > 0);
+  const avgPerfScore = perfScores.length > 0
+    ? Math.round(perfScores.reduce((a, b) => a + b, 0) / perfScores.length)
+    : 0;
+  const avgPerformance = perfLabels[avgPerfScore] || 'N/A';
+
+  const summary = {
+    total_classes: totalClasses,
+    total_mistakes: totalMistakes,
+    unique_mistakes: uniqueMistakes,
+    repeated_mistakes: repeatedMistakes,
+    avg_performance: avgPerformance
+  };
+
+  // Group mistakes by surah
+  const mistakesBySurahMap = new Map<number, { total: number; unique: Set<string> }>();
+  for (const m of mistakes) {
+    const existing = mistakesBySurahMap.get(m.surah_number) || { total: 0, unique: new Set<string>() };
+    existing.total += 1;
+    existing.unique.add(`${m.ayah_number}-${m.word_index}`);
+    mistakesBySurahMap.set(m.surah_number, existing);
+  }
+
+  const mistakes_by_surah = Array.from(mistakesBySurahMap.entries()).map(([surahNum, data]) => ({
+    surah_number: surahNum,
+    surah_name: surahNames[surahNum] || `Surah ${surahNum}`,
+    total_mistakes: data.total,
+    unique_mistakes: data.unique.size
+  })).sort((a, b) => a.surah_number - b.surah_number);
+
+  // Get repeated mistakes
+  const repeated_mistakes = mistakes
+    .filter(m => m.error_count > 1)
+    .map(m => ({
+      id: m.id,
+      surah_number: m.surah_number,
+      surah_name: surahNames[m.surah_number] || `Surah ${m.surah_number}`,
+      ayah_number: m.ayah_number,
+      word_text: m.word_text,
+      error_count: m.error_count
+    }))
+    .sort((a, b) => b.error_count - a.error_count);
+
+  // Get performance trend from classes
+  const performance_trend = classes
+    .filter(c => c.performance)
+    .map(c => ({
+      date: c.date,
+      performance: c.performance
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return {
+    student,
+    summary,
+    classes,
+    mistakes_by_surah,
+    repeated_mistakes,
+    performance_trend
+  };
 }

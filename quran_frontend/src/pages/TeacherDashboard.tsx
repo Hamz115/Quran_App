@@ -319,15 +319,26 @@ export default function TeacherDashboard() {
                 <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                   Added: {new Date(student.added_at).toLocaleDateString()}
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveStudent(student.student_id);
-                  }}
-                  className="text-xs text-red-500 hover:text-red-400"
-                >
-                  Remove
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/teacher/students/${student.id}/report`);
+                    }}
+                    className="text-xs text-cyan-500 hover:text-cyan-400 font-medium"
+                  >
+                    View Report
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveStudent(student.student_id);
+                    }}
+                    className="text-xs text-red-500 hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
           ))}

@@ -1,35 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassPublish, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
+import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
-
-const surahNames: Record<number, string> = {
-  1: 'Al-Fatihah', 2: 'Al-Baqarah', 3: 'Aal-Imran', 4: 'An-Nisa', 5: 'Al-Maidah',
-  6: 'Al-Anam', 7: 'Al-Araf', 8: 'Al-Anfal', 9: 'At-Tawbah', 10: 'Yunus',
-  11: 'Hud', 12: 'Yusuf', 13: 'Ar-Ra\'d', 14: 'Ibrahim', 15: 'Al-Hijr',
-  16: 'An-Nahl', 17: 'Al-Isra', 18: 'Al-Kahf', 19: 'Maryam', 20: 'Ta-Ha',
-  21: 'Al-Anbiya', 22: 'Al-Hajj', 23: 'Al-Muminun', 24: 'An-Nur', 25: 'Al-Furqan',
-  26: 'Ash-Shuara', 27: 'An-Naml', 28: 'Al-Qasas', 29: 'Al-Ankabut', 30: 'Ar-Rum',
-  31: 'Luqman', 32: 'As-Sajdah', 33: 'Al-Ahzab', 34: 'Saba', 35: 'Fatir',
-  36: 'Ya-Sin', 37: 'As-Saffat', 38: 'Sad', 39: 'Az-Zumar', 40: 'Ghafir',
-  41: 'Fussilat', 42: 'Ash-Shura', 43: 'Az-Zukhruf', 44: 'Ad-Dukhan', 45: 'Al-Jathiyah',
-  46: 'Al-Ahqaf', 47: 'Muhammad', 48: 'Al-Fath', 49: 'Al-Hujurat', 50: 'Qaf',
-  51: 'Adh-Dhariyat', 52: 'At-Tur', 53: 'An-Najm', 54: 'Al-Qamar', 55: 'Ar-Rahman',
-  56: 'Al-Waqiah', 57: 'Al-Hadid', 58: 'Al-Mujadila', 59: 'Al-Hashr', 60: 'Al-Mumtahanah',
-  61: 'As-Saff', 62: 'Al-Jumuah', 63: 'Al-Munafiqun', 64: 'At-Taghabun', 65: 'At-Talaq',
-  66: 'At-Tahrim', 67: 'Al-Mulk', 68: 'Al-Qalam', 69: 'Al-Haqqah', 70: 'Al-Maarij',
-  71: 'Nuh', 72: 'Al-Jinn', 73: 'Al-Muzzammil', 74: 'Al-Muddaththir', 75: 'Al-Qiyamah',
-  76: 'Al-Insan', 77: 'Al-Mursalat', 78: 'An-Naba', 79: 'An-Naziat', 80: 'Abasa',
-  81: 'At-Takwir', 82: 'Al-Infitar', 83: 'Al-Mutaffifin', 84: 'Al-Inshiqaq', 85: 'Al-Buruj',
-  86: 'At-Tariq', 87: 'Al-Ala', 88: 'Al-Ghashiyah', 89: 'Al-Fajr', 90: 'Al-Balad',
-  91: 'Ash-Shams', 92: 'Al-Layl', 93: 'Ad-Duha', 94: 'Ash-Sharh', 95: 'At-Tin',
-  96: 'Al-Alaq', 97: 'Al-Qadr', 98: 'Al-Bayyinah', 99: 'Az-Zalzalah', 100: 'Al-Adiyat',
-  101: 'Al-Qariah', 102: 'At-Takathur', 103: 'Al-Asr', 104: 'Al-Humazah', 105: 'Al-Fil',
-  106: 'Quraysh', 107: 'Al-Maun', 108: 'Al-Kawthar', 109: 'Al-Kafirun', 110: 'An-Nasr',
-  111: 'Al-Masad', 112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas'
-};
+import { surahNames } from '../lib/quran-utils';
 
 interface SurahInfo {
   number: number;
@@ -185,22 +160,16 @@ export default function TeacherClasses() {
   }, []);
 
   const toggleStudent = (id: string) => {
-    // Regular class check removed - test feature removed
-      // Test classes only allow one student - toggle to this student only
-      setSelectedStudents(prev => prev.includes(id) ? [] : [id]);
-    } else {
-      // Regular classes allow multiple students
-      setSelectedStudents(prev =>
-        prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-      );
-    }
+    // Regular classes allow multiple students
+    setSelectedStudents(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
   };
 
   const resetModal = () => {
     setShowNewClassModal(false);
     setModalStep(1);
     setSelectedStudents([]);
-    setClassType('regular');
     setPortionMode('same');
     setActiveStudentId(null);
     setHifzConfig({ enabled: true, portions: [createDefaultPortion()] });
@@ -1008,6 +977,22 @@ export default function TeacherClasses() {
                                     </span>
                                     <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{student.first_name} {student.last_name}</span>
                                   </div>
+                                  <div className="flex items-center gap-2">
+                                  {/* Report Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/teacher/students/${student.id}/report`);
+                                    }}
+                                    className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
+                                      darkMode
+                                        ? 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20'
+                                        : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100 border border-cyan-200'
+                                    }`}
+                                    title="View student report"
+                                  >
+                                    Report
+                                  </button>
                                   {/* Performance Dropdown */}
                                   <div onClick={(e) => e.stopPropagation()}>
                                     <select
@@ -1036,6 +1021,7 @@ export default function TeacherClasses() {
                                       <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
                                       <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
                                     </select>
+                                  </div>
                                   </div>
                                 </div>
 
@@ -1398,210 +1384,7 @@ export default function TeacherClasses() {
                   })()}
 
                   <div className="space-y-3">
-                    {/* Regular portion configuration */}
-                    <div className="p-4 rounded-xl border-2 border-blue-500 bg-blue-500/5">
-                        <div className="mb-4">
-                          <h3 className="font-semibold text-slate-100">Test Portion</h3>
-                          <p className="text-sm text-slate-500">Select the ayah range the student will be tested on</p>
-                        </div>
-
-                        {/* Mode Toggle - Page (default) or Surah */}
-                        <div className="flex gap-2 mb-4">
-                          <button
-                            type="button"
-                            onClick={() => setHifzConfig({
-                              ...hifzConfig,
-                              portions: hifzConfig.portions.map((p, i) => i === 0 ? { ...p, mode: 'page' } : p)
-                            })}
-                            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                              hifzConfig.portions[0]?.mode === 'page'
-                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                                : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
-                            }`}
-                          >
-                            By Page
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setHifzConfig({
-                              ...hifzConfig,
-                              portions: hifzConfig.portions.map((p, i) => i === 0 ? { ...p, mode: 'surah' } : p)
-                            })}
-                            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                              hifzConfig.portions[0]?.mode === 'surah'
-                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                                : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
-                            }`}
-                          >
-                            By Surah
-                          </button>
-                        </div>
-
-                        {hifzConfig.portions[0]?.mode === 'page' ? (
-                          /* Page-based selection */
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs text-slate-400 mb-1">From Page</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max={TOTAL_PAGES}
-                                value={hifzConfig.portions[0]?.startPage || 560}
-                                onChange={(e) => {
-                                  const newStart = Math.min(Math.max(1, parseInt(e.target.value) || 1), TOTAL_PAGES);
-                                  const startRange = getPageRange(newStart);
-                                  const endPage = Math.max(newStart, hifzConfig.portions[0]?.endPage || newStart);
-                                  const endRange = getPageRange(endPage);
-                                  setHifzConfig({
-                                    ...hifzConfig,
-                                    portions: [{
-                                      ...hifzConfig.portions[0],
-                                      startPage: newStart,
-                                      endPage,
-                                      startSurah: startRange.startSurah,
-                                      endSurah: endRange.endSurah,
-                                      startAyah: String(startRange.startAyah),
-                                      endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
-                                    }]
-                                  });
-                                }}
-                                className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-slate-400 mb-1">To Page</label>
-                              <input
-                                type="number"
-                                min={hifzConfig.portions[0]?.startPage || 1}
-                                max={TOTAL_PAGES}
-                                value={hifzConfig.portions[0]?.endPage || 560}
-                                onChange={(e) => {
-                                  const startPage = hifzConfig.portions[0]?.startPage || 560;
-                                  const newEnd = Math.min(Math.max(startPage, parseInt(e.target.value) || startPage), TOTAL_PAGES);
-                                  const endRange = getPageRange(newEnd);
-                                  setHifzConfig({
-                                    ...hifzConfig,
-                                    portions: [{
-                                      ...hifzConfig.portions[0],
-                                      endPage: newEnd,
-                                      endSurah: endRange.endSurah,
-                                      endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
-                                    }]
-                                  });
-                                }}
-                                className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          /* Surah-based selection */
-                          <>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-xs text-slate-400 mb-1">From Surah</label>
-                                <select
-                                  value={hifzConfig.portions[0]?.startSurah || 67}
-                                  onChange={(e) => {
-                                    const newStart = parseInt(e.target.value);
-                                    const portion = hifzConfig.portions[0];
-                                    setHifzConfig({
-                                      ...hifzConfig,
-                                      portions: [{
-                                        ...portion,
-                                        startSurah: newStart,
-                                        endSurah: newStart > (portion?.endSurah || 67) ? newStart : (portion?.endSurah || 67),
-                                        startAyah: '',
-                                        endAyah: ''
-                                      }]
-                                    });
-                                  }}
-                                  className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                >
-                                  {surahList.map((surah) => (
-                                    <option key={surah.number} value={surah.number}>
-                                      {surah.number}. {surah.englishName}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-xs text-slate-400 mb-1">To Surah</label>
-                                <select
-                                  value={hifzConfig.portions[0]?.endSurah || 67}
-                                  onChange={(e) => {
-                                    const portion = hifzConfig.portions[0];
-                                    setHifzConfig({
-                                      ...hifzConfig,
-                                      portions: [{
-                                        ...portion,
-                                        endSurah: parseInt(e.target.value),
-                                        startAyah: '',
-                                        endAyah: ''
-                                      }]
-                                    });
-                                  }}
-                                  className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                >
-                                  {surahList.filter(s => s.number >= (hifzConfig.portions[0]?.startSurah || 1)).map((surah) => (
-                                    <option key={surah.number} value={surah.number}>
-                                      {surah.number}. {surah.englishName}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Ayah range - only if same surah */}
-                            {hifzConfig.portions[0]?.startSurah === hifzConfig.portions[0]?.endSurah && (
-                              <div className="grid grid-cols-2 gap-3 mt-3">
-                                <div>
-                                  <label className="block text-xs text-slate-400 mb-1">From Ayah (optional)</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max={surahList.find(s => s.number === hifzConfig.portions[0]?.startSurah)?.numberOfAyahs || 286}
-                                    placeholder="All"
-                                    value={hifzConfig.portions[0]?.startAyah || ''}
-                                    onChange={(e) => {
-                                      const portion = hifzConfig.portions[0];
-                                      setHifzConfig({
-                                        ...hifzConfig,
-                                        portions: [{ ...portion, startAyah: e.target.value }]
-                                      });
-                                    }}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-slate-400 mb-1">To Ayah (optional)</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max={surahList.find(s => s.number === hifzConfig.portions[0]?.endSurah)?.numberOfAyahs || 286}
-                                    placeholder="All"
-                                    value={hifzConfig.portions[0]?.endAyah || ''}
-                                    onChange={(e) => {
-                                      const portion = hifzConfig.portions[0];
-                                      setHifzConfig({
-                                        ...hifzConfig,
-                                        portions: [{ ...portion, endAyah: e.target.value }]
-                                      });
-                                    }}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {hifzConfig.portions[0]?.startSurah !== hifzConfig.portions[0]?.endSurah && (
-                              <p className="text-xs text-slate-500 italic mt-2">
-                                Note: Ayah range only applies when start and end surah are the same
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    ) : portionMode === 'same' ? (
+                    {portionMode === 'same' ? (
                       <>
                         <PortionSelector
                           label="Hifz (New Memorization)"
