@@ -273,21 +273,21 @@
         <!-- OVERVIEW -->
         <div class="tab-content active" id="tab-overview">
             <div class="hero">
-                <div class="hero-badge"><span class="hero-badge-dot"></span> Last updated: 2025-12-31</div>
+                <div class="hero-badge"><span class="hero-badge-dot"></span> Last updated: 2026-02-15</div>
                 <h1 class="hero-title">QuranTrack</h1>
-                <div class="hero-subtitle">QuranTrack is a Quran memorization and recitation tracking application designed for teachers (Ustadh/Ustadha) who conduct Hifz (memorization) classes. The app provides a digital platform to track student progress, mark mistakes during recitation sessions, and maintain detailed class records. The application uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to render Quran pages pixel-perfect, exactly matching the printed Madani Mushaf. Each of the 604 pages has its own dedicated font file for perfect glyph accuracy. The system supports word-level and character-level mistake tracking with color-coded severity based on error frequency. The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Data is stored in SQLite databases - a read-only Quran database bundled with the apps and a read-write application database for users, classes, and mistakes. JWT-based authentication with role-based access control (Teacher vs Student) manages user permissions.</div>
+                <div class="hero-subtitle">QuranTrack is a Quran memorization and recitation tracking application designed for teachers (Ustadh/Ustadha) who conduct Hifz (memorization) classes. The app provides a digital platform to track student progress, mark mistakes during recitation sessions, and maintain detailed class records. The application uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to render Quran pages pixel-perfect, exactly matching the printed Madani Mushaf. Each of the 604 pages has its own dedicated font file for perfect glyph accuracy. The system supports word-level and character-level mistake tracking with color-coded severity based on error frequency. The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Authentication and cloud data storage are handled by Supabase (PostgreSQL with RLS policies and JWT authentication). Local SQLite databases provide offline-first capability with bidirectional sync to Supabase. The web frontend uses Supabase client-side SDK for direct database access, while the FastAPI backend provides local-first endpoints and serves QPC font/page data.</div>
                 <div class="hero-stats">
-                    <div class="stat"><div class="stat-value">1353</div><div class="stat-label">Files</div></div>
-                    <div class="stat"><div class="stat-value">81</div><div class="stat-label">Folders</div></div>
-                    <div class="stat"><div class="stat-value">16</div><div class="stat-label">Commits</div></div>
-                    <div class="stat"><div class="stat-value">2</div><div class="stat-label">Updates</div></div>
+                    <div class="stat"><div class="stat-value">2854</div><div class="stat-label">Files</div></div>
+                    <div class="stat"><div class="stat-value">96</div><div class="stat-label">Folders</div></div>
+                    <div class="stat"><div class="stat-value">56</div><div class="stat-label">Commits</div></div>
+                    <div class="stat"><div class="stat-value">3</div><div class="stat-label">Updates</div></div>
                 </div>
             </div>
             <div class="section-header">
                 <div class="section-icon" style="background: linear-gradient(135deg, var(--primary), var(--secondary));">🛠️</div>
                 <h2 class="section-title">Tech Stack</h2>
             </div>
-            <div class="tech-grid"><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon lang">💻</div><span class="tech-card-title">Languages</span></div><div class="tech-tags"><span class="tech-tag lang">Python 3.x</span><span class="tech-tag lang">TypeScript</span><span class="tech-tag lang">JavaScript</span><span class="tech-tag lang">Dart</span><span class="tech-tag lang">Kotlin</span><span class="tech-tag lang">Java</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon fw">⚡</div><span class="tech-card-title">Frameworks</span></div><div class="tech-tags"><span class="tech-tag fw">FastAPI</span><span class="tech-tag fw">React 18</span><span class="tech-tag fw">Flutter</span><span class="tech-tag fw">Tailwind CSS</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon tool">🔧</div><span class="tech-card-title">Tools</span></div><div class="tech-tags"><span class="tech-tag tool">Vite</span><span class="tech-tag tool">SQLite</span><span class="tech-tag tool">Riverpod (Flutter state management)</span><span class="tech-tag tool">JWT</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon db">🗄️</div><span class="tech-card-title">Databases</span></div><div class="tech-tags"><span class="tech-tag db">SQLite (quran.db read-only</span><span class="tech-tag db">app.db read-write)</span></div></div></div>
+            <div class="tech-grid"><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon lang">💻</div><span class="tech-card-title">Languages</span></div><div class="tech-tags"><span class="tech-tag lang">Python 3.x</span><span class="tech-tag lang">TypeScript</span><span class="tech-tag lang">JavaScript</span><span class="tech-tag lang">Dart</span><span class="tech-tag lang">Kotlin</span><span class="tech-tag lang">Java</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon fw">⚡</div><span class="tech-card-title">Frameworks</span></div><div class="tech-tags"><span class="tech-tag fw">FastAPI</span><span class="tech-tag fw">React 19</span><span class="tech-tag fw">Flutter</span><span class="tech-tag fw">Tailwind CSS</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon tool">🔧</div><span class="tech-card-title">Tools</span></div><div class="tech-tags"><span class="tech-tag tool">Vite</span><span class="tech-tag tool">SQLite</span><span class="tech-tag tool">Riverpod (Flutter state management)</span><span class="tech-tag tool">JWT</span><span class="tech-tag tool">Supabase</span></div></div><div class="tech-card"><div class="tech-card-header"><div class="tech-card-icon db">🗄️</div><span class="tech-card-title">Databases</span></div><div class="tech-tags"><span class="tech-tag db">SQLite (quran.db read-only</span><span class="tech-tag db">app.db read-write)</span><span class="tech-tag db">Supabase PostgreSQL (cloud sync)</span></div></div></div>
             <div class="section-header">
                 <div class="section-icon" style="background: linear-gradient(135deg, #ec4899, #f97316);">🏗️</div>
                 <h2 class="section-title">Architecture</h2>
@@ -297,20 +297,33 @@
                     |  (quran_frontend)|
                     +--------+---------+
                              |
-                             | HTTP/REST
-                             v
-+------------------+   +-------------+   +------------------+
-| Flutter Mobile   |--&gt;|   FastAPI   |&lt;--| QPC Fonts (604)  |
-| (quran_mobile)   |   |  Backend    |   | page-specific    |
-+------------------+   +------+------+   +------------------+
-                             |
-              +--------------+--------------+
-              |                             |
-       +------v------+              +-------v------+
-       |  quran.db   |              |   app.db     |
-       | (read-only) |              | (read-write) |
-       | Quran text  |              | Users/Classes|
-       +-------------+              +--------------+</pre></div>
+                +------------+------------+
+                |                         |
+                v                         v
++------------------+   +------------------+   +------------------+
+| Supabase Cloud   |   |   FastAPI Local  |   | QPC Fonts (604)  |
+| (Auth + RLS DB)  |   |   Backend        |   | page-specific    |
++--------+---------+   +------+------+    |   +------------------+
+         |                    |      |    |
+         |              +-----+------+----+
+         |              |                 |
+         |       +------v------+   +------v------+
+         |       |  quran.db   |   |   app.db    |
+         |       | (read-only) |   | (read-write)|
+         |       | Quran text  |   | Users/Sync  |
+         |       +-------------+   +------+------+
+         |                                |
+         +-----&lt; bidirectional sync &gt;-----+
+                (sync_service.py)
+
++------------------+
+| Flutter Mobile   |
+| (quran_mobile)   |
++--------+---------+
+         |
+         +---&gt; Supabase Cloud (Auth + Data)
+         +---&gt; Local SQLite (offline-first)
+         +---&gt; QPC Fonts (.ttf via API)</pre></div>
         </div>
 
         <!-- FILES -->
@@ -329,7 +342,7 @@
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">FastAPI Python backend serving REST APIs for the web and mobile apps.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides all API endpoints for authentication, classes, mistakes, and Quran data</li><li>Manages two SQLite databases (quran.db and app.db)</li><li>Serves QPC word data from JSON files for each Quran page</li><li>Handles JWT authentication with access/refresh tokens</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides all API endpoints for authentication, classes, mistakes, Quran data, and sync</li><li>Manages two SQLite databases (quran.db and app.db)</li><li>Serves QPC word data from JSON files for each Quran page</li><li>Serves QPC TTF fonts for the Flutter mobile app</li><li>Handles JWT authentication with access/refresh tokens</li></ul></div>
             
             
             
@@ -338,15 +351,29 @@
             <div class="file-header">
                 <div class="file-icon python">🐍</div>
                 <div>
-                    <div class="file-title">main.py </div>
+                    <div class="file-title">main.py <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_backend/main.py</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main FastAPI application with all API endpoint definitions.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Initializes FastAPI app with CORS middleware for frontend/mobile access</li><li>Creates database tables on startup with migration support</li><li>Defines all REST endpoints for classes, mistakes, tests, and Quran data</li><li>Implements role-based access control (teacher vs student views)</li><li>Handles test class functionality with scoring and tanbeeh (warnings)</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Initializes FastAPI app with CORS middleware for frontend/mobile access</li><li>Creates database tables on startup with migration support (including sync columns)</li><li>Defines all REST endpoints for classes, mistakes, tests, and Quran data</li><li>Implements role-based access control (teacher vs student views)</li><li>Handles test class functionality with scoring and tanbeeh (warnings)</li></ul></div>
             <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">init_app_db()</span><span class="file-tag func">get_quran_page_words(page_number)</span><span class="file-tag func">get_all_classes()</span><span class="file-tag func">create_class()</span><span class="file-tag func">addMistake()</span><span class="file-tag func">get_suggested_portions()</span></div></div>
             <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">ClassCreate</span></div></div>
-            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">auth/routes.py</span><span class="file-link">auth/dependencies.py</span><span class="file-link">quran-pages/*.js</span></div></div>
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">auth/routes.py</span><span class="file-link">auth/dependencies.py</span><span class="file-link">quran-pages/*.json</span><span class="file-link">sync_service.py</span><span class="file-link">fonts/qpc/</span></div></div>
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">sync_service.py <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_backend/sync_service.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Bidirectional sync service between local app.db (SQLite) and Supabase (PostgreSQL).</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Handles push operations: sends local changes to Supabase cloud</li><li>Handles pull operations: fetches remote changes from Supabase</li><li>Manages sync status tracking (supabase_id, sync_status, last_synced_at columns)</li><li>Syncs profiles, teacher_students, classes, assignments, and mistakes tables</li><li>Uses python-dotenv to load Supabase credentials from .env file</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">get_supabase()</span><span class="file-tag func">sync_push()</span><span class="file-tag func">sync_pull()</span><span class="file-tag func">mark_synced()</span></div></div>
+            
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">main.py</span></div></div>
         </div>
         <div class="file-box source">
             <div class="file-header">
@@ -455,7 +482,7 @@
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">React + TypeScript web frontend with Tailwind CSS styling.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides web interface for teachers and students</li><li>Renders Quran pages with QPC fonts for pixel-perfect display</li><li>Implements mistake tracking with character-level precision</li><li>Supports test class creation and scoring</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides web interface for teachers and students</li><li>Renders Quran pages with QPC fonts for pixel-perfect display</li><li>Implements mistake tracking with character-level precision</li><li>Supports test class creation and scoring</li><li>Implements light/dark mode theming with CSS custom properties</li></ul></div>
             
             
             
@@ -464,41 +491,41 @@
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/api.ts </div>
+                    <div class="file-title">src/api.ts <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/api.ts</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">API client layer with all backend communication functions.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Manages access/refresh token storage in localStorage</li><li>Implements automatic token refresh on 401 responses</li><li>Provides typed functions for all API endpoints</li><li>Handles authentication, classes, mistakes, tests, and stats</li></ul></div>
-            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">signup()</span><span class="file-tag func">getClasses()</span><span class="file-tag func">getMistakes()</span><span class="file-tag func">getTest()</span><span class="file-tag func">getSuggestedPortions()</span></div></div>
-            <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">ClassData</span></div></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">API client facade that re-exports functions from specialized modules.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Re-exports authentication functions from Supabase Auth</li><li>Re-exports data functions from supabase-api.ts (classes, mistakes, students)</li><li>Re-exports Quran data functions from quran-api.ts</li><li>Maintains backward compatibility with original monolithic API client</li><li>Legacy FastAPI token management code retained as fallback</li></ul></div>
             
+            
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">lib/supabase-api.ts</span><span class="file-link">lib/quran-api.ts</span><span class="file-link">lib/supabase.ts</span></div></div>
         </div>
         <div class="file-box source">
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/App.tsx </div>
+                    <div class="file-title">src/App.tsx <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/App.tsx</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main React application with routing configuration.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Sets up React Router with protected routes</li><li>Wraps app in AuthProvider for authentication context</li><li>Defines teacher routes (require verification)</li><li>Defines student routes (any authenticated user)</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Sets up React Router with protected routes</li><li>Wraps app in AuthProvider and ThemeProvider for global state</li><li>Defines public routes (Login, Signup, ForgotPassword, ResetPassword)</li><li>Defines protected routes (Dashboard, Classes, Classroom, QuranReader, Settings)</li><li>Role-based routing: teachers and students see different dashboards</li></ul></div>
             
             
-            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">contexts/AuthContext</span><span class="file-link">components/Layout</span><span class="file-link">pages/*</span></div></div>
+            <div class="file-section"><div class="file-section-title">Integrates With</div><div class="file-integrates"><span class="file-link">contexts/AuthContext</span><span class="file-link">contexts/ThemeContext</span><span class="file-link">components/Layout</span><span class="file-link">pages/*</span></div></div>
         </div>
         <div class="file-box source">
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/contexts/AuthContext.tsx </div>
+                    <div class="file-title">src/contexts/AuthContext.tsx <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/contexts/AuthContext.tsx</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">React context for authentication state management.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides user state and authentication methods to entire app</li><li>Checks for existing session on mount</li><li>Exposes login, signup, logout, and refreshUser functions</li><li>Tracks isAuthenticated and isVerified states</li></ul></div>
-            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">login()</span><span class="file-tag func">signup()</span><span class="file-tag func">logout()</span><span class="file-tag func">refreshUser()</span></div></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">React context for authentication state management using Supabase Auth.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides user state and authentication methods to entire app</li><li>Uses Supabase Auth for login, signup, logout, password reset</li><li>Implements 10-second timeout with auto-recovery for stuck auth operations</li><li>Handles email verification with USER_UPDATED event</li><li>Provides isMounted cleanup pattern to prevent state updates on unmounted components</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">login()</span><span class="file-tag func">signup()</span><span class="file-tag func">logout()</span><span class="file-tag func">resetPassword()</span><span class="file-tag func">updateProfile()</span><span class="file-tag func">updatePassword()</span></div></div>
             
             
         </div>
@@ -506,12 +533,26 @@
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/components/Layout.tsx </div>
+                    <div class="file-title">src/contexts/ThemeContext.tsx <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/contexts/ThemeContext.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">React context for global dark/light mode theme management.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides darkMode state and toggleDarkMode function to the entire app</li><li>Persists theme preference to localStorage (defaults to dark mode)</li><li>Adds &#x27;dark&#x27; or &#x27;light&#x27; class to document root for CSS theming</li><li>Used by all pages to conditionally style backgrounds, cards, and text</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">useTheme()</span></div></div>
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/components/Layout.tsx <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/components/Layout.tsx</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main layout component with navigation and role switcher.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Renders navbar with QuranTrack branding</li><li>Provides tab navigation based on current role (teacher/student)</li><li>Shows role switcher for verified users (teachers)</li><li>Displays user profile dropdown with logout</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main layout component with responsive navigation and role switcher.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Renders navbar with QuranTrack branding and theme toggle button</li><li>Provides tab navigation based on current role (teacher/student)</li><li>Shows role switcher for teachers (based on user.role, not isVerified)</li><li>Displays user profile dropdown with email and logout</li><li>Mobile bottom navigation bar matching Flutter app pattern (below lg/1024px)</li></ul></div>
             
             
             
@@ -534,11 +575,25 @@
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/pages/QuranReader.tsx </div>
+                    <div class="file-title">src/components/FittedLine.tsx <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/components/FittedLine.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Quran line width-fitting component matching Flutter&#x27;s FittedBox(scaleDown) behavior.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Renders QPC word lines at natural font size</li><li>Scales lines DOWN uniformly if wider than container (never scales up)</li><li>Centers short lines that fit naturally without stretching</li><li>Uses useLayoutEffect for synchronous DOM measurement</li><li>Prevents the text enlargement/distortion that caused blurry text on mobile</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/QuranReader.tsx <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/pages/QuranReader.tsx</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Quran page viewer with QPC font rendering and mistake display.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Standalone Quran page viewer with QPC font rendering and mistake display.</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Loads QPC words from API for current page</li><li>Dynamically loads page-specific QPC fonts</li><li>Displays mistakes with color-coded severity (amber to red)</li><li>Supports page navigation and surah dropdown</li><li>Handles surah headers and bismillah display</li></ul></div>
             
             
@@ -548,12 +603,12 @@
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/pages/Classroom.tsx </div>
+                    <div class="file-title">src/pages/Classroom.tsx <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/pages/Classroom.tsx</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class session view for conducting lessons and marking mistakes.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays class with portions (Hifz, Sabqi, Revision)</li><li>Allows teachers to mark word/character-level mistakes</li><li>Shows word popup for mistake details and removal</li><li>Supports test mode with question flow and scoring</li><li>Manages per-student performance ratings</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays class with portions (Hifz, Sabqi, Revision/Manzil)</li><li>Allows teachers to mark word/character-level mistakes</li><li>Shows word popup for mistake details and removal</li><li>Supports test mode with question flow and scoring</li><li>Manages per-student performance ratings</li></ul></div>
             
             
             
@@ -562,12 +617,222 @@
             <div class="file-header">
                 <div class="file-icon ts">📘</div>
                 <div>
-                    <div class="file-title">src/pages/TeacherDashboard.tsx </div>
+                    <div class="file-title">src/pages/TeacherDashboard.tsx <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_frontend/src/pages/TeacherDashboard.tsx</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Teacher&#x27;s main dashboard with student roster and quick stats.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays total students, classes this week, and other stats</li><li>Shows student roster with add/remove functionality</li><li>Provides quick actions to start new class</li><li>Links to Quran page test tool</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays total students, classes this week, and other stats</li><li>Shows student roster with add/remove functionality</li><li>Provides quick actions to start new class</li><li>Light/dark mode theming with conditional card styles</li><li>Uses isMounted cleanup pattern for data fetching</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/TeacherClasses.tsx <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_frontend/src/pages/TeacherClasses.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Teacher&#x27;s class list with creation, management, notes, and performance.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Lists all classes created by the teacher with click-to-navigate cards</li><li>Create new class with student selection and portion assignment</li><li>Manage performance ratings per student</li><li>Light/dark mode conditional styling for dropdowns, portions, and badges</li><li>Classes auto-publish on creation (Draft/Live toggle removed)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/StudentDashboard.tsx <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_frontend/src/pages/StudentDashboard.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Student&#x27;s main dashboard with stats and progress overview.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays student stats and progress</li><li>Shows email instead of Student ID (more useful for non-tech users)</li><li>Light/dark mode theming</li><li>Uses isMounted cleanup pattern</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/StudentClasses.tsx <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_frontend/src/pages/StudentClasses.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Student&#x27;s view of joined classes (read-only).</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Lists classes the student is enrolled in</li><li>Shows individual performance for each class</li><li>Light/dark mode theming</li><li>Uses isMounted cleanup pattern</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/Login.tsx <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_frontend/src/pages/Login.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Email-based login page with Islamic background.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Email-only authentication (replaces username login from Phase 2)</li><li>Islamic background image (mosque, lanterns, Quran) with overlay</li><li>Demo account quick-login buttons (Teacher and Student 1)</li><li>Light/dark mode support</li><li>Link to Forgot Password flow</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/Signup.tsx <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_frontend/src/pages/Signup.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Registration page with role selection and Islamic background.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>User registration with role selection (teacher/student)</li><li>Same Islamic background image as Login page</li><li>Light/dark mode support</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/Settings.tsx <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/pages/Settings.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">User settings page with profile editing and password change.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Profile section: edit first name and last name</li><li>Password section: change password with confirmation field</li><li>Success/error feedback for both operations</li><li>Uses Supabase Auth for profile updates and password changes</li><li>Light/dark mode theming</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/ForgotPassword.tsx <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/pages/ForgotPassword.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Password reset request page.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Accepts email address for password reset</li><li>Sends reset link via Supabase Auth</li><li>Shows success confirmation after sending</li><li>Light/dark mode theming with background image</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/ResetPassword.tsx <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/pages/ResetPassword.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Password reset confirmation page accessed via email link.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Allows user to set new password after clicking email link</li><li>Validates password match between two fields</li><li>Updates password via Supabase Auth</li><li>Redirects to login after successful reset</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/pages/Dashboard.tsx <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_frontend/src/pages/Dashboard.tsx</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Role-based redirect hub that sends users to the correct dashboard.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Redirects based on user.role (not isVerified, fixed in Supabase migration)</li><li>Teachers go to TeacherDashboard</li><li>Students go to StudentDashboard</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/lib/supabase.ts <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/lib/supabase.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase client initialization and helper functions.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Creates typed Supabase client with auto-refresh and session persistence</li><li>Reads VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from environment</li><li>Provides clearSupabaseStorage() for cleaning corrupted localStorage</li><li>Provides resetSupabaseAndReload() nuclear reset for stuck client</li><li>Provides getCurrentUserId() helper</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/lib/supabase-api.ts <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/lib/supabase-api.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase RLS-protected API functions for students, classes, and mistakes.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Handles student management (lookup, add, remove, list)</li><li>Handles class CRUD with assignments and student associations</li><li>Handles mistake tracking with occurrences</li><li>Handles performance updates per student per class</li><li>Handles suggested portion queries</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/lib/quran-api.ts <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/lib/quran-api.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Quran data API functions that still use FastAPI backend.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Fetches QPC page word data from FastAPI (not migrated to Supabase)</li><li>Fetches surah list from FastAPI</li><li>Quran data stays local because it&#x27;s read-only and bundled</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/lib/local-api.ts <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/lib/local-api.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Local FastAPI endpoint functions for offline-first operations.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Calls FastAPI /api/local/* endpoints for instant writes to app.db</li><li>Used for local-first architecture where writes go to SQLite first</li><li>Background sync pushes changes to Supabase</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/lib/cache.ts <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/lib/cache.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Client-side caching with stale-while-revalidate pattern.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Uses localStorage to cache API responses for instant page loading</li><li>5-minute stale time triggers background refresh</li><li>1-hour max age forces network fetch</li><li>Provides cacheFirst() wrapper for transparent caching</li><li>Provides invalidateCache() for cache-busting on write operations</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon ts">📘</div>
+                <div>
+                    <div class="file-title">src/lib/database.types.ts <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_frontend/src/lib/database.types.ts</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Auto-generated TypeScript types for Supabase database schema.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides typed interfaces for all Supabase tables (profiles, classes, assignments, mistakes, etc.)</li><li>Used by supabase-api.ts for type-safe database queries</li><li>Generated from Supabase CLI schema introspection</li></ul></div>
             
             
             
@@ -580,7 +845,7 @@
                     <div class="file-path">quran_frontend/public/fonts/qpc</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Contains 604 QPC font files for Quran page rendering.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Contains 604 QPC WOFF2 font files for web Quran page rendering.</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores WOFF2 font files (QCF_P001.woff2 to QCF_P604.woff2)</li><li>Each font contains glyphs specific to that page</li><li>Fonts are loaded dynamically based on current page</li><li>Total size approximately 48MB</li></ul></div>
             
             
@@ -594,8 +859,8 @@
                     <div class="file-path">quran_mobile</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter mobile application for Android/iOS.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides native mobile experience for QuranTrack</li><li>Supports offline-first with local SQLite database</li><li>Syncs data with backend when online</li><li>Uses Riverpod for state management</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter mobile application for Android/iOS with Supabase integration.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides native mobile experience for QuranTrack</li><li>Uses Supabase Auth for login, signup, and password reset</li><li>Supports QPC page-based Quran rendering with downloadable fonts</li><li>Provides teacher and student dashboards, class management, and settings</li><li>Uses Riverpod for state management</li></ul></div>
             
             
             
@@ -604,12 +869,12 @@
             <div class="file-header">
                 <div class="file-icon other">📄</div>
                 <div>
-                    <div class="file-title">lib/main.dart </div>
+                    <div class="file-title">lib/main.dart <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">quran_mobile/lib/main.dart</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter app entry point with navigation setup.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Initializes Flutter bindings and system UI style</li><li>Wraps app in ProviderScope for Riverpod</li><li>Configures Material theme matching web dark theme</li><li>Sets up bottom navigation with 4 screens</li><li>DashboardScreen — Overview and stats</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter app entry point with Supabase initialization and navigation setup.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Initializes Flutter bindings, Supabase client, and system UI style</li><li>Wraps app in ProviderScope for Riverpod</li><li>Configures Material theme using AppTheme</li><li>Sets up authentication flow: shows login if not authenticated, main app if authenticated</li><li>Sets up bottom navigation with 4 screens (Dashboard, Classes, Quran, Settings)</li></ul></div>
             
             
             
@@ -624,6 +889,62 @@
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">App-wide constants and configuration values.</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines API base URLs for emulator and physical device</li><li>Stores database names and sync settings</li><li>Contains section type constants (hifz, sabqi, revision)</li><li>Maps surah numbers to English names</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/config/app_colors.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/config/app_colors.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Centralized color palette for light and dark themes.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines primary, secondary, surface, and accent colors</li><li>Provides separate color sets for light and dark modes</li><li>Used by AppTheme and all screen widgets for consistent theming</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/config/theme.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/config/theme.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">AppTheme class providing Material ThemeData for the app.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Creates dark and light ThemeData configurations</li><li>Uses AppColors for consistent color application</li><li>Configures AppBar, Card, Bottom Navigation, and Input themes</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/auth/auth_service.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/core/auth/auth_service.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase authentication service for Flutter.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Handles login, signup, and logout via Supabase Auth</li><li>Manages password reset flow</li><li>Provides user session state management</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/auth/supabase_config.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/core/auth/supabase_config.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase client configuration for Flutter.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores Supabase URL and anonymous key</li><li>Provides helper to initialize the Supabase client</li></ul></div>
             
             
             
@@ -660,14 +981,140 @@
             <div class="file-header">
                 <div class="file-icon other">📄</div>
                 <div>
-                    <div class="file-title">lib/presentation/providers/providers.dart </div>
-                    <div class="file-path">quran_mobile/lib/presentation/providers/providers.dart</div>
+                    <div class="file-title">lib/core/services/qpc_font_service.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/core/services/qpc_font_service.dart</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Riverpod providers for state management.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines providers for repositories and services</li><li>Implements ClassesNotifier and MistakesNotifier state classes</li><li>Provides family providers for single entities</li><li>Handles web mock data for development</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Downloads, caches, and loads QPC TTF fonts for Quran page rendering.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>On mobile: downloads .ttf from FastAPI backend, caches to disk, loads via FontLoader</li><li>On web: loads .woff2 directly from the web server via FontLoader (no disk cache)</li><li>Uses conditional imports for platform-specific file I/O</li><li>Pre-loads fonts for current page, previous page, and next page</li><li>Prevents duplicate font loading with pending load tracking</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Key Functions</div><div class="file-tags"><span class="file-tag func">ensureFontsForPage(pageNum)</span><span class="file-tag func">isFontLoaded(pageNum)</span><span class="file-tag func">fontFamily(pageNum)</span></div></div>
             
-            <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">classesProvider</span></div></div>
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/services/qpc_font_io_mobile.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/core/services/qpc_font_io_mobile.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Mobile-specific file I/O for QPC font caching using dart:io.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Saves downloaded TTF font bytes to app&#x27;s cache directory</li><li>Reads cached font bytes from disk</li><li>Uses path_provider for platform-specific cache paths</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/services/qpc_font_io_stub.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/core/services/qpc_font_io_stub.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Stub implementation of font I/O for web platform (no dart:io).</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides no-op implementations that throw UnsupportedError on web</li><li>Used as fallback when dart:io is not available (Flutter web)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/core/services/quran_page_data_service.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/core/services/quran_page_data_service.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Loads Quran page word data from bundled JSON assets.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Reads page_NNN.json files from assets/quran-pages/</li><li>Parses JSON into QuranPageData and QuranPageWord models</li><li>Provides page data for MushafPageWidget rendering</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/data/quran_data.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/data/quran_data.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Static Quran metadata including page-to-surah mappings.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Maps page numbers to surah numbers for page range helpers</li><li>Provides getPageRangeForSurah() and related utility functions</li><li>Used by ClassroomScreen for constraining navigation to assignment ranges</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/data/models/quran_page_data.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/data/models/quran_page_data.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Data model for a Quran page containing all words grouped by line.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Groups QuranPageWord objects by line number</li><li>Provides sorted line numbers for rendering</li><li>Identifies surah starts and bismillah positions on each page</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/data/models/quran_page_word.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/data/models/quran_page_word.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Data model for a single word on a Quran page.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores word data: surah, ayah, position, Arabic text, QPC glyph code, line number</li><li>Parses from JSON matching the page_NNN.json structure</li><li>Used by MushafPageWidget for rendering individual QPC glyphs</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/data/models/app_user.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/data/models/app_user.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Data model for the authenticated user.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores user info: id, email, name, role, student_id</li><li>Parsed from Supabase profiles table</li><li>Used by auth providers for user state management</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/data/models/class_session.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/data/models/class_session.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Data model for a class session.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores class data: id, date, students, assignments, notes, performance</li><li>Added supabaseId field for UUID/int mismatch resolution with Supabase</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/data/models/mistake.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/data/models/mistake.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Data model for a mistake record.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Stores mistake data: surah, ayah, word position, character info, error count</li><li>Added supabaseId field for UUID/int mismatch resolution with Supabase</li></ul></div>
+            
+            
             
         </div>
         <div class="file-box folder">
@@ -698,6 +1145,62 @@
             
             
         </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/providers/providers.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/providers/providers.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Riverpod providers for state management.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines providers for repositories and services</li><li>Implements ClassesNotifier and MistakesNotifier state classes</li><li>Provides family providers for single entities</li><li>Added teacherStudentsProvider and student selector for mistakes RLS</li><li>Handles web mock data for development</li></ul></div>
+            
+            <div class="file-section"><div class="file-section-title">Key Classes</div><div class="file-tags"><span class="file-tag cls">classesProvider</span></div></div>
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/providers/auth_provider.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/providers/auth_provider.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Riverpod provider for Supabase authentication state.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Manages auth state (logged in/out, current user)</li><li>Wraps AuthService for Riverpod consumption</li><li>Provides login, signup, logout, and password reset actions</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/providers/theme_provider.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/providers/theme_provider.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Riverpod provider for dark/light theme state.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Manages theme mode (dark/light)</li><li>Persists theme preference</li><li>Provides toggle function</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/providers/quran_page_provider.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/providers/quran_page_provider.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Riverpod provider for Quran page data loading.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Loads QPC page word data for a given page number</li><li>Manages font loading state via QpcFontService</li><li>Provides QuranPageData to MushafPageWidget</li></ul></div>
+            
+            
+            
+        </div>
         <div class="file-box folder">
             <div class="file-header">
                 <div class="file-icon folder">📂</div>
@@ -708,6 +1211,244 @@
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">UI screens for the mobile app.</p></div>
             
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/auth/login_screen.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/auth/login_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter login screen with Supabase authentication.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Email/password login form</li><li>Islamic background image with dark gradient overlay</li><li>Al-Isra 17:9 ayah display in Arabic and English</li><li>Links to signup and forgot password screens</li><li>Centered card layout for tablet/larger screens</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/auth/signup_screen.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/auth/signup_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter signup screen with role selection.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Registration with name, email, password</li><li>Role selection (teacher/student)</li><li>Same Islamic background as login screen</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/auth/forgot_password_screen.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/auth/forgot_password_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter password reset request screen.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Accepts email for password reset</li><li>Sends reset link via Supabase Auth</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/classroom/classroom_screen.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Active class session screen with QPC Quran reader and mistake tracking.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Swipe navigation via PageView.builder (RTL) between pages</li><li>Page navigation constrained to assignment&#x27;s page range</li><li>Interactive word tap/long-press callbacks for mistake marking</li><li>Mistakes summary moved below the fold (scroll down to see)</li><li>Student selector dropdown for teachers (RLS-compliant)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/reader/quran_reader_screen.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/reader/quran_reader_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Standalone Quran reader with page-based QPC glyph rendering.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Complete rewrite from surah-based plain text to 604-page QPC rendering</li><li>Fullscreen immersive mode matching printed Mushaf experience</li><li>Cream background (#FEF9E7) always, regardless of theme</li><li>Font download/cache service for QPC TTF fonts</li><li>Bundled JSON page data for word positions</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/dashboard/dashboard_screen.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/dashboard/dashboard_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Teacher/Student dashboard with stats and quick actions.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Redesigned to match React web app layout</li><li>Teacher view: Add Student button, Start New Class, stat cards with badges</li><li>Student view: stats overview (shows &quot;Student Management Coming Soon&quot; for teachers)</li><li>StatCard widget with badge support</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/settings/settings_screen.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/settings/settings_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">App settings with account management.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Account section with Sign Out button</li><li>Theme toggle (light/dark mode)</li><li>API URL configuration</li><li>Fixed ListTile button width overflow issue</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/classes/classes_screen.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/classes/classes_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class list screen showing enrolled/created classes.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/screens/classes/create_class_screen.dart <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/screens/classes/create_class_screen.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class creation screen for teachers.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/mushaf_page_widget.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Renders a single Mushaf page with QPC glyphs matching the printed Mushaf.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays lines distributed evenly across a cream (#FEF9E7) background</li><li>Uses QPC font families for page-specific glyph rendering</li><li>Supports word tap and long-press callbacks for interaction</li><li>Shows surah headers and bismillah at appropriate positions</li><li>Highlights mistakes with color-coded overlays</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/surah_header_widget.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/surah_header_widget.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Renders styled surah name headers on Mushaf pages.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays surah name in decorative Arabic calligraphy style</li><li>Matches the styling of printed Mushaf surah dividers</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/bismillah_widget.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/bismillah_widget.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Renders the Bismillah text at the start of surahs.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Displays styled Bismillah in cyan-700 color</li><li>Shown at the start of surahs 2-114 (except surah 9)</li><li>Surah 1 (Al-Fatiha): Bismillah is ayah 1 (no separate display)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/common/avatar_circle.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/common/avatar_circle.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Circular avatar widget with initials.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/common/common_widgets.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/common/common_widgets.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Shared utility widgets used across multiple screens.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/common/gradient_button.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/common/gradient_button.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Gradient-styled button widget matching app theme.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon other">📄</div>
+                <div>
+                    <div class="file-title">lib/presentation/widgets/common/icon_input_field.dart <span class="file-badge new">New</span></div>
+                    <div class="file-path">quran_mobile/lib/presentation/widgets/common/icon_input_field.dart</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Text input field with leading icon, used on auth screens.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box source">
+            <div class="file-header">
+                <div class="file-icon python">🐍</div>
+                <div>
+                    <div class="file-title">scripts/convert_fonts.py <span class="file-badge new">New</span></div>
+                    <div class="file-path">scripts/convert_fonts.py</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Converts QPC WOFF2 fonts to TTF format for Flutter mobile app.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Reads WOFF2 files from quran_frontend/public/fonts/qpc/</li><li>Converts each font to TTF using fontTools library</li><li>Outputs TTF files to quran_backend/fonts/qpc/</li><li>Requires: pip install fonttools brotli</li><li>Converts all 604 page-specific fonts (QCF_P001 to QCF_P604)</li></ul></div>
             
             
             
@@ -730,12 +1471,54 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/PROJECT_CHANGELOG.md </div>
+                    <div class="file-title">docs/PROJECT_CHANGELOG.md <span class="file-badge updated">Updated</span></div>
                     <div class="file-path">docs/PROJECT_CHANGELOG.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main reference guide and chronological record of what has been built.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all development phases (Foundation, Multi-User, Classes &amp; Mistakes, etc.)</li><li>Provides a directory map of all documentation</li><li>Links to detailed implementation docs</li><li>Tracks feature completion status</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all development phases (Foundation through Phase 15+)</li><li>Provides a directory map of all documentation</li><li>Links to detailed implementation docs</li><li>Tracks feature completion status</li><li>Now includes Phases 12-15: Supabase migration, Flutter overhaul, Quran Reader responsive, light mode fixes</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/PRODUCTION_READINESS.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/PRODUCTION_READINESS.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Production readiness analysis identifying what works and what needs fixing.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Lists completed features that are production-ready (QPC rendering, auth, mistake tracking)</li><li>Identifies critical gaps (student management, mobile offline sync, error handling)</li><li>Prioritizes work needed before production deployment</li><li>Generated February 2026 during Flutter Quran Reader development</li><li>Moved from project root to docs/ during documentation overhaul</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/TEMPLATE.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/TEMPLATE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Template for development session logs.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines naming convention for session logs (YYYY-MM-DD-NNN-brief-description.md)</li><li>Provides markdown template with sections: Objective, Summary, Work Completed, Issues</li><li>Moved from project root to docs/ during documentation overhaul</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Logs/2026-02-15-001-session-log.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Logs/2026-02-15-001-session-log.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Session log for the February 15, 2026 documentation overhaul.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the comprehensive documentation audit using parallel agents</li><li>Records CLAUDE.md rewrite and AGENTS.md creation</li><li>Tracks file organization (moving TEMPLATE.md, PRODUCTION_READINESS.md)</li><li>Lists audit findings: backend 85%, frontend 75%, mobile 95% accurate</li><li>Documents all fixes applied to Technical_Documentation.md, 00-OVERVIEW.md, 04-SCREENS.md, etc.</li></ul></div>
             
             
             
@@ -749,7 +1532,7 @@
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">High-level system design and planning documents.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Contains architecture blueprints created during planning</li><li>Documents user identity and relationships design</li><li>Provides system overview diagrams</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Contains architecture blueprints created during planning</li><li>Documents user identity and relationships design</li><li>Provides system overview diagrams</li><li>Includes Supabase migration architecture documentation</li></ul></div>
             
             
             
@@ -758,11 +1541,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md </div>
-                    <div class="file-path">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md</div>
+                    <div class="file-title">docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main architecture blueprint for the application.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main architecture blueprint for the application. (Renamed from Title_Case)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Defines overall system architecture</li><li>Documents component relationships</li><li>Outlines data flow between frontend, backend, and databases</li></ul></div>
             
             
@@ -772,11 +1555,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md </div>
-                    <div class="file-path">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md</div>
+                    <div class="file-title">docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">User identity and relationship system design.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">User identity and relationship system design. (Renamed from Title_Case)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents teacher-student relationships</li><li>Defines user roles and permissions</li><li>Explains class-student associations</li></ul></div>
             
             
@@ -786,12 +1569,40 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Architecture/Quran Full App.md </div>
-                    <div class="file-path">docs/Architecture/Quran Full App.md</div>
+                    <div class="file-title">docs/Architecture/Quran_Full_App.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Architecture/Quran_Full_App.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full application overview and feature planning.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full application overview and feature planning. (Renamed from Title_Case)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive app feature documentation</li><li>Planning document for all app capabilities</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Supabase_Migration_Architecture.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Architecture/Supabase_Migration_Architecture.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase cloud migration architecture and database schema design.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the migration from custom JWT/SQLite to Supabase Auth/PostgreSQL</li><li>Defines 7 Supabase tables, 14 RLS policies, and 4 triggers</li><li>Provides complete database schema with column definitions</li><li>Documents migration strategy and rollback plan</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Supabase_Migration_Architecture.html <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Architecture/Supabase_Migration_Architecture.html</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Interactive HTML viewer for Supabase migration architecture.</p></div>
+            
             
             
             
@@ -805,7 +1616,7 @@
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Detailed documentation of how features were actually built.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides implementation details for developers</li><li>Documents API endpoints and data models</li><li>Explains complex features like QPC rendering and test scoring</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Provides implementation details for developers</li><li>Documents API endpoints and data models</li><li>Explains complex features like QPC rendering, test scoring, and Supabase migration</li><li>Contains subdirectories for major feature areas</li></ul></div>
             
             
             
@@ -814,12 +1625,12 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md </div>
-                    <div class="file-path">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Technical_Documentation.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Technical_Documentation.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full technical overview of the system.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive technical documentation</li><li>API reference and data models</li><li>Database schema documentation</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full technical overview of the system including all API endpoints and database schema.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive technical documentation covering all endpoints</li><li>API reference with request/response schemas</li><li>Database schema documentation (now includes sync_log table, sync columns)</li><li>Documents 8 previously missing API endpoints (local, sync, font, page endpoints)</li><li>Documents 3 previously missing DB tables</li></ul></div>
             
             
             
@@ -828,11 +1639,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/AUTH_SYSTEM.md </div>
-                    <div class="file-path">docs/Technical Implementation Journey/AUTH_SYSTEM.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Auth_System.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Auth_System.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication system documentation. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents JWT authentication flow (signup, login, refresh)</li><li>Explains user roles (Teacher = verified, Student = unverified)</li><li>Documents Student ID generation (STU-XXXXXX format)</li><li>Lists all auth-related API endpoints</li></ul></div>
             
             
@@ -842,11 +1653,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md </div>
-                    <div class="file-path">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Classes_And_Mistakes.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Classes_And_Mistakes.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class and mistake tracking system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class and mistake tracking system documentation. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents class creation and management</li><li>Explains assignment types (Hifz, Sabqi, Revision)</li><li>Details mistake tracking (word-level and character-level)</li><li>Covers mistake occurrence tracking per class</li></ul></div>
             
             
@@ -856,11 +1667,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md </div>
-                    <div class="file-path">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Qpc_Quran_Rendering.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Qpc_Quran_Rendering.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">QPC font rendering system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">QPC font rendering system documentation. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains QPC (Quran Printing Complex) font system</li><li>Documents page-specific font loading (604 fonts)</li><li>Covers glyph codes and line number system</li><li>Details overflow ayah handling with previous page fonts</li></ul></div>
             
             
@@ -870,12 +1681,222 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/TEST_SYSTEM.md </div>
-                    <div class="file-path">docs/Technical Implementation Journey/TEST_SYSTEM.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Test_System.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Test_System.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Test class and scoring system documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Test class and scoring system documentation. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents test class creation workflow</li><li>Explains question flow (start/end question)</li><li>Details scoring system with tanbeeh (warnings)</li><li>Covers repeated mistake detection and point deduction</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Auth_Navigation_Fixes.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Auth_Navigation_Fixes.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Documentation of auth navigation issues and their fixes after Supabase migration.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents race condition and localStorage corruption fixes</li><li>Covers timeout mechanism for stuck auth operations</li><li>Documents rapid navigation freeze fix</li><li>Covers API migration details (mistakes, suggested portions, performance)</li><li>Includes testing checklist and key learnings about Supabase migration</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Settings_Password_Reset.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Settings_Password_Reset.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Settings page and password reset feature documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents Settings page implementation (profile editing, password change)</li><li>Documents Forgot Password flow with Supabase email reset</li><li>Documents Reset Password page for email-link-based recovery</li><li>Documents undocumented frontend pages added in Feb 2026 audit</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Light/dark mode theming implementation documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents ThemeContext implementation</li><li>Explains CSS custom properties for both themes</li><li>Covers conditional styling patterns across all pages</li><li>Documents light mode: cyan/teal gradient; dark mode: dark slate</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/00-OVERVIEW.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/00-OVERVIEW.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Overview of the Flutter app overhaul project.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Summarizes what changed in Phase 13 (auth, theme, screens, QPC reader)</li><li>Documents architecture decisions and package dependencies</li><li>Updated &quot;No Sync&quot; statement to reflect Phase 12 local-first sync addition</li><li>Documents Flutter Settings and Create Class screens (added in Feb 2026 audit)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/01-THEME-SYSTEM.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/01-THEME-SYSTEM.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter theme system implementation documentation.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/02-AUTHENTICATION.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/02-AUTHENTICATION.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter Supabase authentication implementation documentation.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/03-NAVIGATION.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/03-NAVIGATION.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter navigation architecture documentation.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/04-SCREENS.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/04-SCREENS.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter screen implementations documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all Flutter screens: Dashboard, Classes, Classroom, Settings</li><li>Updated with swipe navigation and mistakes summary changes</li><li>Documents Settings and Create Class screens (added in Feb 2026 audit)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/05-SHARED-WIDGETS.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/05-SHARED-WIDGETS.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter shared widgets documentation.</p></div>
+            
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/06-QURAN-READER.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/06-QURAN-READER.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter Quran Reader QPC rendering documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the complete rewrite from surah-based to page-based QPC rendering</li><li>Covers font download/cache service architecture</li><li>Explains MushafPageWidget line layout and glyph rendering</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Quran Reader/WEB-READER-RENDERING-ISSUES.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Quran Reader/WEB-READER-RENDERING-ISSUES.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Web Quran Reader rendering issues and fixes documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all rendering problems encountered (text cutoff, overflow, distortion)</li><li>Explains FittedLine scale-to-fit solution</li><li>Documents responsive breakpoint table (phone/tablet/desktop)</li><li>Covers chromeHeight tuning, font sizing, and overflow line fixes</li><li>Final responsive values documented</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Quran Reader/FLUTTER-RENDERING-REFERENCE.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Quran Reader/FLUTTER-RENDERING-REFERENCE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Reference documentation for Flutter&#x27;s QPC rendering approach.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents how Flutter renders Quran pages with FittedBox(scaleDown)</li><li>Serves as reference for matching behavior in the web FittedLine component</li><li>Explains line layout, font sizing, and aspect ratio calculations</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Supabase Implementation/Implementation_Journey.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Supabase Implementation/Implementation_Journey.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Step-by-step chronicle of the Supabase migration process.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents 19+ steps from initial setup to production-ready state</li><li>Documents race condition fixes, caching implementation, navigation fixes</li><li>Includes API migration details (from FastAPI to Supabase)</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Supabase Implementation/Supabase_Reference.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Supabase Implementation/Supabase_Reference.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase configuration and schema reference.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Complete database schema with all table definitions</li><li>RLS policy definitions and explanations</li><li>Trigger function documentation</li><li>Configuration reference for environment variables</li></ul></div>
+            
+            
+            
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📝</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Supabase Implementation/Supabase_Frontend_Integration_Reference.md <span class="file-badge new">New</span></div>
+                    <div class="file-path">docs/Technical Implementation Journey/Supabase Implementation/Supabase_Frontend_Integration_Reference.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Reference for how the React frontend integrates with Supabase.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents supabase.ts client setup</li><li>Explains supabase-api.ts function patterns</li><li>Covers TypeScript types generation from Supabase CLI</li><li>Documents caching strategy and auth context changes</li></ul></div>
             
             
             
@@ -898,11 +1919,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md </div>
-                    <div class="file-path">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md</div>
+                    <div class="file-title">docs/Guides/Page_Layout_Fix_Guide.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Guides/Page_Layout_Fix_Guide.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing Quran page layout issues.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing Quran page layout issues. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains the `l` (line number) field in page JSON</li><li>Documents how to fix ayah positioning issues</li><li>Provides Python script for batch fixes</li><li>Includes common issue symptoms and solutions</li></ul></div>
             
             
@@ -912,11 +1933,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md </div>
-                    <div class="file-path">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md</div>
+                    <div class="file-title">docs/Guides/Font_Overflow_Fix_Guide.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Guides/Font_Overflow_Fix_Guide.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing font overflow issues on page boundaries.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing font overflow issues on page boundaries. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains overflow glyph codes (&gt; 0xFC00)</li><li>Documents previous page font loading requirement</li><li>Provides troubleshooting steps</li></ul></div>
             
             
@@ -926,11 +1947,11 @@
             <div class="file-header">
                 <div class="file-icon doc">📝</div>
                 <div>
-                    <div class="file-title">docs/Guides/SEEDING_DATABASE.md </div>
-                    <div class="file-path">docs/Guides/SEEDING_DATABASE.md</div>
+                    <div class="file-title">docs/Guides/Seeding_Database.md <span class="file-badge updated">Updated</span></div>
+                    <div class="file-path">docs/Guides/Seeding_Database.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for seeding the database with test data.</p></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for seeding the database with test data. (Renamed from ALL_CAPS)</p></div>
             <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the create_test_users.py script</li><li>Lists all test accounts created</li><li>Explains password and student ID format</li></ul></div>
             
             
@@ -954,25 +1975,80 @@
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main project documentation and introduction.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Introduces QuranTrack as a Quran memorization tracking app</li><li>Explains features for teachers (conduct classes, track mistakes, manage students)</li><li>Explains features for students (view progress, review mistakes)</li><li>Documents the tech stack (React, FastAPI, Flutter)</li><li>Links to detailed documentation in the docs/ folder</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Introduces QuranTrack as a Quran memorization tracking app</li><li>Explains features for teachers (conduct classes, track mistakes, manage students)</li><li>Explains features for students (view progress, review mistakes)</li><li>Documents the tech stack (React, FastAPI, Flutter, Supabase)</li><li>Links to detailed documentation in the docs/ folder</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📄</div>
+                <div>
+                    <div class="file-title">AGENTS.md 🆕</div>
+                    <div class="file-path">AGENTS.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">AI agent instructions for non-Claude AI coding assistants.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Mirrors CLAUDE.md content for compatibility with other AI agents</li><li>Complete codebase map, tech stack, key concepts</li><li>Created during Feb 2026 documentation overhaul</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📄</div>
+                <div>
+                    <div class="file-title">CLAUDE.md 🔄</div>
+                    <div class="file-path">CLAUDE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">AI agent instructions with comprehensive codebase map.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Complete directory tree of every file with one-line descriptions</li><li>Tech stack table, database architecture, auth flow documentation</li><li>Key rules for git, databases, QPC fonts, and Quran JSON structure</li><li>Rewritten in Feb 2026 from minimal version to comprehensive guide</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">📜</div>
                 <div>
-                    <div class="file-title">docs/PROJECT_CHANGELOG.md</div>
+                    <div class="file-title">docs/PROJECT_CHANGELOG.md 🔄</div>
                     <div class="file-path">docs/PROJECT_CHANGELOG.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main reference guide and chronological record of what has been built.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all development phases (Foundation, Multi-User, Classes &amp; Mistakes, etc.)</li><li>Provides a directory map of all documentation</li><li>Links to detailed implementation docs</li><li>Tracks feature completion status</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents all development phases (Foundation through Phase 15+)</li><li>Provides a directory map of all documentation</li><li>Links to detailed implementation docs</li><li>Tracks feature completion status</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📄</div>
+                <div>
+                    <div class="file-title">docs/PRODUCTION_READINESS.md 🆕</div>
+                    <div class="file-path">docs/PRODUCTION_READINESS.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Production readiness analysis for QuranTrack.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Lists production-ready features and critical gaps</li><li>Prioritizes work needed before deployment</li><li>Moved from project root to docs/</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📄</div>
+                <div>
+                    <div class="file-title">docs/TEMPLATE.md 🆕</div>
+                    <div class="file-path">docs/TEMPLATE.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Template for development session logs.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Naming convention: YYYY-MM-DD-NNN-brief-description.md</li><li>Markdown template with Objective, Summary, Work Completed sections</li><li>Moved from project root to docs/</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">📄</div>
+                <div>
+                    <div class="file-title">docs/Logs/2026-02-15-001-session-log.md 🆕</div>
+                    <div class="file-path">docs/Logs/2026-02-15-001-session-log.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Session log for the Feb 15, 2026 documentation overhaul.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents parallel-agent documentation audit (backend 85%, frontend 75%, mobile 95%)</li><li>Records CLAUDE.md rewrite and AGENTS.md creation</li><li>Lists all fixes applied across 6 documentation files</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">🏗️</div>
                 <div>
-                    <div class="file-title">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md</div>
-                    <div class="file-path">docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md</div>
+                    <div class="file-title">docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md</div>
+                    <div class="file-path">docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Main architecture blueprint for the application.</p></div>
@@ -982,8 +2058,8 @@
             <div class="file-header">
                 <div class="file-icon doc">🏗️</div>
                 <div>
-                    <div class="file-title">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md</div>
-                    <div class="file-path">docs/Architecture/Logical Architecture Blueprint_ User Identity &amp; Relationships.md</div>
+                    <div class="file-title">docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md</div>
+                    <div class="file-path">docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">User identity and relationship system design.</p></div>
@@ -993,8 +2069,8 @@
             <div class="file-header">
                 <div class="file-icon doc">🏗️</div>
                 <div>
-                    <div class="file-title">docs/Architecture/Quran Full App.md</div>
-                    <div class="file-path">docs/Architecture/Quran Full App.md</div>
+                    <div class="file-title">docs/Architecture/Quran_Full_App.md</div>
+                    <div class="file-path">docs/Architecture/Quran_Full_App.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full application overview and feature planning.</p></div>
@@ -1002,91 +2078,168 @@
         </div>
         <div class="file-box doc">
             <div class="file-header">
+                <div class="file-icon doc">🏗️</div>
+                <div>
+                    <div class="file-title">docs/Architecture/Supabase_Migration_Architecture.md 🆕</div>
+                    <div class="file-path">docs/Architecture/Supabase_Migration_Architecture.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase migration architecture and database schema.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>7 tables, 14 RLS policies, 4 triggers</li><li>Complete schema definitions</li><li>Migration strategy documentation</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
                 <div class="file-icon doc">⚙️</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md</div>
-                    <div class="file-path">docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Technical_Documentation.md 🔄</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Technical_Documentation.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Full technical overview of the system.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive technical documentation</li><li>API reference and data models</li><li>Database schema documentation</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Comprehensive API reference with all endpoints</li><li>Database schema including sync tables and columns</li><li>Fixed in Feb 2026 audit: added 8 missing endpoints, 3 missing tables</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">⚙️</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/AUTH_SYSTEM.md</div>
-                    <div class="file-path">docs/Technical Implementation Journey/AUTH_SYSTEM.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Auth_System.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Auth_System.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Authentication system documentation.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents JWT authentication flow (signup, login, refresh)</li><li>Explains user roles (Teacher = verified, Student = unverified)</li><li>Documents Student ID generation (STU-XXXXXX format)</li><li>Lists all auth-related API endpoints</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents JWT authentication flow (signup, login, refresh)</li><li>Explains user roles (Teacher = verified, Student = unverified)</li><li>Documents Student ID generation (STU-XXXXXX format)</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">⚙️</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md</div>
-                    <div class="file-path">docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Classes_And_Mistakes.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Classes_And_Mistakes.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Class and mistake tracking system documentation.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents class creation and management</li><li>Explains assignment types (Hifz, Sabqi, Revision)</li><li>Details mistake tracking (word-level and character-level)</li><li>Covers mistake occurrence tracking per class</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents class creation and management</li><li>Explains assignment types (Hifz, Sabqi, Revision)</li><li>Details mistake tracking (word-level and character-level)</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">⚙️</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md</div>
-                    <div class="file-path">docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Qpc_Quran_Rendering.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Qpc_Quran_Rendering.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">QPC font rendering system documentation.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains QPC (Quran Printing Complex) font system</li><li>Documents page-specific font loading (604 fonts)</li><li>Covers glyph codes and line number system</li><li>Details overflow ayah handling with previous page fonts</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains QPC (Quran Printing Complex) font system</li><li>Documents page-specific font loading (604 fonts)</li><li>Covers glyph codes and line number system</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">⚙️</div>
                 <div>
-                    <div class="file-title">docs/Technical Implementation Journey/TEST_SYSTEM.md</div>
-                    <div class="file-path">docs/Technical Implementation Journey/TEST_SYSTEM.md</div>
+                    <div class="file-title">docs/Technical Implementation Journey/Test_System.md</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Test_System.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Test class and scoring system documentation.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents test class creation workflow</li><li>Explains question flow (start/end question)</li><li>Details scoring system with tanbeeh (warnings)</li><li>Covers repeated mistake detection and point deduction</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents test class creation workflow</li><li>Details scoring system with tanbeeh (warnings)</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Auth_Navigation_Fixes.md 🆕</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Auth_Navigation_Fixes.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Auth navigation fixes after Supabase migration.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Race condition and localStorage corruption fixes</li><li>Timeout mechanism for stuck auth</li><li>API migration details and testing checklist</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Settings_Password_Reset.md 🔄</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Settings_Password_Reset.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Settings and password reset feature documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Settings page with profile editing and password change</li><li>Forgot Password and Reset Password flows</li><li>Updated in Feb 2026 audit with missing page documentation</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md 🆕</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Light/dark mode theming documentation.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>ThemeContext, CSS custom properties, conditional styling</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Flutter App Overhaul/ 🆕</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Flutter App Overhaul/</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Flutter mobile app overhaul documentation (7 files).</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>00-OVERVIEW: Architecture and package overview</li><li>01-THEME-SYSTEM: Dark/light mode with AppColors</li><li>02-AUTHENTICATION: Supabase auth in Flutter</li><li>03-NAVIGATION: Bottom nav and routing</li><li>04-SCREENS: All screen implementations</li><li>05-SHARED-WIDGETS: Reusable widget docs</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Quran Reader/ 🆕</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Quran Reader/</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Quran Reader rendering documentation (2 files).</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>WEB-READER-RENDERING-ISSUES: All web rendering problems and fixes</li><li>FLUTTER-RENDERING-REFERENCE: Reference for matching Flutter&#x27;s approach</li></ul></div>
+        </div>
+        <div class="file-box doc">
+            <div class="file-header">
+                <div class="file-icon doc">⚙️</div>
+                <div>
+                    <div class="file-title">docs/Technical Implementation Journey/Supabase Implementation/ 🆕</div>
+                    <div class="file-path">docs/Technical Implementation Journey/Supabase Implementation/</div>
+                </div>
+            </div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Supabase migration documentation (3 files).</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Implementation_Journey: Step-by-step migration chronicle</li><li>Supabase_Reference: Schema and RLS configuration reference</li><li>Supabase_Frontend_Integration_Reference: React integration guide</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">📋</div>
                 <div>
-                    <div class="file-title">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md</div>
-                    <div class="file-path">docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md</div>
+                    <div class="file-title">docs/Guides/Page_Layout_Fix_Guide.md</div>
+                    <div class="file-path">docs/Guides/Page_Layout_Fix_Guide.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing Quran page layout issues.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains the `l` (line number) field in page JSON</li><li>Documents how to fix ayah positioning issues</li><li>Provides Python script for batch fixes</li><li>Includes common issue symptoms and solutions</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains line number field and ayah positioning</li><li>Python script for batch fixes</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">📋</div>
                 <div>
-                    <div class="file-title">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md</div>
-                    <div class="file-path">docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md</div>
+                    <div class="file-title">docs/Guides/Font_Overflow_Fix_Guide.md</div>
+                    <div class="file-path">docs/Guides/Font_Overflow_Fix_Guide.md</div>
                 </div>
             </div>
-            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing font overflow issues on page boundaries.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Explains overflow glyph codes (&gt; 0xFC00)</li><li>Documents previous page font loading requirement</li><li>Provides troubleshooting steps</li></ul></div>
+            <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for fixing font overflow issues.</p></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Overflow glyph codes documentation</li><li>Previous page font loading requirement</li></ul></div>
         </div>
         <div class="file-box doc">
             <div class="file-header">
                 <div class="file-icon doc">📋</div>
                 <div>
-                    <div class="file-title">docs/Guides/SEEDING_DATABASE.md</div>
-                    <div class="file-path">docs/Guides/SEEDING_DATABASE.md</div>
+                    <div class="file-title">docs/Guides/Seeding_Database.md</div>
+                    <div class="file-path">docs/Guides/Seeding_Database.md</div>
                 </div>
             </div>
             <div class="file-section"><div class="file-section-title">Purpose</div><p class="file-purpose">Guide for seeding the database with test data.</p></div>
-            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents the create_test_users.py script</li><li>Lists all test accounts created</li><li>Explains password and student ID format</li></ul></div>
+            <div class="file-section"><div class="file-section-title">What it does</div><ul class="file-list"><li>Documents create_test_users.py script</li><li>Lists test accounts and credentials</li></ul></div>
         </div></div></div>
         </div>
 
@@ -1099,18 +2252,18 @@
             
     <div class="git-stats">
         <div class="git-stat"><div class="git-stat-label">Branch</div><div class="git-stat-value">🌿 main</div></div>
-        <div class="git-stat"><div class="git-stat-label">Last Commit</div><div class="git-stat-value"><code>4b2dbf4</code></div></div>
-        <div class="git-stat"><div class="git-stat-label">Total Commits</div><div class="git-stat-value">16</div></div>
+        <div class="git-stat"><div class="git-stat-label">Last Commit</div><div class="git-stat-value"><code>22f00f9</code></div></div>
+        <div class="git-stat"><div class="git-stat-label">Total Commits</div><div class="git-stat-value">56</div></div>
         <div class="git-stat"><div class="git-stat-label">Contributors</div><div class="git-stat-value">1</div></div>
     </div><div class="commits-section"><div class="commits-title">Recent Commits</div><div class="commits-list">
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--primary)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add PROJECT_MAP.md and interactive HTML documentation</div>
+                    <div class="commit-message">docs: Full documentation overhaul â€” audit, reorganize, and fix all gaps</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 31, 2025</span>
-                        <span>🔖 4b2dbf4</span>
+                        <span>📅 February 15, 2026</span>
+                        <span>🔖 22f00f9</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1118,11 +2271,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--secondary)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add database seeding script, month filtering, and bug fixes</div>
+                    <div class="commit-message">fix: UUID bug, RLS mistakes, swipe nav, scroll-down mistakes summary</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 30, 2025</span>
-                        <span>🔖 297ee1a</span>
+                        <span>📅 February 11, 2026</span>
+                        <span>🔖 840f3c6</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1130,11 +2283,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--accent)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Redesign Student Classes UI with card layout and mistake counts</div>
+                    <div class="commit-message">feat: Integrate QPC Quran Reader into Flutter ClassroomScreen (Phase 13.5)</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 28, 2025</span>
-                        <span>🔖 40c5dc2</span>
+                        <span>📅 February 11, 2026</span>
+                        <span>🔖 fbfc462</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1142,11 +2295,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--success)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Fine-tune Uthmani text alignment to match QPC glyph rendering</div>
+                    <div class="commit-message">docs: Mark Phase 14 done, add Phase 15 (light mode + bug fixes)</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 28, 2025</span>
-                        <span>🔖 81c1cb6</span>
+                        <span>📅 February 11, 2026</span>
+                        <span>🔖 94a7588</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1154,11 +2307,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--warning)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Enhance harakat highlighting with glow effect (harakat-only, not base letter)</div>
+                    <div class="commit-message">fix: Light mode contrast for performance dropdowns, portions, and mistakes</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 27, 2025</span>
-                        <span>🔖 88527c5</span>
+                        <span>📅 February 11, 2026</span>
+                        <span>🔖 644f86d</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1166,11 +2319,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--primary)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add class filtering, mistake counts per portion, and auto-select student</div>
+                    <div class="commit-message">fix: Move light mode gradient to navbar, fix &quot;Class not found&quot; bug</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 26, 2025</span>
-                        <span>🔖 f9659ee</span>
+                        <span>📅 February 11, 2026</span>
+                        <span>🔖 03b9230</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1178,11 +2331,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--secondary)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add smart portion suggestions, card layout, and UI improvements</div>
+                    <div class="commit-message">fix: Prevent overflow lines from being cut off on pages with surah headers</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 22, 2025</span>
-                        <span>🔖 7627654</span>
+                        <span>📅 February 11, 2026</span>
+                        <span>🔖 8a1f3af</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1190,11 +2343,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--accent)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add Test Class feature with scoring, Tanbeeh, and results display</div>
+                    <div class="commit-message">docs: Update rendering docs and changelog with final responsive values</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 17, 2025</span>
-                        <span>🔖 8a73686</span>
+                        <span>📅 February 09, 2026</span>
+                        <span>🔖 b370aeb</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1202,11 +2355,11 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--success)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add surah dropdown, headers, bismillah, portion highlighting, and reorganize docs</div>
+                    <div class="commit-message">Web: Show legend on tablet, enlarge page to fill dead space</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 17, 2025</span>
-                        <span>🔖 bd66185</span>
+                        <span>📅 February 09, 2026</span>
+                        <span>🔖 44aa0a7</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
@@ -1214,30 +2367,18 @@
             <div class="commit-card">
                 <div class="commit-dot" style="background:var(--warning)"></div>
                 <div class="commit-info">
-                    <div class="commit-message">Add mistake summary sections and update documentation</div>
+                    <div class="commit-message">Web: Move all QuranReader content breakpoints from sm to lg</div>
                     <div class="commit-meta">
                         <span>👤 Hamza Feroze</span>
-                        <span>📅 December 16, 2025</span>
-                        <span>🔖 65febbc</span>
-                    </div>
-                    <div class="commit-files"></div>
-                </div>
-            </div>
-            <div class="commit-card">
-                <div class="commit-dot" style="background:var(--primary)"></div>
-                <div class="commit-info">
-                    <div class="commit-message">Fix Quran page layout, add character-level mistake highlighting</div>
-                    <div class="commit-meta">
-                        <span>👤 Hamza Feroze</span>
-                        <span>📅 December 16, 2025</span>
-                        <span>🔖 5b20318</span>
+                        <span>📅 February 09, 2026</span>
+                        <span>🔖 147e679</span>
                     </div>
                     <div class="commit-files"></div>
                 </div>
             </div></div></div><div class="commits-title" style="margin-top:28px">Top Contributors</div><div class="contributors-grid">
             <div class="contributor">
                 <div class="contributor-avatar">HF</div>
-                <div><div class="contributor-name">Hamza Feroze</div><div class="contributor-commits">15 commits</div></div>
+                <div><div class="contributor-name">Hamza Feroze</div><div class="contributor-commits">56 commits</div></div>
             </div></div>
         </div>
 
@@ -1252,19 +2393,25 @@
         <div class="update-item ">
             <div class="update-card">
                 <div class="update-header">
-                    <div class="update-date">December 31, 2025 <span class="update-badge">Latest</span></div>
+                    <div class="update-date">February 15, 2026 <span class="update-badge">Latest</span></div>
                     <div class="update-commit"></div>
-                </div><div class="update-section"><div class="update-section-title added">✚ Added</div><div class="update-files"><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">PROJECT_MAP.md</span><span class="update-file-desc">This documentation file</span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">PROJECT_MAP.html</span><span class="update-file-desc">Interactive HTML viewer</span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">Total files: 1351 → 1353</span><span class="update-file-desc"></span></div></div></div><div class="update-section"><div class="update-section-title updated">◐ Updated</div><div class="update-files"><div class="update-file"><span class="update-file-icon updated">~</span><span class="update-file-path">Git History</span><span class="update-file-desc">Added commit 4b2dbf4</span></div></div></div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Updated project map after initial commit. ---</p></div></div>
+                </div><div class="update-section"><div class="update-section-title added">✚ Added</div><div class="update-files"><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">AGENTS.md` -- AI agent instructions mirroring CLAUDE.md</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">scripts/convert_fonts.py` -- WOFF2 to TTF font converter</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_backend/sync_service.py` -- Supabase bidirectional sync</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_backend/fonts/qpc/` -- 604 QPC TTF fonts for Flutter mobile</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_mobile/assets/quran-pages/` -- 605 bundled QPC page JSON files</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_mobile/lib/core/auth/` -- Supabase auth service and config</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_mobile/lib/core/services/` -- QPC font service, page data service</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_frontend/src/api.ts` -- Refactored to facade re-exporting from specialized modules</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_frontend/src/App.tsx` -- Added ThemeProvider, new routes, role-based routing</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_frontend/src/contexts/AuthContext.tsx` -- Rewritten for Supabase Auth with timeout protection</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_frontend/src/components/Layout.tsx` -- Responsive bottom nav, theme toggle, light mode</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_frontend/src/pages/QuranReader.tsx` -- FittedLine, responsive 3-tier, overflow fix</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">quran_frontend/src/pages/Classroom.tsx` -- FittedLine, light/dark mode, responsive, isMounted</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">All Teacher/Student pages -- Light/dark mode, isMounted cleanup, Supabase migration</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">All doc files renamed from ALL_CAPS to Title_Case</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">docs/PROJECT_CHANGELOG.md` -- Added Phases 12-15 documentation</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">docs/Technical Implementation Journey/Technical_Documentation.md` -- Added 8 missing endpoints, 3 tables</span><span class="update-file-desc"></span></div></div></div><div class="update-section"><div class="update-section-title updated">◐ Updated</div><div class="update-files"><div class="update-file"><span class="update-file-icon updated">~</span><span class="update-file-path">CLAUDE.md` -- Completely rewritten with comprehensive codebase map</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon updated">~</span><span class="update-file-path">quran_backend/main.py` -- Added sync endpoints, font serving, local-first endpoints</span><span class="update-file-desc"></span></div></div></div><div class="update-section"><div class="update-section-title removed">✖ Removed</div><div class="update-files"><div class="update-file"><span class="update-file-icon removed">-</span><span class="update-file-path">PRODUCTION_READINESS.md` (moved to docs/)</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon removed">-</span><span class="update-file-path">TEMPLATE.md` (moved to docs/)</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon removed">-</span><span class="update-file-path">quran_frontend/src/pages/QuranPageTest.tsx` (deleted)</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon removed">-</span><span class="update-file-path">Total files: 1353 -&gt; 2854</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon removed">-</span><span class="update-file-path">Total folders: 81 -&gt; 96</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon removed">-</span><span class="update-file-path">Total commits: 16 -&gt; 56</span><span class="update-file-desc"></span></div></div></div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Major update after 40 commits spanning Phases 12-16 of development (Supabase migration, Flutter overhaul, Web Quran Reader responsive, light mode, documentation overhaul). ---</p></div></div>
+        <div class="update-item old">
+            <div class="update-card">
+                <div class="update-header">
+                    <div class="update-date">December 31, 2025 </div>
+                    <div class="update-commit"></div>
+                </div><div class="update-section"><div class="update-section-title added">✚ Added</div><div class="update-files"><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">PROJECT_MAP.md` -- This documentation file</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">PROJECT_MAP.html` -- Interactive HTML viewer</span><span class="update-file-desc"></span></div><div class="update-file"><span class="update-file-icon added">+</span><span class="update-file-path">Total files: 1351 -&gt; 1353</span><span class="update-file-desc"></span></div></div></div><div class="update-section"><div class="update-section-title updated">◐ Updated</div><div class="update-files"><div class="update-file"><span class="update-file-icon updated">~</span><span class="update-file-path">Git History -- Added commit 4b2dbf4</span><span class="update-file-desc"></span></div></div></div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Updated project map after initial commit. ---</p></div></div>
         <div class="update-item ">
             <div class="update-card">
                 <div class="update-header">
                     <div class="update-date">December 31, 2025 <span class="update-badge" style="background: linear-gradient(135deg, var(--success), var(--accent));">Initial</span></div>
                     <div class="update-commit"></div>
                 </div><p style="color:var(--text-secondary);font-size:14px;margin-top:10px;line-height:1.6">Initial project map created with 1351 files across 81 folders.
-• `quran_backend/` — FastAPI backend with auth module
-• `quran_frontend/` — React + TypeScript web app
-• `quran_mobile/` — Flutter mobile app
-• `docs/` — Project documentation</p></div></div></div>
+• `quran_backend/` -- FastAPI backend with auth module
+• `quran_frontend/` -- React + TypeScript web app
+• `quran_mobile/` -- Flutter mobile app
+• `docs/` -- Project documentation</p></div></div></div>
         </div>
     </main>
 

@@ -1,11 +1,11 @@
 ---
 project: QuranTrack
 created: 2025-12-31T14:46:00
-last_updated: 2025-12-31T15:30:00
-last_commit: 4b2dbf4
-update_count: 2
-total_files: 1353
-total_folders: 81
+last_updated: 2026-02-15T10:35:00
+last_commit: 22f00f9
+update_count: 3
+total_files: 2854
+total_folders: 96
 ---
 
 # Project Map: QuranTrack
@@ -16,14 +16,15 @@ QuranTrack is a Quran memorization and recitation tracking application designed 
 
 The application uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to render Quran pages pixel-perfect, exactly matching the printed Madani Mushaf. Each of the 604 pages has its own dedicated font file for perfect glyph accuracy. The system supports word-level and character-level mistake tracking with color-coded severity based on error frequency.
 
-The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Data is stored in SQLite databases - a read-only Quran database bundled with the apps and a read-write application database for users, classes, and mistakes. JWT-based authentication with role-based access control (Teacher vs Student) manages user permissions.
+The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Authentication and cloud data storage are handled by Supabase (PostgreSQL with RLS policies and JWT authentication). Local SQLite databases provide offline-first capability with bidirectional sync to Supabase. The web frontend uses Supabase client-side SDK for direct database access, while the FastAPI backend provides local-first endpoints and serves QPC font/page data.
 
 ## Tech Stack
 
 **Languages:** Python 3.x, TypeScript, JavaScript, Dart, Kotlin, Java
-**Frameworks:** FastAPI, React 18, Flutter, Tailwind CSS
-**Tools:** Vite, SQLite, Riverpod (Flutter state management), JWT
-**Databases:** SQLite (quran.db read-only, app.db read-write)
+**Frameworks:** FastAPI, React 19, Flutter, Tailwind CSS
+**Tools:** Vite, SQLite, Riverpod (Flutter state management), JWT, Supabase
+**Databases:** SQLite (quran.db read-only, app.db read-write), Supabase PostgreSQL (cloud sync)
+**Authentication:** Supabase Auth (JWT + RLS policies), replaces legacy custom JWT
 
 ## Architecture
 
@@ -33,20 +34,33 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
                     |  (quran_frontend)|
                     +--------+---------+
                              |
-                             | HTTP/REST
-                             v
-+------------------+   +-------------+   +------------------+
-| Flutter Mobile   |-->|   FastAPI   |<--| QPC Fonts (604)  |
-| (quran_mobile)   |   |  Backend    |   | page-specific    |
-+------------------+   +------+------+   +------------------+
-                             |
-              +--------------+--------------+
-              |                             |
-       +------v------+              +-------v------+
-       |  quran.db   |              |   app.db     |
-       | (read-only) |              | (read-write) |
-       | Quran text  |              | Users/Classes|
-       +-------------+              +--------------+
+                +------------+------------+
+                |                         |
+                v                         v
++------------------+   +------------------+   +------------------+
+| Supabase Cloud   |   |   FastAPI Local  |   | QPC Fonts (604)  |
+| (Auth + RLS DB)  |   |   Backend        |   | page-specific    |
++--------+---------+   +------+------+    |   +------------------+
+         |                    |      |    |
+         |              +-----+------+----+
+         |              |                 |
+         |       +------v------+   +------v------+
+         |       |  quran.db   |   |   app.db    |
+         |       | (read-only) |   | (read-write)|
+         |       | Quran text  |   | Users/Sync  |
+         |       +-------------+   +------+------+
+         |                                |
+         +-----< bidirectional sync >-----+
+                (sync_service.py)
+
++------------------+
+| Flutter Mobile   |
+| (quran_mobile)   |
++--------+---------+
+         |
+         +---> Supabase Cloud (Auth + Data)
+         +---> Local SQLite (offline-first)
+         +---> QPC Fonts (.ttf via API)
 ```
 
 ## Directory Structure
@@ -61,8 +75,39 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Introduces QuranTrack as a Quran memorization tracking app
 - Explains features for teachers (conduct classes, track mistakes, manage students)
 - Explains features for students (view progress, review mistakes)
-- Documents the tech stack (React, FastAPI, Flutter)
+- Documents the tech stack (React, FastAPI, Flutter, Supabase)
 - Links to detailed documentation in the docs/ folder
+
+---
+
+### 📄 CLAUDE.md 🔄
+
+**Path:** `CLAUDE.md`
+
+**Purpose:** AI agent instructions with comprehensive codebase map for Claude Code.
+
+**What it does:**
+- Provides a complete directory tree of every file and folder in the project with one-line descriptions
+- Documents the full tech stack (React 19, FastAPI, Flutter, Supabase, QPC fonts)
+- Explains key concepts: QPC rendering, auth flow, database architecture
+- Lists important rules for git commands, database access, and QPC font handling
+- Covers the Quran page JSON structure and line number system
+- Provides quick-start commands for running backend, frontend, and tests
+- Rewritten in Feb 2026 to replace the minimal original version
+
+---
+
+### 📄 AGENTS.md 🆕
+
+**Path:** `AGENTS.md`
+
+**Purpose:** AI agent instructions file that mirrors CLAUDE.md for non-Claude AI agent compatibility.
+
+**What it does:**
+- Contains identical content to CLAUDE.md
+- Provides comprehensive codebase map for any AI coding assistant
+- Ensures AI agents that look for AGENTS.md (instead of CLAUDE.md) get the same instructions
+- Created during the Feb 2026 documentation overhaul
 
 ---
 
@@ -99,16 +144,18 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 **Purpose:** FastAPI Python backend serving REST APIs for the web and mobile apps.
 
 **What it does:**
-- Provides all API endpoints for authentication, classes, mistakes, and Quran data
+- Provides all API endpoints for authentication, classes, mistakes, Quran data, and sync
 - Manages two SQLite databases (quran.db and app.db)
 - Serves QPC word data from JSON files for each Quran page
+- Serves QPC TTF fonts for the Flutter mobile app
 - Handles JWT authentication with access/refresh tokens
+- Implements bidirectional sync with Supabase cloud database
 
-**Contains:** main.py, auth/, quran-pages/, Backups/
+**Contains:** main.py, auth/, sync_service.py, fonts/qpc/, quran-pages/, Backups/
 
 ---
 
-#### 🐍 main.py
+#### 🐍 main.py 🔄
 
 **Path:** `quran_backend/main.py`
 
@@ -116,26 +163,54 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **What it does:**
 - Initializes FastAPI app with CORS middleware for frontend/mobile access
-- Creates database tables on startup with migration support
+- Creates database tables on startup with migration support (including sync columns)
 - Defines all REST endpoints for classes, mistakes, tests, and Quran data
 - Implements role-based access control (teacher vs student views)
 - Handles test class functionality with scoring and tanbeeh (warnings)
+- Serves QPC TTF fonts from the fonts/qpc/ directory for Flutter mobile
+- Provides local-first endpoints (/api/local/classes, /api/local/mistakes)
+- Provides sync endpoints (/api/sync, /api/sync/push, /api/sync/pull)
+- Accepts both custom JWT and Supabase JWT tokens for authentication
 
 **Key Functions:**
-- `init_app_db()` — Creates/migrates database tables on startup
-- `get_quran_page_words(page_number)` — Returns QPC word data for a page
-- `get_all_classes()` — Returns classes based on user role
-- `create_class()` — Creates class with assignments and student associations
-- `addMistake()` / `removeMistake()` — Mistake CRUD operations
-- `get_suggested_portions()` — Smart portion suggestions based on last class
+- `init_app_db()` -- Creates/migrates database tables on startup (now includes sync columns)
+- `get_quran_page_words(page_number)` -- Returns QPC word data for a page
+- `get_all_classes()` -- Returns classes based on user role
+- `create_class()` -- Creates class with assignments and student associations
+- `addMistake()` / `removeMistake()` -- Mistake CRUD operations
+- `get_suggested_portions()` -- Smart portion suggestions based on last class
 
 **Key Classes:**
-- `AssignmentCreate` — Pydantic model for assignment creation
-- `ClassCreate` — Pydantic model for class with students and assignments
-- `MistakeCreate` — Pydantic model for mistake tracking
-- `TestMistakeCreate` — Pydantic model for test-specific mistakes
+- `AssignmentCreate` -- Pydantic model for assignment creation
+- `ClassCreate` -- Pydantic model for class with students and assignments
+- `MistakeCreate` -- Pydantic model for mistake tracking
+- `TestMistakeCreate` -- Pydantic model for test-specific mistakes
 
-**Integrates with:** → `auth/routes.py`, → `auth/dependencies.py`, → `quran-pages/*.json`
+**Integrates with:** -> `auth/routes.py`, -> `auth/dependencies.py`, -> `quran-pages/*.json`, -> `sync_service.py`, -> `fonts/qpc/`
+
+---
+
+#### 🐍 sync_service.py 🆕
+
+**Path:** `quran_backend/sync_service.py`
+
+**Purpose:** Bidirectional sync service between local app.db (SQLite) and Supabase (PostgreSQL).
+
+**What it does:**
+- Handles push operations: sends local changes to Supabase cloud
+- Handles pull operations: fetches remote changes from Supabase
+- Manages sync status tracking (supabase_id, sync_status, last_synced_at columns)
+- Syncs profiles, teacher_students, classes, assignments, and mistakes tables
+- Uses python-dotenv to load Supabase credentials from .env file
+- Lazily initializes Supabase client connection
+
+**Key Functions:**
+- `get_supabase()` -- Get or create Supabase client (lazy init)
+- `sync_push()` -- Push local changes to Supabase
+- `sync_pull()` -- Pull remote changes from Supabase
+- `mark_synced()` -- Update sync status after successful push
+
+**Integrates with:** -> `main.py` (sync endpoints), -> Supabase cloud
 
 ---
 
@@ -153,15 +228,15 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Lists teachers for students
 
 **Key Functions:**
-- `signup()` — Creates user account with role-based verification
-- `login()` — Authenticates user and issues tokens
-- `refresh_tokens()` — Rotates JWT tokens
-- `lookup_student()` — Find student by email (teacher only)
-- `add_student()` — Add student to teacher's roster
-- `get_my_students()` — List all students for a teacher
-- `get_my_teachers()` — List teachers who added the current student
+- `signup()` -- Creates user account with role-based verification
+- `login()` -- Authenticates user and issues tokens
+- `refresh_tokens()` -- Rotates JWT tokens
+- `lookup_student()` -- Find student by email (teacher only)
+- `add_student()` -- Add student to teacher's roster
+- `get_my_students()` -- List all students for a teacher
+- `get_my_teachers()` -- List teachers who added the current student
 
-**Integrates with:** → `auth/models.py`, → `auth/utils.py`, → `auth/dependencies.py`
+**Integrates with:** -> `auth/models.py`, -> `auth/utils.py`, -> `auth/dependencies.py`
 
 ---
 
@@ -177,11 +252,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Enforces field validation (email format, username pattern, password length)
 
 **Key Classes:**
-- `SignupRequest` — Validates signup with role (teacher/student)
-- `LoginRequest` — Accepts email or username identifier
-- `UserResponse` — User profile response shape
-- `AuthResponse` — Contains user + access_token + refresh_token
-- `StudentListItem` / `TeacherListItem` — Roster list items
+- `SignupRequest` -- Validates signup with role (teacher/student)
+- `LoginRequest` -- Accepts email or username identifier
+- `UserResponse` -- User profile response shape
+- `AuthResponse` -- Contains user + access_token + refresh_token
+- `StudentListItem` / `TeacherListItem` -- Roster list items
 
 ---
 
@@ -198,9 +273,9 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Provides `get_optional_user` for routes that work with/without auth
 
 **Key Functions:**
-- `get_current_user()` — Returns decoded token payload or raises 401
-- `get_current_verified_user()` — Requires is_verified=True (Teacher)
-- `get_optional_user()` — Returns user if authenticated, None otherwise
+- `get_current_user()` -- Returns decoded token payload or raises 401
+- `get_current_verified_user()` -- Requires is_verified=True (Teacher)
+- `get_optional_user()` -- Returns user if authenticated, None otherwise
 
 ---
 
@@ -217,11 +292,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Generates email verification tokens
 
 **Key Functions:**
-- `hash_password()` / `verify_password()` — Password hashing with bcrypt
-- `generate_student_id()` — Creates unique STU-XXXXXX identifier
-- `create_access_token()` / `create_refresh_token()` — JWT generation
-- `decode_token()` — JWT validation and decoding
-- `create_user_token_data()` — Builds token payload from user dict
+- `hash_password()` / `verify_password()` -- Password hashing with bcrypt
+- `generate_student_id()` -- Creates unique STU-XXXXXX identifier
+- `create_access_token()` / `create_refresh_token()` -- JWT generation
+- `decode_token()` -- JWT validation and decoding
+- `create_user_token_data()` -- Builds token payload from user dict
 
 ---
 
@@ -252,6 +327,20 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### 📂 quran_backend/fonts/qpc/ 🆕
+
+**Purpose:** Contains 604 QPC TTF font files for Flutter mobile app rendering.
+
+**What it does:**
+- Stores TrueType (.ttf) versions of QPC fonts (QCF_P001.ttf to QCF_P604.ttf)
+- Converted from the WOFF2 files in quran_frontend/public/fonts/qpc/ using scripts/convert_fonts.py
+- Served by FastAPI for the Flutter mobile app to download and cache
+- Each font contains page-specific glyphs for Quran page rendering
+
+**Contains:** 604 TTF font files
+
+---
+
 ### 📂 quran_backend/quran-pages/
 
 **Purpose:** Contains 604 JSON files with QPC word data for each Quran page.
@@ -275,38 +364,33 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Renders Quran pages with QPC fonts for pixel-perfect display
 - Implements mistake tracking with character-level precision
 - Supports test class creation and scoring
+- Implements light/dark mode theming with CSS custom properties
+- Uses Supabase client-side SDK for direct database access with RLS
+- Provides local-first caching for instant page loading
+- Responsive 3-tier layout: phone, tablet, desktop
 
 **Contains:** src/, public/, scripts/, config files
 
 ---
 
-#### 📄 src/api.ts
+#### 📄 src/api.ts 🔄
 
 **Path:** `quran_frontend/src/api.ts`
 
-**Purpose:** API client layer with all backend communication functions.
+**Purpose:** API client facade that re-exports functions from specialized modules.
 
 **What it does:**
-- Manages access/refresh token storage in localStorage
-- Implements automatic token refresh on 401 responses
-- Provides typed functions for all API endpoints
-- Handles authentication, classes, mistakes, tests, and stats
+- Re-exports authentication functions from Supabase Auth
+- Re-exports data functions from supabase-api.ts (classes, mistakes, students)
+- Re-exports Quran data functions from quran-api.ts
+- Maintains backward compatibility with original monolithic API client
+- Legacy FastAPI token management code retained as fallback
 
-**Key Functions:**
-- `signup()` / `login()` / `logout()` — Authentication flows
-- `getClasses()` / `createClass()` / `deleteClass()` — Class management
-- `getMistakes()` / `addMistake()` / `removeMistake()` — Mistake tracking
-- `getTest()` / `startTest()` / `completeTest()` — Test management
-- `getSuggestedPortions()` — Smart portion recommendations
-
-**Key Interfaces:**
-- `ClassData` — Class with assignments and students
-- `MistakeData` — Mistake with surah/ayah/word info
-- `TestData` / `TestQuestion` / `TestMistake` — Test-related types
+**Integrates with:** -> `lib/supabase-api.ts`, -> `lib/quran-api.ts`, -> `lib/supabase.ts`
 
 ---
 
-#### 📄 src/App.tsx
+#### 📄 src/App.tsx 🔄
 
 **Path:** `quran_frontend/src/App.tsx`
 
@@ -314,45 +398,73 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **What it does:**
 - Sets up React Router with protected routes
-- Wraps app in AuthProvider for authentication context
-- Defines teacher routes (require verification)
-- Defines student routes (any authenticated user)
+- Wraps app in AuthProvider and ThemeProvider for global state
+- Defines public routes (Login, Signup, ForgotPassword, ResetPassword)
+- Defines protected routes (Dashboard, Classes, Classroom, QuranReader, Settings)
+- Role-based routing: teachers and students see different dashboards
 
-**Integrates with:** → `contexts/AuthContext`, → `components/Layout`, → `pages/*`
+**Integrates with:** -> `contexts/AuthContext`, -> `contexts/ThemeContext`, -> `components/Layout`, -> `pages/*`
 
 ---
 
-#### 📄 src/contexts/AuthContext.tsx
+#### 📄 src/contexts/AuthContext.tsx 🔄
 
 **Path:** `quran_frontend/src/contexts/AuthContext.tsx`
 
-**Purpose:** React context for authentication state management.
+**Purpose:** React context for authentication state management using Supabase Auth.
 
 **What it does:**
 - Provides user state and authentication methods to entire app
-- Checks for existing session on mount
-- Exposes login, signup, logout, and refreshUser functions
-- Tracks isAuthenticated and isVerified states
+- Uses Supabase Auth for login, signup, logout, password reset
+- Implements 10-second timeout with auto-recovery for stuck auth operations
+- Handles email verification with USER_UPDATED event
+- Provides isMounted cleanup pattern to prevent state updates on unmounted components
+- Implements optimistic logout (clear state first, then sign out)
+- Adds emergency reset function for manual recovery
+- Race condition protection for temporary null sessions
 
 **Key Functions:**
-- `login()` — Authenticates and sets user state
-- `signup()` — Creates account and sets user state
-- `logout()` — Clears tokens and user state
-- `refreshUser()` — Fetches latest user data from API
+- `login()` -- Authenticates via Supabase with timeout protection
+- `signup()` -- Creates account via Supabase Auth
+- `logout()` -- Optimistic logout with clearSupabaseStorage
+- `resetPassword()` -- Sends password reset email via Supabase
+- `updateProfile()` -- Updates user name in Supabase profiles table
+- `updatePassword()` -- Changes password via Supabase Auth
 
 ---
 
-#### 📄 src/components/Layout.tsx
+#### 📄 src/contexts/ThemeContext.tsx 🆕
+
+**Path:** `quran_frontend/src/contexts/ThemeContext.tsx`
+
+**Purpose:** React context for global dark/light mode theme management.
+
+**What it does:**
+- Provides darkMode state and toggleDarkMode function to the entire app
+- Persists theme preference to localStorage (defaults to dark mode)
+- Adds 'dark' or 'light' class to document root for CSS theming
+- Used by all pages to conditionally style backgrounds, cards, and text
+
+**Key Functions:**
+- `useTheme()` -- Hook to access darkMode and toggleDarkMode
+
+---
+
+#### 📄 src/components/Layout.tsx 🔄
 
 **Path:** `quran_frontend/src/components/Layout.tsx`
 
-**Purpose:** Main layout component with navigation and role switcher.
+**Purpose:** Main layout component with responsive navigation and role switcher.
 
 **What it does:**
-- Renders navbar with QuranTrack branding
+- Renders navbar with QuranTrack branding and theme toggle button
 - Provides tab navigation based on current role (teacher/student)
-- Shows role switcher for verified users (teachers)
-- Displays user profile dropdown with logout
+- Shows role switcher for teachers (based on user.role, not isVerified)
+- Displays user profile dropdown with email and logout
+- Mobile bottom navigation bar matching Flutter app pattern (below lg/1024px)
+- Desktop top tab navigation (lg+ screens)
+- Light mode: cyan gradient navbar; Dark mode: dark slate navbar
+- Responsive breakpoints: sm->lg for top tabs, bottom nav, role banner
 
 ---
 
@@ -370,11 +482,27 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 src/pages/QuranReader.tsx
+#### 📄 src/components/FittedLine.tsx 🆕
+
+**Path:** `quran_frontend/src/components/FittedLine.tsx`
+
+**Purpose:** Quran line width-fitting component matching Flutter's FittedBox(scaleDown) behavior.
+
+**What it does:**
+- Renders QPC word lines at natural font size
+- Scales lines DOWN uniformly if wider than container (never scales up)
+- Centers short lines that fit naturally without stretching
+- Uses useLayoutEffect for synchronous DOM measurement
+- Prevents the text enlargement/distortion that caused blurry text on mobile
+- Transform origin set to 'right center' for RTL Arabic text
+
+---
+
+#### 📄 src/pages/QuranReader.tsx 🔄
 
 **Path:** `quran_frontend/src/pages/QuranReader.tsx`
 
-**Purpose:** Quran page viewer with QPC font rendering and mistake display.
+**Purpose:** Standalone Quran page viewer with QPC font rendering and mistake display.
 
 **What it does:**
 - Loads QPC words from API for current page
@@ -382,37 +510,47 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Displays mistakes with color-coded severity (amber to red)
 - Supports page navigation and surah dropdown
 - Handles surah headers and bismillah display
+- 3-tier responsive layout: phone (fullscreen), tablet (compact), desktop (with controls)
+- Responsive font sizing: min(28, pageHeight/21)px
+- Uses FittedLine component for scale-to-fit text rendering
+- Overlay controls on phone/tablet, header bar on desktop
+- Overflow line fix for pages with surah headers (pulls headers out of line flex)
 
 **Key Features:**
 - Page-specific font loading (QCF_P001.woff2 to QCF_P604.woff2)
 - Previous page font loading for overflow ayahs
+- JS-computed page dimensions replacing CSS calc
 - Line-based word layout matching printed Mushaf
-- Mistake highlighting with error count badges
 
 ---
 
-#### 📄 src/pages/Classroom.tsx
+#### 📄 src/pages/Classroom.tsx 🔄
 
 **Path:** `quran_frontend/src/pages/Classroom.tsx`
 
 **Purpose:** Class session view for conducting lessons and marking mistakes.
 
 **What it does:**
-- Displays class with portions (Hifz, Sabqi, Revision)
+- Displays class with portions (Hifz, Sabqi, Revision/Manzil)
 - Allows teachers to mark word/character-level mistakes
 - Shows word popup for mistake details and removal
 - Supports test mode with question flow and scoring
 - Manages per-student performance ratings
+- Light/dark mode conditional styling for all UI elements
+- Responsive page dimensions matching QuranReader
+- Uses FittedLine for QPC text rendering
+- Overflow line fix matching QuranReader
 
 **Key Features:**
 - Section-based portion highlighting
 - Character-level mistake selection (harakat support)
 - Test mode with start/end question flow
 - Tanbeeh (warning) vs full mistake deduction
+- isMounted cleanup for useEffect hooks
 
 ---
 
-#### 📄 src/pages/TeacherDashboard.tsx
+#### 📄 src/pages/TeacherDashboard.tsx 🔄
 
 **Path:** `quran_frontend/src/pages/TeacherDashboard.tsx`
 
@@ -422,13 +560,244 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Displays total students, classes this week, and other stats
 - Shows student roster with add/remove functionality
 - Provides quick actions to start new class
-- Links to Quran page test tool
+- Light/dark mode theming with conditional card styles
+- Uses isMounted cleanup pattern for data fetching
+
+---
+
+#### 📄 src/pages/TeacherClasses.tsx 🔄
+
+**Path:** `quran_frontend/src/pages/TeacherClasses.tsx`
+
+**Purpose:** Teacher's class list with creation, management, notes, and performance.
+
+**What it does:**
+- Lists all classes created by the teacher with click-to-navigate cards
+- Create new class with student selection and portion assignment
+- Manage performance ratings per student
+- Light/dark mode conditional styling for dropdowns, portions, and badges
+- Classes auto-publish on creation (Draft/Live toggle removed)
+
+---
+
+#### 📄 src/pages/StudentDashboard.tsx 🔄
+
+**Path:** `quran_frontend/src/pages/StudentDashboard.tsx`
+
+**Purpose:** Student's main dashboard with stats and progress overview.
+
+**What it does:**
+- Displays student stats and progress
+- Shows email instead of Student ID (more useful for non-tech users)
+- Light/dark mode theming
+- Uses isMounted cleanup pattern
+
+---
+
+#### 📄 src/pages/StudentClasses.tsx 🔄
+
+**Path:** `quran_frontend/src/pages/StudentClasses.tsx`
+
+**Purpose:** Student's view of joined classes (read-only).
+
+**What it does:**
+- Lists classes the student is enrolled in
+- Shows individual performance for each class
+- Light/dark mode theming
+- Uses isMounted cleanup pattern
+
+---
+
+#### 📄 src/pages/Login.tsx 🔄
+
+**Path:** `quran_frontend/src/pages/Login.tsx`
+
+**Purpose:** Email-based login page with Islamic background.
+
+**What it does:**
+- Email-only authentication (replaces username login from Phase 2)
+- Islamic background image (mosque, lanterns, Quran) with overlay
+- Demo account quick-login buttons (Teacher and Student 1)
+- Light/dark mode support
+- Link to Forgot Password flow
+
+---
+
+#### 📄 src/pages/Signup.tsx 🔄
+
+**Path:** `quran_frontend/src/pages/Signup.tsx`
+
+**Purpose:** Registration page with role selection and Islamic background.
+
+**What it does:**
+- User registration with role selection (teacher/student)
+- Same Islamic background image as Login page
+- Light/dark mode support
+
+---
+
+#### 📄 src/pages/Settings.tsx 🆕
+
+**Path:** `quran_frontend/src/pages/Settings.tsx`
+
+**Purpose:** User settings page with profile editing and password change.
+
+**What it does:**
+- Profile section: edit first name and last name
+- Password section: change password with confirmation field
+- Success/error feedback for both operations
+- Uses Supabase Auth for profile updates and password changes
+- Light/dark mode theming
+
+---
+
+#### 📄 src/pages/ForgotPassword.tsx 🆕
+
+**Path:** `quran_frontend/src/pages/ForgotPassword.tsx`
+
+**Purpose:** Password reset request page.
+
+**What it does:**
+- Accepts email address for password reset
+- Sends reset link via Supabase Auth
+- Shows success confirmation after sending
+- Light/dark mode theming with background image
+
+---
+
+#### 📄 src/pages/ResetPassword.tsx 🆕
+
+**Path:** `quran_frontend/src/pages/ResetPassword.tsx`
+
+**Purpose:** Password reset confirmation page accessed via email link.
+
+**What it does:**
+- Allows user to set new password after clicking email link
+- Validates password match between two fields
+- Updates password via Supabase Auth
+- Redirects to login after successful reset
+
+---
+
+#### 📄 src/pages/Dashboard.tsx 🔄
+
+**Path:** `quran_frontend/src/pages/Dashboard.tsx`
+
+**Purpose:** Role-based redirect hub that sends users to the correct dashboard.
+
+**What it does:**
+- Redirects based on user.role (not isVerified, fixed in Supabase migration)
+- Teachers go to TeacherDashboard
+- Students go to StudentDashboard
+
+---
+
+### 📂 quran_frontend/src/lib/ 🆕
+
+**Purpose:** Library modules for Supabase client, API functions, caching, and types.
+
+**What it does:**
+- Contains the Supabase client initialization and helper functions
+- Provides typed API functions for all Supabase RLS queries
+- Implements local-first caching with stale-while-revalidate pattern
+- Contains auto-generated TypeScript types for Supabase database schema
+- Provides Quran-specific API functions (page data, surahs)
+- Provides local FastAPI endpoint functions as fallback
+
+**Contains:** supabase.ts, supabase-api.ts, quran-api.ts, local-api.ts, cache.ts, database.types.ts
+
+---
+
+#### 📄 src/lib/supabase.ts 🆕
+
+**Path:** `quran_frontend/src/lib/supabase.ts`
+
+**Purpose:** Supabase client initialization and helper functions.
+
+**What it does:**
+- Creates typed Supabase client with auto-refresh and session persistence
+- Reads VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from environment
+- Provides clearSupabaseStorage() for cleaning corrupted localStorage
+- Provides resetSupabaseAndReload() nuclear reset for stuck client
+- Provides getCurrentUserId() helper
+
+---
+
+#### 📄 src/lib/supabase-api.ts 🆕
+
+**Path:** `quran_frontend/src/lib/supabase-api.ts`
+
+**Purpose:** Supabase RLS-protected API functions for students, classes, and mistakes.
+
+**What it does:**
+- Handles student management (lookup, add, remove, list)
+- Handles class CRUD with assignments and student associations
+- Handles mistake tracking with occurrences
+- Handles performance updates per student per class
+- Handles suggested portion queries
+- All queries use Supabase client with automatic RLS enforcement
+- Integrated with local-first caching (cache.ts)
+
+---
+
+#### 📄 src/lib/quran-api.ts 🆕
+
+**Path:** `quran_frontend/src/lib/quran-api.ts`
+
+**Purpose:** Quran data API functions that still use FastAPI backend.
+
+**What it does:**
+- Fetches QPC page word data from FastAPI (not migrated to Supabase)
+- Fetches surah list from FastAPI
+- Quran data stays local because it's read-only and bundled
+
+---
+
+#### 📄 src/lib/local-api.ts 🆕
+
+**Path:** `quran_frontend/src/lib/local-api.ts`
+
+**Purpose:** Local FastAPI endpoint functions for offline-first operations.
+
+**What it does:**
+- Calls FastAPI /api/local/* endpoints for instant writes to app.db
+- Used for local-first architecture where writes go to SQLite first
+- Background sync pushes changes to Supabase
+
+---
+
+#### 📄 src/lib/cache.ts 🆕
+
+**Path:** `quran_frontend/src/lib/cache.ts`
+
+**Purpose:** Client-side caching with stale-while-revalidate pattern.
+
+**What it does:**
+- Uses localStorage to cache API responses for instant page loading
+- 5-minute stale time triggers background refresh
+- 1-hour max age forces network fetch
+- Provides cacheFirst() wrapper for transparent caching
+- Provides invalidateCache() for cache-busting on write operations
+- Caches getClasses(), getMyStudents(), getMyTeachers() responses
+
+---
+
+#### 📄 src/lib/database.types.ts 🆕
+
+**Path:** `quran_frontend/src/lib/database.types.ts`
+
+**Purpose:** Auto-generated TypeScript types for Supabase database schema.
+
+**What it does:**
+- Provides typed interfaces for all Supabase tables (profiles, classes, assignments, mistakes, etc.)
+- Used by supabase-api.ts for type-safe database queries
+- Generated from Supabase CLI schema introspection
 
 ---
 
 ### 📂 quran_frontend/public/fonts/qpc/
 
-**Purpose:** Contains 604 QPC font files for Quran page rendering.
+**Purpose:** Contains 604 QPC WOFF2 font files for web Quran page rendering.
 
 **What it does:**
 - Stores WOFF2 font files (QCF_P001.woff2 to QCF_P604.woff2)
@@ -440,35 +809,32 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ### 📂 quran_mobile/
 
-**Purpose:** Flutter mobile application for Android/iOS.
+**Purpose:** Flutter mobile application for Android/iOS with Supabase integration.
 
 **What it does:**
 - Provides native mobile experience for QuranTrack
-- Supports offline-first with local SQLite database
-- Syncs data with backend when online
+- Uses Supabase Auth for login, signup, and password reset
+- Supports QPC page-based Quran rendering with downloadable fonts
+- Provides teacher and student dashboards, class management, and settings
 - Uses Riverpod for state management
+- Dark/light mode theming with AppColors and AppTheme
 
-**Contains:** lib/, android/, assets/, test/
+**Contains:** lib/, android/, assets/, test/, web/
 
 ---
 
-#### 📄 lib/main.dart
+#### 📄 lib/main.dart 🔄
 
 **Path:** `quran_mobile/lib/main.dart`
 
-**Purpose:** Flutter app entry point with navigation setup.
+**Purpose:** Flutter app entry point with Supabase initialization and navigation setup.
 
 **What it does:**
-- Initializes Flutter bindings and system UI style
+- Initializes Flutter bindings, Supabase client, and system UI style
 - Wraps app in ProviderScope for Riverpod
-- Configures Material theme matching web dark theme
-- Sets up bottom navigation with 4 screens
-
-**Key Screens:**
-- DashboardScreen — Overview and stats
-- ClassesScreen — Class list and creation
-- QuranReaderScreen — Quran viewing
-- SettingsScreen — App configuration
+- Configures Material theme using AppTheme
+- Sets up authentication flow: shows login if not authenticated, main app if authenticated
+- Sets up bottom navigation with 4 screens (Dashboard, Classes, Quran, Settings)
 
 ---
 
@@ -486,6 +852,57 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+#### 📄 lib/config/app_colors.dart 🆕
+
+**Path:** `quran_mobile/lib/config/app_colors.dart`
+
+**Purpose:** Centralized color palette for light and dark themes.
+
+**What it does:**
+- Defines primary, secondary, surface, and accent colors
+- Provides separate color sets for light and dark modes
+- Used by AppTheme and all screen widgets for consistent theming
+
+---
+
+#### 📄 lib/config/theme.dart 🔄
+
+**Path:** `quran_mobile/lib/config/theme.dart`
+
+**Purpose:** AppTheme class providing Material ThemeData for the app.
+
+**What it does:**
+- Creates dark and light ThemeData configurations
+- Uses AppColors for consistent color application
+- Configures AppBar, Card, Bottom Navigation, and Input themes
+
+---
+
+#### 📄 lib/core/auth/auth_service.dart 🆕
+
+**Path:** `quran_mobile/lib/core/auth/auth_service.dart`
+
+**Purpose:** Supabase authentication service for Flutter.
+
+**What it does:**
+- Handles login, signup, and logout via Supabase Auth
+- Manages password reset flow
+- Provides user session state management
+
+---
+
+#### 📄 lib/core/auth/supabase_config.dart 🆕
+
+**Path:** `quran_mobile/lib/core/auth/supabase_config.dart`
+
+**Purpose:** Supabase client configuration for Flutter.
+
+**What it does:**
+- Stores Supabase URL and anonymous key
+- Provides helper to initialize the Supabase client
+
+---
+
 #### 📄 lib/core/database/database_helper.dart
 
 **Path:** `quran_mobile/lib/core/database/database_helper.dart`
@@ -499,10 +916,10 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Provides separate getters for Quran and App databases
 
 **Key Functions:**
-- `quranDatabase` — Read-only Quran database getter
-- `appDatabase` — Read-write app database getter
-- `_initQuranDatabase()` — Copies from assets if needed
-- `_createAppDatabase()` — Creates tables and indexes
+- `quranDatabase` -- Read-only Quran database getter
+- `appDatabase` -- Read-write app database getter
+- `_initQuranDatabase()` -- Copies from assets if needed
+- `_createAppDatabase()` -- Creates tables and indexes
 
 ---
 
@@ -519,29 +936,143 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Implements sync pull/push endpoints
 
 **Key Functions:**
-- `get()` / `post()` / `put()` / `delete()` — HTTP methods
-- `syncPull()` / `syncPush()` — Sync operations
-- `setBaseUrl()` — Allows changing API URL at runtime
+- `get()` / `post()` / `put()` / `delete()` -- HTTP methods
+- `syncPull()` / `syncPush()` -- Sync operations
+- `setBaseUrl()` -- Allows changing API URL at runtime
 
 ---
 
-#### 📄 lib/presentation/providers/providers.dart
+#### 📄 lib/core/services/qpc_font_service.dart 🆕
 
-**Path:** `quran_mobile/lib/presentation/providers/providers.dart`
+**Path:** `quran_mobile/lib/core/services/qpc_font_service.dart`
 
-**Purpose:** Riverpod providers for state management.
+**Purpose:** Downloads, caches, and loads QPC TTF fonts for Quran page rendering.
 
 **What it does:**
-- Defines providers for repositories and services
-- Implements ClassesNotifier and MistakesNotifier state classes
-- Provides family providers for single entities
-- Handles web mock data for development
+- On mobile: downloads .ttf from FastAPI backend, caches to disk, loads via FontLoader
+- On web: loads .woff2 directly from the web server via FontLoader (no disk cache)
+- Uses conditional imports for platform-specific file I/O
+- Pre-loads fonts for current page, previous page, and next page
+- Prevents duplicate font loading with pending load tracking
 
-**Key Providers:**
-- `classesProvider` — StateNotifier for class list
-- `mistakesProvider` — StateNotifier for mistake list
-- `surahListProvider` — FutureProvider for surah data
-- `syncServiceProvider` — Sync service instance
+**Key Functions:**
+- `ensureFontsForPage(pageNum)` -- Loads fonts for page and neighbors
+- `isFontLoaded(pageNum)` -- Checks if font is already loaded
+- `fontFamily(pageNum)` -- Returns font family name for a page
+
+---
+
+#### 📄 lib/core/services/qpc_font_io_mobile.dart 🆕
+
+**Path:** `quran_mobile/lib/core/services/qpc_font_io_mobile.dart`
+
+**Purpose:** Mobile-specific file I/O for QPC font caching using dart:io.
+
+**What it does:**
+- Saves downloaded TTF font bytes to app's cache directory
+- Reads cached font bytes from disk
+- Uses path_provider for platform-specific cache paths
+
+---
+
+#### 📄 lib/core/services/qpc_font_io_stub.dart 🆕
+
+**Path:** `quran_mobile/lib/core/services/qpc_font_io_stub.dart`
+
+**Purpose:** Stub implementation of font I/O for web platform (no dart:io).
+
+**What it does:**
+- Provides no-op implementations that throw UnsupportedError on web
+- Used as fallback when dart:io is not available (Flutter web)
+
+---
+
+#### 📄 lib/core/services/quran_page_data_service.dart 🆕
+
+**Path:** `quran_mobile/lib/core/services/quran_page_data_service.dart`
+
+**Purpose:** Loads Quran page word data from bundled JSON assets.
+
+**What it does:**
+- Reads page_NNN.json files from assets/quran-pages/
+- Parses JSON into QuranPageData and QuranPageWord models
+- Provides page data for MushafPageWidget rendering
+
+---
+
+#### 📄 lib/data/quran_data.dart 🆕
+
+**Path:** `quran_mobile/lib/data/quran_data.dart`
+
+**Purpose:** Static Quran metadata including page-to-surah mappings.
+
+**What it does:**
+- Maps page numbers to surah numbers for page range helpers
+- Provides getPageRangeForSurah() and related utility functions
+- Used by ClassroomScreen for constraining navigation to assignment ranges
+
+---
+
+#### 📄 lib/data/models/quran_page_data.dart 🆕
+
+**Path:** `quran_mobile/lib/data/models/quran_page_data.dart`
+
+**Purpose:** Data model for a Quran page containing all words grouped by line.
+
+**What it does:**
+- Groups QuranPageWord objects by line number
+- Provides sorted line numbers for rendering
+- Identifies surah starts and bismillah positions on each page
+
+---
+
+#### 📄 lib/data/models/quran_page_word.dart 🆕
+
+**Path:** `quran_mobile/lib/data/models/quran_page_word.dart`
+
+**Purpose:** Data model for a single word on a Quran page.
+
+**What it does:**
+- Stores word data: surah, ayah, position, Arabic text, QPC glyph code, line number
+- Parses from JSON matching the page_NNN.json structure
+- Used by MushafPageWidget for rendering individual QPC glyphs
+
+---
+
+#### 📄 lib/data/models/app_user.dart 🆕
+
+**Path:** `quran_mobile/lib/data/models/app_user.dart`
+
+**Purpose:** Data model for the authenticated user.
+
+**What it does:**
+- Stores user info: id, email, name, role, student_id
+- Parsed from Supabase profiles table
+- Used by auth providers for user state management
+
+---
+
+#### 📄 lib/data/models/class_session.dart 🔄
+
+**Path:** `quran_mobile/lib/data/models/class_session.dart`
+
+**Purpose:** Data model for a class session.
+
+**What it does:**
+- Stores class data: id, date, students, assignments, notes, performance
+- Added supabaseId field for UUID/int mismatch resolution with Supabase
+
+---
+
+#### 📄 lib/data/models/mistake.dart 🔄
+
+**Path:** `quran_mobile/lib/data/models/mistake.dart`
+
+**Purpose:** Data model for a mistake record.
+
+**What it does:**
+- Stores mistake data: surah, ayah, word position, character info, error count
+- Added supabaseId field for UUID/int mismatch resolution with Supabase
 
 ---
 
@@ -549,7 +1080,7 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Purpose:** Dart model classes for data entities.
 
-**Contains:** assignment.dart, class_session.dart, mistake.dart, surah.dart
+**Contains:** assignment.dart, class_session.dart, mistake.dart, surah.dart, app_user.dart, quran_page_data.dart, quran_page_word.dart
 
 ---
 
@@ -561,11 +1092,307 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+#### 📄 lib/presentation/providers/providers.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/providers/providers.dart`
+
+**Purpose:** Riverpod providers for state management.
+
+**What it does:**
+- Defines providers for repositories and services
+- Implements ClassesNotifier and MistakesNotifier state classes
+- Provides family providers for single entities
+- Added teacherStudentsProvider and student selector for mistakes RLS
+- Handles web mock data for development
+
+**Key Providers:**
+- `classesProvider` -- StateNotifier for class list
+- `mistakesProvider` -- StateNotifier for mistake list
+- `surahListProvider` -- FutureProvider for surah data
+- `syncServiceProvider` -- Sync service instance
+- `teacherStudentsProvider` -- Teacher's student list for mistake insertion
+
+---
+
+#### 📄 lib/presentation/providers/auth_provider.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/providers/auth_provider.dart`
+
+**Purpose:** Riverpod provider for Supabase authentication state.
+
+**What it does:**
+- Manages auth state (logged in/out, current user)
+- Wraps AuthService for Riverpod consumption
+- Provides login, signup, logout, and password reset actions
+
+---
+
+#### 📄 lib/presentation/providers/theme_provider.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/providers/theme_provider.dart`
+
+**Purpose:** Riverpod provider for dark/light theme state.
+
+**What it does:**
+- Manages theme mode (dark/light)
+- Persists theme preference
+- Provides toggle function
+
+---
+
+#### 📄 lib/presentation/providers/quran_page_provider.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/providers/quran_page_provider.dart`
+
+**Purpose:** Riverpod provider for Quran page data loading.
+
+**What it does:**
+- Loads QPC page word data for a given page number
+- Manages font loading state via QpcFontService
+- Provides QuranPageData to MushafPageWidget
+
+---
+
 ### 📂 quran_mobile/lib/presentation/screens/
 
 **Purpose:** UI screens for the mobile app.
 
-**Contains:** classes/, classroom/, dashboard/, reader/, settings/
+**Contains:** auth/, classes/, classroom/, dashboard/, reader/, settings/
+
+---
+
+#### 📄 lib/presentation/screens/auth/login_screen.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/auth/login_screen.dart`
+
+**Purpose:** Flutter login screen with Supabase authentication.
+
+**What it does:**
+- Email/password login form
+- Islamic background image with dark gradient overlay
+- Al-Isra 17:9 ayah display in Arabic and English
+- Links to signup and forgot password screens
+- Centered card layout for tablet/larger screens
+
+---
+
+#### 📄 lib/presentation/screens/auth/signup_screen.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/auth/signup_screen.dart`
+
+**Purpose:** Flutter signup screen with role selection.
+
+**What it does:**
+- Registration with name, email, password
+- Role selection (teacher/student)
+- Same Islamic background as login screen
+
+---
+
+#### 📄 lib/presentation/screens/auth/forgot_password_screen.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/auth/forgot_password_screen.dart`
+
+**Purpose:** Flutter password reset request screen.
+
+**What it does:**
+- Accepts email for password reset
+- Sends reset link via Supabase Auth
+
+---
+
+#### 📄 lib/presentation/screens/classroom/classroom_screen.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart`
+
+**Purpose:** Active class session screen with QPC Quran reader and mistake tracking.
+
+**What it does:**
+- Integrates MushafPageWidget for QPC glyph rendering (replaced plain Arabic text)
+- Swipe navigation via PageView.builder (RTL) between pages
+- Page navigation constrained to assignment's page range
+- Interactive word tap/long-press callbacks for mistake marking
+- Mistakes summary moved below the fold (scroll down to see)
+- Student selector dropdown for teachers (RLS-compliant)
+
+---
+
+#### 📄 lib/presentation/screens/reader/quran_reader_screen.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/screens/reader/quran_reader_screen.dart`
+
+**Purpose:** Standalone Quran reader with page-based QPC glyph rendering.
+
+**What it does:**
+- Complete rewrite from surah-based plain text to 604-page QPC rendering
+- Fullscreen immersive mode matching printed Mushaf experience
+- Cream background (#FEF9E7) always, regardless of theme
+- Font download/cache service for QPC TTF fonts
+- Bundled JSON page data for word positions
+- Surah headers and bismillah display
+- Mistake highlighting with color-coded severity
+
+---
+
+#### 📄 lib/presentation/screens/dashboard/dashboard_screen.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/screens/dashboard/dashboard_screen.dart`
+
+**Purpose:** Teacher/Student dashboard with stats and quick actions.
+
+**What it does:**
+- Redesigned to match React web app layout
+- Teacher view: Add Student button, Start New Class, stat cards with badges
+- Student view: stats overview (shows "Student Management Coming Soon" for teachers)
+- StatCard widget with badge support
+
+---
+
+#### 📄 lib/presentation/screens/settings/settings_screen.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/screens/settings/settings_screen.dart`
+
+**Purpose:** App settings with account management.
+
+**What it does:**
+- Account section with Sign Out button
+- Theme toggle (light/dark mode)
+- API URL configuration
+- Fixed ListTile button width overflow issue
+
+---
+
+#### 📄 lib/presentation/screens/classes/classes_screen.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/classes_screen.dart`
+
+**Purpose:** Class list screen showing enrolled/created classes.
+
+---
+
+#### 📄 lib/presentation/screens/classes/create_class_screen.dart 🔄
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/create_class_screen.dart`
+
+**Purpose:** Class creation screen for teachers.
+
+---
+
+### 📂 quran_mobile/lib/presentation/widgets/ 🔄
+
+**Purpose:** Reusable UI widgets for the mobile app.
+
+**Contains:** mushaf_page_widget.dart, surah_header_widget.dart, bismillah_widget.dart, glassmorphic_card.dart, section_badge.dart, common/
+
+---
+
+#### 📄 lib/presentation/widgets/mushaf_page_widget.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart`
+
+**Purpose:** Renders a single Mushaf page with QPC glyphs matching the printed Mushaf.
+
+**What it does:**
+- Displays lines distributed evenly across a cream (#FEF9E7) background
+- Uses QPC font families for page-specific glyph rendering
+- Supports word tap and long-press callbacks for interaction
+- Shows surah headers and bismillah at appropriate positions
+- Highlights mistakes with color-coded overlays
+- Dark mode: card with shadow; Light mode: seamless cream background
+
+---
+
+#### 📄 lib/presentation/widgets/surah_header_widget.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/surah_header_widget.dart`
+
+**Purpose:** Renders styled surah name headers on Mushaf pages.
+
+**What it does:**
+- Displays surah name in decorative Arabic calligraphy style
+- Matches the styling of printed Mushaf surah dividers
+
+---
+
+#### 📄 lib/presentation/widgets/bismillah_widget.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/bismillah_widget.dart`
+
+**Purpose:** Renders the Bismillah text at the start of surahs.
+
+**What it does:**
+- Displays styled Bismillah in cyan-700 color
+- Shown at the start of surahs 2-114 (except surah 9)
+- Surah 1 (Al-Fatiha): Bismillah is ayah 1 (no separate display)
+
+---
+
+#### 📄 lib/presentation/widgets/common/avatar_circle.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/common/avatar_circle.dart`
+
+**Purpose:** Circular avatar widget with initials.
+
+---
+
+#### 📄 lib/presentation/widgets/common/common_widgets.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/common/common_widgets.dart`
+
+**Purpose:** Shared utility widgets used across multiple screens.
+
+---
+
+#### 📄 lib/presentation/widgets/common/gradient_button.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/common/gradient_button.dart`
+
+**Purpose:** Gradient-styled button widget matching app theme.
+
+---
+
+#### 📄 lib/presentation/widgets/common/icon_input_field.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/widgets/common/icon_input_field.dart`
+
+**Purpose:** Text input field with leading icon, used on auth screens.
+
+---
+
+### 📂 quran_mobile/assets/quran-pages/ 🆕
+
+**Purpose:** Contains 605 JSON files with QPC word data for each Quran page (bundled with app).
+
+**What it does:**
+- Stores word-by-word data identical to quran_backend/quran-pages/
+- Bundled directly in the Flutter app assets for offline-first reading
+- Includes page_001.json through page_604.json plus all_pages.json
+- Used by quran_page_data_service.dart to load page data
+
+**Contains:** 605 JSON files
+
+---
+
+### 📂 scripts/ 🆕
+
+**Purpose:** Project-wide utility scripts.
+
+**Contains:** convert_fonts.py
+
+---
+
+#### 🐍 scripts/convert_fonts.py 🆕
+
+**Path:** `scripts/convert_fonts.py`
+
+**Purpose:** Converts QPC WOFF2 fonts to TTF format for Flutter mobile app.
+
+**What it does:**
+- Reads WOFF2 files from quran_frontend/public/fonts/qpc/
+- Converts each font to TTF using fontTools library
+- Outputs TTF files to quran_backend/fonts/qpc/
+- Requires: pip install fonttools brotli
+- Converts all 604 page-specific fonts (QCF_P001 to QCF_P604)
 
 ---
 
@@ -579,22 +1406,82 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Architecture docs for system design and planning
 - Technical implementation details for developers
 - Troubleshooting guides for AI assistants
+- Session logs for tracking development work
+- Production readiness analysis
+- Template for session logs
 
-**Contains:** PROJECT_CHANGELOG.md, Architecture/, Technical Implementation Journey/, Guides/
+**Contains:** PROJECT_CHANGELOG.md, PRODUCTION_READINESS.md, TEMPLATE.md, Architecture/, Technical Implementation Journey/, Guides/, Logs/
 
 ---
 
-#### 📄 docs/PROJECT_CHANGELOG.md
+#### 📄 docs/PROJECT_CHANGELOG.md 🔄
 
 **Path:** `docs/PROJECT_CHANGELOG.md`
 
 **Purpose:** Main reference guide and chronological record of what has been built.
 
 **What it does:**
-- Documents all development phases (Foundation, Multi-User, Classes & Mistakes, etc.)
+- Documents all development phases (Foundation through Phase 15+)
 - Provides a directory map of all documentation
 - Links to detailed implementation docs
 - Tracks feature completion status
+- Now includes Phases 12-15: Supabase migration, Flutter overhaul, Quran Reader responsive, light mode fixes
+- Updated documentation directory listing with new subdirectories
+
+---
+
+#### 📄 docs/PRODUCTION_READINESS.md 🆕
+
+**Path:** `docs/PRODUCTION_READINESS.md`
+
+**Purpose:** Production readiness analysis identifying what works and what needs fixing.
+
+**What it does:**
+- Lists completed features that are production-ready (QPC rendering, auth, mistake tracking)
+- Identifies critical gaps (student management, mobile offline sync, error handling)
+- Prioritizes work needed before production deployment
+- Generated February 2026 during Flutter Quran Reader development
+- Moved from project root to docs/ during documentation overhaul
+
+---
+
+#### 📄 docs/TEMPLATE.md 🆕
+
+**Path:** `docs/TEMPLATE.md`
+
+**Purpose:** Template for development session logs.
+
+**What it does:**
+- Defines naming convention for session logs (YYYY-MM-DD-NNN-brief-description.md)
+- Provides markdown template with sections: Objective, Summary, Work Completed, Issues
+- Moved from project root to docs/ during documentation overhaul
+
+---
+
+### 📂 docs/Logs/ 🆕
+
+**Purpose:** Development session logs tracking what was accomplished in each work session.
+
+**What it does:**
+- Contains timestamped session logs following the TEMPLATE.md format
+- Tracks objectives, work completed, issues encountered, and next steps
+
+**Contains:** 2026-02-15-001-session-log.md
+
+---
+
+#### 📄 docs/Logs/2026-02-15-001-session-log.md 🆕
+
+**Path:** `docs/Logs/2026-02-15-001-session-log.md`
+
+**Purpose:** Session log for the February 15, 2026 documentation overhaul.
+
+**What it does:**
+- Documents the comprehensive documentation audit using parallel agents
+- Records CLAUDE.md rewrite and AGENTS.md creation
+- Tracks file organization (moving TEMPLATE.md, PRODUCTION_READINESS.md)
+- Lists audit findings: backend 85%, frontend 75%, mobile 95% accurate
+- Documents all fixes applied to Technical_Documentation.md, 00-OVERVIEW.md, 04-SCREENS.md, etc.
 
 ---
 
@@ -606,16 +1493,17 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Contains architecture blueprints created during planning
 - Documents user identity and relationships design
 - Provides system overview diagrams
+- Includes Supabase migration architecture documentation
 
-**Contains:** 3 markdown files
+**Contains:** 5 files (3 markdown + 1 HTML + 1 migration doc)
 
 ---
 
-#### 📄 docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md
+#### 📄 docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md 🔄
 
-**Path:** `docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md`
+**Path:** `docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md`
 
-**Purpose:** Main architecture blueprint for the application.
+**Purpose:** Main architecture blueprint for the application. (Renamed from Title_Case)
 
 **What it does:**
 - Defines overall system architecture
@@ -624,11 +1512,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Architecture/Logical Architecture Blueprint_ User Identity & Relationships.md
+#### 📄 docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md 🔄
 
-**Path:** `docs/Architecture/Logical Architecture Blueprint_ User Identity & Relationships.md`
+**Path:** `docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md`
 
-**Purpose:** User identity and relationship system design.
+**Purpose:** User identity and relationship system design. (Renamed from Title_Case)
 
 **What it does:**
 - Documents teacher-student relationships
@@ -637,15 +1525,37 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Architecture/Quran Full App.md
+#### 📄 docs/Architecture/Quran_Full_App.md 🔄
 
-**Path:** `docs/Architecture/Quran Full App.md`
+**Path:** `docs/Architecture/Quran_Full_App.md`
 
-**Purpose:** Full application overview and feature planning.
+**Purpose:** Full application overview and feature planning. (Renamed from Title_Case)
 
 **What it does:**
 - Comprehensive app feature documentation
 - Planning document for all app capabilities
+
+---
+
+#### 📄 docs/Architecture/Supabase_Migration_Architecture.md 🆕
+
+**Path:** `docs/Architecture/Supabase_Migration_Architecture.md`
+
+**Purpose:** Supabase cloud migration architecture and database schema design.
+
+**What it does:**
+- Documents the migration from custom JWT/SQLite to Supabase Auth/PostgreSQL
+- Defines 7 Supabase tables, 14 RLS policies, and 4 triggers
+- Provides complete database schema with column definitions
+- Documents migration strategy and rollback plan
+
+---
+
+#### 📄 docs/Architecture/Supabase_Migration_Architecture.html 🆕
+
+**Path:** `docs/Architecture/Supabase_Migration_Architecture.html`
+
+**Purpose:** Interactive HTML viewer for Supabase migration architecture.
 
 ---
 
@@ -656,30 +1566,34 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 **What it does:**
 - Provides implementation details for developers
 - Documents API endpoints and data models
-- Explains complex features like QPC rendering and test scoring
+- Explains complex features like QPC rendering, test scoring, and Supabase migration
+- Contains subdirectories for major feature areas
 
-**Contains:** 5 markdown files
+**Contains:** 8 standalone files + 3 subdirectories (Flutter App Overhaul/, Quran Reader/, Supabase Implementation/)
 
 ---
 
-#### 📄 docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md
+#### 📄 docs/Technical Implementation Journey/Technical_Documentation.md 🔄
 
-**Path:** `docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md`
+**Path:** `docs/Technical Implementation Journey/Technical_Documentation.md`
 
-**Purpose:** Full technical overview of the system.
+**Purpose:** Full technical overview of the system including all API endpoints and database schema.
 
 **What it does:**
-- Comprehensive technical documentation
-- API reference and data models
-- Database schema documentation
+- Comprehensive technical documentation covering all endpoints
+- API reference with request/response schemas
+- Database schema documentation (now includes sync_log table, sync columns)
+- Documents 8 previously missing API endpoints (local, sync, font, page endpoints)
+- Documents 3 previously missing DB tables
+- Fixed test endpoint path (/classes/{id}/test, not /tests/by-class/{id})
 
 ---
 
-#### 📄 docs/Technical Implementation Journey/AUTH_SYSTEM.md
+#### 📄 docs/Technical Implementation Journey/Auth_System.md 🔄
 
-**Path:** `docs/Technical Implementation Journey/AUTH_SYSTEM.md`
+**Path:** `docs/Technical Implementation Journey/Auth_System.md`
 
-**Purpose:** Authentication system documentation.
+**Purpose:** Authentication system documentation. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Documents JWT authentication flow (signup, login, refresh)
@@ -689,11 +1603,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md
+#### 📄 docs/Technical Implementation Journey/Classes_And_Mistakes.md 🔄
 
-**Path:** `docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md`
+**Path:** `docs/Technical Implementation Journey/Classes_And_Mistakes.md`
 
-**Purpose:** Class and mistake tracking system documentation.
+**Purpose:** Class and mistake tracking system documentation. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Documents class creation and management
@@ -703,11 +1617,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md
+#### 📄 docs/Technical Implementation Journey/Qpc_Quran_Rendering.md 🔄
 
-**Path:** `docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md`
+**Path:** `docs/Technical Implementation Journey/Qpc_Quran_Rendering.md`
 
-**Purpose:** QPC font rendering system documentation.
+**Purpose:** QPC font rendering system documentation. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Explains QPC (Quran Printing Complex) font system
@@ -717,17 +1631,233 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Technical Implementation Journey/TEST_SYSTEM.md
+#### 📄 docs/Technical Implementation Journey/Test_System.md 🔄
 
-**Path:** `docs/Technical Implementation Journey/TEST_SYSTEM.md`
+**Path:** `docs/Technical Implementation Journey/Test_System.md`
 
-**Purpose:** Test class and scoring system documentation.
+**Purpose:** Test class and scoring system documentation. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Documents test class creation workflow
 - Explains question flow (start/end question)
 - Details scoring system with tanbeeh (warnings)
 - Covers repeated mistake detection and point deduction
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Auth_Navigation_Fixes.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Auth_Navigation_Fixes.md`
+
+**Purpose:** Documentation of auth navigation issues and their fixes after Supabase migration.
+
+**What it does:**
+- Documents race condition and localStorage corruption fixes
+- Covers timeout mechanism for stuck auth operations
+- Documents rapid navigation freeze fix
+- Covers API migration details (mistakes, suggested portions, performance)
+- Includes testing checklist and key learnings about Supabase migration
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Settings_Password_Reset.md 🔄
+
+**Path:** `docs/Technical Implementation Journey/Settings_Password_Reset.md`
+
+**Purpose:** Settings page and password reset feature documentation.
+
+**What it does:**
+- Documents Settings page implementation (profile editing, password change)
+- Documents Forgot Password flow with Supabase email reset
+- Documents Reset Password page for email-link-based recovery
+- Documents undocumented frontend pages added in Feb 2026 audit
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md`
+
+**Purpose:** Light/dark mode theming implementation documentation.
+
+**What it does:**
+- Documents ThemeContext implementation
+- Explains CSS custom properties for both themes
+- Covers conditional styling patterns across all pages
+- Documents light mode: cyan/teal gradient; dark mode: dark slate
+
+---
+
+### 📂 docs/Technical Implementation Journey/Flutter App Overhaul/ 🆕
+
+**Purpose:** Documentation for the Flutter mobile app complete overhaul (Phase 13).
+
+**What it does:**
+- Documents the transition from placeholder Flutter app to full-featured mobile app
+- Covers theme system, authentication, navigation, screens, widgets, and Quran reader
+- Organized as numbered files (00-OVERVIEW through 06-QURAN-READER)
+
+**Contains:** 7 markdown files
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/00-OVERVIEW.md 🔄
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/00-OVERVIEW.md`
+
+**Purpose:** Overview of the Flutter app overhaul project.
+
+**What it does:**
+- Summarizes what changed in Phase 13 (auth, theme, screens, QPC reader)
+- Documents architecture decisions and package dependencies
+- Updated "No Sync" statement to reflect Phase 12 local-first sync addition
+- Documents Flutter Settings and Create Class screens (added in Feb 2026 audit)
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/01-THEME-SYSTEM.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/01-THEME-SYSTEM.md`
+
+**Purpose:** Flutter theme system implementation documentation.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/02-AUTHENTICATION.md 🔄
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/02-AUTHENTICATION.md`
+
+**Purpose:** Flutter Supabase authentication implementation documentation.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/03-NAVIGATION.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/03-NAVIGATION.md`
+
+**Purpose:** Flutter navigation architecture documentation.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/04-SCREENS.md 🔄
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/04-SCREENS.md`
+
+**Purpose:** Flutter screen implementations documentation.
+
+**What it does:**
+- Documents all Flutter screens: Dashboard, Classes, Classroom, Settings
+- Updated with ClassroomScreen QPC integration (Phase 13.5)
+- Updated with swipe navigation and mistakes summary changes
+- Documents Settings and Create Class screens (added in Feb 2026 audit)
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/05-SHARED-WIDGETS.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/05-SHARED-WIDGETS.md`
+
+**Purpose:** Flutter shared widgets documentation.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter App Overhaul/06-QURAN-READER.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/06-QURAN-READER.md`
+
+**Purpose:** Flutter Quran Reader QPC rendering documentation.
+
+**What it does:**
+- Documents the complete rewrite from surah-based to page-based QPC rendering
+- Covers font download/cache service architecture
+- Explains MushafPageWidget line layout and glyph rendering
+- Documents ClassroomScreen integration (Phase 13.5)
+
+---
+
+### 📂 docs/Technical Implementation Journey/Quran Reader/ 🆕
+
+**Purpose:** Web Quran Reader rendering documentation.
+
+**Contains:** 2 markdown files
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Quran Reader/WEB-READER-RENDERING-ISSUES.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Quran Reader/WEB-READER-RENDERING-ISSUES.md`
+
+**Purpose:** Web Quran Reader rendering issues and fixes documentation.
+
+**What it does:**
+- Documents all rendering problems encountered (text cutoff, overflow, distortion)
+- Explains FittedLine scale-to-fit solution
+- Documents responsive breakpoint table (phone/tablet/desktop)
+- Covers chromeHeight tuning, font sizing, and overflow line fixes
+- Final responsive values documented
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Quran Reader/FLUTTER-RENDERING-REFERENCE.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Quran Reader/FLUTTER-RENDERING-REFERENCE.md`
+
+**Purpose:** Reference documentation for Flutter's QPC rendering approach.
+
+**What it does:**
+- Documents how Flutter renders Quran pages with FittedBox(scaleDown)
+- Serves as reference for matching behavior in the web FittedLine component
+- Explains line layout, font sizing, and aspect ratio calculations
+
+---
+
+### 📂 docs/Technical Implementation Journey/Supabase Implementation/ 🆕
+
+**Purpose:** Supabase cloud database migration documentation.
+
+**Contains:** 3 markdown files
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Supabase Implementation/Implementation_Journey.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Supabase Implementation/Implementation_Journey.md`
+
+**Purpose:** Step-by-step chronicle of the Supabase migration process.
+
+**What it does:**
+- Documents 19+ steps from initial setup to production-ready state
+- Covers RLS policy creation, frontend integration, auth migration
+- Documents race condition fixes, caching implementation, navigation fixes
+- Includes API migration details (from FastAPI to Supabase)
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Supabase Implementation/Supabase_Reference.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Supabase Implementation/Supabase_Reference.md`
+
+**Purpose:** Supabase configuration and schema reference.
+
+**What it does:**
+- Complete database schema with all table definitions
+- RLS policy definitions and explanations
+- Trigger function documentation
+- Configuration reference for environment variables
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Supabase Implementation/Supabase_Frontend_Integration_Reference.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Supabase Implementation/Supabase_Frontend_Integration_Reference.md`
+
+**Purpose:** Reference for how the React frontend integrates with Supabase.
+
+**What it does:**
+- Documents supabase.ts client setup
+- Explains supabase-api.ts function patterns
+- Covers TypeScript types generation from Supabase CLI
+- Documents caching strategy and auth context changes
 
 ---
 
@@ -740,15 +1870,15 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Written for AI assistants working on the codebase
 - Step-by-step instructions with code examples
 
-**Contains:** 3 markdown files
+**Contains:** 3 markdown files (renamed to Title_Case)
 
 ---
 
-#### 📄 docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md
+#### 📄 docs/Guides/Page_Layout_Fix_Guide.md 🔄
 
-**Path:** `docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md`
+**Path:** `docs/Guides/Page_Layout_Fix_Guide.md`
 
-**Purpose:** Guide for fixing Quran page layout issues.
+**Purpose:** Guide for fixing Quran page layout issues. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Explains the `l` (line number) field in page JSON
@@ -758,11 +1888,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md
+#### 📄 docs/Guides/Font_Overflow_Fix_Guide.md 🔄
 
-**Path:** `docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md`
+**Path:** `docs/Guides/Font_Overflow_Fix_Guide.md`
 
-**Purpose:** Guide for fixing font overflow issues on page boundaries.
+**Purpose:** Guide for fixing font overflow issues on page boundaries. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Explains overflow glyph codes (> 0xFC00)
@@ -771,11 +1901,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Guides/SEEDING_DATABASE.md
+#### 📄 docs/Guides/Seeding_Database.md 🔄
 
-**Path:** `docs/Guides/SEEDING_DATABASE.md`
+**Path:** `docs/Guides/Seeding_Database.md`
 
-**Purpose:** Guide for seeding the database with test data.
+**Purpose:** Guide for seeding the database with test data. (Renamed from ALL_CAPS)
 
 **What it does:**
 - Documents the create_test_users.py script
@@ -795,27 +1925,88 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Introduces QuranTrack as a Quran memorization tracking app
 - Explains features for teachers (conduct classes, track mistakes, manage students)
 - Explains features for students (view progress, review mistakes)
-- Documents the tech stack (React, FastAPI, Flutter)
+- Documents the tech stack (React, FastAPI, Flutter, Supabase)
 - Links to detailed documentation in the docs/ folder
 
 ---
 
-### docs/PROJECT_CHANGELOG.md
+### AGENTS.md 🆕
+
+**Path:** `AGENTS.md`
+
+**Purpose:** AI agent instructions for non-Claude AI coding assistants.
+
+- Mirrors CLAUDE.md content for compatibility with other AI agents
+- Complete codebase map, tech stack, key concepts
+- Created during Feb 2026 documentation overhaul
+
+---
+
+### CLAUDE.md 🔄
+
+**Path:** `CLAUDE.md`
+
+**Purpose:** AI agent instructions with comprehensive codebase map.
+
+- Complete directory tree of every file with one-line descriptions
+- Tech stack table, database architecture, auth flow documentation
+- Key rules for git, databases, QPC fonts, and Quran JSON structure
+- Rewritten in Feb 2026 from minimal version to comprehensive guide
+
+---
+
+### docs/PROJECT_CHANGELOG.md 🔄
 
 **Path:** `docs/PROJECT_CHANGELOG.md`
 
 **Purpose:** Main reference guide and chronological record of what has been built.
 
-- Documents all development phases (Foundation, Multi-User, Classes & Mistakes, etc.)
+- Documents all development phases (Foundation through Phase 15+)
 - Provides a directory map of all documentation
 - Links to detailed implementation docs
 - Tracks feature completion status
 
 ---
 
-### docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md
+### docs/PRODUCTION_READINESS.md 🆕
 
-**Path:** `docs/Architecture/QuranTrack Academy_ Architecture Blueprint.md`
+**Path:** `docs/PRODUCTION_READINESS.md`
+
+**Purpose:** Production readiness analysis for QuranTrack.
+
+- Lists production-ready features and critical gaps
+- Prioritizes work needed before deployment
+- Moved from project root to docs/
+
+---
+
+### docs/TEMPLATE.md 🆕
+
+**Path:** `docs/TEMPLATE.md`
+
+**Purpose:** Template for development session logs.
+
+- Naming convention: YYYY-MM-DD-NNN-brief-description.md
+- Markdown template with Objective, Summary, Work Completed sections
+- Moved from project root to docs/
+
+---
+
+### docs/Logs/2026-02-15-001-session-log.md 🆕
+
+**Path:** `docs/Logs/2026-02-15-001-session-log.md`
+
+**Purpose:** Session log for the Feb 15, 2026 documentation overhaul.
+
+- Documents parallel-agent documentation audit (backend 85%, frontend 75%, mobile 95%)
+- Records CLAUDE.md rewrite and AGENTS.md creation
+- Lists all fixes applied across 6 documentation files
+
+---
+
+### docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md
+
+**Path:** `docs/Architecture/QuranTrack_Academy_Architecture_Blueprint.md`
 
 **Purpose:** Main architecture blueprint for the application.
 
@@ -825,9 +2016,9 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-### docs/Architecture/Logical Architecture Blueprint_ User Identity & Relationships.md
+### docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md
 
-**Path:** `docs/Architecture/Logical Architecture Blueprint_ User Identity & Relationships.md`
+**Path:** `docs/Architecture/Logical_Architecture_Blueprint_User_Identity_And_Relationships.md`
 
 **Purpose:** User identity and relationship system design.
 
@@ -837,9 +2028,9 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-### docs/Architecture/Quran Full App.md
+### docs/Architecture/Quran_Full_App.md
 
-**Path:** `docs/Architecture/Quran Full App.md`
+**Path:** `docs/Architecture/Quran_Full_App.md`
 
 **Purpose:** Full application overview and feature planning.
 
@@ -848,179 +2039,430 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-### docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md
+### docs/Architecture/Supabase_Migration_Architecture.md 🆕
 
-**Path:** `docs/Technical Implementation Journey/TECHNICAL_DOCUMENTATION.md`
+**Path:** `docs/Architecture/Supabase_Migration_Architecture.md`
 
-**Purpose:** Full technical overview of the system.
+**Purpose:** Supabase migration architecture and database schema.
 
-- Comprehensive technical documentation
-- API reference and data models
-- Database schema documentation
+- 7 tables, 14 RLS policies, 4 triggers
+- Complete schema definitions
+- Migration strategy documentation
 
 ---
 
-### docs/Technical Implementation Journey/AUTH_SYSTEM.md
+### docs/Technical Implementation Journey/Technical_Documentation.md 🔄
 
-**Path:** `docs/Technical Implementation Journey/AUTH_SYSTEM.md`
+**Path:** `docs/Technical Implementation Journey/Technical_Documentation.md`
+
+**Purpose:** Full technical overview of the system.
+
+- Comprehensive API reference with all endpoints
+- Database schema including sync tables and columns
+- Fixed in Feb 2026 audit: added 8 missing endpoints, 3 missing tables
+
+---
+
+### docs/Technical Implementation Journey/Auth_System.md
+
+**Path:** `docs/Technical Implementation Journey/Auth_System.md`
 
 **Purpose:** Authentication system documentation.
 
 - Documents JWT authentication flow (signup, login, refresh)
 - Explains user roles (Teacher = verified, Student = unverified)
 - Documents Student ID generation (STU-XXXXXX format)
-- Lists all auth-related API endpoints
 
 ---
 
-### docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md
+### docs/Technical Implementation Journey/Classes_And_Mistakes.md
 
-**Path:** `docs/Technical Implementation Journey/CLASSES_AND_MISTAKES.md`
+**Path:** `docs/Technical Implementation Journey/Classes_And_Mistakes.md`
 
 **Purpose:** Class and mistake tracking system documentation.
 
 - Documents class creation and management
 - Explains assignment types (Hifz, Sabqi, Revision)
 - Details mistake tracking (word-level and character-level)
-- Covers mistake occurrence tracking per class
 
 ---
 
-### docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md
+### docs/Technical Implementation Journey/Qpc_Quran_Rendering.md
 
-**Path:** `docs/Technical Implementation Journey/QPC_QURAN_RENDERING.md`
+**Path:** `docs/Technical Implementation Journey/Qpc_Quran_Rendering.md`
 
 **Purpose:** QPC font rendering system documentation.
 
 - Explains QPC (Quran Printing Complex) font system
 - Documents page-specific font loading (604 fonts)
 - Covers glyph codes and line number system
-- Details overflow ayah handling with previous page fonts
 
 ---
 
-### docs/Technical Implementation Journey/TEST_SYSTEM.md
+### docs/Technical Implementation Journey/Test_System.md
 
-**Path:** `docs/Technical Implementation Journey/TEST_SYSTEM.md`
+**Path:** `docs/Technical Implementation Journey/Test_System.md`
 
 **Purpose:** Test class and scoring system documentation.
 
 - Documents test class creation workflow
-- Explains question flow (start/end question)
 - Details scoring system with tanbeeh (warnings)
-- Covers repeated mistake detection and point deduction
 
 ---
 
-### docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md
+### docs/Technical Implementation Journey/Auth_Navigation_Fixes.md 🆕
 
-**Path:** `docs/Guides/PAGE_LAYOUT_FIX_GUIDE.md`
+**Path:** `docs/Technical Implementation Journey/Auth_Navigation_Fixes.md`
+
+**Purpose:** Auth navigation fixes after Supabase migration.
+
+- Race condition and localStorage corruption fixes
+- Timeout mechanism for stuck auth
+- API migration details and testing checklist
+
+---
+
+### docs/Technical Implementation Journey/Settings_Password_Reset.md 🔄
+
+**Path:** `docs/Technical Implementation Journey/Settings_Password_Reset.md`
+
+**Purpose:** Settings and password reset feature documentation.
+
+- Settings page with profile editing and password change
+- Forgot Password and Reset Password flows
+- Updated in Feb 2026 audit with missing page documentation
+
+---
+
+### docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md`
+
+**Purpose:** Light/dark mode theming documentation.
+
+- ThemeContext, CSS custom properties, conditional styling
+
+---
+
+### docs/Technical Implementation Journey/Flutter App Overhaul/ 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/`
+
+**Purpose:** Flutter mobile app overhaul documentation (7 files).
+
+- 00-OVERVIEW: Architecture and package overview
+- 01-THEME-SYSTEM: Dark/light mode with AppColors
+- 02-AUTHENTICATION: Supabase auth in Flutter
+- 03-NAVIGATION: Bottom nav and routing
+- 04-SCREENS: All screen implementations
+- 05-SHARED-WIDGETS: Reusable widget docs
+- 06-QURAN-READER: QPC rendering system
+
+---
+
+### docs/Technical Implementation Journey/Quran Reader/ 🆕
+
+**Path:** `docs/Technical Implementation Journey/Quran Reader/`
+
+**Purpose:** Quran Reader rendering documentation (2 files).
+
+- WEB-READER-RENDERING-ISSUES: All web rendering problems and fixes
+- FLUTTER-RENDERING-REFERENCE: Reference for matching Flutter's approach
+
+---
+
+### docs/Technical Implementation Journey/Supabase Implementation/ 🆕
+
+**Path:** `docs/Technical Implementation Journey/Supabase Implementation/`
+
+**Purpose:** Supabase migration documentation (3 files).
+
+- Implementation_Journey: Step-by-step migration chronicle
+- Supabase_Reference: Schema and RLS configuration reference
+- Supabase_Frontend_Integration_Reference: React integration guide
+
+---
+
+### docs/Guides/Page_Layout_Fix_Guide.md
+
+**Path:** `docs/Guides/Page_Layout_Fix_Guide.md`
 
 **Purpose:** Guide for fixing Quran page layout issues.
 
-- Explains the `l` (line number) field in page JSON
-- Documents how to fix ayah positioning issues
-- Provides Python script for batch fixes
-- Includes common issue symptoms and solutions
+- Explains line number field and ayah positioning
+- Python script for batch fixes
 
 ---
 
-### docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md
+### docs/Guides/Font_Overflow_Fix_Guide.md
 
-**Path:** `docs/Guides/FONT_OVERFLOW_FIX_GUIDE.md`
+**Path:** `docs/Guides/Font_Overflow_Fix_Guide.md`
 
-**Purpose:** Guide for fixing font overflow issues on page boundaries.
+**Purpose:** Guide for fixing font overflow issues.
 
-- Explains overflow glyph codes (> 0xFC00)
-- Documents previous page font loading requirement
-- Provides troubleshooting steps
+- Overflow glyph codes documentation
+- Previous page font loading requirement
 
 ---
 
-### docs/Guides/SEEDING_DATABASE.md
+### docs/Guides/Seeding_Database.md
 
-**Path:** `docs/Guides/SEEDING_DATABASE.md`
+**Path:** `docs/Guides/Seeding_Database.md`
 
 **Purpose:** Guide for seeding the database with test data.
 
-- Documents the create_test_users.py script
-- Lists all test accounts created
-- Explains password and student ID format
+- Documents create_test_users.py script
+- Lists test accounts and credentials
 
 ---
 
 ## Git History
 
 **Branch:** main
-**Last Commit:** 4b2dbf4
-**Total Commits:** 16
+**Last Commit:** 22f00f9
+**Total Commits:** 56
 **Repository:** Local
 
 ### Recent Commits
 
-#### 🔵 4b2dbf4 — Add PROJECT_MAP.md and interactive HTML documentation
+#### 🔵 22f00f9 — docs: Full documentation overhaul -- audit, reorganize, and fix all gaps
+**Author:** Hamza Feroze
+**Date:** February 15, 2026
+
+#### 🔵 840f3c6 — fix: UUID bug, RLS mistakes, swipe nav, scroll-down mistakes summary
+**Author:** Hamza Feroze
+**Date:** February 11, 2026
+
+#### 🔵 fbfc462 — feat: Integrate QPC Quran Reader into Flutter ClassroomScreen (Phase 13.5)
+**Author:** Hamza Feroze
+**Date:** February 11, 2026
+
+#### 🔵 94a7588 — docs: Mark Phase 14 done, add Phase 15 (light mode + bug fixes)
+**Author:** Hamza Feroze
+**Date:** February 11, 2026
+
+#### 🔵 644f86d — fix: Light mode contrast for performance dropdowns, portions, and mistakes
+**Author:** Hamza Feroze
+**Date:** February 11, 2026
+
+#### 🔵 03b9230 — fix: Move light mode gradient to navbar, fix "Class not found" bug
+**Author:** Hamza Feroze
+**Date:** February 11, 2026
+
+#### 🔵 8a1f3af — fix: Prevent overflow lines from being cut off on pages with surah headers
+**Author:** Hamza Feroze
+**Date:** February 11, 2026
+
+#### 🔵 b370aeb — docs: Update rendering docs and changelog with final responsive values
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 44aa0a7 — Web: Show legend on tablet, enlarge page to fill dead space
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 147e679 — Web: Move all QuranReader content breakpoints from sm to lg
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 dfef1a4 — Web: Fix text cutoff -- responsive font size based on page height
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 ec42931 — Web: Increase tablet chromeHeight to 300 for small screen fit
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 12e6b0c — docs: Add Phase 14 -- Web Quran Reader responsive overhaul
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 690fc54 — Web: Fix mushaf page cutoff on tablet -- hide cards, increase chrome
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 3cd5d2b — Web: Move bottom nav breakpoint to lg (1024px), 3-tier responsive
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 ee9d030 — Web: Fix QPC rendering - scaleDown only, full-width surah headers
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 73bece0 — Web: FittedLine scale-to-fit, mobile fullscreen reader, bottom nav
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 688eb6b — Web: Add text justification, document rendering issues for Quran Reader
+**Author:** Hamza Feroze
+**Date:** February 9, 2026
+
+#### 🔵 bb059f6 — Flutter: Rewrite Quran Reader with page-based QPC rendering and cream theme
+**Author:** Hamza Feroze
+**Date:** February 8, 2026
+
+#### 🔵 565e147 — Flutter: Fix Supabase columns, redesign dashboard, enhance auth screens
+**Author:** Hamza Feroze
+**Date:** February 3, 2026
+
+#### 🔵 869622f — Flutter: Add logout, fix teacher dashboard, center login
+**Author:** Hamza Feroze
+**Date:** February 3, 2026
+
+#### 🔵 0d2a92a — Fix performance dropdown and remove draft toggle
+**Author:** Hamza Feroze
+**Date:** January 26, 2026
+
+#### 🔵 8cb01dc — Migrate getSuggestedPortions to Supabase and update docs
+**Author:** Hamza Feroze
+**Date:** January 26, 2026
+
+#### 🔵 e83c0fe — Migrate getMistakesWithOccurrences to Supabase API
+**Author:** Hamza Feroze
+**Date:** January 26, 2026
+
+#### 🔵 01dafc5 — Fix mistakes feature and auto-publish classes
+**Author:** Hamza Feroze
+**Date:** January 26, 2026
+
+#### 🔵 41f1e17 — Add settings/password reset and fix auth navigation issues
+**Author:** Hamza Feroze
+**Date:** January 26, 2026
+
+#### 🔵 a1d45fd — Add background image to auth pages and show email instead of ID
+**Author:** Hamza Feroze
+**Date:** January 25, 2026
+
+#### 🔵 4128328 — Implement complete light/dark mode theming across app
+**Author:** Hamza Feroze
+**Date:** January 25, 2026
+
+#### 🔵 5a25df4 — Add .env support and update PROJECT_CHANGELOG
+**Author:** Hamza Feroze
+**Date:** January 24, 2026
+
+#### 🔵 00dcde1 — Implement local-first sync with app.db and Supabase
+**Author:** Hamza Feroze
+**Date:** January 24, 2026
+
+#### 🔵 65eed79 — Implement local-first caching for instant page loading
+**Author:** Hamza Feroze
+**Date:** January 20, 2026
+
+#### 🔵 8b041bc — Update documentation for navigation and timeout fixes
+**Author:** Hamza Feroze
+**Date:** January 20, 2026
+
+#### 🔵 1db7751 — Fix rapid navigation causing app to freeze
+**Author:** Hamza Feroze
+**Date:** January 20, 2026
+
+#### 🔵 c725f6d — Add auth timeout mechanism to prevent infinite hangs
+**Author:** Hamza Feroze
+**Date:** January 20, 2026
+
+#### 🔵 985bebc — Fix role-based routing for teachers
+**Author:** Hamza Feroze
+**Date:** January 20, 2026
+
+#### 🔵 5a834b8 — Fix race condition and localStorage corruption issues
+**Author:** Hamza Feroze
+**Date:** January 20, 2026
+
+#### 🔵 b768b0b — Integrate Supabase client into React frontend
+**Author:** Hamza Feroze
+**Date:** January 19, 2026
+
+#### 🔵 89d8ec4 — Add CLAUDE.md to version control and update with Supabase info
+**Author:** Hamza Feroze
+**Date:** January 19, 2026
+
+#### 🔵 0ef9528 — Add Supabase cloud database setup and rename docs to Title_Case
+**Author:** Hamza Feroze
+**Date:** January 19, 2026
+
+#### 🔵 b08c1b8 — Update PROJECT_MAP with self-reference and git history
 **Author:** Hamza Feroze
 **Date:** December 31, 2025
 
-#### 🔵 297ee1a — Add database seeding script, month filtering, and bug fixes
-**Author:** Hamza Feroze
-**Date:** December 30, 2025
-
-#### 🔵 40c5dc2 — Redesign Student Classes UI with card layout and mistake counts
-**Author:** Hamza Feroze
-**Date:** December 28, 2025
-
-#### 🔵 81c1cb6 — Fine-tune Uthmani text alignment to match QPC glyph rendering
-**Author:** Hamza Feroze
-**Date:** December 28, 2025
-
-#### 🔵 88527c5 — Enhance harakat highlighting with glow effect (harakat-only, not base letter)
-**Author:** Hamza Feroze
-**Date:** December 27, 2025
-
-#### 🔵 f9659ee — Add class filtering, mistake counts per portion, and auto-select student
-**Author:** Hamza Feroze
-**Date:** December 26, 2025
-
-#### 🔵 7627654 — Add smart portion suggestions, card layout, and UI improvements
-**Author:** Hamza Feroze
-**Date:** December 22, 2025
-
-#### 🔵 8a73686 — Add Test Class feature with scoring, Tanbeeh, and results display
-**Author:** Hamza Feroze
-**Date:** December 17, 2025
-
-#### 🔵 bd66185 — Add surah dropdown, headers, bismillah, portion highlighting, and reorganize docs
-**Author:** Hamza Feroze
-**Date:** December 17, 2025
-
-#### 🔵 65febbc — Add mistake summary sections and update documentation
-**Author:** Hamza Feroze
-**Date:** December 16, 2025
-
-#### 🔵 5b20318 — Fix Quran page layout, add character-level mistake highlighting
-**Author:** Hamza Feroze
-**Date:** December 16, 2025
-
 ### Top Contributors
 
-1. Hamza Feroze (15 commits)
+1. Hamza Feroze (56 commits)
 
 ---
 
 ## Update History
 
-### December 31, 2025 - Update 2 (Latest)
+### February 15, 2026 - Update 3 (Latest)
+
+Major update after 40 commits spanning Phases 12-16 of development (Supabase migration, Flutter overhaul, Web Quran Reader responsive, light mode, documentation overhaul).
+
+**Added (new files/directories):**
+- `AGENTS.md` -- AI agent instructions mirroring CLAUDE.md
+- `scripts/convert_fonts.py` -- WOFF2 to TTF font converter
+- `quran_backend/sync_service.py` -- Supabase bidirectional sync
+- `quran_backend/fonts/qpc/` -- 604 QPC TTF fonts for Flutter mobile
+- `quran_mobile/assets/quran-pages/` -- 605 bundled QPC page JSON files
+- `quran_mobile/lib/core/auth/` -- Supabase auth service and config
+- `quran_mobile/lib/core/services/` -- QPC font service, page data service
+- `quran_mobile/lib/data/models/` -- quran_page_data.dart, quran_page_word.dart, app_user.dart
+- `quran_mobile/lib/data/quran_data.dart` -- Static Quran metadata
+- `quran_mobile/lib/presentation/providers/` -- auth_provider, theme_provider, quran_page_provider
+- `quran_mobile/lib/presentation/screens/auth/` -- login, signup, forgot password screens
+- `quran_mobile/lib/presentation/widgets/` -- mushaf_page_widget, surah_header, bismillah, common/
+- `quran_frontend/src/components/FittedLine.tsx` -- QPC line width-fitting component
+- `quran_frontend/src/contexts/ThemeContext.tsx` -- Dark/light mode context
+- `quran_frontend/src/lib/` -- supabase.ts, supabase-api.ts, quran-api.ts, local-api.ts, cache.ts, database.types.ts
+- `quran_frontend/src/pages/Settings.tsx` -- User settings page
+- `quran_frontend/src/pages/ForgotPassword.tsx` -- Password reset request
+- `quran_frontend/src/pages/ResetPassword.tsx` -- Password reset confirmation
+- `docs/Architecture/Supabase_Migration_Architecture.md` + `.html`
+- `docs/Technical Implementation Journey/Flutter App Overhaul/` -- 7 files (00-06)
+- `docs/Technical Implementation Journey/Quran Reader/` -- 2 files
+- `docs/Technical Implementation Journey/Supabase Implementation/` -- 3 files
+- `docs/Technical Implementation Journey/Auth_Navigation_Fixes.md`
+- `docs/Technical Implementation Journey/Light_Dark_Mode_Implementation.md`
+- `docs/PRODUCTION_READINESS.md` (moved from root)
+- `docs/TEMPLATE.md` (moved from root)
+- `docs/Logs/` -- New directory with session log
+
+**Updated (modified files):**
+- `CLAUDE.md` -- Completely rewritten with comprehensive codebase map
+- `quran_backend/main.py` -- Added sync endpoints, font serving, local-first endpoints
+- `quran_frontend/src/api.ts` -- Refactored to facade re-exporting from specialized modules
+- `quran_frontend/src/App.tsx` -- Added ThemeProvider, new routes, role-based routing
+- `quran_frontend/src/contexts/AuthContext.tsx` -- Rewritten for Supabase Auth with timeout protection
+- `quran_frontend/src/components/Layout.tsx` -- Responsive bottom nav, theme toggle, light mode
+- `quran_frontend/src/pages/QuranReader.tsx` -- FittedLine, responsive 3-tier, overflow fix
+- `quran_frontend/src/pages/Classroom.tsx` -- FittedLine, light/dark mode, responsive, isMounted
+- All Teacher/Student pages -- Light/dark mode, isMounted cleanup, Supabase migration
+- All doc files renamed from ALL_CAPS to Title_Case
+- `docs/PROJECT_CHANGELOG.md` -- Added Phases 12-15 documentation
+- `docs/Technical Implementation Journey/Technical_Documentation.md` -- Added 8 missing endpoints, 3 tables
+
+**Removed:**
+- `PRODUCTION_READINESS.md` (moved to docs/)
+- `TEMPLATE.md` (moved to docs/)
+- `quran_frontend/src/pages/QuranPageTest.tsx` (deleted)
+
+**Stats:**
+- Total files: 1353 -> 2854
+- Total folders: 81 -> 96
+- Total commits: 16 -> 56
+
+---
+
+### December 31, 2025 - Update 2
 
 Updated project map after initial commit.
 
 **Added:**
-- `PROJECT_MAP.md` — This documentation file
-- `PROJECT_MAP.html` — Interactive HTML viewer
+- `PROJECT_MAP.md` -- This documentation file
+- `PROJECT_MAP.html` -- Interactive HTML viewer
 
 **Updated:**
-- Git History — Added commit 4b2dbf4
-- Total files: 1351 → 1353
+- Git History -- Added commit 4b2dbf4
+- Total files: 1351 -> 1353
 
 ---
 
@@ -1029,7 +2471,7 @@ Updated project map after initial commit.
 Initial project map created with 1351 files across 81 folders.
 
 **Key directories documented:**
-- `quran_backend/` — FastAPI backend with auth module
-- `quran_frontend/` — React + TypeScript web app
-- `quran_mobile/` — Flutter mobile app
-- `docs/` — Project documentation
+- `quran_backend/` -- FastAPI backend with auth module
+- `quran_frontend/` -- React + TypeScript web app
+- `quran_mobile/` -- Flutter mobile app
+- `docs/` -- Project documentation
