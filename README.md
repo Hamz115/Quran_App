@@ -58,14 +58,17 @@ Quran_App/
 
 ## Documentation
 
-For detailed documentation, see the `docs/` folder:
+See [`docs/README.md`](docs/README.md) for a full navigation guide. Key docs:
 
 | Document | Description |
 |----------|-------------|
+| [docs/README.md](docs/README.md) | Documentation navigation guide |
 | [PROJECT_CHANGELOG.md](docs/PROJECT_CHANGELOG.md) | Main reference guide - start here |
 | [Architecture/](docs/Architecture/) | System design and planning docs |
 | [Technical Implementation Journey/](docs/Technical%20Implementation%20Journey/) | How features were built |
 | [Guides/](docs/Guides/) | Troubleshooting guides |
+| [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) | Production checklist & roadmap |
+| [Logs/](docs/Logs/) | Development session logs |
 
 ## Screenshots
 

@@ -114,7 +114,8 @@ Quran_App/
 └── docs/                               # ── Documentation ────────────────────
     ├── PROJECT_CHANGELOG.md            # MAIN REFERENCE - all phases, start here
     ├── PRODUCTION_READINESS.md         # Production checklist & roadmap
-    ├── TEMPLATE.md                     # Session log template
+    ├── Logs/                             # Session logs
+    │   └── TEMPLATE.md                   # Session log template
     ├── Architecture/                   # System design docs
     ├── Technical Implementation Journey/
     │   ├── Technical_Documentation.md  # Full technical reference
@@ -128,8 +129,7 @@ Quran_App/
     │   ├── Supabase Implementation/    # Schema, RLS policies, frontend integration
     │   ├── Quran Reader/               # Web & Flutter rendering docs
     │   └── Flutter App Overhaul/       # Mobile UI overhaul (6 docs)
-    ├── Guides/                         # Troubleshooting (font overflow, page layout, seeding)
-    └── Logs/                           # Session logs
+    └── Guides/                         # Troubleshooting (font overflow, page layout, seeding)
 ```
 
 ## Key Concepts
@@ -200,10 +200,13 @@ cd quran_backend && python clear_mistakes.py
 
 ## Documentation
 
+**See [`docs/README.md`](docs/README.md)** for a full navigation guide with directory tree and quick-links by topic.
+
 **Start with `docs/PROJECT_CHANGELOG.md`** — it's the main reference with links to everything else.
 
 | Doc | Purpose |
 |-----|---------|
+| `docs/README.md` | Documentation navigation guide |
 | `PROJECT_CHANGELOG.md` | Main reference, all 15+ phases |
 | `Technical Implementation Journey/` | How features were built |
 | `Architecture/` | System design docs |
