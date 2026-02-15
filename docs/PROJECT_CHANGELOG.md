@@ -21,7 +21,6 @@ docs/
 │   ├── Auth_System.md                      # Authentication & user roles
 │   ├── Classes_And_Mistakes.md             # Classes, assignments, mistakes
 │   ├── Qpc_Quran_Rendering.md              # QPC font rendering system
-│   ├── Test_System.md                      # Test classes and scoring
 │   ├── Supabase Implementation/            # Supabase cloud setup
 │   │   ├── Implementation_Journey.md       # Step-by-step setup record
 │   │   ├── Supabase_Reference.md           # Full schema & policy reference
@@ -279,88 +278,7 @@ See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_An
 
 ---
 
-## Phase 8: Test Classes
-
-**Status:** Complete
-
-### Test Class Type
-- New class type: "Test" (alongside "Regular")
-- Single student per test (enforced in UI and backend)
-- Single test portion (no Hifz/Sabqi/Revision tabs)
-- Test record auto-created when test class is created
-
-### Database Schema
-- Added `class_type` column to `classes` table (`'regular'` | `'test'`)
-- New `tests` table: Test metadata, status, scores
-- New `test_questions` table: Individual questions with ayah ranges
-- New `test_mistakes` table: Mistakes with scoring info, including `is_tanbeeh` column
-
-### Scoring System (Out of 100)
-
-**The test is always scored out of 100 points.**
-- Start with **100 points**
-- **Deduct points** for each mistake
-- **Final Score = 100 - Total Deductions** (minimum 0)
-
-| Mistake Type | Previous Errors | Points Deducted |
-|-------------|-----------------|-----------------|
-| **Tanbeeh (تنبيه)** | Any | **-0.5** |
-| **Full Mistake** | 0 (new) | **-1.0** |
-| **Full Mistake** | 1 | **-2.0** |
-| **Full Mistake** | 2 | **-3.0** |
-| **Full Mistake** | 3 | **-4.0** |
-| **Full Mistake** | 4+ | **-5.0** (capped) |
-
-**Tanbeeh (تنبيه)**: Teacher warning where student self-corrects. Only -0.5 points regardless of history.
-
-### Test Flow
-1. Teacher creates test class (single student, single portion)
-2. Teacher starts test → status: `in_progress`
-3. Question loop:
-   - Start question (click ayah marker for start point)
-   - Mark mistakes:
-     - Click word → "Mark Full Mistake" or select letter/harakat
-     - Click "Tanbeeh (تنبيه)" for teacher warnings
-   - End question (click ayah marker for end point)
-4. End test → Final score = 100 - total deductions
-
-### New API Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/classes/{id}/test` | Get test for class |
-| PATCH | `/api/tests/{id}/start` | Start test |
-| PATCH | `/api/tests/{id}/complete` | Complete test |
-| POST | `/api/tests/{id}/questions/start` | Start question |
-| PATCH | `/api/tests/{id}/questions/{qid}/end` | End question |
-| PATCH | `/api/tests/{id}/questions/{qid}/cancel` | Cancel question |
-| POST | `/api/tests/{id}/mistakes` | Record test mistake (with is_tanbeeh) |
-
-### Frontend Updates
-- **TeacherClasses.tsx**: Class type toggle (Regular/Test)
-- **Classes table**: Cyan "TEST" badge for test classes
-- **Classroom.tsx**:
-  - Test Control Panel (replaces section tabs)
-  - Test Results view with percentage score
-  - Per-question breakdown with mistake details
-  - Tanbeeh button in word popup
-  - Shows mistake location (surah:ayah) in results
-
-### Bug Fixes
-- Fixed "0" characters appearing in results (Quranic pause marks + React integer rendering)
-- Fixed scoring to be deduction-based (100 - deductions) instead of per-question scores
-- Fixed SQLite boolean handling (use `=== 1` instead of truthy checks)
-
-### Global Mistake Integration
-- Test mistakes also create/update global mistake records
-- Repeated mistakes checked against global history
-- Tanbeeh does NOT increment global error_count
-- Ensures accountability across regular classes and tests
-
-See: [Test_System.md](./Technical%20Implementation%20Journey/Test_System.md)
-
----
-
-## Phase 9: UI Improvements & Smart Suggestions
+## Phase 8: UI Improvements & Smart Suggestions
 
 **Status:** Complete
 
@@ -377,12 +295,6 @@ See: [Test_System.md](./Technical%20Implementation%20Journey/Test_System.md)
 - **Manzil**: Continues cycling through memorized surahs
 - New endpoint: `GET /api/students/{student_id}/suggested-portions`
 - Smart Suggestions Panel in new class modal (Step 2)
-
-### Test Mode Improvements
-- Live mistake summary during test questions
-- Current question mistakes displayed in real-time
-- Completed questions summary with per-question breakdown
-- Tanbeeh no longer highlights words globally (only shows in test results)
 
 ### UI Fixes
 - Performance dropdown shows "Excellent/Very Good/Good/Needs Work" (not letter grades)
@@ -466,7 +378,7 @@ See: [Classes_And_Mistakes.md](./Technical%20Implementation%20Journey/Classes_An
 **Status:** Complete
 
 ### Seeding Script
-- Created `seed_database.py` for populating test data
+- Created `seed_database.py` for populating sample data
 - Generates ~57 weeks of realistic class data (Dec 2025 - Dec 2026)
 - Creates classes, assignments, mistakes, and teacher-student relationships
 

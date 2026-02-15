@@ -10,7 +10,6 @@
 ### Core Functionality (Strong)
 - ✅ **QPC Font Rendering** - Pixel-perfect Madani Mushaf display (React web)
 - ✅ **Character-Level Mistake Tracking** - Whole word, letter, harakat precision
-- ✅ **Test Classes with Scoring** - Deduction-based 100-point system with Tanbeeh
 - ✅ **Smart Portion Suggestions** - Auto-continues Hifz/Sabqi/Manzil based on history
 - ✅ **Role-Based Access Control** - Teacher/Student with different permissions
 - ✅ **Supabase Authentication** - Secure auth with JWT, RLS policies
@@ -170,7 +169,6 @@
 
 - 🔔 Class reminder (1 hour before)
 - 🔔 Missed class follow-up
-- 🔔 New test available
 - 🔔 Progress milestones
 - 📧 Weekly progress reports (email)
 
@@ -183,7 +181,6 @@
 
 - 👨‍👩‍👧 View child's classes/progress (read-only)
 - 👨‍👩‍👧 Read teacher notes
-- 👨‍👩‍👧 See test scores
 - 👨‍👩‍👧 Parent invitation system
 
 **Estimate:** 4-5 days
@@ -261,7 +258,7 @@
 ---
 
 ### 18. **Gamification**
-- 🏆 Badges (completed Juz, streak, perfect test)
+- 🏆 Badges (completed Juz, streak)
 - 🎖️ Levels (beginner → advanced)
 - 🌟 Points system
 - 🔥 Streak counter
@@ -272,7 +269,7 @@
 
 ### 19. **PDF Reports**
 - Generate student progress report
-- Charts + test scores + notes
+- Charts + notes
 - Professional formatting
 
 **Estimate:** 2-3 days

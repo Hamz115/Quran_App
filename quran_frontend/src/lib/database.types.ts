@@ -12,7 +12,6 @@ export type Json =
 export type UserRole = 'teacher' | 'student';
 export type AssignmentType = 'hifz' | 'sabqi' | 'revision';
 export type PerformanceRating = 'Excellent' | 'Very Good' | 'Good' | 'Needs Work';
-export type ClassType = 'regular' | 'test';
 
 export interface Database {
   public: {
@@ -74,7 +73,6 @@ export interface Database {
           notes: string | null;
           performance: PerformanceRating | null;
           is_published: boolean;
-          class_type: ClassType;
           created_at: string;
           updated_at: string;
         };
@@ -86,7 +84,6 @@ export interface Database {
           notes?: string | null;
           performance?: PerformanceRating | null;
           is_published?: boolean;
-          class_type?: ClassType;
           created_at?: string;
           updated_at?: string;
         };
@@ -97,7 +94,6 @@ export interface Database {
           notes?: string | null;
           performance?: PerformanceRating | null;
           is_published?: boolean;
-          class_type?: ClassType;
           updated_at?: string;
         };
       };
@@ -209,7 +205,6 @@ export interface Database {
       user_role: UserRole;
       assignment_type: AssignmentType;
       performance_rating: PerformanceRating;
-      class_type: ClassType;
     };
   };
 }

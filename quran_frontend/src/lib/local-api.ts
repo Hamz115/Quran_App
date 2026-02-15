@@ -82,7 +82,6 @@ export interface LocalClassCreate {
   day: string;
   notes?: string;
   student_ids?: string[];
-  class_type?: 'regular' | 'test';
   assignments: {
     type: string;
     start_surah: number;
@@ -100,7 +99,6 @@ export interface LocalClass {
   notes?: string;
   performance?: string;
   is_published: boolean;
-  class_type: string;
   supabase_id?: string;
   sync_status: 'pending' | 'synced' | 'error';
   assignments: {
@@ -189,7 +187,6 @@ export async function getClassesHybrid(role?: 'teacher' | 'student'): Promise<Lo
       notes: c.notes,
       performance: c.performance,
       is_published: c.is_published,
-      class_type: c.class_type,
       supabase_id: c.id,
       sync_status: 'synced' as const,
       assignments: c.assignments.map(a => ({

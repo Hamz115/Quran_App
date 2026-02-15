@@ -1,9 +1,9 @@
 ---
 project: QuranTrack
 created: 2025-12-31T14:46:00
-last_updated: 2026-02-15T10:35:00
-last_commit: 22f00f9
-update_count: 3
+last_updated: 2026-02-15T18:30:00
+last_commit: 0ca0779
+update_count: 4
 total_files: 2854
 total_folders: 96
 ---
@@ -1631,20 +1631,6 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 docs/Technical Implementation Journey/Test_System.md 🔄
-
-**Path:** `docs/Technical Implementation Journey/Test_System.md`
-
-**Purpose:** Test class and scoring system documentation. (Renamed from ALL_CAPS)
-
-**What it does:**
-- Documents test class creation workflow
-- Explains question flow (start/end question)
-- Details scoring system with tanbeeh (warnings)
-- Covers repeated mistake detection and point deduction
-
----
-
 #### 📄 docs/Technical Implementation Journey/Auth_Navigation_Fixes.md 🆕
 
 **Path:** `docs/Technical Implementation Journey/Auth_Navigation_Fixes.md`
@@ -1930,6 +1916,18 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### docs/README.md 🆕
+
+**Path:** `docs/README.md`
+
+**Purpose:** Documentation navigation guide with directory tree and quick-links.
+
+- Provides comprehensive directory tree of all documentation files
+- Lists quick-links by topic (Auth, Classes, Mistakes, QPC Rendering, etc.)
+- Helps developers and AI agents find relevant documentation quickly
+
+---
+
 ### AGENTS.md 🆕
 
 **Path:** `AGENTS.md`
@@ -2099,17 +2097,6 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-### docs/Technical Implementation Journey/Test_System.md
-
-**Path:** `docs/Technical Implementation Journey/Test_System.md`
-
-**Purpose:** Test class and scoring system documentation.
-
-- Documents test class creation workflow
-- Details scoring system with tanbeeh (warnings)
-
----
-
 ### docs/Technical Implementation Journey/Auth_Navigation_Fixes.md 🆕
 
 **Path:** `docs/Technical Implementation Journey/Auth_Navigation_Fixes.md`
@@ -2219,11 +2206,19 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 ## Git History
 
 **Branch:** main
-**Last Commit:** 22f00f9
-**Total Commits:** 56
+**Last Commit:** 0ca0779
+**Total Commits:** 58
 **Repository:** Local
 
 ### Recent Commits
+
+#### 🔵 0ca0779 — docs: Add docs README, move TEMPLATE into Logs, update references
+**Author:** Hamza Feroze
+**Date:** February 15, 2026
+
+#### 🔵 e7f47e1 — docs: Update PROJECT_MAP (40 new commits) and rename session log
+**Author:** Hamza Feroze
+**Date:** February 15, 2026
 
 #### 🔵 22f00f9 — docs: Full documentation overhaul -- audit, reorganize, and fix all gaps
 **Author:** Hamza Feroze
@@ -2387,13 +2382,30 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ### Top Contributors
 
-1. Hamza Feroze (56 commits)
+1. Hamza Feroze (58 commits)
 
 ---
 
 ## Update History
 
-### February 15, 2026 - Update 3 (Latest)
+### February 15, 2026 - Update 4 (Latest)
+
+Updated project map to reflect the deletion of Test_System.md and recent documentation changes.
+
+**Removed:**
+- `docs/Technical Implementation Journey/Test_System.md` -- Test class and scoring system documentation (deleted)
+
+**Updated:**
+- Git history -- Added commits 0ca0779 and e7f47e1
+- Total commits: 56 -> 58
+- docs/README.md -- Added as new documentation navigation guide
+- AGENTS.md, CLAUDE.md, PROJECT_MAP.html -- Minor updates
+- docs/Logs/TEMPLATE.md -- Moved from root to docs/Logs/
+- docs/Logs/2026-02-15-001-session-log.md -- Renamed to docs/Logs/2026-02-15-001-docs-overhaul-audit.md
+
+---
+
+### February 15, 2026 - Update 3
 
 Major update after 40 commits spanning Phases 12-16 of development (Supabase migration, Flutter overhaul, Web Quran Reader responsive, light mode, documentation overhaul).
 

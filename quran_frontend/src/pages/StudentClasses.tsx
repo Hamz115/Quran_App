@@ -292,11 +292,6 @@ export default function StudentClasses() {
                               <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
                               </span>
-                              {cls.class_type === 'test' && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
-                                  Test
-                                </span>
-                              )}
                             </div>
                             <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                               with {teacherName}

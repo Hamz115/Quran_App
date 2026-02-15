@@ -411,37 +411,6 @@ Returns a `.ttf` font file (`QCF_P{NNN}.ttf`) with `Cache-Control: public, max-a
 }
 ```
 
-### Test Endpoints (Authenticated - Teacher Only)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/tests/{test_id}` | Get test with all questions |
-| GET | `/classes/{class_id}/test` | Get test by class ID |
-| PATCH | `/tests/{test_id}/start` | Start test (status → in_progress) |
-| PATCH | `/tests/{test_id}/complete` | Complete test, calculate final score |
-| POST | `/tests/{test_id}/questions/start` | Start new question |
-| PATCH | `/tests/{test_id}/questions/{q_id}/end` | End question with end ayah |
-| PATCH | `/tests/{test_id}/questions/{q_id}/cancel` | Cancel question |
-| GET | `/tests/{test_id}/mistakes` | Get all mistakes for test |
-| POST | `/tests/{test_id}/mistakes` | Record mistake during test |
-| DELETE | `/tests/{test_id}/mistakes/{m_id}` | Remove mistake |
-| GET | `/tests/{test_id}/results` | Get detailed results |
-
-**Test Scoring Logic (Out of 100):**
-
-Final Score = 100 - Total Deductions (minimum 0)
-
-| Mistake Type | Previous Errors | Points Deducted |
-|-------------|-----------------|-----------------|
-| Tanbeeh (تنبيه) | Any | -0.5 |
-| Full Mistake | 0 (new) | -1.0 |
-| Full Mistake | 1 | -2.0 |
-| Full Mistake | 2 | -3.0 |
-| Full Mistake | 3 | -4.0 |
-| Full Mistake | 4+ | -5.0 (capped) |
-
-**Tanbeeh**: Teacher warning where student self-corrects (always -0.5)
-
 ### Stats Endpoint
 
 | Method | Endpoint | Description |
@@ -731,22 +700,6 @@ Each class can have multiple portions:
 - Example: Hifz could have Surah 92:12-21 AND Surah 93:1-5
 - Portion navigation allows switching between them
 
-### 8. Test Classes
-Special class type for formal assessments:
-- Single student per test (enforced)
-- Single test portion (no Hifz/Sabqi/Revision tabs)
-- Question-by-question flow with start/end ayah selection
-- Test Control Panel replaces section tabs
-- **Scoring out of 100**: Final Score = 100 - Deductions
-- **Tanbeeh (تنبيه)**: Teacher warning, -0.5 pts (student self-corrects)
-- **Full Mistakes**: -1 to -5 pts based on previous error count
-- Results view with:
-  - Percentage score display
-  - Per-question breakdown
-  - Mistake location (surah:ayah)
-  - Tanbeeh vs full mistake indicators
-- Test mistakes save to global mistake history
-
 ---
 
 ## Data Flow
@@ -906,7 +859,6 @@ flutter run
 
 - **[AUTH_SYSTEM.md](./AUTH_SYSTEM.md)** - Authentication system, JWT tokens, user roles, student management
 - **[CLASSES_AND_MISTAKES.md](./CLASSES_AND_MISTAKES.md)** - Classes, assignments, mistake tracking, page-based Quran display
-- **[TEST_SYSTEM.md](./TEST_SYSTEM.md)** - Test classes, scoring logic, question flow
 - **[PROJECT_CHANGELOG.md](../PROJECT_CHANGELOG.md)** - Chronological development history (main reference)
 
 ---
@@ -930,26 +882,6 @@ flutter run
 - **Mistake Counts**: Students now see their own mistake counts per portion
 - **Performance Badge**: Read-only badge showing teacher's rating
 - **Backend Update**: API now returns `mistake_counts` and `performance` for student view
-
----
-
-## Previous Updates (Phase 8)
-
-### Test Classes
-- **Class Type Toggle**: Regular vs Test class selection in creation modal
-- **Test Badge**: Cyan "TEST" badge shown in classes table
-- **Single Student Enforcement**: Test classes only allow one student
-- **Scoring System**: Points deducted based on mistake history (0.5-4 pts)
-- **Question Flow**: Start question → mark mistakes → end question → repeat
-- **Test Results**: Per-question breakdown with mistake details
-- **Global Integration**: Test mistakes save to global mistake history
-
-### Database Changes
-- Added `class_type` column to `classes` table
-- New tables: `tests`, `test_questions`, `test_mistakes`
-
-### API Endpoints
-- 11 new test-related endpoints for test management, questions, mistakes, and results
 
 ---
 

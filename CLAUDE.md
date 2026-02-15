@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-QuranTrack is a Quran memorization and recitation tracking app for teachers and students. It uses QPC (Quran Printing Complex) fonts to render Quran pages exactly like the printed Madani Mushaf. Teachers create classes, assign portions (Hifz/Sabqi/Manzil), track character-level mistakes, and run scored tests. Students view their classes, progress, and read the Quran.
+QuranTrack is a Quran memorization and recitation tracking app for teachers and students. It uses QPC (Quran Printing Complex) fonts to render Quran pages exactly like the printed Madani Mushaf. Teachers create classes, assign portions (Hifz/Sabqi/Manzil), and track character-level mistakes. Students view their classes, progress, and read the Quran.
 
 ## Tech Stack
 
@@ -122,7 +122,6 @@ Quran_App/
     │   ├── Auth_System.md              # Auth flow docs
     │   ├── Classes_And_Mistakes.md     # Class/mistake schema & logic
     │   ├── Qpc_Quran_Rendering.md      # QPC font rendering details
-    │   ├── Test_System.md              # Test scoring algorithm
     │   ├── Light_Dark_Mode_Implementation.md
     │   ├── Settings_Password_Reset.md
     │   ├── Auth_Navigation_Fixes.md
@@ -165,7 +164,7 @@ Quran_App/
 ### Auth Flow
 - Supabase handles auth (JWT tokens, email/password)
 - Role-based: Teacher or Student (selected at signup)
-- Teachers: create classes, assign portions, mark mistakes, run tests
+- Teachers: create classes, assign portions, mark mistakes
 - Students: view classes, read Quran, see progress
 
 ## Important Rules

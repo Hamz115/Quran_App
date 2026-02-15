@@ -87,7 +87,6 @@ export default function TeacherClasses() {
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [classType, setClassType] = useState<'regular' | 'test'>('regular');
 
   // Notes modal state
   const [showNotesModal, setShowNotesModal] = useState(false);
@@ -186,7 +185,7 @@ export default function TeacherClasses() {
   }, []);
 
   const toggleStudent = (id: string) => {
-    if (classType === 'test') {
+    // Regular class check removed - test feature removed
       // Test classes only allow one student - toggle to this student only
       setSelectedStudents(prev => prev.includes(id) ? [] : [id]);
     } else {
@@ -368,7 +367,6 @@ export default function TeacherClasses() {
         date: today.toISOString().split('T')[0],
         day: days[today.getDay()],
         student_ids: selectedStudents,
-        class_type: classType,
         assignments
       });
 
@@ -946,11 +944,6 @@ export default function TeacherClasses() {
                               <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
                               </span>
-                              {cls.class_type === 'test' && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
-                                  Test
-                                </span>
-                              )}
                             </div>
                             <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                               {students.length} student{students.length !== 1 ? 's' : ''}
@@ -1174,56 +1167,8 @@ export default function TeacherClasses() {
                 /* Step 1: Select Students */
                 <div className="space-y-4">
                   {/* Class Type Toggle */}
-                  <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                    <label className="block text-sm font-medium text-slate-300 mb-3">
-                      Class Type
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setClassType('regular')}
-                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
-                          classType === 'regular'
-                            ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-500'
-                            : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
-                          Regular Class
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">Normal recitation session</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClassType('test');
-                          // Test classes only allow one student - if multiple selected, keep first
-                          if (selectedStudents.length > 1) {
-                            setSelectedStudents([selectedStudents[0]]);
-                          }
-                        }}
-                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
-                          classType === 'test'
-                            ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                            : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Test
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">Scored assessment (1 student)</p>
-                      </button>
-                    </div>
-                  </div>
-
                   <label className="block text-sm font-medium text-slate-300">
-                    {classType === 'test' ? 'Select student for this test' : 'Select students for this class'}
+                    Select students for this class
                   </label>
                   {students.length === 0 ? (
                     <div className="p-6 bg-slate-700/30 rounded-xl text-center">
@@ -1271,17 +1216,12 @@ export default function TeacherClasses() {
                 <div className="space-y-4">
                   <div className="p-3 bg-slate-700/50 rounded-lg flex items-center gap-2">
                     <p className="text-sm text-slate-400">
-                      {classType === 'test' ? 'Test' : 'Class'} with: <span className={`font-medium ${classType === 'test' ? 'text-cyan-400' : 'text-blue-400'}`}>{selectedStudentNames}</span>
+                      {'Class'} with: <span className={`font-medium text-blue-400`}>{selectedStudentNames}</span>
                     </p>
-                    {classType === 'test' && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 uppercase">
-                        Test
-                      </span>
-                    )}
                   </div>
 
-                  {/* Portion Mode Toggle - only show if multiple students selected AND not a test */}
-                  {selectedStudents.length > 1 && classType !== 'test' && (
+                  {/* Portion Mode Toggle - only show if multiple students selected */}
+                  {selectedStudents.length > 1 && (
                     <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                       <label className="block text-sm font-medium text-slate-300 mb-3">
                         How do you want to assign portions?
@@ -1317,7 +1257,7 @@ export default function TeacherClasses() {
                   )}
 
                   {/* Per-student tabs - show when in per-student mode (not for tests) */}
-                  {portionMode === 'per-student' && selectedStudents.length > 1 && classType !== 'test' && (
+                  {portionMode === 'per-student' && selectedStudents.length > 1 && (
                     <div className="flex gap-2 overflow-x-auto pb-2">
                       {selectedStudents.map(studentId => {
                         const student = students.find(s => s.id === studentId);
@@ -1353,15 +1293,13 @@ export default function TeacherClasses() {
                   )}
 
                   <p className="text-sm text-slate-300">
-                    {classType === 'test'
-                      ? 'Select the portion range for this test:'
-                      : portionMode === 'per-student' && selectedStudents.length > 1
-                        ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
-                        : 'Select the Quran portions for this class (you can also add/edit later):'}
+                    {portionMode === 'per-student' && selectedStudents.length > 1
+                      ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
+                      : 'Select the Quran portions for this class (you can also add/edit later):'}
                   </p>
 
                   {/* Smart Suggestions Panel */}
-                  {classType !== 'test' && (() => {
+                  {(() => {
                     const targetStudentId = portionMode === 'per-student' ? activeStudentId : selectedStudents[0];
                     const studentSuggestions = targetStudentId ? suggestions[targetStudentId] : null;
                     const isLoading = targetStudentId ? loadingSuggestions[targetStudentId] : false;
@@ -1460,9 +1398,8 @@ export default function TeacherClasses() {
                   })()}
 
                   <div className="space-y-3">
-                    {classType === 'test' ? (
-                      /* Test mode - simplified single portion selector */
-                      <div className="p-4 rounded-xl border-2 border-cyan-500 bg-cyan-500/5">
+                    {/* Regular portion configuration */}
+                    <div className="p-4 rounded-xl border-2 border-blue-500 bg-blue-500/5">
                         <div className="mb-4">
                           <h3 className="font-semibold text-slate-100">Test Portion</h3>
                           <p className="text-sm text-slate-500">Select the ayah range the student will be tested on</p>
@@ -1737,9 +1674,9 @@ export default function TeacherClasses() {
                   <button
                     disabled={selectedStudents.length === 0}
                     onClick={() => setModalStep(2)}
-                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-blue-600 hover:bg-blue-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
+                    className={`flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
                   >
-                    {classType === 'test' ? 'Next: Test Portion' : 'Next: Choose Portions'}
+                    {'Next: Choose Portions'}
                   </button>
                 </>
               ) : (
@@ -1753,7 +1690,7 @@ export default function TeacherClasses() {
                   <button
                     onClick={handleCreateClass}
                     disabled={creating}
-                    className={`flex-1 px-4 py-2.5 ${classType === 'test' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-blue-600 hover:bg-blue-500'} disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
+                    className={`flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
                   >
                     {creating ? (
                       <>
@@ -1764,7 +1701,7 @@ export default function TeacherClasses() {
                         Creating...
                       </>
                     ) : (
-                      classType === 'test' ? 'Start Test' : 'Start Class'
+                      'Start Class'
                     )}
                   </button>
                 </>

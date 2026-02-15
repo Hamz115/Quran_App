@@ -210,7 +210,6 @@ export interface ClassData {
   performance?: string;
   teacher_id: string;
   is_published: boolean;
-  class_type: 'regular' | 'test';
   assignments: ClassAssignment[];
   students?: ClassStudent[];
   mistake_counts?: {
@@ -266,7 +265,6 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
         performance: row.performance,
         teacher_id: row.teacher_id,
         is_published: row.is_published,
-        class_type: row.class_type || 'regular',
         assignments: (row.assignments ?? []).map((a: any) => ({
           id: a.id,
           type: a.type,
@@ -345,7 +343,6 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
       performance: row.performance,
       teacher_id: row.teacher_id,
       is_published: row.is_published,
-      class_type: row.class_type || 'regular',
       assignments: (row.assignments ?? []).map((a: any) => ({
         id: a.id,
         type: a.type,
@@ -379,7 +376,6 @@ export async function createClass(classData: {
   day: string;
   notes?: string;
   student_ids: string[];
-  class_type?: 'regular' | 'test';
   assignments: {
     type: string;
     start_surah: number;
@@ -395,7 +391,7 @@ export async function createClass(classData: {
   // Create the class (auto-publish so students can see it immediately)
   const { data: newClass, error: classError } = await supabase
     .from('classes' as any)
-    .insert({ teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, class_type: classData.class_type || 'regular', is_published: true } as any).select().single() as { data: { id: string } | null; error: any };
+    .insert({ teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, is_published: true } as any).select().single() as { data: { id: string } | null; error: any };
 
   if (classError || !newClass) throw new Error(classError?.message || "Failed to create class");
 
@@ -764,7 +760,6 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
         id,
         date,
         day,
-        class_type,
         assignments (
           type,
           start_surah,
@@ -784,10 +779,8 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
     throw new Error(csError.message);
   }
 
-  // Find the most recent regular class (not a test)
-  const lastClassEntry = classStudents?.find((cs: any) =>
-    cs.classes?.class_type === 'regular' || !cs.classes?.class_type
-  );
+  // Find the most recent class
+  const lastClassEntry = classStudents?.[0];
 
   if (!lastClassEntry || !lastClassEntry.classes) {
     // No previous class - return default starting point (Al-Mulk)
