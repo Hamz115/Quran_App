@@ -15,7 +15,11 @@
       "Bash(if not exist \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\\\\quran-pages\" mkdir \"C:\\\\Users\\\\hamza\\\\Documents\\\\Quran_App\\\\quran_mobile\\\\assets\\\\quran-pages\")",
       "Bash(powershell -Command:*)",
       "Skill(agent-browser)",
-      "Bash(agent-browser:*)"
+      "Bash(agent-browser:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(findstr:*)",
+      "Bash(move:*)"
     ],
     "deny": [],
     "ask": []

@@ -34,6 +34,7 @@ docs/
 │   │   ├── 04-SCREENS.md                   # Screen updates
 │   │   ├── 05-SHARED-WIDGETS.md            # Reusable widgets
 │   │   └── 06-QURAN-READER.md              # QPC page-based reader rewrite
+│   ├── Settings_Password_Reset.md          # Settings page & password reset flow
 │   └── Quran Reader/                       # Web Quran Reader rendering docs
 │       ├── WEB-READER-RENDERING-ISSUES.md  # All rendering fixes & approaches
 │       └── FLUTTER-RENDERING-REFERENCE.md  # Flutter rendering gold standard
@@ -79,9 +80,9 @@ See: [Technical_Documentation.md](./Technical%20Implementation%20Journey/Technic
 - Role selection at signup (Teacher or Student)
 - Teacher accounts verified immediately on signup
 - Student accounts with "Verified Student" status
-- Login with email or username
+- Login with email or username **[Superseded in Phase 12 — login is now email-only via Supabase Auth]**
 - User profile dropdown with logout
-- Clickable Student ID (copy to clipboard)
+- Clickable Student ID (copy to clipboard) **[Superseded in Phase 12 — Student IDs (STU-XXXXXX) replaced by Supabase UUIDs; frontend now shows clickable email with copy-to-clipboard instead]**
 - "Upgrade to Teacher" option (Pro - not yet implemented)
 
 ### User & Student Management

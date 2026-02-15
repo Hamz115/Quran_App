@@ -338,6 +338,100 @@ Mistakes are filtered by the entire assignment range (not just current page), su
 
 ---
 
+## Settings Screen
+
+### `lib/presentation/screens/settings/settings_screen.dart`
+
+A `ConsumerWidget` that provides app configuration and account management. The screen is organized into clearly labeled sections using `GlassmorphicCard` widgets.
+
+#### Sections
+
+| Section | Contents |
+|---------|----------|
+| **APPEARANCE** | Theme toggle (dark/light mode) via a `Switch` widget. Reads and toggles `themeProvider`. Icon changes between `dark_mode_rounded` and `light_mode_rounded` depending on current mode. |
+| **SYNC** | Two rows: **Connection Status** (online/offline via `connectivityStreamProvider`) and **Sync Status** (idle/syncing/success/error via `syncStateProvider`). Includes a "Sync Now" button that triggers `syncServiceProvider.sync()`. |
+| **SERVER** | Displays the current API base URL from `apiClientProvider`. An edit button opens a dialog to change the server URL (useful for development/testing against different backends). |
+| **ABOUT** | App name ("Quran Logbook"), version (1.0.0), and database info ("SQLite (Local + Sync)"). |
+| **ACCOUNT** | Shows the currently signed-in user's email and role (color-coded: cyan for teacher, teal for student). Includes a "Sign Out" button that opens a confirmation dialog and calls `authProvider.notifier.signOut()`. |
+| **DANGER ZONE** | "Delete All Mistakes" button with a confirmation dialog. Calls `mistakesProvider.notifier.deleteAllMistakes()` to permanently remove all tracked mistakes. Section header is styled in error/red color for emphasis. |
+
+#### Dialogs
+
+- **Sign Out Dialog** - Confirmation with Cancel/Sign Out buttons. Uses theme-aware colors (`AppColors.surface`, `AppColors.text`).
+- **Server URL Dialog** - Text field pre-filled with the current URL. Save button calls `apiClientProvider.setBaseUrl()`.
+- **Delete All Mistakes Dialog** - Warning text about permanent deletion. Delete button styled with error color.
+
+#### Theme Support
+
+The Appearance and Account sections use theme-aware `AppColors` methods. The Sync, Server, About, and Danger Zone sections currently use hardcoded `AppTheme` colors (dark mode palette).
+
+---
+
+## Create Class Screen
+
+### `lib/presentation/screens/classes/create_class_screen.dart`
+
+A `ConsumerStatefulWidget` presented as a bottom sheet modal (90% of screen height) for teachers to create a new class session. The screen is teacher-only; it is launched from the Classes screen FAB.
+
+#### Layout
+
+```
+┌────────────────────────────────────────────────┐
+│  ─── (drag handle)                             │
+│  New Class                              [X]    │
+│  Configure today's teaching session            │
+├────────────────────────────────────────────────┤
+│  [Date Picker]          [Day Name]             │
+│                                                │
+│  Portions                                      │
+│  ┌─ Hifz (New Memorization) ──── [toggle] ──┐ │
+│  │  Portion 1: From Surah ▼  To Surah ▼     │ │
+│  │             From Ayah      To Ayah        │ │
+│  │  [+ Add Another Portion]                  │ │
+│  └───────────────────────────────────────────┘ │
+│  ┌─ Sabqi (Recent) ────────── [toggle] ──┐    │
+│  │  ...                                   │    │
+│  └────────────────────────────────────────┘    │
+│  ┌─ Revision (Manzil) ─────── [toggle] ──┐   │
+│  │  ...                                   │   │
+│  └────────────────────────────────────────┘   │
+├────────────────────────────────────────────────┤
+│  [Cancel]              [Create Class]          │
+└────────────────────────────────────────────────┘
+```
+
+#### Features
+
+- **Date Selector** - Tappable date field opens a `showDatePicker`. Adjacent read-only field shows the day name (computed from `AppConstants.daysOfWeek`). Date picker is theme-aware.
+- **Three Section Types** - Hifz (new memorization), Sabqi (recent review), Revision (manzil/long-term). Each has a color-coded border and background (`AppColors.hifzColor`, `AppColors.sabqiColor`, `AppColors.revisionColor`).
+- **Section Toggles** - Each section has a `Switch` to enable/disable it. Disabled sections collapse; enabled sections expand to show portions.
+- **Portions** - Each section starts with one default portion. Users can add more via "Add Another Portion" or remove extras with the X button. Each portion has:
+  - **From Surah / To Surah** - Dropdown selectors populated from `surahListProvider` (all 114 surahs).
+  - **From Ayah / To Ayah** - Optional text fields for ayah range. Left blank means "all ayahs" in the surah.
+- **Validation** - At least one portion must be enabled before creating. Shows a SnackBar if no portions are configured.
+- **Creation** - Collects all enabled portions into an `assignments` list and calls `classesProvider.notifier.createClass()` with the date, day name, and assignments. Shows a loading spinner during creation and dismisses the modal on success.
+
+#### Data Model
+
+```dart
+class PortionData {
+  int startSurah;
+  int endSurah;
+  int? startAyah;   // null = from beginning of surah
+  int? endAyah;     // null = to end of surah
+}
+```
+
+#### Default Values
+
+| Section | Default Start Surah | Default End Surah |
+|---------|--------------------|--------------------|
+| Hifz | 67 (Al-Mulk) | 67 (Al-Mulk) |
+| Sabqi | 93 (Ad-Duha) | 96 (Al-Alaq) |
+| Revision | 97 (Al-Qadr) | 114 (An-Nas) |
+
+---
+
 ## Features by Role
 
 ### Teacher Features

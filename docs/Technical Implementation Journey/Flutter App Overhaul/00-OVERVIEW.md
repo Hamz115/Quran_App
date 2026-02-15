@@ -13,8 +13,8 @@ Complete UI overhaul of the Flutter mobile app (`quran_mobile/`) to match the Re
 
 1. **UI First** - Match the web app design pixel-perfect
 2. **Local-First** - SQLite remains the primary database
-3. **Supabase for Auth Only** - Login/signup to enter the app
-4. **No Data Sync Yet** - Supabase data sync is a future phase
+3. **Supabase for Auth + Sync (Web)** - Phase 12 added local-first sync with Supabase for the React web app (classes, mistakes, performance sync to cloud). The Flutter mobile app still uses Supabase for authentication only; mobile data sync is a future enhancement.
+4. **Mobile: Auth Only** - On mobile, Supabase handles login/signup; all data is stored locally in SQLite
 
 ---
 
@@ -36,7 +36,7 @@ Complete UI overhaul of the Flutter mobile app (`quran_mobile/`) to match the Re
 ├─────────────────────────────────────────────────┤
 │  Data Layer                                      │
 │  ├── SQLite (Primary local database)             │
-│  ├── Supabase (Auth + future sync)               │
+│  ├── Supabase (Auth; data sync on web only)      │
 │  └── Repositories (Data access)                  │
 └─────────────────────────────────────────────────┘
 ```
@@ -211,7 +211,7 @@ App Start
 
 ## Future Enhancements
 
-1. **Supabase Data Sync** - Sync classes, mistakes to cloud
+1. **Mobile Supabase Data Sync** - Web already has local-first sync (Phase 12); mobile still needs sync for classes, mistakes, and performance
 2. **Push Notifications** - Class reminders, progress alerts
 3. **Offline Support** - Full offline functionality with sync queue
 4. **Student Management** - Teacher can manage multiple students

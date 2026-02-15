@@ -156,6 +156,10 @@ Contains application data.
 | created_at | TEXT | Timestamp |
 | updated_at | TEXT | Timestamp |
 | device_id | TEXT | For sync identification |
+| **supabase_id** | TEXT | Supabase UUID (UNIQUE) - links to cloud record |
+| **sync_status** | TEXT | `'pending'`, `'synced'`, or `'error'` (default `'pending'`) |
+| **supabase_teacher_id** | TEXT | Supabase user UUID of the teacher |
+| **last_synced_at** | TEXT | Timestamp of last successful sync |
 
 #### Table: `class_students` (Junction Table)
 | Column | Type | Description |
@@ -163,6 +167,7 @@ Contains application data.
 | id | INTEGER | Primary key |
 | class_id | INTEGER | Foreign key to classes (CASCADE delete) |
 | student_id | INTEGER | Foreign key to users |
+| **performance** | TEXT | Per-student performance rating for this class |
 
 **Unique Constraint:** `(class_id, student_id)`
 
@@ -178,6 +183,10 @@ Links multiple students to each class, supporting both 1-on-1 and group halaqah 
 | end_surah | INTEGER | Ending surah number |
 | start_ayah | INTEGER | Optional starting ayah |
 | end_ayah | INTEGER | Optional ending ayah |
+| **student_id** | INTEGER | Foreign key to users (per-student portions; NULL = all students) |
+| updated_at | TEXT | Timestamp |
+| **supabase_id** | TEXT | Supabase UUID (UNIQUE) - links to cloud record |
+| **sync_status** | TEXT | `'pending'`, `'synced'`, or `'error'` (default `'pending'`) |
 
 #### Table: `mistakes` (GLOBAL per Student - Not Class-Specific)
 | Column | Type | Description |
@@ -192,6 +201,10 @@ Links multiple students to each class, supporting both 1-on-1 and group halaqah 
 | error_count | INTEGER | Total times this mistake was made |
 | updated_at | TEXT | Timestamp |
 | device_id | TEXT | For sync identification |
+| **supabase_id** | TEXT | Supabase UUID (UNIQUE) - links to cloud record |
+| **sync_status** | TEXT | `'pending'`, `'synced'`, or `'error'` (default `'pending'`) |
+| **supabase_student_id** | TEXT | Supabase user UUID of the student |
+| **last_synced_at** | TEXT | Timestamp of last successful sync |
 
 **Unique Constraint:** `(student_id, surah_number, ayah_number, word_index, char_index)`
 
@@ -204,6 +217,8 @@ Links multiple students to each class, supporting both 1-on-1 and group halaqah 
 | mistake_id | INTEGER | Foreign key to mistakes (CASCADE delete) |
 | class_id | INTEGER | Foreign key to classes (CASCADE delete) |
 | occurred_at | TEXT | Timestamp of occurrence |
+| **supabase_id** | TEXT | Supabase UUID (UNIQUE) - links to cloud record |
+| **sync_status** | TEXT | `'pending'`, `'synced'`, or `'error'` (default `'pending'`) |
 
 This table tracks WHEN a mistake was made in WHICH class, enabling:
 - Tracking repeated mistakes across classes
@@ -250,10 +265,65 @@ This table tracks WHEN a mistake was made in WHICH class, enabling:
 | word_index | INTEGER | Word position in ayah |
 | word_text | TEXT | The Arabic word |
 | char_index | INTEGER | Character position (null = whole word) |
+| **is_tanbeeh** | BOOLEAN | True = teacher warning/self-correction (-0.5 pts), False = full mistake (default 0) |
 | is_repeated | BOOLEAN | True if student made this mistake before |
 | previous_error_count | INTEGER | Number of times made before this test |
 | points_deducted | REAL | Points deducted for this mistake |
 | created_at | TEXT | Timestamp |
+
+#### Table: `users`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key (auto-increment) |
+| student_id | TEXT | Unique student identifier |
+| username | TEXT | Unique username |
+| email | TEXT | Unique email |
+| password_hash | TEXT | Hashed password |
+| first_name | TEXT | First name |
+| last_name | TEXT | Last name |
+| is_verified | BOOLEAN | Default 0; teachers are verified |
+| verification_token | TEXT | Token for email verification |
+| verification_token_expires_at | TEXT | Token expiry |
+| created_at | TEXT | Timestamp |
+| updated_at | TEXT | Timestamp |
+| last_login_at | TEXT | Timestamp of last login |
+| **supabase_id** | TEXT | Supabase UUID (UNIQUE) - links to cloud user |
+
+#### Table: `teacher_student_relationships`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key |
+| teacher_id | INTEGER | Foreign key to users (CASCADE delete) |
+| student_id | INTEGER | Foreign key to users (CASCADE delete) |
+| added_at | TEXT | Timestamp |
+
+**Unique Constraint:** `(teacher_id, student_id)`
+
+#### Table: `refresh_tokens`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key |
+| user_id | INTEGER | Foreign key to users (CASCADE delete) |
+| token_hash | TEXT | Unique token hash |
+| expires_at | TEXT | Expiry timestamp |
+| created_at | TEXT | Timestamp |
+
+#### Table: `sync_log`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER | Primary key (auto-increment) |
+| table_name | TEXT | Name of the table being synced |
+| record_id | INTEGER | Local record ID in the source table |
+| supabase_id | TEXT | Supabase UUID of the synced record |
+| operation | TEXT | `'create'`, `'update'`, or `'delete'` |
+| status | TEXT | `'pending'`, `'synced'`, or `'error'` (default `'pending'`) |
+| error_message | TEXT | Error details if sync failed |
+| created_at | TEXT | Timestamp of log entry creation |
+| synced_at | TEXT | Timestamp of successful sync |
+
+**Indexes:** `idx_sync_log_status` (on status), `idx_sync_log_table` (on table_name)
+
+Tracks every sync operation between local app.db and Supabase. Used to retry failed syncs and audit sync history.
 
 ---
 
@@ -267,6 +337,23 @@ Base URL: `http://localhost:8000/api`
 |--------|----------|-------------|
 | GET | `/surahs` | Get all 114 surahs |
 | GET | `/surahs/{surah_number}` | Get specific surah with ayahs |
+| GET | `/quran/page/{page_number}` | Get word-by-word data for a page (1-604) with QPC glyph codes |
+| GET | `/fonts/qpc/{page_number}` | Serve QPC `.ttf` font file for a page (1-604) |
+
+#### GET `/quran/page/{page_number}` Response:
+```json
+{
+  "data": [
+    {"id": 123, "s": 2, "a": 1, "p": 1, "t": "بِسْمِ", "c1": "ﭑ", "l": 3, "ct": "word"},
+    ...
+  ],
+  "page": 1
+}
+```
+Returns the page's word data from JSON files in `quran-pages/`. Each word includes surah number (`s`), ayah number (`a`), word position (`p`), Arabic text (`t`), QPC glyph code (`c1`), line number (`l`), and content type (`ct`: `"word"` or `"end"`).
+
+#### GET `/fonts/qpc/{page_number}` Response:
+Returns a `.ttf` font file (`QCF_P{NNN}.ttf`) with `Cache-Control: public, max-age=31536000` (1-year cache). Each Quran page has its own QPC font for rendering page-specific glyphs. Returns 404 if page is out of range or font file is missing.
 
 ### Class Endpoints (Authenticated)
 
@@ -329,7 +416,7 @@ Base URL: `http://localhost:8000/api`
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/tests/{test_id}` | Get test with all questions |
-| GET | `/tests/by-class/{class_id}` | Get test by class ID |
+| GET | `/classes/{class_id}/test` | Get test by class ID |
 | PATCH | `/tests/{test_id}/start` | Start test (status → in_progress) |
 | PATCH | `/tests/{test_id}/complete` | Complete test, calculate final score |
 | POST | `/tests/{test_id}/questions/start` | Start new question |
@@ -369,12 +456,122 @@ Final Score = 100 - Total Deductions (minimum 0)
 | GET | `/backup/list` | List all backup files |
 | POST | `/backup/restore` | Restore from backup file |
 
-### Sync Endpoints (For Mobile App)
+### Sync Endpoints (Mobile App - Legacy)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/sync/pull` | Pull data from server to mobile |
-| POST | `/sync/push` | Push data from mobile to server |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/sync/pull` | None | Pull all classes/mistakes from server to mobile |
+| POST | `/sync/push` | None | Push local changes from mobile to server |
+
+*Note: These legacy endpoints pre-date the multi-user auth system and do not require authentication.*
+
+#### POST `/sync/pull` Request Body:
+```json
+{ "last_sync_at": "2025-01-01T00:00:00" }
+```
+Returns all classes (with assignments) and mistakes. `last_sync_at` is accepted but currently returns all data regardless.
+
+#### POST `/sync/push` Request Body:
+```json
+{
+  "device_id": "optional-device-id",
+  "classes": [
+    {
+      "local_id": 1,
+      "server_id": null,
+      "date": "2025-12-13",
+      "day": "Friday",
+      "notes": "...",
+      "is_deleted": false,
+      "assignments": [{"type": "hifz", "start_surah": 67, "end_surah": 67, "start_ayah": 1, "end_ayah": 10}]
+    }
+  ],
+  "mistakes": [
+    {
+      "local_id": 1,
+      "server_id": null,
+      "surah_number": 96,
+      "ayah_number": 1,
+      "word_index": 0,
+      "word_text": "اقْرَأْ",
+      "error_count": 1,
+      "is_deleted": false
+    }
+  ]
+}
+```
+Returns `class_id_mapping` and `mistake_id_mapping` (local_id -> server_id) plus `server_time`.
+
+### Supabase Sync Endpoints (Cloud Sync)
+
+These endpoints sync data between local `app.db` and Supabase (cloud PostgreSQL). All require a valid Supabase JWT token.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/sync` | Supabase JWT | Trigger full background sync (push + pull) |
+| POST | `/sync/push` | Supabase JWT | Push pending local changes to Supabase |
+| POST | `/sync/pull` | Supabase JWT | Pull changes from Supabase to local app.db |
+| GET | `/sync/status` | Supabase JWT | Get pending/synced/error counts |
+
+*Note: `/sync/push` and `/sync/pull` are overloaded - when called with a Supabase JWT they use the Supabase sync logic; without auth they fall through to the legacy mobile sync.*
+
+#### POST `/sync` Response:
+```json
+{ "message": "Sync started", "user_id": "supabase-uuid", "role": "teacher" }
+```
+Accepts optional `role` query param. Runs `full_sync()` as a background task and returns immediately.
+
+#### GET `/sync/status` Response:
+```json
+{
+  "pending": { "classes": 2, "mistakes": 5 },
+  "errors": { "classes": 0, "mistakes": 1 },
+  "synced": false
+}
+```
+Counts records by `sync_status` column. `synced` is `true` only when all pending counts are zero.
+
+### Local-First Endpoints (Supabase Auth)
+
+These endpoints write to local `app.db` first for instant response, then trigger background sync to Supabase. All require a valid Supabase JWT token.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/local/classes` | Supabase JWT | Create class locally, sync in background |
+| GET | `/local/classes` | Supabase JWT | Get classes from app.db (synced + pending) |
+| POST | `/local/mistakes` | Supabase JWT | Add mistake locally, sync in background |
+| GET | `/local/mistakes` | Supabase JWT | Get mistakes from app.db |
+
+#### POST `/local/classes` Request Body:
+Same as `POST /classes` (ClassCreate model):
+```json
+{
+  "date": "2025-12-13",
+  "day": "Friday",
+  "notes": "...",
+  "student_ids": [],
+  "assignments": [{"type": "hifz", "start_surah": 67, "end_surah": 67, "start_ayah": 1, "end_ayah": 10}],
+  "class_type": "regular"
+}
+```
+Response:
+```json
+{ "id": 42, "message": "Class created locally", "sync_status": "pending" }
+```
+Sets `supabase_teacher_id` from the JWT, inserts with `sync_status = 'pending'`, and triggers `push_pending_classes()` in background.
+
+#### GET `/local/classes` Response:
+Same structure as `GET /classes` but includes `sync_status` on each class and assignment. Accepts optional `role` query param. Teachers see classes matching their `supabase_teacher_id`; students see published classes.
+
+#### POST `/local/mistakes` Request Body:
+Same as `POST /mistakes` (MistakeCreate model). Response:
+```json
+{ "id": 15, "error_count": 2, "sync_status": "pending" }
+```
+If mistake already exists (matched by `supabase_student_id` + location), increments `error_count`. Otherwise creates new. Triggers `push_pending_mistakes()` in background.
+
+#### GET `/local/mistakes` Response:
+Returns mistakes where `supabase_student_id` matches the JWT user. Accepts optional `surah_number` query param. Ordered by `error_count DESC`.
 
 ---
 
@@ -422,6 +619,40 @@ Final Score = 100 - Total Deductions (minimum 0)
   - "Mistakes from Previous Classes" (historical)
 - Add/Edit portion modals
 - Class notes editor
+
+#### 4. Settings (`/settings`)
+- Protected route (requires authentication)
+- Three card-based sections:
+  - **Profile Information**: Edit first name and last name
+  - **Account Information** (read-only): Email, role badge, "Member Since" date
+  - **Change Password**: New password + confirm, minimum 8 characters
+- Color-coded section icons (Cyan, Purple, Amber)
+- Success/error notifications per section (auto-dismiss after 3 seconds)
+- Dark/light mode support
+
+#### 5. ForgotPassword (`/forgot-password`)
+- Public route (no authentication required)
+- Email input form to request password reset link via Supabase Auth
+- Success state shows confirmation with submitted email
+- Links to Login page
+
+#### 6. ResetPassword (`/reset-password`)
+- Public route, accessed via email reset link
+- Validates `access_token` in URL hash on mount
+- Three states: Invalid Link, Form (new + confirm password), Success (auto-redirect to login)
+- Minimum 8 character password requirement
+
+### Components
+
+#### ProtectedRoute (`src/components/ProtectedRoute.tsx`)
+- Wraps all authenticated routes in `App.tsx`
+- Props: `children` (required), `requireVerified` (optional, defaults to `false`)
+- **Loading state**: Shows spinner while auth is initializing
+- **Not authenticated**: Redirects to `/login` with current location saved in state
+- **Requires verification**: If `requireVerified=true` and user is unverified, shows a "Verification Required" message with a "Go to Dashboard" button
+- Uses `isAuthenticated`, `isVerified`, `isLoading` from `useAuth()`
+
+See: [Settings_Password_Reset.md](./Settings_Password_Reset.md)
 
 ---
 
@@ -743,4 +974,4 @@ flutter run
 
 ---
 
-*Last Updated: December 28, 2025*
+*Last Updated: February 15, 2026*

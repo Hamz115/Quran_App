@@ -137,12 +137,40 @@ Supabase sends password reset emails automatically. To customize the email templ
 https://your-app.com/reset-password#access_token=xxx&refresh_token=xxx&type=recovery
 ```
 
+## ProtectedRoute Component
+
+The `ProtectedRoute` component (`src/components/ProtectedRoute.tsx`) wraps all authenticated routes to enforce access control.
+
+**Props:**
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `children` | `React.ReactNode` | required | The page component to render |
+| `requireVerified` | `boolean` | `false` | If true, also requires email verification |
+
+**Behavior:**
+1. **Loading** (`isLoading = true`): Renders a centered spinner with "Loading..." text on a dark background
+2. **Not authenticated** (`isAuthenticated = false`): Redirects to `/login` using `<Navigate>`, preserving the current location in `state.from` for redirect-after-login
+3. **Verification required** (`requireVerified = true` and `isVerified = false`): Shows a "Verification Required" card with a message to check email and a "Go to Dashboard" button
+4. **Authenticated**: Renders `children` normally
+
+**Usage in App.tsx:**
+```tsx
+<Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+  <Route index element={<Dashboard />} />
+  <Route path="settings" element={<Settings />} />
+  {/* ... other routes */}
+</Route>
+```
+
+Public routes (`/login`, `/signup`, `/forgot-password`, `/reset-password`) are defined outside the `ProtectedRoute` wrapper.
+
 ## Security Considerations
 
 1. **Token Validation**: ResetPassword page checks for `access_token` in URL hash before showing the form
 2. **Password Requirements**: Minimum 8 characters enforced on both client and server
 3. **Timeout Handling**: All auth operations have 10-second timeouts to prevent hanging
 4. **Session Handling**: Password changes work within existing Supabase session context
+5. **Route Protection**: All authenticated pages are wrapped with `ProtectedRoute` which redirects unauthenticated users to `/login`
 
 ## Error Handling
 
