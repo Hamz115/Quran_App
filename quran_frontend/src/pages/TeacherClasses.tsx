@@ -998,9 +998,21 @@ export default function TeacherClasses() {
                                     <select
                                       value={student.performance || ''}
                                       onChange={async (e) => {
-                                        await updateStudentPerformance(cls.id, student.id, e.target.value);
-                                        const updated = await getClasses();
-                                        setClasses(updated);
+                                        const newPerf = e.target.value;
+                                        // Optimistic update so the dropdown shows the selection immediately
+                                        setClasses(prev => prev.map(c =>
+                                          c.id === cls.id ? {
+                                            ...c,
+                                            students: c.students?.map(s =>
+                                              s.id === student.id ? { ...s, performance: newPerf || undefined } : s
+                                            )
+                                          } : c
+                                        ));
+                                        try {
+                                          await updateStudentPerformance(cls.id, student.id, newPerf);
+                                        } catch (err) {
+                                          console.error('Failed to save performance:', err);
+                                        }
                                       }}
                                       className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                                         student.performance === 'Excellent'

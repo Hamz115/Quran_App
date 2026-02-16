@@ -67,16 +67,23 @@ Rewrote the Student Report feature across 5 files, adding a centralized `quran-u
 
 - **Unused `perfColor` function**: TypeScript build failed due to declared-but-unused `perfColor` helper. Removed it since `perfBadgeClasses` covered all use cases.
 
+- **Export button styling**: The Export button in the StudentReport top bar was a bold filled cyan button (`bg-cyan-600`) that looked out of place in the clean header. Changed to a subtle outlined style matching the page's design language (border, muted text, gentle hover).
+
+- **Performance dropdown not persisting selection (TeacherClasses)**: The "Select..." performance dropdown on each student in the Classes page would reset after selecting a value. Root cause was two-fold:
+  1. `updateStudentPerformance()` saved performance to the `classes` table (class-level), but `mapClassData()` read `cs.performance` from `class_students` rows — which has no `performance` column, so it was always `undefined`.
+  2. After saving, the `onChange` handler called `getClasses()` which used `cacheFirst()` and returned stale cached data.
+  - **Fix**: Added `|| row.performance` fallback in `mapClassData` so class-level performance is used when `class_students` has none. Changed the `onChange` handler to use optimistic local state update instead of re-fetching.
+
 ## Files Changed
 
 | File | Action | Description |
 |------|--------|-------------|
 | `quran_frontend/src/lib/quran-utils.ts` | Created | Juz mapping, centralized surahNames, helper functions |
 | `quran_frontend/src/lib/report-types.ts` | Modified | Added ReportFilters, ClassMistake, ExportConfig, PerformanceStats; updated StudentClass and summary |
-| `quran_frontend/src/lib/supabase-api.ts` | Modified | Updated getStudentReport() with mistake_occurrences join, per-class mistakes, avg_performance; removed duplicate surahNames |
-| `quran_frontend/src/pages/StudentReport.tsx` | Rewritten | Tab-based dashboard with filters, 3 tabs, export modal |
+| `quran_frontend/src/lib/supabase-api.ts` | Modified | Updated getStudentReport() with mistake_occurrences join, per-class mistakes, avg_performance; removed duplicate surahNames; fixed mapClassData to fallback to class-level performance |
+| `quran_frontend/src/pages/StudentReport.tsx` | Rewritten | Tab-based dashboard with filters, 3 tabs, export modal; fixed Export button styling |
 | `quran_frontend/src/lib/report-export.ts` | Modified | Accept ExportConfig, conditional sections, filter header, class details |
-| `quran_frontend/src/pages/TeacherClasses.tsx` | Modified | Replaced local surahNames with import from quran-utils |
+| `quran_frontend/src/pages/TeacherClasses.tsx` | Modified | Replaced local surahNames with import from quran-utils; fixed performance dropdown onChange to use optimistic update |
 | `quran_frontend/src/pages/StudentClasses.tsx` | Modified | Replaced local surahNames with import from quran-utils |
 | `quran_frontend/src/pages/StudentDashboard.tsx` | Modified | Replaced local surahNames with import from quran-utils |
 | `docs/Technical Implementation Journey/Student_Reports.md` | Updated | Reflects new tab-based architecture |

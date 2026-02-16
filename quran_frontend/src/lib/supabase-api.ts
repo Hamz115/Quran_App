@@ -363,7 +363,7 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
           student_id: student.student_id || '',
           first_name: nameParts[0] || '',
           last_name: nameParts.slice(1).join(' ') || '',
-          performance: cs.performance,
+          performance: cs.performance || row.performance,
         };
       });
     }
