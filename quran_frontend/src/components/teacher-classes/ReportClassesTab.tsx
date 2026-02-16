@@ -10,7 +10,6 @@ interface ReportClassesTabProps {
 }
 
 export default function ReportClassesTab({ classes, expandedClassId, onToggleExpand, darkMode }: ReportClassesTabProps) {
-  const cardBg = darkMode ? 'bg-slate-800' : 'bg-white';
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-800';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-500';
