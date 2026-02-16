@@ -23,7 +23,8 @@ Quran_App/
 ├── PROJECT_MAP.md / .html              # Generated codebase map & interactive viewer
 │
 ├── quran_backend/                      # ── FastAPI Backend ──────────────────
-│   ├── main.py                         # ALL API endpoints (auth, classes, mistakes, quran, sync)
+│   ├── main.py                         # ALL API endpoints (auth, classes, mistakes, quran, sync, PDF export)
+│   ├── requirements.txt                # Python dependencies (fastapi, playwright, etc.)
 │   ├── auth/                           # Auth module
 │   │   ├── config.py                   #   JWT settings
 │   │   ├── models.py                   #   Pydantic models (User, Token)
@@ -57,12 +58,23 @@ Quran_App/
 │   │   │   ├── Classes.tsx             # Legacy classes page
 │   │   │   ├── Classroom.tsx           # Active class session (QPC reader + mistakes)
 │   │   │   ├── QuranReader.tsx         # Standalone Quran reader (read-only)
+│   │   │   ├── StudentReport.tsx      # Individual student progress report
 │   │   │   └── Settings.tsx            # Profile update, password change
 │   │   │
 │   │   ├── components/
 │   │   │   ├── Layout.tsx              # Main layout wrapper with navbar
 │   │   │   ├── ProtectedRoute.tsx      # Auth route guard
-│   │   │   └── FittedLine.tsx          # Quran line width-fitting utility
+│   │   │   ├── FittedLine.tsx          # Quran line width-fitting utility
+│   │   │   └── teacher-classes/        # Report components for TeacherClasses page
+│   │   │       ├── index.ts            #   Barrel exports
+│   │   │       ├── report-helpers.ts   #   Pure functions: constants, formatters, filters, stats
+│   │   │       ├── ReportPanel.tsx     #   Main report orchestrator (state, data fetch, tabs)
+│   │   │       ├── ReportFilterBar.tsx #   Month pills, surah/juz selectors, clear-all
+│   │   │       ├── ReportSummaryStrip.tsx # 5-stat horizontal summary bar
+│   │   │       ├── ReportClassesTab.tsx   # Classes table with expandable rows
+│   │   │       ├── ReportMistakesTab.tsx  # Mistakes by surah + repeated mistakes
+│   │   │       ├── ReportPerformanceTab.tsx # Bar chart + stats sidebar
+│   │   │       └── ExportModal.tsx     #   Format picker, section toggles, loading/error states
 │   │   │
 │   │   ├── contexts/
 │   │   │   ├── AuthContext.tsx          # Auth state (current user, login/logout)
@@ -72,7 +84,10 @@ Quran_App/
 │   │   │   ├── supabase.ts             # Supabase client init
 │   │   │   ├── supabase-api.ts         # Supabase RLS queries (classes, mistakes, students)
 │   │   │   ├── quran-api.ts            # Quran data API (pages, surahs)
+│   │   │   ├── quran-utils.ts          # Centralized surahNames, Juz boundaries, helpers
 │   │   │   ├── local-api.ts            # Local FastAPI calls (fallback)
+│   │   │   ├── report-types.ts         # Student report TypeScript interfaces
+│   │   │   ├── report-export.ts       # PDF (backend Playwright + client fallback), CSV, Word export
 │   │   │   ├── cache.ts                # Client-side caching
 │   │   │   └── database.types.ts       # Auto-generated Supabase TypeScript types
 │   │   │
@@ -114,17 +129,30 @@ Quran_App/
 └── docs/                               # ── Documentation ────────────────────
     ├── PROJECT_CHANGELOG.md            # MAIN REFERENCE - all phases, start here
     ├── PRODUCTION_READINESS.md         # Production checklist & roadmap
-    ├── Logs/                             # Session logs
-    │   └── TEMPLATE.md                   # Session log template
+    ├── Logs/                           # Session logs
+    │   ├── TEMPLATE.md                 #   Session log template
+    │   ├── 2026-02-15-001-docs-overhaul-audit.md
+    │   ├── 2026-02-15-002-remove-test-feature.md
+    │   ├── 2026-02-15-003-student-reports-feature.md
+    │   ├── 2026-02-15-004-student-report-redesign.md
+    │   ├── 2026-02-16-001-classes-revamp-*.md  # Planning + implementation
+    │   ├── 2026-02-16-002-classes-revamp-architecture-fix.md
+    │   ├── 2026-02-16-003-export-modal-and-pdf-rewrite.md
+    │   └── 2026-02-16-004-backend-pdf-playwright.md
+    ├── Mockups/                        # HTML/PDF report mockups
     ├── Architecture/                   # System design docs
     ├── Technical Implementation Journey/
     │   ├── Technical_Documentation.md  # Full technical reference
     │   ├── Auth_System.md              # Auth flow docs
     │   ├── Classes_And_Mistakes.md     # Class/mistake schema & logic
+    │   ├── Classes_Revamp_Plan.md      # Classes revamp planning doc
+    │   ├── Classes_Revamp_Agents.md    # Classes revamp agent guide
+    │   ├── Classes_Revamp_Implementation.md # Classes revamp + PDF export architecture
     │   ├── Qpc_Quran_Rendering.md      # QPC font rendering details
     │   ├── Light_Dark_Mode_Implementation.md
     │   ├── Settings_Password_Reset.md
     │   ├── Auth_Navigation_Fixes.md
+    │   ├── Student_Reports.md          # Student reports (data, export, UI)
     │   ├── Supabase Implementation/    # Schema, RLS policies, frontend integration
     │   ├── Quran Reader/               # Web & Flutter rendering docs
     │   └── Flutter App Overhaul/       # Mobile UI overhaul (6 docs)
