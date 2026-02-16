@@ -1,0 +1,427 @@
+- generic [ref=e7]:
+  - banner [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - img "QuranTrack" [ref=e11]
+        - generic [ref=e12]: QuranTrack
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e14] [cursor=pointer]:
+          - /url: /teacher
+          - img [ref=e15]
+          - generic [ref=e17]: Dashboard
+        - link "Classes" [active] [ref=e18] [cursor=pointer]:
+          - /url: /teacher/classes
+          - img [ref=e19]
+          - generic [ref=e21]: Classes
+        - link "Quran Reader" [ref=e22] [cursor=pointer]:
+          - /url: /reader
+          - img [ref=e23]
+          - generic [ref=e25]: Quran Reader
+      - generic [ref=e26]:
+        - button "Toggle dark mode" [ref=e27] [cursor=pointer]:
+          - img [ref=e28]
+        - generic [ref=e30]:
+          - button "Teacher" [ref=e31] [cursor=pointer]:
+            - generic [ref=e32]:
+              - img [ref=e33]
+              - generic [ref=e35]: Teacher
+          - button "Student" [ref=e36] [cursor=pointer]:
+            - generic [ref=e37]:
+              - img [ref=e38]
+              - generic [ref=e40]: Student
+        - button "HF Hamza Feroze" [ref=e42] [cursor=pointer]:
+          - generic [ref=e43]: HF
+          - paragraph [ref=e45]: Hamza Feroze
+          - img [ref=e46]
+  - generic [ref=e49]:
+    - img [ref=e50]
+    - text: Teacher View - Manage your Halaqah and students
+  - main [ref=e52]:
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - generic [ref=e121]:
+          - heading "Classes" [level=1] [ref=e122]
+          - paragraph [ref=e123]: Manage all your teaching sessions
+        - button "New Class" [ref=e124] [cursor=pointer]:
+          - img [ref=e125]
+          - text: New Class
+      - generic [ref=e128]:
+        - generic [ref=e129]: Student
+        - button "Hamza" [ref=e131] [cursor=pointer]
+      - generic [ref=e132]:
+        - generic [ref=e133]:
+          - paragraph [ref=e135]: Hamza Reyal · Student since 26 Jan 2026
+          - button "Export" [ref=e136] [cursor=pointer]:
+            - img [ref=e137]
+            - text: Export
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - generic [ref=e141]: Month
+            - button "All" [ref=e142] [cursor=pointer]
+            - button "February 2026" [ref=e143] [cursor=pointer]
+            - button "January 2026" [ref=e144] [cursor=pointer]
+            - button "December 2025" [ref=e145] [cursor=pointer]
+            - combobox [ref=e146] [cursor=pointer]:
+              - option "Older months..." [selected]
+              - option "November 2025"
+              - option "October 2025"
+              - option "September 2025"
+              - option "August 2025"
+              - option "July 2025"
+              - option "June 2025"
+              - option "May 2025"
+              - option "April 2025"
+              - option "March 2025"
+          - generic [ref=e147]:
+            - generic [ref=e148]: Surah
+            - combobox [ref=e149]:
+              - option "From (any)" [selected]
+              - option "1 · Al-Fatihah"
+              - option "2 · Al-Baqarah"
+              - option "3 · Aal-Imran"
+              - option "4 · An-Nisa"
+              - option "5 · Al-Maidah"
+              - option "6 · Al-Anam"
+              - option "7 · Al-Araf"
+              - option "8 · Al-Anfal"
+              - option "9 · At-Tawbah"
+              - option "10 · Yunus"
+              - option "11 · Hud"
+              - option "12 · Yusuf"
+              - option "13 · Ar-Ra'd"
+              - option "14 · Ibrahim"
+              - option "15 · Al-Hijr"
+              - option "16 · An-Nahl"
+              - option "17 · Al-Isra"
+              - option "18 · Al-Kahf"
+              - option "19 · Maryam"
+              - option "20 · Ta-Ha"
+              - option "21 · Al-Anbiya"
+              - option "22 · Al-Hajj"
+              - option "23 · Al-Muminun"
+              - option "24 · An-Nur"
+              - option "25 · Al-Furqan"
+              - option "26 · Ash-Shuara"
+              - option "27 · An-Naml"
+              - option "28 · Al-Qasas"
+              - option "29 · Al-Ankabut"
+              - option "30 · Ar-Rum"
+              - option "31 · Luqman"
+              - option "32 · As-Sajdah"
+              - option "33 · Al-Ahzab"
+              - option "34 · Saba"
+              - option "35 · Fatir"
+              - option "36 · Ya-Sin"
+              - option "37 · As-Saffat"
+              - option "38 · Sad"
+              - option "39 · Az-Zumar"
+              - option "40 · Ghafir"
+              - option "41 · Fussilat"
+              - option "42 · Ash-Shura"
+              - option "43 · Az-Zukhruf"
+              - option "44 · Ad-Dukhan"
+              - option "45 · Al-Jathiyah"
+              - option "46 · Al-Ahqaf"
+              - option "47 · Muhammad"
+              - option "48 · Al-Fath"
+              - option "49 · Al-Hujurat"
+              - option "50 · Qaf"
+              - option "51 · Adh-Dhariyat"
+              - option "52 · At-Tur"
+              - option "53 · An-Najm"
+              - option "54 · Al-Qamar"
+              - option "55 · Ar-Rahman"
+              - option "56 · Al-Waqiah"
+              - option "57 · Al-Hadid"
+              - option "58 · Al-Mujadila"
+              - option "59 · Al-Hashr"
+              - option "60 · Al-Mumtahanah"
+              - option "61 · As-Saff"
+              - option "62 · Al-Jumuah"
+              - option "63 · Al-Munafiqun"
+              - option "64 · At-Taghabun"
+              - option "65 · At-Talaq"
+              - option "66 · At-Tahrim"
+              - option "67 · Al-Mulk"
+              - option "68 · Al-Qalam"
+              - option "69 · Al-Haqqah"
+              - option "70 · Al-Maarij"
+              - option "71 · Nuh"
+              - option "72 · Al-Jinn"
+              - option "73 · Al-Muzzammil"
+              - option "74 · Al-Muddaththir"
+              - option "75 · Al-Qiyamah"
+              - option "76 · Al-Insan"
+              - option "77 · Al-Mursalat"
+              - option "78 · An-Naba"
+              - option "79 · An-Naziat"
+              - option "80 · Abasa"
+              - option "81 · At-Takwir"
+              - option "82 · Al-Infitar"
+              - option "83 · Al-Mutaffifin"
+              - option "84 · Al-Inshiqaq"
+              - option "85 · Al-Buruj"
+              - option "86 · At-Tariq"
+              - option "87 · Al-Ala"
+              - option "88 · Al-Ghashiyah"
+              - option "89 · Al-Fajr"
+              - option "90 · Al-Balad"
+              - option "91 · Ash-Shams"
+              - option "92 · Al-Layl"
+              - option "93 · Ad-Duha"
+              - option "94 · Ash-Sharh"
+              - option "95 · At-Tin"
+              - option "96 · Al-Alaq"
+              - option "97 · Al-Qadr"
+              - option "98 · Al-Bayyinah"
+              - option "99 · Az-Zalzalah"
+              - option "100 · Al-Adiyat"
+              - option "101 · Al-Qariah"
+              - option "102 · At-Takathur"
+              - option "103 · Al-Asr"
+              - option "104 · Al-Humazah"
+              - option "105 · Al-Fil"
+              - option "106 · Quraysh"
+              - option "107 · Al-Maun"
+              - option "108 · Al-Kawthar"
+              - option "109 · Al-Kafirun"
+              - option "110 · An-Nasr"
+              - option "111 · Al-Masad"
+              - option "112 · Al-Ikhlas"
+              - option "113 · Al-Falaq"
+              - option "114 · An-Nas"
+            - generic [ref=e150]: –
+            - combobox [ref=e151]:
+              - option "To (any)" [selected]
+              - option "1 · Al-Fatihah"
+              - option "2 · Al-Baqarah"
+              - option "3 · Aal-Imran"
+              - option "4 · An-Nisa"
+              - option "5 · Al-Maidah"
+              - option "6 · Al-Anam"
+              - option "7 · Al-Araf"
+              - option "8 · Al-Anfal"
+              - option "9 · At-Tawbah"
+              - option "10 · Yunus"
+              - option "11 · Hud"
+              - option "12 · Yusuf"
+              - option "13 · Ar-Ra'd"
+              - option "14 · Ibrahim"
+              - option "15 · Al-Hijr"
+              - option "16 · An-Nahl"
+              - option "17 · Al-Isra"
+              - option "18 · Al-Kahf"
+              - option "19 · Maryam"
+              - option "20 · Ta-Ha"
+              - option "21 · Al-Anbiya"
+              - option "22 · Al-Hajj"
+              - option "23 · Al-Muminun"
+              - option "24 · An-Nur"
+              - option "25 · Al-Furqan"
+              - option "26 · Ash-Shuara"
+              - option "27 · An-Naml"
+              - option "28 · Al-Qasas"
+              - option "29 · Al-Ankabut"
+              - option "30 · Ar-Rum"
+              - option "31 · Luqman"
+              - option "32 · As-Sajdah"
+              - option "33 · Al-Ahzab"
+              - option "34 · Saba"
+              - option "35 · Fatir"
+              - option "36 · Ya-Sin"
+              - option "37 · As-Saffat"
+              - option "38 · Sad"
+              - option "39 · Az-Zumar"
+              - option "40 · Ghafir"
+              - option "41 · Fussilat"
+              - option "42 · Ash-Shura"
+              - option "43 · Az-Zukhruf"
+              - option "44 · Ad-Dukhan"
+              - option "45 · Al-Jathiyah"
+              - option "46 · Al-Ahqaf"
+              - option "47 · Muhammad"
+              - option "48 · Al-Fath"
+              - option "49 · Al-Hujurat"
+              - option "50 · Qaf"
+              - option "51 · Adh-Dhariyat"
+              - option "52 · At-Tur"
+              - option "53 · An-Najm"
+              - option "54 · Al-Qamar"
+              - option "55 · Ar-Rahman"
+              - option "56 · Al-Waqiah"
+              - option "57 · Al-Hadid"
+              - option "58 · Al-Mujadila"
+              - option "59 · Al-Hashr"
+              - option "60 · Al-Mumtahanah"
+              - option "61 · As-Saff"
+              - option "62 · Al-Jumuah"
+              - option "63 · Al-Munafiqun"
+              - option "64 · At-Taghabun"
+              - option "65 · At-Talaq"
+              - option "66 · At-Tahrim"
+              - option "67 · Al-Mulk"
+              - option "68 · Al-Qalam"
+              - option "69 · Al-Haqqah"
+              - option "70 · Al-Maarij"
+              - option "71 · Nuh"
+              - option "72 · Al-Jinn"
+              - option "73 · Al-Muzzammil"
+              - option "74 · Al-Muddaththir"
+              - option "75 · Al-Qiyamah"
+              - option "76 · Al-Insan"
+              - option "77 · Al-Mursalat"
+              - option "78 · An-Naba"
+              - option "79 · An-Naziat"
+              - option "80 · Abasa"
+              - option "81 · At-Takwir"
+              - option "82 · Al-Infitar"
+              - option "83 · Al-Mutaffifin"
+              - option "84 · Al-Inshiqaq"
+              - option "85 · Al-Buruj"
+              - option "86 · At-Tariq"
+              - option "87 · Al-Ala"
+              - option "88 · Al-Ghashiyah"
+              - option "89 · Al-Fajr"
+              - option "90 · Al-Balad"
+              - option "91 · Ash-Shams"
+              - option "92 · Al-Layl"
+              - option "93 · Ad-Duha"
+              - option "94 · Ash-Sharh"
+              - option "95 · At-Tin"
+              - option "96 · Al-Alaq"
+              - option "97 · Al-Qadr"
+              - option "98 · Al-Bayyinah"
+              - option "99 · Az-Zalzalah"
+              - option "100 · Al-Adiyat"
+              - option "101 · Al-Qariah"
+              - option "102 · At-Takathur"
+              - option "103 · Al-Asr"
+              - option "104 · Al-Humazah"
+              - option "105 · Al-Fil"
+              - option "106 · Quraysh"
+              - option "107 · Al-Maun"
+              - option "108 · Al-Kawthar"
+              - option "109 · Al-Kafirun"
+              - option "110 · An-Nasr"
+              - option "111 · Al-Masad"
+              - option "112 · Al-Ikhlas"
+              - option "113 · Al-Falaq"
+              - option "114 · An-Nas"
+            - generic [ref=e153]: Juz
+            - combobox [ref=e154]:
+              - option "All" [selected]
+              - option "Juz 1"
+              - option "Juz 2"
+              - option "Juz 3"
+              - option "Juz 4"
+              - option "Juz 5"
+              - option "Juz 6"
+              - option "Juz 7"
+              - option "Juz 8"
+              - option "Juz 9"
+              - option "Juz 10"
+              - option "Juz 11"
+              - option "Juz 12"
+              - option "Juz 13"
+              - option "Juz 14"
+              - option "Juz 15"
+              - option "Juz 16"
+              - option "Juz 17"
+              - option "Juz 18"
+              - option "Juz 19"
+              - option "Juz 20"
+              - option "Juz 21"
+              - option "Juz 22"
+              - option "Juz 23"
+              - option "Juz 24"
+              - option "Juz 25"
+              - option "Juz 26"
+              - option "Juz 27"
+              - option "Juz 28"
+              - option "Juz 29"
+              - option "Juz 30"
+            - button "Clear all" [ref=e155] [cursor=pointer]
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - generic [ref=e158]: "2"
+            - generic [ref=e159]: Classes
+          - generic [ref=e160]:
+            - generic [ref=e161]: "14"
+            - generic [ref=e162]: Total Mistakes
+          - generic [ref=e163]:
+            - generic [ref=e164]: "14"
+            - generic [ref=e165]: Unique
+          - generic [ref=e166]:
+            - generic [ref=e167]: "1"
+            - generic [ref=e168]: Repeated
+          - generic [ref=e169]:
+            - generic [ref=e170]: Very Good
+            - generic [ref=e171]: Avg Performance
+        - generic [ref=e172]:
+          - button "Classes 2" [ref=e173] [cursor=pointer]:
+            - text: Classes
+            - generic [ref=e174]: "2"
+          - button "Mistakes 14" [ref=e176] [cursor=pointer]:
+            - text: Mistakes
+            - generic [ref=e177]: "14"
+          - button "Performance" [ref=e178] [cursor=pointer]
+        - table [ref=e181]:
+          - rowgroup [ref=e182]:
+            - row "Date Portions Mistakes Performance Notes" [ref=e183]:
+              - columnheader [ref=e184]
+              - columnheader "Date" [ref=e185]
+              - columnheader "Portions" [ref=e186]
+              - columnheader "Mistakes" [ref=e187]
+              - columnheader "Performance" [ref=e188]
+              - columnheader "Notes" [ref=e189]
+          - rowgroup [ref=e190]:
+            - row "▶ 26 Jan 2026Monday HIFZ Al-Buruj | SABQI Ash-Shams | REVISION Al-Qadr 15 Excellent -" [ref=e191] [cursor=pointer]:
+              - cell "▶" [ref=e192]:
+                - button "▶" [ref=e193]
+              - cell "26 Jan 2026Monday" [ref=e194]:
+                - generic [ref=e195]: 26 Jan 2026Monday
+              - cell "HIFZ Al-Buruj | SABQI Ash-Shams | REVISION Al-Qadr" [ref=e196]:
+                - generic [ref=e197]:
+                  - generic [ref=e199]:
+                    - generic [ref=e200]: HIFZ
+                    - text: Al-Buruj
+                  - generic [ref=e201]:
+                    - text: "|"
+                    - generic [ref=e202]:
+                      - generic [ref=e203]: SABQI
+                      - text: Ash-Shams
+                  - generic [ref=e204]:
+                    - text: "|"
+                    - generic [ref=e205]:
+                      - generic [ref=e206]: REVISION
+                      - text: Al-Qadr
+              - cell "15" [ref=e207]:
+                - generic [ref=e208]: "15"
+              - cell "Excellent" [ref=e209]
+              - cell "-" [ref=e210]:
+                - generic [ref=e211]: "-"
+            - row "▶ 26 Jan 2026Monday HIFZ Al-Inshiqaq | SABQI Al-Buruj | REVISION Al-Ghashiyah 0 Good -" [ref=e212] [cursor=pointer]:
+              - cell "▶" [ref=e213]:
+                - button "▶" [ref=e214]
+              - cell "26 Jan 2026Monday" [ref=e215]:
+                - generic [ref=e216]: 26 Jan 2026Monday
+              - cell "HIFZ Al-Inshiqaq | SABQI Al-Buruj | REVISION Al-Ghashiyah" [ref=e217]:
+                - generic [ref=e218]:
+                  - generic [ref=e220]:
+                    - generic [ref=e221]: HIFZ
+                    - text: Al-Inshiqaq
+                  - generic [ref=e222]:
+                    - text: "|"
+                    - generic [ref=e223]:
+                      - generic [ref=e224]: SABQI
+                      - text: Al-Buruj
+                  - generic [ref=e225]:
+                    - text: "|"
+                    - generic [ref=e226]:
+                      - generic [ref=e227]: REVISION
+                      - text: Al-Ghashiyah
+              - cell "0" [ref=e228]:
+                - generic [ref=e229]: "0"
+              - cell "Good" [ref=e230]
+              - cell "-" [ref=e231]:
+                - generic [ref=e232]: "-"

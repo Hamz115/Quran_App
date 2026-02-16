@@ -26,7 +26,10 @@
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Bash(npx vite:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(PLAYWRIGHT_MCP_EXTENSION_TOKEN=VlOYv3SRwB9ED-iOJryi952to0ZeSNF8uUI6JlE_7OE playwright-cli snapshot:*)",
+      "Bash(PLAYWRIGHT_MCP_EXTENSION_TOKEN=VlOYv3SRwB9ED-iOJryi952to0ZeSNF8uUI6JlE_7OE playwright-cli:*)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,133 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "QuranTrack" [ref=e7]
+        - generic [ref=e8]: QuranTrack
+      - navigation [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /teacher
+          - img [ref=e11]
+          - generic [ref=e13]: Dashboard
+        - link "Classes" [ref=e14] [cursor=pointer]:
+          - /url: /teacher/classes
+          - img [ref=e15]
+          - generic [ref=e17]: Classes
+        - link "Quran Reader" [ref=e18] [cursor=pointer]:
+          - /url: /reader
+          - img [ref=e19]
+          - generic [ref=e21]: Quran Reader
+      - generic [ref=e22]:
+        - button "Toggle dark mode" [ref=e23] [cursor=pointer]:
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - button "Teacher" [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]:
+              - img [ref=e29]
+              - generic [ref=e31]: Teacher
+          - button "Student" [ref=e32] [cursor=pointer]:
+            - generic [ref=e33]:
+              - img [ref=e34]
+              - generic [ref=e36]: Student
+        - button "HF Hamza Feroze" [ref=e38] [cursor=pointer]:
+          - generic [ref=e39]: HF
+          - paragraph [ref=e41]: Hamza Feroze
+          - img [ref=e42]
+  - generic [ref=e45]:
+    - img [ref=e46]
+    - text: Teacher View - Manage your Halaqah and students
+  - main [ref=e48]:
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - heading "Classes" [level=1] [ref=e52]
+          - paragraph [ref=e53]: Manage all your teaching sessions
+        - button "New Class" [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+          - text: New Class
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]: Student
+          - generic [ref=e60]:
+            - button "All" [ref=e61] [cursor=pointer]
+            - button "Hamza" [ref=e62] [cursor=pointer]
+        - generic [ref=e63]:
+          - generic [ref=e64]: Month
+          - generic [ref=e65]:
+            - button "February 20260" [ref=e66] [cursor=pointer]
+            - button "January 20262" [ref=e67] [cursor=pointer]
+      - generic [ref=e68]:
+        - generic [ref=e70]:
+          - heading "January 2026" [level=2] [ref=e71]
+          - generic [ref=e72]: (2 classes)
+        - generic [ref=e73]:
+          - generic [ref=e74] [cursor=pointer]:
+            - generic [ref=e75]:
+              - generic [ref=e76]:
+                - generic [ref=e77]: W5
+                - generic [ref=e78]:
+                  - generic [ref=e80]: Monday, 26/01/2026
+                  - generic [ref=e81]: 1 student
+              - generic [ref=e82]:
+                - button "Edit notes" [ref=e83]:
+                  - img [ref=e84]
+                - button "Delete class" [ref=e86]:
+                  - img [ref=e87]
+            - generic [ref=e91]:
+              - generic [ref=e92]:
+                - generic [ref=e93]:
+                  - generic [ref=e94]: H
+                  - generic [ref=e95]: Hamza Reyal
+                - generic [ref=e96]:
+                  - button "Report" [ref=e97]
+                  - combobox [active] [ref=e99]:
+                    - option "Select..." [selected]
+                    - option "Excellent"
+                    - option "Very Good"
+                    - option "Good"
+                    - option "Needs Work"
+              - generic [ref=e100]:
+                - generic [ref=e101]:
+                  - generic [ref=e102]: HIFZ
+                  - generic [ref=e104]: Al-Buruj
+                - generic [ref=e105]:
+                  - generic [ref=e106]: SABQI
+                  - generic [ref=e108]: Ash-Shams to Ash-Sharh
+                - generic [ref=e109]:
+                  - generic [ref=e110]: MANZIL
+                  - generic [ref=e112]: Al-Qadr to An-Nas
+          - generic [ref=e113] [cursor=pointer]:
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - generic [ref=e116]: W5
+                - generic [ref=e117]:
+                  - generic [ref=e119]: Monday, 26/01/2026
+                  - generic [ref=e120]: 1 student
+              - generic [ref=e121]:
+                - button "Edit notes" [ref=e122]:
+                  - img [ref=e123]
+                - button "Delete class" [ref=e125]:
+                  - img [ref=e126]
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - generic [ref=e132]:
+                  - generic [ref=e133]: H
+                  - generic [ref=e134]: Hamza Reyal
+                - generic [ref=e135]:
+                  - button "Report" [ref=e136]
+                  - combobox [ref=e138]:
+                    - option "Select..." [selected]
+                    - option "Excellent"
+                    - option "Very Good"
+                    - option "Good"
+                    - option "Needs Work"
+              - generic [ref=e139]:
+                - generic [ref=e140]:
+                  - generic [ref=e141]: HIFZ
+                  - generic [ref=e143]: Al-Inshiqaq
+                - generic [ref=e144]:
+                  - generic [ref=e145]: SABQI
+                  - generic [ref=e147]: Al-Buruj to Al-Ala
+                - generic [ref=e148]:
+                  - generic [ref=e149]: MANZIL
+                  - generic [ref=e151]: Al-Ghashiyah to An-Nas

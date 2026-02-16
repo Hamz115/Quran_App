@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { formatDate, perfBadgeClasses, mistakeCountClasses, portionTagClasses } from './report-helpers';
 import { surahNames } from '../../lib/quran-utils';
 import type { StudentClass } from '../../lib/report-types';
@@ -10,6 +11,7 @@ interface ReportClassesTabProps {
 }
 
 export default function ReportClassesTab({ classes, expandedClassId, onToggleExpand, darkMode }: ReportClassesTabProps) {
+  const navigate = useNavigate();
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-800';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-500';
@@ -46,6 +48,7 @@ export default function ReportClassesTab({ classes, expandedClassId, onToggleExp
                     cls={cls}
                     isExpanded={isExpanded}
                     onToggle={() => onToggleExpand(cls.id)}
+                    onOpen={() => navigate(`/teacher/classes/${cls.id}`)}
                     darkMode={darkMode}
                     borderColor={borderColor}
                     textPrimary={textPrimary}
@@ -64,11 +67,12 @@ export default function ReportClassesTab({ classes, expandedClassId, onToggleExp
 // ============ CLASS ROW SUB-COMPONENT ============
 
 function ClassRow({
-  cls, isExpanded, onToggle, darkMode, borderColor, textPrimary, textSecondary, textMuted
+  cls, isExpanded, onToggle, onOpen, darkMode, borderColor, textPrimary, textSecondary, textMuted
 }: {
   cls: StudentClass;
   isExpanded: boolean;
   onToggle: () => void;
+  onOpen: () => void;
   darkMode: boolean;
   borderColor: string;
   textPrimary: string;
@@ -79,10 +83,13 @@ function ClassRow({
 
   return (
     <>
-      <tr className={`${cardBg} transition-colors ${darkMode ? 'hover:bg-slate-750' : 'hover:bg-slate-50'}`}>
+      <tr
+        onClick={onOpen}
+        className={`${cardBg} transition-colors cursor-pointer ${darkMode ? 'hover:bg-slate-750' : 'hover:bg-slate-50'}`}
+      >
         <td className={`py-3 px-3.5 border-b ${borderColor}`}>
           <button
-            onClick={onToggle}
+            onClick={e => { e.stopPropagation(); onToggle(); }}
             className={`p-1 rounded text-sm transition-colors ${darkMode ? 'text-slate-500 hover:bg-slate-700 hover:text-slate-400' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
           >
             {isExpanded ? '\u25BC' : '\u25B6'}

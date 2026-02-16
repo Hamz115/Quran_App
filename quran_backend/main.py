@@ -1,12 +1,15 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
 import sqlite3
 import shutil
 import os
 import jwt
+import tempfile
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from datetime import date, datetime
 
@@ -2258,6 +2261,88 @@ def get_local_mistakes(
     conn.close()
 
     return {"data": mistakes}
+
+
+# ============ PDF EXPORT ENDPOINT ============
+
+_pdf_executor = ThreadPoolExecutor(max_workers=2)
+
+
+class PDFExportRequest(BaseModel):
+    html: str
+    student_name: str
+    filename: str = "report.pdf"
+
+
+def _generate_pdf_sync(html_content: str, student_name: str) -> bytes:
+    """Run Playwright PDF generation synchronously (called from executor)."""
+    from playwright.sync_api import sync_playwright
+
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        html_path = os.path.join(tmp_dir, "report.html")
+        pdf_path = os.path.join(tmp_dir, "report.pdf")
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        file_url = Path(html_path).as_uri()
+
+        header_template = (
+            '<div style="width:100%;font-size:9px;color:#94a3b8;padding:0 40px;'
+            'display:flex;justify-content:space-between;font-family:sans-serif;">'
+            f'<span>Student Progress Report</span><span>{student_name}</span></div>'
+        )
+        footer_template = (
+            '<div style="width:100%;font-size:9px;color:#94a3b8;padding:0 40px;'
+            'display:flex;justify-content:space-between;font-family:sans-serif;">'
+            '<span>QuranTrack</span>'
+            '<span>Page <span class="pageNumber"></span> of '
+            '<span class="totalPages"></span></span></div>'
+        )
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel="msedge")
+            page = browser.new_page()
+            page.goto(file_url, wait_until="networkidle")
+            page.pdf(
+                path=pdf_path,
+                format="A4",
+                print_background=True,
+                display_header_footer=True,
+                header_template=header_template,
+                footer_template=footer_template,
+                margin={"top": "25mm", "bottom": "20mm", "left": "0", "right": "0"},
+            )
+            browser.close()
+
+        with open(pdf_path, "rb") as f:
+            return f.read()
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@app.post("/api/export/pdf")
+async def export_pdf(req: PDFExportRequest):
+    """Generate a PDF from HTML using Playwright + Edge."""
+    if not req.html or not req.html.strip():
+        raise HTTPException(status_code=400, detail="HTML content is required")
+    if len(req.html) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="HTML content exceeds 5MB limit")
+
+    try:
+        loop = asyncio.get_event_loop()
+        pdf_bytes = await loop.run_in_executor(
+            _pdf_executor, _generate_pdf_sync, req.html, req.student_name
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{req.filename}"'},
+    )
 
 
 if __name__ == "__main__":

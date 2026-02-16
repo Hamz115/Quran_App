@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateClassNotes, updateStudentPerformance, getSuggestedPortions } from '../api';
+import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
-import { surahNames } from '../lib/quran-utils';
 import { ReportPanel } from '../components/teacher-classes';
 
 interface SurahInfo {
@@ -30,30 +29,10 @@ interface PortionConfig {
   portions: SinglePortion[];
 }
 
-// Group classes by month
-const groupByMonth = (classes: ClassData[]) => {
-  const grouped: Record<string, ClassData[]> = {};
-  classes.forEach(cls => {
-    const date = new Date(cls.date);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    if (!grouped[monthKey]) grouped[monthKey] = [];
-    grouped[monthKey].push(cls);
-  });
-  return grouped;
-};
-
-const getMonthLabel = (monthKey: string) => {
-  const [year, month] = monthKey.split('-');
-  const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
-  return `${months[parseInt(month)]} ${year}`;
-};
-
 export default function TeacherClasses() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { darkMode } = useTheme();
-  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,19 +49,14 @@ export default function TeacherClasses() {
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
 
-  // Filter state - current month selected by default
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  // Selected student for report view
   const [selectedStudentFilter, setSelectedStudentFilter] = useState<string | null>(null);
-  const [selectedReportStudentId, setSelectedReportStudentId] = useState<string | null>(null);
 
-  // Auto-open report panel if ?report=ID, or modal if ?new=1
+  // Auto-select student if ?report=ID, or open modal if ?new=1
   useEffect(() => {
     const reportStudentId = searchParams.get('report');
     if (reportStudentId) {
-      setSelectedReportStudentId(reportStudentId);
+      setSelectedStudentFilter(reportStudentId);
       setSearchParams({});
     }
 
@@ -166,6 +140,13 @@ export default function TeacherClasses() {
       isMounted = false;
     };
   }, []);
+
+  // Auto-select first student when students load (if none selected)
+  useEffect(() => {
+    if (students.length > 0 && !selectedStudentFilter) {
+      setSelectedStudentFilter(students[0].id);
+    }
+  }, [students]);
 
   const toggleStudent = (id: string) => {
     // Regular classes allow multiple students
@@ -360,71 +341,6 @@ export default function TeacherClasses() {
       setCreating(false);
     }
   };
-
-  // Get all unique months from classes (for tabs)
-  const allMonths = useMemo(() => {
-    const months = new Set<string>();
-    classes.forEach(cls => {
-      const date = new Date(cls.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      months.add(monthKey);
-    });
-    return Array.from(months).sort((a, b) => b.localeCompare(a)); // Newest first
-  }, [classes]);
-
-  // Get recent months for tabs (last 4 months that have classes, or current month)
-  const recentMonths = useMemo(() => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    // Always include current month even if no classes
-    const months = new Set([currentMonth]);
-    allMonths.slice(0, 4).forEach(m => months.add(m));
-
-    return Array.from(months).sort((a, b) => b.localeCompare(a)).slice(0, 4);
-  }, [allMonths]);
-
-  // Filter classes by selected month and student
-  const filteredClasses = useMemo(() => {
-    let result = classes;
-
-    // Filter by student if selected
-    if (selectedStudentFilter) {
-      result = result.filter(c =>
-        c.students?.some(s => s.id === selectedStudentFilter)
-      );
-    }
-
-    // Filter by month
-    if (selectedMonth) {
-      result = result.filter(c => c.date.startsWith(selectedMonth));
-    }
-
-    return result;
-  }, [classes, selectedStudentFilter, selectedMonth]);
-
-  // Count classes per month (for badges)
-  const classCountByMonth = useMemo(() => {
-    const counts: Record<string, number> = {};
-    let classesToCount = classes;
-
-    // If student filter is active, count only that student's classes
-    if (selectedStudentFilter) {
-      classesToCount = classes.filter(c =>
-        c.students?.some(s => s.id === selectedStudentFilter)
-      );
-    }
-
-    classesToCount.forEach(cls => {
-      const date = new Date(cls.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      counts[monthKey] = (counts[monthKey] || 0) + 1;
-    });
-    return counts;
-  }, [classes, selectedStudentFilter]);
-
-  const groupedClasses = groupByMonth(filteredClasses);
-  const sortedMonths = Object.keys(groupedClasses).sort((a, b) => b.localeCompare(a));
 
   const selectedStudentNames = selectedStudents
     .map(id => students.find(s => s.id === id))
@@ -734,22 +650,11 @@ export default function TeacherClasses() {
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className={`rounded-xl p-4 space-y-3 ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-slate-200'}`}>
-        {/* Row 1: Students */}
+      {/* Student Selector */}
+      <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-slate-200'}`}>
         <div className="flex items-center gap-3">
           <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Student</span>
           <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
-            <button
-              onClick={() => setSelectedStudentFilter(null)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                selectedStudentFilter === null
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-              }`}
-            >
-              All
-            </button>
             {students.map(s => (
               <button
                 key={s.id}
@@ -763,387 +668,19 @@ export default function TeacherClasses() {
                 {s.first_name}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Row 2: Months */}
-        <div className="flex items-center gap-3">
-          <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Month</span>
-          <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
-            {recentMonths.map(month => {
-              const count = classCountByMonth[month] || 0;
-              const isSelected = selectedMonth === month;
-              return (
-                <button
-                  key={month}
-                  onClick={() => setSelectedMonth(month)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                    isSelected
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
-                >
-                  {getMonthLabel(month)}
-                  <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
-                    isSelected ? 'bg-blue-500' : darkMode ? 'bg-slate-600' : 'bg-slate-300'
-                  }`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-
-            {/* Older months dropdown if there are more */}
-            {allMonths.length > 4 && (
-              <select
-                value={!recentMonths.includes(selectedMonth) ? selectedMonth : ''}
-                onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
-                className={`rounded-full px-4 py-2 text-sm border-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700'}`}
-              >
-                <option value="">Older...</option>
-                {allMonths.filter(m => !recentMonths.includes(m)).map(month => (
-                  <option key={month} value={month}>
-                    {getMonthLabel(month)} ({classCountByMonth[month] || 0})
-                  </option>
-                ))}
-              </select>
+            {students.length === 0 && (
+              <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>No students added yet</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Classes grouped by month */}
-      {sortedMonths.length > 0 ? (
-        sortedMonths.map(monthKey => {
-          const monthClasses = groupedClasses[monthKey];
-
-          // Helper to get week number within month
-          const getWeekOfMonth = (dateStr: string) => {
-            const date = new Date(dateStr);
-            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            const dayOfMonth = date.getDate();
-            const firstDayOfWeek = firstDay.getDay();
-            return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
-          };
-
-          // Helper to format portion display nicely - now filters by student
-          const getPortionDisplay = (cls: ClassData, type: string, studentId?: string) => {
-            // Filter portions: show shared (no student_id) + student-specific
-            const portions = cls.assignments.filter(a =>
-              a.type === type && (!a.student_id || a.student_id === studentId)
-            );
-            if (portions.length === 0) return <span className="text-slate-600">—</span>;
-
-            return portions.map((p, i) => {
-              const startName = surahNames[p.start_surah] || `Surah ${p.start_surah}`;
-              const endName = surahNames[p.end_surah] || `Surah ${p.end_surah}`;
-
-              let display = '';
-              if (p.start_surah === p.end_surah) {
-                // Same surah - show ayah range if available
-                display = startName;
-                if (p.start_ayah && p.end_ayah) {
-                  display += ` (${p.start_ayah}-${p.end_ayah})`;
-                }
-              } else {
-                // Different surahs - show range
-                display = `${startName} to ${endName}`;
-              }
-
-              return <div key={i} className="text-sm">{display}{i < portions.length - 1 ? ', ' : ''}</div>;
-            });
-          };
-
-          // Expand classes: one row per student (or one row if no students)
-          type ExpandedRow = {
-            cls: ClassData;
-            student: { id: string; first_name: string; last_name: string; performance?: string } | null;
-            isFirstOfClass: boolean;
-            isLastOfClass: boolean;
-            studentCount: number;
-          };
-
-          const expandedRows: ExpandedRow[] = [];
-          monthClasses.forEach(cls => {
-            if (cls.students && cls.students.length > 0) {
-              cls.students.forEach((student, idx) => {
-                expandedRows.push({
-                  cls,
-                  student,
-                  isFirstOfClass: idx === 0,
-                  isLastOfClass: idx === cls.students!.length - 1,
-                  studentCount: cls.students!.length,
-                });
-              });
-            } else {
-              // No students - show single row
-              expandedRows.push({
-                cls,
-                student: null,
-                isFirstOfClass: true,
-                isLastOfClass: true,
-                studentCount: 0,
-              });
-            }
-          });
-
-          return (
-            <div key={monthKey} className={`card overflow-hidden ${darkMode ? '' : 'bg-white border-slate-200'}`}>
-              {/* Month Header */}
-              <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
-                <div className="flex items-center gap-2">
-                  <h2 className={`text-lg font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{getMonthLabel(monthKey)}</h2>
-                  <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
-                </div>
-              </div>
-
-              {/* Class Cards */}
-              <div className="space-y-4 p-4">
-                {monthClasses.map((cls) => {
-                  const classDate = new Date(cls.date);
-                  const weekNum = getWeekOfMonth(cls.date);
-                  const students = cls.students || [];
-
-                  return (
-                    <div
-                      key={cls.id}
-                      onClick={() => navigate(`/teacher/classes/${cls.id}`)}
-                      className={`rounded-xl border overflow-hidden transition-colors cursor-pointer ${darkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600/50' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                    >
-                      {/* Class Header */}
-                      <div className={`flex items-center justify-between px-5 py-3 border-b ${darkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
-                        <div className="flex items-center gap-4">
-                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold ${darkMode ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-200 text-slate-600'}`}>
-                            W{weekNum}
-                          </span>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-                                {cls.day}, {`${String(classDate.getDate()).padStart(2, '0')}/${String(classDate.getMonth() + 1).padStart(2, '0')}/${classDate.getFullYear()}`}
-                              </span>
-                            </div>
-                            <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                              {students.length} student{students.length !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* Notes Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNotesClassId(cls.id);
-                              setNotesText(cls.notes || '');
-                              setShowNotesModal(true);
-                            }}
-                            className="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors"
-                            title="Edit notes"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          {/* Delete Button */}
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (confirm('Are you sure you want to delete this class?')) {
-                                await deleteClass(cls.id);
-                                const updated = await getClasses();
-                                setClasses(updated);
-                              }
-                            }}
-                            className="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors"
-                            title="Delete class"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Portions Section */}
-                      <div className="p-4">
-                        {students.length === 0 ? (
-                          <div className={`text-center py-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>No students assigned</div>
-                        ) : (
-                          <div className="space-y-4">
-                            {students.map((student) => (
-                              <div
-                                key={student.id}
-                                onClick={() => {
-                                  window.location.href = `/teacher/classes/${cls.id}?student=${student.id}`;
-                                }}
-                                className={`rounded-lg p-4 cursor-pointer transition-colors ${darkMode ? 'bg-slate-900/50 hover:bg-slate-900/80' : 'bg-slate-50 hover:bg-slate-100'}`}
-                              >
-                                {/* Student Header */}
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
-                                      {student.first_name[0]}
-                                    </span>
-                                    <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{student.first_name} {student.last_name}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                  {/* Report Button */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedReportStudentId(student.id);
-                                    }}
-                                    className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
-                                      darkMode
-                                        ? 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20'
-                                        : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100 border border-cyan-200'
-                                    }`}
-                                    title="View student report"
-                                  >
-                                    Report
-                                  </button>
-                                  {/* Performance Dropdown */}
-                                  <div onClick={(e) => e.stopPropagation()}>
-                                    <select
-                                      value={student.performance || ''}
-                                      onChange={async (e) => {
-                                        const newPerf = e.target.value;
-                                        // Optimistic update so the dropdown shows the selection immediately
-                                        setClasses(prev => prev.map(c =>
-                                          c.id === cls.id ? {
-                                            ...c,
-                                            students: c.students?.map(s =>
-                                              s.id === student.id ? { ...s, performance: newPerf || undefined } : s
-                                            )
-                                          } : c
-                                        ));
-                                        try {
-                                          await updateStudentPerformance(cls.id, student.id, newPerf);
-                                        } catch (err) {
-                                          console.error('Failed to save performance:', err);
-                                        }
-                                      }}
-                                      className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                                        student.performance === 'Excellent'
-                                          ? darkMode ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-blue-100 text-blue-700 border border-blue-300'
-                                          : student.performance === 'Very Good'
-                                          ? darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-300'
-                                          : student.performance === 'Good'
-                                          ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
-                                          : student.performance === 'Needs Work'
-                                          ? darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-300'
-                                          : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
-                                      }`}
-                                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='${darkMode ? '%2394a3b8' : '%2364748b'}'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }}
-                                    >
-                                      <option value="" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Select...</option>
-                                      <option value="Excellent" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Excellent</option>
-                                      <option value="Very Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Very Good</option>
-                                      <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
-                                      <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
-                                    </select>
-                                  </div>
-                                  </div>
-                                </div>
-
-                                {/* Portions Grid - Each type on its own row */}
-                                <div className="space-y-2">
-                                  {/* Hifz Row */}
-                                  <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${darkMode ? 'bg-blue-500/5 border border-blue-500/10' : 'bg-blue-50 border border-blue-200/50'}`}>
-                                    <span className={`text-xs font-semibold w-16 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>HIFZ</span>
-                                    <span className={`text-sm flex-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{getPortionDisplay(cls, 'hifz', student.id)}</span>
-                                    {(student.mistake_counts?.hifz ?? 0) > 0 && (
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                        (student.mistake_counts?.hifz ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
-                                        : (student.mistake_counts?.hifz ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
-                                        : 'bg-blue-500/20 text-blue-400'
-                                      }`}>
-                                        {student.mistake_counts?.hifz} {student.mistake_counts?.hifz === 1 ? 'mistake' : 'mistakes'}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {/* Sabqi Row */}
-                                  <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${darkMode ? 'bg-cyan-500/5 border border-cyan-500/10' : 'bg-cyan-50 border border-cyan-200/50'}`}>
-                                    <span className={`text-xs font-semibold w-16 flex-shrink-0 ${darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>SABQI</span>
-                                    <span className={`text-sm flex-1 ${darkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>{getPortionDisplay(cls, 'sabqi', student.id)}</span>
-                                    {(student.mistake_counts?.sabqi ?? 0) > 0 && (
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                        (student.mistake_counts?.sabqi ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
-                                        : (student.mistake_counts?.sabqi ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
-                                        : 'bg-cyan-500/20 text-cyan-400'
-                                      }`}>
-                                        {student.mistake_counts?.sabqi} {student.mistake_counts?.sabqi === 1 ? 'mistake' : 'mistakes'}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {/* Manzil Row */}
-                                  <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${darkMode ? 'bg-slate-500/5 border border-slate-500/10' : 'bg-slate-50 border border-slate-200/50'}`}>
-                                    <span className={`text-xs font-semibold w-16 flex-shrink-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>MANZIL</span>
-                                    <span className={`text-sm flex-1 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>{getPortionDisplay(cls, 'revision', student.id)}</span>
-                                    {(student.mistake_counts?.revision ?? 0) > 0 && (
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                        (student.mistake_counts?.revision ?? 0) >= 5 ? 'bg-red-500/20 text-red-400'
-                                        : (student.mistake_counts?.revision ?? 0) >= 3 ? 'bg-amber-500/20 text-amber-400'
-                                        : 'bg-slate-500/20 text-slate-400'
-                                      }`}>
-                                        {student.mistake_counts?.revision} {student.mistake_counts?.revision === 1 ? 'mistake' : 'mistakes'}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Notes Section (if has notes) */}
-                      {cls.notes && (
-                        <div className={`px-5 py-3 border-t ${darkMode ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-200 bg-slate-50'}`}>
-                          <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <span className={`font-medium ${darkMode ? 'text-slate-500' : 'text-slate-600'}`}>Notes:</span> {cls.notes}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        /* Empty State */
-        <div className={`card p-12 text-center ${darkMode ? '' : 'bg-white border-slate-200'}`}>
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
-            <svg className={`w-8 h-8 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          {classes.length === 0 ? (
-            <>
-              <p className={`text-lg font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>No classes yet</p>
-              <p className={`mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Start your first class to begin tracking</p>
-            </>
-          ) : (
-            <>
-              <p className={`text-lg font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>No classes found</p>
-              <p className={`mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                No classes in {getMonthLabel(selectedMonth)}
-                {selectedStudentFilter && ` for ${students.find(s => s.id === selectedStudentFilter)?.first_name || 'this student'}`}
-              </p>
-              <button
-                onClick={() => {
-                  setSelectedStudentFilter(null);
-                  const now = new Date();
-                  setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-                }}
-                className="mt-4 text-blue-400 hover:text-blue-300 text-sm"
-              >
-                Clear filters
-              </button>
-            </>
-          )}
-        </div>
+      {/* Report content for selected student */}
+      {selectedStudentFilter && (
+        <ReportPanel
+          key={selectedStudentFilter}
+          studentId={selectedStudentFilter}
+        />
       )}
 
       {/* New Class Modal */}
@@ -1597,13 +1134,6 @@ export default function TeacherClasses() {
         </div>
       )}
 
-      {selectedReportStudentId && (
-        <ReportPanel
-          key={selectedReportStudentId}
-          studentId={selectedReportStudentId}
-          onClose={() => setSelectedReportStudentId(null)}
-        />
-      )}
     </div>
   );
 }

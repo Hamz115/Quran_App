@@ -1,5 +1,4 @@
 import type { ReportFilters, DatePreset } from '../../lib/report-types';
-import { getDatePresetRange } from './report-helpers';
 import { surahNames, getSurahRangeForJuz } from '../../lib/quran-utils';
 
 interface ReportFilterBarProps {
@@ -8,15 +7,60 @@ interface ReportFilterBarProps {
   darkMode: boolean;
 }
 
+// Generate list of months going back ~1 year from today
+function getMonthList(): { key: string; label: string; from: string; to: string }[] {
+  const months: { key: string; label: string; from: string; to: string }[] = [];
+  const now = new Date();
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    months.push({
+      key,
+      label: `${monthNames[month]} ${year}`,
+      from: `${year}-${String(month + 1).padStart(2, '0')}-01`,
+      to: `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+    });
+  }
+  return months;
+}
+
+// Detect which month is selected based on dateFrom/dateTo
+function getSelectedMonthKey(filters: ReportFilters): string | null {
+  if (!filters.dateFrom || !filters.dateTo) return null;
+  const fromParts = filters.dateFrom.split('-');
+  const toParts = filters.dateTo.split('-');
+  if (fromParts.length < 3 || toParts.length < 3) return null;
+  // Check if from is 1st of month and to is last of same month
+  if (fromParts[0] === toParts[0] && fromParts[1] === toParts[1] && fromParts[2] === '01') {
+    return `${fromParts[0]}-${fromParts[1]}`;
+  }
+  return null;
+}
+
 export default function ReportFilterBar({ filters, onFiltersChange, darkMode }: ReportFilterBarProps) {
   const inputBg = darkMode ? 'bg-slate-900 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-800';
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
   const cardBg = darkMode ? 'bg-slate-800' : 'bg-white';
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
 
-  function handlePreset(preset: DatePreset) {
-    const range = getDatePresetRange(preset);
-    onFiltersChange({ ...filters, datePreset: preset, dateFrom: range.from, dateTo: range.to });
+  const monthList = getMonthList();
+  const recentMonths = monthList.slice(0, 3); // Last 3 months
+  const olderMonths = monthList.slice(3); // Remaining 9
+  const selectedMonthKey = getSelectedMonthKey(filters);
+  const isAllSelected = filters.datePreset === 'all' && !filters.dateFrom && !filters.dateTo;
+
+  function handleMonthClick(month: { from: string; to: string }) {
+    onFiltersChange({ ...filters, dateFrom: month.from, dateTo: month.to, datePreset: 'all' as DatePreset });
+  }
+
+  function handleAllClick() {
+    onFiltersChange({ ...filters, dateFrom: '', dateTo: '', datePreset: 'all' });
   }
 
   function handleJuzChange(juz: number | null) {
@@ -36,49 +80,56 @@ export default function ReportFilterBar({ filters, onFiltersChange, darkMode }: 
     onFiltersChange({ dateFrom: '', dateTo: '', datePreset: 'all', surahFrom: null, surahTo: null, juz: null });
   }
 
+  const pillBase = `px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors`;
+  const pillActive = 'bg-cyan-600 text-white';
+  const pillInactive = darkMode
+    ? 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-600';
+
   return (
-    <div className={`px-4 sm:px-8 py-3.5 ${cardBg} border-b ${borderColor} flex items-center gap-4 flex-wrap`}>
-      {/* Date */}
-      <div className="flex items-center gap-2">
-        <span className={`text-[11px] font-semibold uppercase tracking-wide ${textMuted}`}>Date</span>
-        <div className="flex gap-1">
-          {(['1m', '2m', '6m', 'all'] as DatePreset[]).map(p => (
-            <button
-              key={p}
-              onClick={() => handlePreset(p)}
-              className={`px-3 py-1 rounded-md border text-xs font-medium transition-colors ${
-                filters.datePreset === p
-                  ? 'bg-cyan-600 border-cyan-600 text-white'
-                  : darkMode
-                    ? 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300'
-                    : 'border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-600'
-              }`}
-            >
-              {p === '1m' ? '1 Month' : p === '2m' ? '2 Months' : p === '6m' ? '6 Months' : 'All Time'}
-            </button>
-          ))}
-        </div>
-        <input
-          type="date"
-          value={filters.dateFrom}
-          onChange={e => onFiltersChange({ ...filters, dateFrom: e.target.value, datePreset: 'all' as DatePreset })}
-          className={`px-2 py-1 rounded-md border text-xs w-[130px] ${inputBg}`}
-        />
-        <span className={textMuted}>&ndash;</span>
-        <input
-          type="date"
-          value={filters.dateTo}
-          onChange={e => onFiltersChange({ ...filters, dateTo: e.target.value, datePreset: 'all' as DatePreset })}
-          className={`px-2 py-1 rounded-md border text-xs w-[130px] ${inputBg}`}
-        />
+    <div className={`${cardBg} border-b ${borderColor} px-4 sm:px-6 py-3.5 space-y-3`}>
+      {/* Row 1: Month pills */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`text-[11px] font-semibold uppercase tracking-wide w-12 ${textMuted}`}>Month</span>
+        <button
+          onClick={handleAllClick}
+          className={`${pillBase} ${isAllSelected ? pillActive : pillInactive}`}
+        >
+          All
+        </button>
+        {recentMonths.map(m => (
+          <button
+            key={m.key}
+            onClick={() => handleMonthClick(m)}
+            className={`${pillBase} ${selectedMonthKey === m.key ? pillActive : pillInactive}`}
+          >
+            {m.label}
+          </button>
+        ))}
+        {olderMonths.length > 0 && (
+          <select
+            value={olderMonths.some(m => m.key === selectedMonthKey) ? selectedMonthKey || '' : ''}
+            onChange={e => {
+              const month = olderMonths.find(m => m.key === e.target.value);
+              if (month) handleMonthClick(month);
+            }}
+            className={`${pillBase} ${
+              olderMonths.some(m => m.key === selectedMonthKey)
+                ? 'bg-cyan-600 text-white border-cyan-600'
+                : darkMode ? 'bg-slate-700/50 text-slate-400 border-slate-600' : 'bg-slate-100 text-slate-500 border-slate-300'
+            } border cursor-pointer`}
+          >
+            <option value="">Older months...</option>
+            {olderMonths.map(m => (
+              <option key={m.key} value={m.key}>{m.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {/* Separator */}
-      <div className={`w-px h-7 ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`} />
-
-      {/* Surah */}
-      <div className="flex items-center gap-2">
-        <span className={`text-[11px] font-semibold uppercase tracking-wide ${textMuted}`}>Surah</span>
+      {/* Row 2: Surah + Juz + Clear */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className={`text-[11px] font-semibold uppercase tracking-wide w-12 ${textMuted}`}>Surah</span>
         <select
           value={filters.surahFrom ?? ''}
           onChange={e => {
@@ -106,32 +157,28 @@ export default function ReportFilterBar({ filters, onFiltersChange, darkMode }: 
             <option key={n} value={n}>{n} &middot; {surahNames[n]}</option>
           ))}
         </select>
-      </div>
 
-      {/* Separator */}
-      <div className={`w-px h-7 ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`} />
+        <div className={`w-px h-5 ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`} />
 
-      {/* Juz */}
-      <div className="flex items-center gap-2">
         <span className={`text-[11px] font-semibold uppercase tracking-wide ${textMuted}`}>Juz</span>
         <select
           value={filters.juz ?? ''}
           onChange={e => handleJuzChange(e.target.value ? Number(e.target.value) : null)}
-          className={`px-2.5 py-1 rounded-md border text-xs min-w-[100px] ${inputBg}`}
+          className={`px-2.5 py-1 rounded-md border text-xs min-w-[80px] ${inputBg}`}
         >
-          <option value="">All Juz</option>
+          <option value="">All</option>
           {Array.from({ length: 30 }, (_, i) => i + 1).map(n => (
             <option key={n} value={n}>Juz {n}</option>
           ))}
         </select>
-      </div>
 
-      <button
-        onClick={clearAllFilters}
-        className={`text-xs ml-auto ${textMuted} hover:underline`}
-      >
-        Clear all filters
-      </button>
+        <button
+          onClick={clearAllFilters}
+          className={`text-xs ml-auto ${textMuted} hover:underline`}
+        >
+          Clear all
+        </button>
+      </div>
     </div>
   );
 }

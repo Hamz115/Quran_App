@@ -10,3 +10,4 @@ PyJWT
 python-dotenv
 fonttools
 brotli
+playwright
