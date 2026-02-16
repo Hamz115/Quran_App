@@ -50,3 +50,9 @@ tmpclaude-*
 
 # Screenshots (agent-browser output)
 screenshots/
+
+# Claude Code
+.claude/
+
+# Playwright CLI snapshots
+.playwright-cli/
