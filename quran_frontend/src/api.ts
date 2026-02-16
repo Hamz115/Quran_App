@@ -28,6 +28,7 @@ export {
   removeMistake,
   getStats,
   getSuggestedPortions,
+  getStudentReport,
 } from './lib/supabase-api';
 
 export type {

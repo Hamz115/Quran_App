@@ -323,7 +323,7 @@ export default function TeacherDashboard() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/teacher/students/${student.id}/report`);
+                      navigate(`/teacher/classes?report=${student.id}`);
                     }}
                     className="text-xs text-cyan-500 hover:text-cyan-400 font-medium"
                   >

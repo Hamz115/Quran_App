@@ -5,6 +5,7 @@ import { getClasses, getMyStudents, createClass, deleteClass, getSurahs, updateC
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
 import { surahNames } from '../lib/quran-utils';
+import { ReportPanel } from '../components/teacher-classes';
 
 interface SurahInfo {
   number: number;
@@ -75,9 +76,16 @@ export default function TeacherClasses() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [selectedStudentFilter, setSelectedStudentFilter] = useState<string | null>(null);
+  const [selectedReportStudentId, setSelectedReportStudentId] = useState<string | null>(null);
 
-  // Auto-open modal if ?new=1 is in URL, and pre-select student if ?student=ID
+  // Auto-open report panel if ?report=ID, or modal if ?new=1
   useEffect(() => {
+    const reportStudentId = searchParams.get('report');
+    if (reportStudentId) {
+      setSelectedReportStudentId(reportStudentId);
+      setSearchParams({});
+    }
+
     if (searchParams.get('new') === '1') {
       setShowNewClassModal(true);
 
@@ -982,7 +990,7 @@ export default function TeacherClasses() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/teacher/students/${student.id}/report`);
+                                      setSelectedReportStudentId(student.id);
                                     }}
                                     className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
                                       darkMode
@@ -1587,6 +1595,14 @@ export default function TeacherClasses() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedReportStudentId && (
+        <ReportPanel
+          key={selectedReportStudentId}
+          studentId={selectedReportStudentId}
+          onClose={() => setSelectedReportStudentId(null)}
+        />
       )}
     </div>
   );
