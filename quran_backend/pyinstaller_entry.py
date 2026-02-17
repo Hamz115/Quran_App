@@ -14,17 +14,27 @@ def watch_parent():
     import ctypes
 
     parent_pid = os.getppid()
+    if parent_pid <= 0:
+        return  # No valid parent PID, skip watcher
+
     kernel32 = ctypes.windll.kernel32
+    # PROCESS_QUERY_LIMITED_INFORMATION (0x1000) — least-privilege access
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+    # Verify we can actually open the parent before starting the watcher
+    test_handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, parent_pid)
+    if not test_handle:
+        return  # Can't access parent process, skip watcher (Tauri handles cleanup)
+    kernel32.CloseHandle(test_handle)
 
     def _watch():
         while True:
-            # On Windows, open the process handle to check if it's still alive
-            handle = kernel32.OpenProcess(0x100000, False, parent_pid)  # SYNCHRONIZE
+            time.sleep(3)
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, parent_pid)
             if handle:
                 kernel32.CloseHandle(handle)
             else:
                 os._exit(0)  # Parent died, exit immediately
-            time.sleep(2)
 
     threading.Thread(target=_watch, daemon=True).start()
 
