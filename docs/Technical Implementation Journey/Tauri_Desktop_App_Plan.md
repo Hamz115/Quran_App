@@ -621,12 +621,12 @@ If the frontend calls Supabase directly (not just via the FastAPI backend), add 
 - [x] Test the exe standalone: run it, hit `http://localhost:8000/docs` → HTTP 200
 - [x] Rename exe with target triple, place in `src-tauri/binaries/`
 
-### Phase 3: Sidecar Integration
-- [ ] Write `src-tauri/src/lib.rs` (spawn sidecar on setup, kill on close)
-- [ ] Add `tauri-plugin-shell` to `Cargo.toml`
-- [ ] Add sidecar permissions to `capabilities/default.json`
-- [ ] Test: `npx tauri dev` (with sidecar running alongside) — full app works in native window
-- [ ] Handle the orphan process issue (parent-watcher or `--onedir`)
+### Phase 3: Sidecar Integration ✅ (2026-02-17)
+- [x] Write `src-tauri/src/lib.rs` (spawn sidecar on setup, kill on close)
+- [x] Add `tauri-plugin-shell` to `Cargo.toml` (done in Phase 1)
+- [x] Add sidecar permissions to `capabilities/default.json` (done in Phase 1)
+- [x] Test: `npx tauri dev` — full app works in native window with sidecar
+- [x] Handle the orphan process issue (parent-watcher via `kernel32.OpenProcess` in entrypoint)
 
 ### Phase 4: Resource Bundling & Polish
 - [ ] Copy `quran.db` + `quran-pages/` to `src-tauri/resources/`

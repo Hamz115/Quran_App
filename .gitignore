@@ -60,4 +60,5 @@ screenshots/
 # Tauri
 quran_frontend/src-tauri/target/
 quran_frontend/src-tauri/binaries/*.exe
+quran_frontend/src-tauri/quran-backend-*.exe
 quran_frontend/src-tauri/gen/
