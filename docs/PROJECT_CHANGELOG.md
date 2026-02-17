@@ -1359,6 +1359,233 @@ Redesigned the Student Report from a simple stacked layout into a comprehensive 
 
 ---
 
+## Phase 16.2: Classes Revamp — Inline Report Dashboard
+
+**Status:** DONE
+**Date:** 16 February 2026
+
+### Overview
+
+Decomposed the standalone `StudentReport` page (1066 lines) into 9 reusable components, inlined them as the primary content of `TeacherClasses`, redesigned the export modal, and moved PDF generation from client-side html2pdf.js to a backend Playwright endpoint.
+
+### Architecture Change
+
+The Classes page was fundamentally restructured:
+- **Before:** Classes page showed class cards with month tabs. A separate `/teacher/students/:id/report` page showed student reports.
+- **After:** Classes page IS the report. Student pills at top select a student → report loads inline as the main content. Class cards, month tabs, and the standalone report route were removed.
+
+Architecture went through 3 iterations: slide-out panel overlay → view replacement with back button → inline report as primary content.
+
+### Component Decomposition
+
+The monolithic `StudentReport.tsx` was split into 9 files under `src/components/teacher-classes/`:
+
+| File | Description |
+|------|-------------|
+| `report-helpers.ts` | Pure functions: constants, badge classes, formatters, stats, filters |
+| `ReportFilterBar.tsx` | Month pills (3 recent + older dropdown), surah/juz selectors, clear-all |
+| `ReportSummaryStrip.tsx` | 5-stat horizontal bar (classes, total mistakes, unique, repeated, avg performance) |
+| `ExportModal.tsx` | Format picker (PDF/CSV/Word), section toggles, loading/error states |
+| `ReportClassesTab.tsx` | Classes table with expandable rows, clickable to navigate to class session |
+| `ReportMistakesTab.tsx` | Mistakes by surah (CSS bar chart) + repeated mistakes ranked list |
+| `ReportPerformanceTab.tsx` | Performance bar chart + stats sidebar (streaks, trend) |
+| `ReportPanel.tsx` | Orchestrator: state management, data fetching, tab switching |
+| `index.ts` | Barrel exports |
+
+### Date Filter Redesign
+
+Replaced abstract presets (1m/2m/6m/All + date pickers) with concrete **month pills**:
+- Last 3 months shown as pills (e.g., "February 2026", "January 2026", "December 2025")
+- "All" pill for unfiltered view
+- "Older months..." dropdown with 9 more months going back ~1 year
+
+### Export Modal & PDF Export
+
+**Export Modal Redesign:**
+- Wider modal (540px), bigger format buttons, bordered toggle card
+- Scrollable body with fixed header/footer
+- Loading spinner + error states during async PDF generation
+
+**PDF Export — Client-Side (html2pdf.js):**
+- Replaced jsPDF (can't handle Arabic/RTL) with html2pdf.js (HTML → canvas → PDF)
+- Styled HTML matching report mockup: gradient header, stat cards, class table, bar charts
+- Key fix: do NOT manually append container to DOM — let html2pdf manage its own container (otherwise `position:fixed` is inherited by the clone, causing blank captures)
+
+**PDF Export — Backend Playwright (final solution):**
+- Added `POST /api/export/pdf` endpoint to FastAPI
+- Accepts HTML string, generates PDF via Playwright + Edge (`channel="msedge"`)
+- Produces vector-quality PDFs with selectable text, perfect CSS gradients
+- Running header/footer on every page ("Student Progress Report" + "Page X of Y")
+- 30-second timeout, 5MB HTML limit
+- Client-side html2pdf.js kept as fallback
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `src/components/teacher-classes/report-helpers.ts` | Pure functions extracted from StudentReport |
+| `src/components/teacher-classes/ReportFilterBar.tsx` | Month pills + surah/juz filters |
+| `src/components/teacher-classes/ReportSummaryStrip.tsx` | 5-stat summary bar |
+| `src/components/teacher-classes/ExportModal.tsx` | Export dialog with loading/error states |
+| `src/components/teacher-classes/ReportClassesTab.tsx` | Classes table with expandable rows |
+| `src/components/teacher-classes/ReportMistakesTab.tsx` | Mistakes by surah + repeated list |
+| `src/components/teacher-classes/ReportPerformanceTab.tsx` | Bar chart + stats sidebar |
+| `src/components/teacher-classes/ReportPanel.tsx` | Slide-out → inline panel orchestrator |
+| `src/components/teacher-classes/index.ts` | Barrel exports |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/pages/TeacherClasses.tsx` | Removed class cards/month tabs (~400 lines), added inline ReportPanel |
+| `src/App.tsx` | Removed StudentReport import and route |
+| `src/pages/TeacherDashboard.tsx` | "View Report" → `?report=ID` query param navigation |
+| `src/api.ts` | Added `getStudentReport` re-export |
+| `src/lib/report-export.ts` | html2pdf.js rewrite + `buildReportHTML()` + `exportToPDFBackend()` |
+| `quran_backend/main.py` | Added `POST /api/export/pdf` endpoint (~70 lines) |
+| `quran_backend/requirements.txt` | Added `playwright` dependency |
+| `package.json` | Added `html2pdf.js` dependency |
+
+### Files Deleted
+
+| File | Reason |
+|------|--------|
+| `src/pages/StudentReport.tsx` | Replaced by component system in `src/components/teacher-classes/` |
+
+### Documentation
+
+- Planning doc: [`Classes_Revamp_Plan.md`](./Technical%20Implementation%20Journey/Classes_Revamp_Plan.md)
+- Agent guide: [`Classes_Revamp_Agents.md`](./Technical%20Implementation%20Journey/Classes_Revamp_Agents.md)
+- Implementation doc: [`Classes_Revamp_Implementation.md`](./Technical%20Implementation%20Journey/Classes_Revamp_Implementation.md)
+- Session logs: `2026-02-16-001` (planning + implementation), `2026-02-16-002` (architecture fix), `2026-02-16-003` (export + PDF), `2026-02-16-004` (backend Playwright PDF)
+
+---
+
+## Phase 17: Tauri Desktop App
+
+**Status:** In Progress (Phases 1-4 complete, Phase 5 pending)
+**Date:** 17-18 February 2026
+
+### Overview
+
+Wrapped the existing React/Vite frontend in a native Tauri v2 desktop app with the FastAPI backend bundled as a PyInstaller sidecar. The app launches as a native Windows window, auto-starts the backend, and kills it on close.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Tauri Shell (Rust)              │
+│  ┌───────────────────┐  ┌────────────────────┐  │
+│  │   WebView2 Window │  │  Sidecar Manager   │  │
+│  │  (React Frontend) │  │  (lifecycle ctrl)  │  │
+│  └────────┬──────────┘  └────────┬───────────┘  │
+│           │   fetch()            │  spawn/kill   │
+│           ▼                      ▼               │
+│  ┌─────────────────────────────────────────────┐ │
+│  │     FastAPI Sidecar (PyInstaller .exe)      │ │
+│  │  localhost:8000 — all existing endpoints    │ │
+│  │  ┌──────────┐ ┌─────────┐ ┌─────────────┐  │ │
+│  │  │ app.db   │ │quran.db │ │ Supabase    │  │ │
+│  │  │ (r/w)    │ │ (r/o)   │ │ sync (bg)   │  │ │
+│  │  └──────────┘ └─────────┘ └─────────────┘  │ │
+│  └─────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────┘
+```
+
+**Key:** The frontend talks to the sidecar via `fetch("http://localhost:8000/...")` — identical to how it works in development. Zero frontend API rewrites.
+
+### Phase 1: Tauri Scaffold (2026-02-17)
+
+- Installed prerequisites: Rust 1.93.1 (MSVC toolchain), Visual Studio Build Tools (C++ workload)
+- Installed npm packages: `@tauri-apps/cli`, `@tauri-apps/api`, `@tauri-apps/plugin-shell`
+- Ran `npx tauri init` inside `quran_frontend/`
+- Configured `tauri.conf.json` (window 1280x800, CSP for localhost:8000 + Supabase)
+- Configured capabilities (shell permissions for sidecar)
+- First build compiled 409 Rust crates — React frontend loaded in native window
+
+### Phase 2: PyInstaller Sidecar (2026-02-17)
+
+- Created `pyinstaller_entry.py` — entrypoint with `freeze_support()`, stdout redirect for `--noconsole` mode, parent-watcher thread
+- Created `QuranTrackBackend.spec` — hidden imports for all Python dependencies, bundles quran.db + quran-pages/ + .env
+- Modified `main.py`, `auth/routes.py`, `sync_service.py` — frozen-mode path resolution (`sys._MEIPASS` for read-only, `sys.executable.parent` for read-write)
+- Built 31MB sidecar exe, verified standalone HTTP 200
+
+### Phase 3: Sidecar Integration (2026-02-17)
+
+- Wrote `lib.rs` sidecar lifecycle: spawn on `setup()`, log stdout/stderr, kill on `CloseRequested`
+- Stored `CommandChild` handle in `Mutex<Option<CommandChild>>` state
+- Fixed Rust compiler errors: missing `use tauri::Manager`, borrow checker issue with `MutexGuard`
+- Fixed sidecar path resolution: `externalBin` must be `"quran-backend"` (no `binaries/` prefix)
+- Full integration verified: Tauri launches → sidecar starts → frontend connects → window close kills sidecar
+
+### Phase 4: Icon & Polish (2026-02-17)
+
+- Generated all app icons from `logo.png` via `npx tauri icon`
+- Fixed parent-watcher crash: `SYNCHRONIZE` (0x100000) → `PROCESS_QUERY_LIMITED_INFORMATION` (0x1000) with test-before-start pattern
+- Verified QPC fonts render correctly in WebView
+- Resources (quran.db, quran-pages/) bundled inside PyInstaller exe — Tauri's `resources/` not needed
+- Windows Defender fix: added exclusion for `src-tauri/` folder (PyInstaller exe false positive)
+
+### Key Gotchas & Fixes
+
+| Issue | Fix |
+|-------|-----|
+| `opener:default` permission not found | Removed; use flat `shell:allow-spawn/kill/open` |
+| PyInstaller `--noconsole` crashes uvicorn | Redirect stdout/stderr to `backend.log` before importing |
+| `os.kill(pid, 0)` broken on Windows | Use `kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` |
+| `externalBin: "binaries/quran-backend"` not found | Changed to `"quran-backend"` — Tauri doesn't use subdirectory prefix |
+| Parent-watcher kills sidecar immediately | SYNCHRONIZE access denied → switched to least-privilege flag |
+| Windows Defender blocks sidecar exe (code 5) | Add Defender exclusion for `src-tauri/` folder |
+| Orphaned sidecar blocks port 8000 | `taskkill /PID <pid> /F` to kill the orphan |
+| `unittest` excluded but pyparsing needs it | Removed from PyInstaller excludes |
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `quran_frontend/src-tauri/` | Entire Tauri directory (config, Rust source, capabilities, icons) |
+| `quran_backend/pyinstaller_entry.py` | PyInstaller entrypoint (freeze_support, stdout fix, parent watcher) |
+| `quran_backend/QuranTrackBackend.spec` | PyInstaller spec file (hidden imports, data, excludes) |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_frontend/package.json` | Added Tauri deps + scripts |
+| `quran_backend/main.py` | Frozen-mode path resolution (`_BASE_DIR` / `_WRITABLE_DIR`) |
+| `quran_backend/auth/routes.py` | Frozen-mode APP_DB path |
+| `quran_backend/sync_service.py` | Frozen-mode `_WRITABLE_DIR` / `_SRC_DIR` |
+| `.gitignore` | Added `src-tauri/target/`, sidecar exe, `gen/` |
+
+### Documentation
+
+- Planning doc: [`Tauri_Desktop_App_Plan.md`](./Technical%20Implementation%20Journey/Tauri_Desktop_App_Plan.md)
+- Session logs: `2026-02-17-001` (planning), `002` (Phase 1), `003` (Phase 2), `004` (Phase 3), `005` (Phase 4)
+
+### Phase 5 (Pending)
+
+- [ ] Test `tauri build` → NSIS installer
+- [ ] Test installer on clean Windows machine
+- [ ] Verify Supabase sync from installed app
+- [ ] Code-sign exe to avoid SmartScreen warnings
+
+---
+
+## Phase 17.0.1: Remove "View Report" Button from Teacher Dashboard
+
+**Status:** DONE
+**Date:** 18 February 2026
+
+Removed the "View Report" button from student cards on TeacherDashboard. The button navigated to `/teacher/classes?report=ID` which is redundant — the Classes tab already shows the full report inline for the selected student (added in Phase 16.2).
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/pages/TeacherDashboard.tsx` | Removed "View Report" button from student cards (kept "Remove" button) |
+
+---
+
 ### Documentation
 
 All implementation details are in:
@@ -1395,6 +1622,12 @@ python main.py
 cd quran_frontend
 npm install
 npm run dev
+```
+
+**Desktop (Tauri):**
+```bash
+cd quran_frontend
+npm run tauri:dev    # Launches native window + sidecar backend
 ```
 
 **Mobile:**

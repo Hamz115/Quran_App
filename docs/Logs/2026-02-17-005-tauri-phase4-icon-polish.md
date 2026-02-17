@@ -35,7 +35,9 @@ Generated all required Tauri icon sizes from the existing `logo.png` using `npx 
 
 1. **Sidecar terminates immediately after spawn**: Parent-watcher's `kernel32.OpenProcess(SYNCHRONIZE, ...)` returned 0 (access denied) when the sidecar was spawned by Tauri. The watcher interpreted this as "parent is dead" and called `os._exit(0)`. Fixed by using `PROCESS_QUERY_LIMITED_INFORMATION` (0x1000) which requires less privilege.
 
-2. **Windows Defender PermissionDenied (code 5)**: `tauri build` fails with `PermissionDenied` when trying to access the sidecar exe in `src-tauri/`. This is a known issue with PyInstaller-generated executables triggering Windows Defender real-time protection. File permissions are fine (`icacls` shows full control). **Workaround:** Add a Windows Defender exclusion for the `src-tauri/` folder. This does not affect `tauri dev` in debug mode.
+2. **Windows Defender PermissionDenied (code 5)**: `tauri dev` and `tauri build` fail with `PermissionDenied` (code 5) when tauri-build tries to `fs::remove_file()` the old sidecar copy in `target/debug/`. Root cause: Windows Defender real-time protection locks PyInstaller-generated executables. File permissions are fine (`icacls` shows full control). **Fix:** Add a Windows Defender exclusion for the `src-tauri/` folder, then delete the locked exe in `target/debug/` manually.
+
+3. **Orphaned sidecar blocking port 8000**: After a failed `tauri dev` run, the sidecar exe remained running as an orphan process (PID 38772) holding port 8000. Subsequent `tauri dev` runs spawned a new sidecar that crashed with `[Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000)`. **Fix:** `taskkill /PID <pid> /F` to kill the orphan, then re-run.
 
 ## Files Changed
 
@@ -43,6 +45,7 @@ Generated all required Tauri icon sizes from the existing `logo.png` using `npx 
 |------|--------|-------------|
 | `quran_backend/pyinstaller_entry.py` | Modified | Parent-watcher: SYNCHRONIZE → PROCESS_QUERY_LIMITED_INFORMATION, added test-before-start |
 | `quran_frontend/src-tauri/icons/` | Regenerated | All icon sizes from logo.png via `npx tauri icon` |
+| `quran_frontend/src/pages/TeacherDashboard.tsx` | Modified | Removed "View Report" button from student cards (redundant with Classes tab) |
 | `docs/Logs/2026-02-17-005-tauri-phase4-icon-polish.md` | Created | This session log |
 
 ## Tests Run
@@ -52,14 +55,15 @@ Generated all required Tauri icon sizes from the existing `logo.png` using `npx 
 | `npx tauri icon` generates all sizes | Pass |
 | `icacls` on sidecar exe shows full permissions | Pass (SYSTEM, Admins, hamza all have F) |
 | QPC fonts render in Tauri WebView | Pass (user confirmed) |
-| `tauri dev` with sidecar | Blocked by Defender on some runs |
-| `tauri build` → NSIS installer | Blocked by Windows Defender (PermissionDenied code 5) |
+| `tauri dev` with sidecar | Pass (after Defender exclusion + killing orphan) |
+| `tauri build` → NSIS installer | Not attempted yet |
+| QuranTrack icon in title bar | Pass (user confirmed) |
 
 ## Next Steps
 
-- [ ] Add Windows Defender exclusion for `src-tauri/` folder
-- [ ] Verify sidecar stays alive with the fixed parent-watcher in `tauri dev`
-- [ ] Verify QuranTrack icon appears in title bar and taskbar
+- [x] Add Windows Defender exclusion for `src-tauri/` folder
+- [x] Verify sidecar stays alive with the fixed parent-watcher in `tauri dev`
+- [x] Verify QuranTrack icon appears in title bar and taskbar
 - [ ] Phase 5: Test `tauri build` → NSIS installer on clean machine
 - [ ] Phase 5: Verify Supabase sync from installed app
 
