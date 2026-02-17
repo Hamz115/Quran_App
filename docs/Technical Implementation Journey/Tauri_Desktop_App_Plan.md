@@ -628,12 +628,12 @@ If the frontend calls Supabase directly (not just via the FastAPI backend), add 
 - [x] Test: `npx tauri dev` — full app works in native window with sidecar
 - [x] Handle the orphan process issue (parent-watcher via `kernel32.OpenProcess` in entrypoint)
 
-### Phase 4: Resource Bundling & Polish
-- [ ] Copy `quran.db` + `quran-pages/` to `src-tauri/resources/`
-- [ ] Pass resource paths to sidecar via command-line args (or env vars)
-- [ ] Verify QPC fonts load correctly in the WebView
-- [ ] Add app icon (`.ico` for Windows)
-- [ ] Test full build: `npx tauri build` → install → run
+### Phase 4: Resource Bundling & Polish ✅ (2026-02-17)
+- [x] ~~Copy `quran.db` + `quran-pages/` to `src-tauri/resources/`~~ — Not needed, PyInstaller bundles them in the exe via `sys._MEIPASS`
+- [x] ~~Pass resource paths to sidecar via command-line args~~ — Not needed, paths resolved internally
+- [x] Verify QPC fonts load correctly in the WebView
+- [x] Add app icon (`.ico` for Windows) — generated all sizes via `npx tauri icon`
+- [ ] Test full build: `npx tauri build` → install → run (blocked by Windows Defender, see notes)
 
 ### Phase 5: Distribution
 - [ ] Test the NSIS installer on a clean Windows machine
