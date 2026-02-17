@@ -605,13 +605,13 @@ If the frontend calls Supabase directly (not just via the FastAPI backend), add 
 
 ## 8. Implementation Phases
 
-### Phase 1: Prerequisites & Tauri Scaffold
-- [ ] Install Rust (MSVC toolchain) + Visual Studio Build Tools
-- [ ] Run `npm install @tauri-apps/cli @tauri-apps/api @tauri-apps/plugin-shell`
-- [ ] Run `npx tauri init` inside `quran_frontend/`
-- [ ] Configure `tauri.conf.json` (window, CSP, bundle)
-- [ ] Configure `capabilities/default.json` (permissions)
-- [ ] Test: `npx tauri dev` shows the frontend in a native window
+### Phase 1: Prerequisites & Tauri Scaffold ✅ (2026-02-17)
+- [x] Install Rust (MSVC toolchain) + Visual Studio Build Tools
+- [x] Run `npm install @tauri-apps/cli @tauri-apps/api @tauri-apps/plugin-shell`
+- [x] Run `npx tauri init` inside `quran_frontend/`
+- [x] Configure `tauri.conf.json` (window, CSP, bundle)
+- [x] Configure `capabilities/default.json` (permissions)
+- [x] Test: `npx tauri dev` shows the frontend in a native window
 
 ### Phase 2: PyInstaller Sidecar
 - [ ] Create `quran_backend/pyinstaller_entry.py` (entrypoint with stdout fix + freeze_support)
@@ -647,12 +647,12 @@ If the frontend calls Supabase directly (not just via the FastAPI backend), add 
 
 | File | Change |
 |---|---|
-| `quran_frontend/package.json` | Add `@tauri-apps/cli`, `@tauri-apps/api`, `@tauri-apps/plugin-shell`, new scripts |
-| `quran_frontend/src-tauri/` (NEW) | Entire Tauri directory — `tauri.conf.json`, Rust code, capabilities, binaries, resources, icons |
+| `quran_frontend/package.json` | ✅ Added `@tauri-apps/cli`, `@tauri-apps/api`, `@tauri-apps/plugin-shell`, new scripts |
+| `quran_frontend/src-tauri/` (NEW) | ✅ Entire Tauri directory — `tauri.conf.json`, Rust code, capabilities, binaries, resources, icons |
 | `quran_backend/main.py` | Path resolution: `sys._MEIPASS` for frozen mode (lines 78-79 + any other path refs) |
 | `quran_backend/pyinstaller_entry.py` (NEW) | PyInstaller entrypoint with stdout fix + freeze_support |
 | `quran_backend/QuranTrackBackend.spec` (NEW) | PyInstaller spec file |
-| `.gitignore` | Add `src-tauri/target/`, `src-tauri/binaries/*.exe`, `dist/` |
+| `.gitignore` | ✅ Added `src-tauri/target/`, `src-tauri/binaries/*.exe`, `src-tauri/gen/` |
 
 **Files that do NOT change:**
 - All React components, pages, contexts
