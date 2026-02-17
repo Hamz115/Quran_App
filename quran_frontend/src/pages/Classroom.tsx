@@ -777,39 +777,44 @@ export default function Classroom() {
           return (
             <div className="flex items-center gap-2">
               <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Performance:</span>
-              <select
-                value={studentPerf || ''}
-                onChange={async (e) => {
-                  setPerformanceSaving(true);
-                  try {
-                    await updateStudentPerformance(classData.id, selectedStudentId, e.target.value);
-                    setClassData({
-                      ...classData,
-                      students: classData.students?.map(s =>
-                        s.id === selectedStudentId ? { ...s, performance: e.target.value || undefined } : s
-                      )
-                    });
-                  } catch (err) {
-                    console.error('Failed to update performance:', err);
-                  } finally {
-                    setPerformanceSaving(false);
-                  }
-                }}
-                disabled={performanceSaving}
-                className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium ${
-                  studentPerf === 'Excellent' ? darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
-                  : studentPerf === 'Very Good' ? darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-300'
-                  : studentPerf === 'Good' ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
-                  : studentPerf === 'Needs Work' ? darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-300'
-                  : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
-                }`}
-              >
-                <option value="" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Not rated</option>
-                <option value="Excellent" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Excellent</option>
-                <option value="Very Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Very Good</option>
-                <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
-                <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={studentPerf || ''}
+                  onChange={async (e) => {
+                    setPerformanceSaving(true);
+                    try {
+                      await updateStudentPerformance(classData.id, selectedStudentId, e.target.value);
+                      setClassData({
+                        ...classData,
+                        students: classData.students?.map(s =>
+                          s.id === selectedStudentId ? { ...s, performance: e.target.value || undefined } : s
+                        )
+                      });
+                    } catch (err) {
+                      console.error('Failed to update performance:', err);
+                    } finally {
+                      setPerformanceSaving(false);
+                    }
+                  }}
+                  disabled={performanceSaving}
+                  className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${
+                    studentPerf === 'Excellent' ? darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                    : studentPerf === 'Very Good' ? darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-300'
+                    : studentPerf === 'Good' ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
+                    : studentPerf === 'Needs Work' ? darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-300'
+                    : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
+                  }`}
+                >
+                  <option value="" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Not rated</option>
+                  <option value="Excellent" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Excellent</option>
+                  <option value="Very Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Very Good</option>
+                  <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
+                  <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
+                </select>
+                <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           );
         })()}
