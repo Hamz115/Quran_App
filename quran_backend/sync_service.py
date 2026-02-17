@@ -16,20 +16,29 @@ Tables synced:
 - mistakes
 """
 
+import sys
 import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+# --- Path resolution for PyInstaller frozen mode ---
+if getattr(sys, 'frozen', False):
+    _WRITABLE_DIR = Path(sys.executable).parent
+    _SRC_DIR = Path(sys._MEIPASS)
+else:
+    _WRITABLE_DIR = Path(__file__).parent
+    _SRC_DIR = Path(__file__).parent
+
 # Load environment variables from .env file
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(_SRC_DIR / ".env")
 
 from supabase import create_client, Client
 
-# Database paths
-APP_DB = Path(__file__).parent / "app.db"
+# Database paths — read-write, lives next to exe when frozen
+APP_DB = _WRITABLE_DIR / "app.db"
 
 # Supabase client (initialized lazily)
 _supabase_client: Optional[Client] = None

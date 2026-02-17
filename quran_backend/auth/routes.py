@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
+import sys
 import sqlite3
 from pathlib import Path
 from datetime import datetime
@@ -21,8 +22,11 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 students_router = APIRouter(prefix="/api/students", tags=["Student Management"])
 teachers_router = APIRouter(prefix="/api/teachers", tags=["Teacher Management"])
 
-# Database path
-APP_DB = Path(__file__).parent.parent / "app.db"
+# Database path — read-write, lives next to exe when frozen
+if getattr(sys, 'frozen', False):
+    APP_DB = Path(sys.executable).parent / "app.db"
+else:
+    APP_DB = Path(__file__).parent.parent / "app.db"
 
 
 def get_db():

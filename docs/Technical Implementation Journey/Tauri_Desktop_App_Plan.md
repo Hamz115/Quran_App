@@ -613,13 +613,13 @@ If the frontend calls Supabase directly (not just via the FastAPI backend), add 
 - [x] Configure `capabilities/default.json` (permissions)
 - [x] Test: `npx tauri dev` shows the frontend in a native window
 
-### Phase 2: PyInstaller Sidecar
-- [ ] Create `quran_backend/pyinstaller_entry.py` (entrypoint with stdout fix + freeze_support)
-- [ ] Create `quran_backend/QuranTrackBackend.spec` (spec file with all hidden imports)
-- [ ] Modify `quran_backend/main.py` path resolution (sys._MEIPASS for frozen mode)
-- [ ] Build with `pyinstaller QuranTrackBackend.spec`
-- [ ] Test the exe standalone: copy `app.db` next to it, run it, hit `http://localhost:8000/docs`
-- [ ] Rename exe with target triple, place in `src-tauri/binaries/`
+### Phase 2: PyInstaller Sidecar ✅ (2026-02-17)
+- [x] Create `quran_backend/pyinstaller_entry.py` (entrypoint with stdout fix + freeze_support)
+- [x] Create `quran_backend/QuranTrackBackend.spec` (spec file with all hidden imports)
+- [x] Modify `quran_backend/main.py` path resolution (sys._MEIPASS for frozen mode)
+- [x] Build with `pyinstaller QuranTrackBackend.spec`
+- [x] Test the exe standalone: run it, hit `http://localhost:8000/docs` → HTTP 200
+- [x] Rename exe with target triple, place in `src-tauri/binaries/`
 
 ### Phase 3: Sidecar Integration
 - [ ] Write `src-tauri/src/lib.rs` (spawn sidecar on setup, kill on close)
@@ -649,9 +649,11 @@ If the frontend calls Supabase directly (not just via the FastAPI backend), add 
 |---|---|
 | `quran_frontend/package.json` | ✅ Added `@tauri-apps/cli`, `@tauri-apps/api`, `@tauri-apps/plugin-shell`, new scripts |
 | `quran_frontend/src-tauri/` (NEW) | ✅ Entire Tauri directory — `tauri.conf.json`, Rust code, capabilities, binaries, resources, icons |
-| `quran_backend/main.py` | Path resolution: `sys._MEIPASS` for frozen mode (lines 78-79 + any other path refs) |
-| `quran_backend/pyinstaller_entry.py` (NEW) | PyInstaller entrypoint with stdout fix + freeze_support |
-| `quran_backend/QuranTrackBackend.spec` (NEW) | PyInstaller spec file |
+| `quran_backend/main.py` | ✅ Path resolution: `_BASE_DIR` / `_WRITABLE_DIR` for frozen mode |
+| `quran_backend/auth/routes.py` | ✅ APP_DB path resolution for frozen mode |
+| `quran_backend/sync_service.py` | ✅ `_WRITABLE_DIR` / `_SRC_DIR` path resolution for frozen mode |
+| `quran_backend/pyinstaller_entry.py` (NEW) | ✅ PyInstaller entrypoint with stdout fix + freeze_support |
+| `quran_backend/QuranTrackBackend.spec` (NEW) | ✅ PyInstaller spec file |
 | `.gitignore` | ✅ Added `src-tauri/target/`, `src-tauri/binaries/*.exe`, `src-tauri/gen/` |
 
 **Files that do NOT change:**

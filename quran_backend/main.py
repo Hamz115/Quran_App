@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
 import sqlite3
+import sys
 import shutil
 import os
 import jwt
@@ -12,6 +13,16 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from datetime import date, datetime
+
+# --- Path resolution for PyInstaller frozen mode ---
+# Read-only bundled assets (quran.db, quran-pages) live inside sys._MEIPASS when frozen.
+# Read-write files (app.db, Backups/) live next to the exe.
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    _BASE_DIR = Path(sys._MEIPASS)
+    _WRITABLE_DIR = Path(sys.executable).parent
+else:
+    _BASE_DIR = Path(__file__).parent
+    _WRITABLE_DIR = Path(__file__).parent
 
 # Import auth routers and dependencies
 from auth.routes import router as auth_router, students_router, teachers_router
@@ -75,8 +86,8 @@ app.add_middleware(
 )
 
 # Two separate databases
-QURAN_DB = Path(__file__).parent / "quran.db"
-APP_DB = Path(__file__).parent / "app.db"
+QURAN_DB = _BASE_DIR / "quran.db"          # Read-only (bundled)
+APP_DB = _WRITABLE_DIR / "app.db"          # Read-write (next to exe)
 
 
 def get_quran_db():
@@ -418,10 +429,10 @@ class ClassNotesUpdate(BaseModel):
 # ============ QURAN ENDPOINTS ============
 
 # Directory for QPC word data (code_v1, line_number, etc.)
-QURAN_PAGES_DIR = Path(__file__).parent / "quran-pages"
+QURAN_PAGES_DIR = _BASE_DIR / "quran-pages"      # Read-only (bundled)
 
 # Directory for QPC .ttf fonts (converted from .woff2 for Flutter)
-QPC_FONTS_DIR = Path(__file__).parent / "fonts" / "qpc"
+QPC_FONTS_DIR = _BASE_DIR / "fonts" / "qpc"      # Read-only (bundled)
 
 @app.get("/api/fonts/qpc/{page_number}")
 def get_qpc_font(page_number: int):
@@ -1898,7 +1909,7 @@ def health_check():
 
 # ============ BACKUP/RESTORE ============
 
-BACKUP_DIR = Path(__file__).parent / "Backups"
+BACKUP_DIR = _WRITABLE_DIR / "Backups"             # Read-write (next to exe)
 
 
 @app.post("/api/backup/create")
