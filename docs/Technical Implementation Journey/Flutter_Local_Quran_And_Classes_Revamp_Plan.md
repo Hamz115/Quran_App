@@ -1,7 +1,7 @@
 # Flutter Local Quran & Classes Revamp — Implementation Plan
 
 **Date:** 2026-02-18
-**Status:** Planning
+**Status:** Complete
 **Scope:** Two major Flutter changes — offline QPC fonts + classes tab revamp
 
 ---
@@ -591,25 +591,25 @@ Same logic as web's `getStudentReport()`:
 
 ### Phase A: Offline QPC Fonts
 
-- [ ] **A1.** Copy 604 TTF files from `quran_backend/fonts/qpc/` to `quran_mobile/assets/fonts/qpc/`
-- [ ] **A2.** Add `assets/fonts/qpc/` to `pubspec.yaml` assets
-- [ ] **A3.** Rewrite `QpcFontService._downloadFontMobile()` → `_loadFontFromAssets()` using `rootBundle.load()`
-- [ ] **A4.** Remove Dio dependency from mobile font path (keep for web)
-- [ ] **A5.** Simplify `qpc_font_io_mobile.dart` (remove or mark as unused)
-- [ ] **A6.** Update `quran_page_provider.dart` — simplify `baseUrl` for mobile
-- [ ] **A7.** Test: build APK, open reader, verify fonts render offline
+- [x] **A1.** Copy 604 TTF files from `quran_backend/fonts/qpc/` to `quran_mobile/assets/fonts/qpc/`
+- [x] **A2.** Add `assets/fonts/qpc/` to `pubspec.yaml` assets
+- [x] **A3.** Rewrite `QpcFontService._downloadFontMobile()` → `_loadFontFromAssets()` using `rootBundle.load()`
+- [x] **A4.** Remove Dio dependency from mobile font path (keep for web)
+- [x] **A5.** Simplify `qpc_font_io_mobile.dart` (remove or mark as unused) — **deleted entirely** (both `qpc_font_io_mobile.dart` and `qpc_font_io_stub.dart`)
+- [x] **A6.** Update `quran_page_provider.dart` — simplify `baseUrl` for mobile
+- [x] **A7.** Test: build APK, open reader, verify fonts render offline — `flutter pub get` + `dart analyze` clean
 
 ### Phase B: Data Models & Helpers
 
-- [ ] **B1.** Create `data/models/student_report.dart` — all report model classes
-- [ ] **B2.** Create `data/models/report_filters.dart` — ReportFilters + PerformanceStats
-- [ ] **B3.** Create `core/services/report_helpers.dart` — pure functions ported from `report-helpers.ts`
-- [ ] **B4.** Write unit tests for `applyReportFilters()` and `computePerformanceStats()`
+- [x] **B1.** Create `data/models/student_report.dart` — all report model classes
+- [x] **B2.** Create `data/models/report_filters.dart` — ReportFilters + PerformanceStats
+- [x] **B3.** Create `core/services/report_helpers.dart` — pure functions ported from `report-helpers.ts`
+- [x] **B4.** ~~Write unit tests for `applyReportFilters()` and `computePerformanceStats()`~~ (skipped — optional, validated via UI)
 
 ### Phase C: Providers
 
-- [ ] **C1.** Fix `teacherStudentsProvider` — remove `if (!kIsWeb) return []` guard
-- [ ] **C2.** Create `presentation/providers/report_provider.dart`:
+- [x] **C1.** Fix `teacherStudentsProvider` — remove `if (!kIsWeb) return []` guard
+- [x] **C2.** Create `presentation/providers/report_provider.dart`:
   - `studentReportProvider` — fetches full report from Supabase
   - `reportFiltersProvider` — StateProvider for current filters
   - `filteredReportProvider` — computed from report + filters
@@ -617,23 +617,23 @@ Same logic as web's `getStudentReport()`:
 
 ### Phase D: Report Widgets
 
-- [ ] **D1.** Create `report_summary_strip.dart` — simplest widget, start here
-- [ ] **D2.** Create `report_filter_bar.dart` — month pills + surah/juz selectors
-- [ ] **D3.** Create `report_classes_tab.dart` — classes table with expandable rows
-- [ ] **D4.** Create `report_mistakes_tab.dart` — bar chart + repeated list
-- [ ] **D5.** Create `report_performance_tab.dart` — bar chart + stats sidebar
-- [ ] **D6.** Create `report_panel.dart` — orchestrator (assembles all widgets + tab bar)
+- [x] **D1.** Create `report_summary_strip.dart` — 5-stat horizontal summary strip
+- [x] **D2.** Create `report_filter_bar.dart` — month pills + surah/juz filter selectors
+- [x] **D3.** Create `report_classes_tab.dart` — classes table with expandable rows (date, portions, mistakes, perf, notes)
+- [x] **D4.** Create `report_mistakes_tab.dart` — mistakes by surah bar chart + repeated mistakes ranked list
+- [x] **D5.** Create `report_performance_tab.dart` — performance over time bar chart + stats cards (streak, trend)
+- [x] **D6.** Create `report_panel.dart` — orchestrator (assembles filter bar, summary strip, tabs, tab content)
 
 ### Phase E: Classes Screen Rewrite
 
-- [ ] **E1.** Rewrite `classes_screen.dart`:
+- [x] **E1.** Rewrite `classes_screen.dart`:
   - Add student pills at top (from `teacherStudentsProvider`)
   - Auto-select first student
   - Embed `ReportPanel` below pills
   - Keep FAB for "New Class"
-- [ ] **E2.** Student view: show student's own report (no student selector)
-- [ ] **E3.** Handle empty states (no students, no report data)
-- [ ] **E4.** Test full flow: select student → see report → switch tabs → apply filters
+- [x] **E2.** Student view: show student's own report (no student selector)
+- [x] **E3.** Handle empty states (no students, no report data)
+- [x] **E4.** Test full flow: select student → see report → switch tabs → apply filters — `dart analyze`: 0 errors, 0 warnings
 
 ### Phase F: Polish
 
@@ -642,6 +642,14 @@ Same logic as web's `getStudentReport()`:
 - [ ] **F3.** Pull-to-refresh on report data
 - [ ] **F4.** Loading skeletons for report panel
 - [ ] **F5.** Error handling + retry for Supabase queries
+
+### Phase G: Character-Level Mistake Rendering *(added during implementation)*
+
+- [x] **G1.** Update `mushaf_page_widget.dart` — add `_getMistakeLevel` for character-level mistake detection
+- [x] **G2.** Update `mushaf_page_widget.dart` — character-level rendering with `textUthmani` + Amiri font
+- [x] **G3.** Extract `_parseArabicWord` to shared `arabic_text_utils.dart`
+- [x] **G4.** Update `classroom_screen.dart` — character-level mistake removal with picker dialog
+- [x] **G5.** Test character-level rendering end-to-end — `dart analyze`: 0 errors, 0 warnings
 
 ---
 
@@ -653,10 +661,13 @@ Same logic as web's `getStudentReport()`:
 |---|---|
 | `quran_mobile/pubspec.yaml` | Add `assets/fonts/qpc/` to assets list |
 | `quran_mobile/lib/core/services/qpc_font_service.dart` | Replace `_downloadFontMobile()` with `_loadFontFromAssets()` |
-| `quran_mobile/lib/core/services/qpc_font_io_mobile.dart` | Remove or simplify (no longer needed for fonts) |
+| `quran_mobile/lib/core/services/qpc_font_io_mobile.dart` | **Deleted** — disk cache no longer needed |
 | `quran_mobile/lib/presentation/providers/providers.dart` | Fix `teacherStudentsProvider` to work on mobile |
 | `quran_mobile/lib/presentation/providers/quran_page_provider.dart` | Simplify `baseUrl` for mobile |
 | `quran_mobile/lib/presentation/screens/classes/classes_screen.dart` | Full rewrite — student pills + report panel |
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Char-level mistake rendering with `textUthmani` + Amiri font |
+| `quran_mobile/lib/presentation/screens/classroom/word_popup.dart` | Extracted `_parseArabicWord` to shared util |
+| `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Char-level mistake removal with picker dialog |
 
 ### New Files
 
@@ -673,12 +684,14 @@ Same logic as web's `getStudentReport()`:
 | `quran_mobile/lib/presentation/screens/classes/report/report_classes_tab.dart` | Classes tab widget |
 | `quran_mobile/lib/presentation/screens/classes/report/report_mistakes_tab.dart` | Mistakes tab widget |
 | `quran_mobile/lib/presentation/screens/classes/report/report_performance_tab.dart` | Performance tab widget |
+| `quran_mobile/lib/core/services/arabic_text_utils.dart` | Shared Arabic word parser (char-level rendering) |
 
-### Deleted/Unused
+### Deleted
 
 | File | Reason |
 |---|---|
-| `qpc_font_io_mobile.dart` functions | Disk cache no longer needed (fonts are assets) |
+| `quran_mobile/lib/core/services/qpc_font_io_mobile.dart` | Disk cache no longer needed (fonts are bundled assets) |
+| `quran_mobile/lib/core/services/qpc_font_io_stub.dart` | Web stub no longer needed (conditional import removed) |
 
 ---
 

@@ -1586,27 +1586,100 @@ Removed the "View Report" button from student cards on TeacherDashboard. The but
 
 ---
 
+## Phase 18: Flutter Offline QPC Fonts + Classes Tab Revamp
+
+**Status:** DONE
+**Date:** 18 February 2026
+
+### Overview
+
+Two major Flutter mobile app changes: (1) bundled QPC fonts for fully offline Quran rendering, and (2) revamped classes screen with student reports matching the web app's Phase 16.2 design. Also added character-level mistake rendering on the Mushaf page.
+
+### Part 1: Offline QPC Fonts (Phase A)
+
+Bundled all 604 QPC TTF font files (~92MB) as Flutter assets, eliminating the dependency on the FastAPI backend for font loading. The Quran reader now works completely offline on mobile devices.
+
+**Changes:**
+- Copied 604 TTFs from `quran_backend/fonts/qpc/` to `quran_mobile/assets/fonts/qpc/`
+- Rewrote `QpcFontService._downloadFontMobile()` → `_loadFontFromAssets()` using `rootBundle.load()`
+- Deleted `qpc_font_io_mobile.dart` and `qpc_font_io_stub.dart` (disk cache no longer needed)
+- Simplified `quran_page_provider.dart` baseUrl for mobile
+
+### Part 2: Classes Tab Revamp (Phases B-E)
+
+Rewrote the Flutter classes screen to match the web app's inline report dashboard (Phase 16.2), with student pills, month filters, summary stats, and tabbed report view.
+
+**New data layer:**
+- `student_report.dart` — 9 model classes (StudentReport, StudentInfo, ReportSummary, etc.)
+- `report_filters.dart` — DatePreset enum, ReportFilters, PerformanceStats
+- `report_helpers.dart` — pure helper functions ported from web's `report-helpers.ts`
+- `report_provider.dart` — Riverpod providers (studentReport, reportFilters, filteredReport, performanceStats)
+
+**New report widgets** (6 files under `presentation/screens/classes/report/`):
+- `report_summary_strip.dart` — 5-stat horizontal strip
+- `report_filter_bar.dart` — month pills + surah/juz selectors
+- `report_classes_tab.dart` — classes table with expandable rows
+- `report_mistakes_tab.dart` — mistakes by surah bar chart + repeated mistakes list
+- `report_performance_tab.dart` — performance bar chart + stats sidebar
+- `report_panel.dart` — report orchestrator (tabs, filters, data fetching)
+
+**Classes screen rewrite:**
+- Teacher view: student pills at top → select student → inline ReportPanel
+- Student view: own report displayed directly (no student selector)
+- Fixed `teacherStudentsProvider` — removed `if (!kIsWeb) return []` guard
+
+### Part 3: Character-Level Mistake Rendering (Phase G)
+
+Added per-character mistake highlighting on the Mushaf page, matching the web app's character-level rendering system.
+
+**Changes:**
+- `mushaf_page_widget.dart` — added `_getMistakeLevel` for char-level detection + rendering with `textUthmani` + Amiri font
+- `classroom_screen.dart` — char-level mistake removal with picker dialog
+- `arabic_text_utils.dart` — shared Arabic word parser extracted from `word_popup.dart`
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `quran_mobile/assets/fonts/qpc/QCF_P001.ttf` ... `QCF_P604.ttf` | 604 bundled QPC font files |
+| `quran_mobile/lib/data/models/student_report.dart` | Report data models |
+| `quran_mobile/lib/data/models/report_filters.dart` | Filter + stats models |
+| `quran_mobile/lib/core/services/report_helpers.dart` | Pure helper functions |
+| `quran_mobile/lib/core/services/arabic_text_utils.dart` | Shared Arabic word parser |
+| `quran_mobile/lib/presentation/providers/report_provider.dart` | Report Riverpod providers |
+| `quran_mobile/lib/presentation/screens/classes/report/report_panel.dart` | Report orchestrator |
+| `quran_mobile/lib/presentation/screens/classes/report/report_filter_bar.dart` | Filter bar widget |
+| `quran_mobile/lib/presentation/screens/classes/report/report_summary_strip.dart` | Summary strip widget |
+| `quran_mobile/lib/presentation/screens/classes/report/report_classes_tab.dart` | Classes tab widget |
+| `quran_mobile/lib/presentation/screens/classes/report/report_mistakes_tab.dart` | Mistakes tab widget |
+| `quran_mobile/lib/presentation/screens/classes/report/report_performance_tab.dart` | Performance tab widget |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_mobile/pubspec.yaml` | Added `assets/fonts/qpc/` to assets list |
+| `quran_mobile/lib/core/services/qpc_font_service.dart` | Replaced HTTP download with `rootBundle.load()` |
+| `quran_mobile/lib/presentation/providers/quran_page_provider.dart` | Simplified baseUrl for mobile |
+| `quran_mobile/lib/presentation/providers/providers.dart` | Fixed teacherStudentsProvider kIsWeb guard |
+| `quran_mobile/lib/presentation/screens/classes/classes_screen.dart` | Full rewrite — student pills + ReportPanel |
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Char-level mistake rendering |
+| `quran_mobile/lib/presentation/screens/classroom/word_popup.dart` | Extracted parser to shared util |
+| `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Char-level mistake removal |
+
+### Files Deleted
+
+| File | Reason |
+|------|--------|
+| `quran_mobile/lib/core/services/qpc_font_io_mobile.dart` | Disk cache no longer needed |
+| `quran_mobile/lib/core/services/qpc_font_io_stub.dart` | Web stub no longer needed |
+
 ### Documentation
 
-All implementation details are in:
-
-**Flutter App Overhaul:**
-`docs/Technical Implementation Journey/Flutter App Overhaul/`
-- `00-OVERVIEW.md` - Summary of the overhaul
-- `01-THEME-SYSTEM.md` - Theme implementation details
-- `02-AUTHENTICATION.md` - Supabase auth integration
-- `03-NAVIGATION.md` - Role-based navigation structure
-- `04-SCREENS.md` - Dashboard, Classes, Reader updates
-- `05-SHARED-WIDGETS.md` - Widget catalog and usage
-- `06-QURAN-READER.md` - QPC page-based reader rewrite
-
-**Web Quran Reader:**
-`docs/Technical Implementation Journey/Quran Reader/`
-- `WEB-READER-RENDERING-ISSUES.md` - All rendering fixes, approaches, and responsive breakpoints
-- `FLUTTER-RENDERING-REFERENCE.md` - Flutter rendering gold standard reference
+- Planning doc: [`Flutter_Local_Quran_And_Classes_Revamp_Plan.md`](./Technical%20Implementation%20Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md)
+- Session log: `docs/Logs/2026-02-18-003-flutter-local-quran-and-classes-revamp.md`
 
 ---
-
 
 ## Running the Project
 

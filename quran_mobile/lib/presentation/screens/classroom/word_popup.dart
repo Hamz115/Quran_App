@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
+import '../../../core/services/arabic_text_utils.dart' as arabic_utils;
 
 class WordPopup extends StatelessWidget {
   final String word;
@@ -169,41 +170,7 @@ class WordPopup extends StatelessWidget {
     );
   }
 
-  ParsedWord _parseArabicWord(String word) {
-    final letters = <CharInfo>[];
-    final harakat = <CharInfo>[];
-
-    // Arabic harakat unicode range
-    const harakatCodes = [
-      0x064B, 0x064C, 0x064D, 0x064E, 0x064F, 0x0650, 0x0651, 0x0652,
-      0x0653, 0x0654, 0x0655, 0x0656, 0x0657, 0x0658, 0x0670,
-    ];
-
-    for (int i = 0; i < word.length; i++) {
-      final char = word[i];
-      final code = char.codeUnitAt(0);
-
-      if (harakatCodes.contains(code)) {
-        harakat.add(CharInfo(char: char, index: i));
-      } else {
-        letters.add(CharInfo(char: char, index: i));
-      }
-    }
-
-    return ParsedWord(letters: letters, harakat: harakat);
+  arabic_utils.ParsedWord _parseArabicWord(String word) {
+    return arabic_utils.parseArabicWord(word);
   }
-}
-
-class CharInfo {
-  final String char;
-  final int index;
-
-  const CharInfo({required this.char, required this.index});
-}
-
-class ParsedWord {
-  final List<CharInfo> letters;
-  final List<CharInfo> harakat;
-
-  const ParsedWord({required this.letters, required this.harakat});
 }

@@ -60,9 +60,8 @@ final surahWithAyahsProvider = FutureProvider.family<SurahWithAyahs?, int>((ref,
   return repo.getSurahWithAyahs(surahNumber);
 });
 
-// Teacher's students provider (web only — fetches from teacher_students)
+// Teacher's students provider (fetches from Supabase teacher_students table)
 final teacherStudentsProvider = FutureProvider<List<({String id, String name})>>((ref) async {
-  if (!kIsWeb) return [];
   final user = ref.read(authProvider).user;
   if (user == null) return [];
 

@@ -16,10 +16,10 @@
 
 | Agent | Name | Phases | Task File | Status |
 |---|---|---|---|---|
-| 1 | QPC Fonts | A | `docs/agents/AGENT_1_QPC_FONTS.md` | Pending |
-| 2 | Foundation | B + C, then G | `docs/agents/AGENT_2_FOUNDATION.md` | Pending |
-| 3 | UI Widgets | D + E | `docs/agents/AGENT_3_UI_WIDGETS.md` | Pending |
-| 4 | Docs | Continuous | `docs/agents/AGENT_4_DOCS.md` | Pending |
+| 1 | QPC Fonts | A | `docs/agents/AGENT_1_QPC_FONTS.md` | Complete |
+| 2 | Foundation | B + C, then G | `docs/agents/AGENT_2_FOUNDATION.md` | Complete |
+| 3 | UI Widgets | D + E | `docs/agents/AGENT_3_UI_WIDGETS.md` | Complete |
+| 4 | Docs | Continuous | `docs/agents/AGENT_4_DOCS.md` | Complete |
 
 ## Execution Graph
 

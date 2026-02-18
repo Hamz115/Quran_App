@@ -673,15 +673,104 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   void _removeMistake(QuranPageWord word, List<Mistake> mistakes) {
     final wordIndex = word.wordPosition - 1;
-    final match = mistakes.where((m) =>
+    final wordMistakes = mistakes.where((m) =>
       m.surahNumber == word.surahNum &&
       m.ayahNumber == word.ayahNum &&
-      m.wordIndex == wordIndex &&
-      m.charIndex == null
-    ).firstOrNull;
-    if (match != null) {
-      ref.read(mistakesProvider.notifier).removeMistake(match.id!);
+      m.wordIndex == wordIndex
+    ).toList();
+
+    if (wordMistakes.isEmpty) return;
+
+    // If only one mistake (whole-word or single char), remove it directly
+    if (wordMistakes.length == 1) {
+      ref.read(mistakesProvider.notifier).removeMistake(wordMistakes.first.id!);
+      return;
     }
+
+    // Multiple mistakes on this word — show a picker dialog
+    final isDarkMode = ref.read(themeProvider);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface(isDarkMode),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted(isDarkMode),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Remove Mistake',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text(isDarkMode),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // List each mistake for removal
+            ...wordMistakes.map((m) {
+              final label = m.isCharacterLevel
+                  ? 'Character: "${m.wordText}" (index ${m.charIndex})'
+                  : 'Whole word: "${m.wordText}"';
+              return ListTile(
+                leading: Icon(
+                  m.isCharacterLevel ? Icons.text_fields : Icons.select_all,
+                  color: AppColors.getMistakeColor(m.severityLevel),
+                ),
+                title: Text(
+                  label,
+                  style: TextStyle(color: AppColors.text(isDarkMode)),
+                ),
+                subtitle: Text(
+                  '${m.errorCount}x error',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary(isDarkMode)),
+                ),
+                onTap: () {
+                  ref.read(mistakesProvider.notifier).removeMistake(m.id!);
+                  Navigator.pop(ctx);
+                },
+              );
+            }),
+            const SizedBox(height: 8),
+            // Remove all option
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {
+                  for (final m in wordMistakes) {
+                    ref.read(mistakesProvider.notifier).removeMistake(m.id!);
+                  }
+                  Navigator.pop(ctx);
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error.withOpacity(0.3)),
+                ),
+                child: const Text('Remove All Mistakes on This Word'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+            ),
+            SizedBox(height: MediaQuery.of(ctx).padding.bottom),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Get all mistakes relevant to the entire assignment (across all pages).

@@ -46,7 +46,7 @@ Build the 6 Flutter report widgets and rewrite the classes screen to match the w
 
 All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
 
-- [ ] **D1.** Create `report_summary_strip.dart`
+- [x] **D1.** Create `report_summary_strip.dart`
   - Simplest widget — start here to establish patterns
   - Takes `ReportSummary` as input
   - Horizontal `Row` of 5 stat cards (use `Expanded` for equal width)
@@ -55,7 +55,7 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
   - Dark mode via `ref.watch(themeProvider)` → use `AppColors` palette
   - Match web's `ReportSummaryStrip.tsx` layout
 
-- [ ] **D2.** Create `report_filter_bar.dart`
+- [x] **D2.** Create `report_filter_bar.dart`
   - Takes `ReportFilters` + `onFiltersChange` callback
   - **Row 1: Month pills**
     - "All" pill + last 3 months (e.g. "February 2026", "January 2026", "December 2025")
@@ -70,7 +70,7 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
   - Generate month list dynamically (last 12 months from today)
   - Match web's `ReportFilterBar.tsx` logic
 
-- [ ] **D3.** Create `report_classes_tab.dart`
+- [x] **D3.** Create `report_classes_tab.dart`
   - Takes `List<StudentClass>` + `expandedClassId` + `onToggleExpand` callback
   - `ListView.builder` of class rows sorted by date (newest first)
   - Each row shows: date + day, portion tags (colored by type), mistake count (badge), performance (badge), notes (truncated)
@@ -80,7 +80,7 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
   - Performance badge colors: Excellent=green, Very Good=cyan, Good=amber, Needs Work=red
   - Match web's `ReportClassesTab.tsx` with `ClassRow` sub-component
 
-- [ ] **D4.** Create `report_mistakes_tab.dart`
+- [x] **D4.** Create `report_mistakes_tab.dart`
   - Takes `List<MistakeBySurah>` + `List<RepeatedMistake>`
   - Two sections stacked vertically (mobile-first):
   - **Section 1: Mistakes by Surah**
@@ -93,7 +93,7 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
     - Numbered list: rank circle → Arabic word (Amiri font, RTL) → surah:ayah → error count "Nx"
   - Match web's `ReportMistakesTab.tsx`
 
-- [ ] **D5.** Create `report_performance_tab.dart`
+- [x] **D5.** Create `report_performance_tab.dart`
   - Takes `List<PerformanceDataPoint>` + `PerformanceStats`
   - Two sections stacked vertically:
   - **Section 1: Bar chart — Performance Over Time**
@@ -109,7 +109,7 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
     - Trend: arrow + "Improving" / "Declining" / "Stable"
   - Match web's `ReportPerformanceTab.tsx`
 
-- [ ] **D6.** Create `report_panel.dart`
+- [x] **D6.** Create `report_panel.dart`
   - The orchestrator widget — assembles everything
   - `ConsumerStatefulWidget` (needs local state for tabs, filters, expanded class)
   - **State:**
@@ -130,7 +130,7 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
 
 ### Phase E: Classes Screen Rewrite
 
-- [ ] **E1.** Rewrite `quran_mobile/lib/presentation/screens/classes/classes_screen.dart`
+- [x] **E1.** Rewrite `quran_mobile/lib/presentation/screens/classes/classes_screen.dart`
   - **Teacher view:**
     - Header: "Classes" title
     - Student pills: horizontal scrollable list from `teacherStudentsProvider`
@@ -143,18 +143,18 @@ All widgets go in `quran_mobile/lib/presentation/screens/classes/report/`
   - Remove all the old month-grouped table code (`_buildMonthGroupedTable`, `_buildMonthSection`, `_buildTableRow`, etc.)
   - Keep the `CreateClassScreen` import and bottom sheet logic
 
-- [ ] **E2.** Handle empty states
+- [x] **E2.** Handle empty states
   - No students added yet → "No students added yet" message with guidance
   - Student selected but no report data → "No classes found" within ReportPanel
   - Loading states for both student list and report data
 
-- [ ] **E3.** Handle student pill selection
+- [x] **E3.** Handle student pill selection
   - Tap a pill → update `selectedStudentId` → ReportPanel rebuilds with new data
   - Active pill styling: cyan/blue background, white text
   - Inactive: slate background, slate text
   - Smooth transition when switching students
 
-- [ ] **E4.** Verify full flow works
+- [x] **E4.** Verify full flow works
   - Select student → report loads → switch tabs → apply month filter → apply surah filter → clear filters
   - Expand a class row → see class-level mistakes
   - Dark mode toggle → all widgets update colors

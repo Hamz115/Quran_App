@@ -58,7 +58,6 @@ Quran_App/
 │   │   │   ├── Classes.tsx             # Legacy classes page
 │   │   │   ├── Classroom.tsx           # Active class session (QPC reader + mistakes)
 │   │   │   ├── QuranReader.tsx         # Standalone Quran reader (read-only)
-│   │   │   ├── StudentReport.tsx      # Individual student progress report
 │   │   │   └── Settings.tsx            # Profile update, password change
 │   │   │
 │   │   ├── components/
@@ -97,6 +96,7 @@ Quran_App/
 │   └── public/fonts/qpc/              # 604 QPC font files (one per Quran page)
 │
 ├── quran_mobile/                       # ── Flutter Mobile App ───────────────
+│   ├── assets/fonts/qpc/              # 604 QPC TTF font files (bundled, fully offline)
 │   ├── lib/
 │   │   ├── main.dart                   # App entry point + Supabase init
 │   │   │
@@ -110,17 +110,33 @@ Quran_App/
 │   │   │   ├── network/               # Dio HTTP client + connectivity checker
 │   │   │   ├── database/              # Local SQLite setup
 │   │   │   ├── sync/                  # Offline sync service
-│   │   │   └── services/             # QPC font loading/caching, Quran page data loader
+│   │   │   └── services/             # QPC font loading (assets), Quran page data loader,
+│   │   │       │                      #   report helpers, Arabic text utils
+│   │   │       ├── qpc_font_service.dart    # Loads QPC fonts from bundled assets (mobile) or HTTP (web)
+│   │   │       ├── report_helpers.dart      # Pure functions: filtering, stats, badge colors, formatting
+│   │   │       └── arabic_text_utils.dart   # Shared Arabic word parser (char-level rendering)
 │   │   │
 │   │   ├── data/
 │   │   │   ├── quran_data.dart         # Static Quran metadata (604 pages, 114 surahs)
 │   │   │   ├── models/               # Data models (User, Class, Mistake, Assignment, Quran)
+│   │   │   │   ├── student_report.dart    # Report data models (StudentReport, StudentInfo, etc.)
+│   │   │   │   └── report_filters.dart    # Filter + stats models (ReportFilters, PerformanceStats)
 │   │   │   └── repositories/         # CRUD operations (classes, mistakes, quran)
 │   │   │
 │   │   └── presentation/
-│   │       ├── providers/             # Riverpod state (auth, theme, quran page)
+│   │       ├── providers/             # Riverpod state (auth, theme, quran page, report)
+│   │       │   └── report_provider.dart   # Student report + filter + computed providers
 │   │       ├── screens/              # All screens: auth/, dashboard/, classes/,
-│   │       │                          #   classroom/ (with word_popup), reader/, settings/
+│   │       │   │                      #   classroom/ (with word_popup), reader/, settings/
+│   │       │   └── classes/
+│   │       │       ├── classes_screen.dart     # Student pills + ReportPanel (teacher); own report (student)
+│   │       │       └── report/                # Report widgets (mirrors web Phase 16.2)
+│   │       │           ├── report_panel.dart          # Report orchestrator (tabs, state, data fetch)
+│   │       │           ├── report_filter_bar.dart     # Month pills, surah/juz selectors
+│   │       │           ├── report_summary_strip.dart  # 5-stat horizontal strip
+│   │       │           ├── report_classes_tab.dart    # Classes table with expandable rows
+│   │       │           ├── report_mistakes_tab.dart   # Mistakes by surah + repeated list
+│   │       │           └── report_performance_tab.dart # Bar chart + stats sidebar
 │   │       └── widgets/              # Reusable: section_badge, glassmorphic_card,
 │   │                                  #   surah_header, bismillah, mushaf_page, common/
 │   │
@@ -138,7 +154,13 @@ Quran_App/
     │   ├── 2026-02-16-001-classes-revamp-*.md  # Planning + implementation
     │   ├── 2026-02-16-002-classes-revamp-architecture-fix.md
     │   ├── 2026-02-16-003-export-modal-and-pdf-rewrite.md
-    │   └── 2026-02-16-004-backend-pdf-playwright.md
+    │   ├── 2026-02-16-004-backend-pdf-playwright.md
+    │   ├── 2026-02-17-001-tauri-desktop-app-planning.md
+    │   ├── 2026-02-17-002 through 005-tauri-phases.md  # Phases 1-4
+    │   ├── 2026-02-18-001-ux-polish-login.md
+    │   ├── 2026-02-18-002-responsive-fixes.md
+    │   ├── 2026-02-18-003-flutter-local-quran-and-classes-revamp.md
+    │   └── 2026-02-18-003-team-lead-log.md
     ├── Mockups/                        # HTML/PDF report mockups
     ├── Architecture/                   # System design docs
     ├── Technical Implementation Journey/
@@ -153,6 +175,8 @@ Quran_App/
     │   ├── Settings_Password_Reset.md
     │   ├── Auth_Navigation_Fixes.md
     │   ├── Student_Reports.md          # Student reports (data, export, UI)
+    │   ├── Tauri_Desktop_App_Plan.md   # Tauri desktop app planning doc
+    │   ├── Flutter_Local_Quran_And_Classes_Revamp_Plan.md  # Flutter QPC fonts + classes revamp plan
     │   ├── Supabase Implementation/    # Schema, RLS policies, frontend integration
     │   ├── Quran Reader/               # Web & Flutter rendering docs
     │   └── Flutter App Overhaul/       # Mobile UI overhaul (6 docs)

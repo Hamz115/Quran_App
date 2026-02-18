@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_colors.dart';
 import '../../core/services/qpc_font_service.dart';
+import '../../core/services/arabic_text_utils.dart';
 import '../../data/models/quran_page_data.dart';
 import '../../data/models/quran_page_word.dart';
 import '../../data/models/mistake.dart';
@@ -9,6 +11,7 @@ import 'bismillah_widget.dart';
 
 /// Renders a single Mushaf page with QPC glyphs.
 /// Displays lines distributed evenly across an aspect ratio matching the printed Mushaf.
+/// Supports character-level mistake rendering using textUthmani + Amiri font.
 class MushafPageWidget extends StatelessWidget {
   final int pageNumber;
   final QuranPageData pageData;
@@ -110,8 +113,28 @@ class MushafPageWidget extends StatelessWidget {
     }
 
     // Check for mistakes on this word
-    final mistakeLevel = _getMistakeLevel(word);
+    final wordMistakes = _getWordMistakes(word);
+    final wholeWordMistake = wordMistakes.where((m) => !m.isCharacterLevel).firstOrNull;
+    final charMistakes = wordMistakes.where((m) => m.isCharacterLevel).toList();
 
+    // If there's a whole-word mistake, use the standard QPC glyph rendering with full highlight
+    // (whole-word takes precedence over character-level)
+    if (wholeWordMistake != null) {
+      return _buildQpcWord(word, fontFamily, wholeWordMistake.severityLevel);
+    }
+
+    // If there are ONLY character-level mistakes, render with textUthmani (Amiri font)
+    // and color individual characters
+    if (charMistakes.isNotEmpty) {
+      return _buildCharLevelWord(word, charMistakes);
+    }
+
+    // No mistakes — standard QPC rendering
+    return _buildQpcWord(word, fontFamily, 0);
+  }
+
+  /// Standard QPC glyph rendering (used for no-mistake and whole-word-mistake cases).
+  Widget _buildQpcWord(QuranPageWord word, String fontFamily, int mistakeLevel) {
     // Ayah end markers get distinct color
     // Always use light-mode colors — the page background is always cream
     final isEnd = word.isAyahEnd;
@@ -169,20 +192,113 @@ class MushafPageWidget extends StatelessWidget {
     return wordWidget;
   }
 
-  /// Get mistake severity for a word (0 = no mistake).
-  int _getMistakeLevel(QuranPageWord word) {
-    if (mistakes.isEmpty) return 0;
+  /// Character-level mistake rendering: uses textUthmani with Amiri font,
+  /// coloring only the specific mistaken character(s).
+  Widget _buildCharLevelWord(QuranPageWord word, List<Mistake> charMistakes) {
+    // Build a map of charIndex → mistake severity
+    final charMistakeMap = <int, int>{};
+    for (final m in charMistakes) {
+      if (m.charIndex != null) {
+        charMistakeMap[m.charIndex!] = m.severityLevel;
+      }
+    }
+
+    // Group characters: each base letter with its following harakat
+    final groups = groupArabicCharacters(word.textUthmani);
+
+    // Build TextSpan children for each group
+    final spans = <InlineSpan>[];
+    for (final group in groups) {
+      final baseMistakeLevel = charMistakeMap[group.baseIndex];
+      final harakatWithMistakes = group.harakat.where((h) => charMistakeMap.containsKey(h.index)).toList();
+
+      if (harakatWithMistakes.isNotEmpty) {
+        // Haraka has a mistake — color only the mistaken harakat
+        final children = <InlineSpan>[
+          TextSpan(text: group.base),
+        ];
+        for (final h in group.harakat) {
+          final level = charMistakeMap[h.index];
+          if (level != null) {
+            children.add(TextSpan(
+              text: h.char,
+              style: TextStyle(color: AppColors.getMistakeColor(level)),
+            ));
+          } else {
+            children.add(TextSpan(text: h.char));
+          }
+        }
+        spans.add(TextSpan(children: children));
+      } else if (baseMistakeLevel != null) {
+        // Only the base letter has a mistake — color the whole group
+        final groupText = group.base + group.harakat.map((h) => h.char).join();
+        spans.add(TextSpan(
+          text: groupText,
+          style: TextStyle(color: AppColors.getMistakeColor(baseMistakeLevel)),
+        ));
+      } else {
+        // No mistake — plain text
+        final groupText = group.base + group.harakat.map((h) => h.char).join();
+        spans.add(TextSpan(text: groupText));
+      }
+    }
+
+    // Render with Amiri font (textUthmani) at slightly smaller size (matches web's 0.85em)
+    Widget wordWidget = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.getMistakeColor(charMistakes.first.severityLevel).withOpacity(0.15),
+            AppColors.getMistakeColor(charMistakes.first.severityLevel).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(4),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.getMistakeColor(charMistakes.first.severityLevel).withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+      ),
+      child: RichText(
+        textDirection: TextDirection.rtl,
+        text: TextSpan(
+          style: GoogleFonts.amiri(
+            fontSize: 20, // ~0.85 * 24 (QPC size)
+            height: 1.8,
+            color: AppColors.lightText,
+          ),
+          children: spans,
+        ),
+      ),
+    );
+
+    if (onWordTap != null || onWordLongPress != null) {
+      wordWidget = GestureDetector(
+        onTap: onWordTap != null ? () => onWordTap!(word) : null,
+        onLongPress: onWordLongPress != null ? () => onWordLongPress!(word) : null,
+        child: wordWidget,
+      );
+    }
+
+    return wordWidget;
+  }
+
+  /// Get all mistakes for a specific word.
+  List<Mistake> _getWordMistakes(QuranPageWord word) {
+    if (mistakes.isEmpty) return [];
 
     // word_index in mistakes is 0-based; wordPosition from QPC is 1-based
     final wordIndex = word.wordPosition - 1;
 
-    for (final m in mistakes) {
-      if (m.surahNumber == word.surahNum &&
-          m.ayahNumber == word.ayahNum &&
-          m.wordIndex == wordIndex) {
-        return m.severityLevel;
-      }
-    }
-    return 0;
+    return mistakes.where((m) =>
+        m.surahNumber == word.surahNum &&
+        m.ayahNumber == word.ayahNum &&
+        m.wordIndex == wordIndex).toList();
   }
+
 }

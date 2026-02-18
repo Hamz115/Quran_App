@@ -30,49 +30,49 @@ Keep all project documentation in sync as the other 3 agents implement changes. 
 
 ### On Agent 1 (QPC Fonts) Completion
 
-- [ ] **D-A.** Update implementation plan — check off Phase A tasks (A1-A7)
+- [x] **D-A.** Update implementation plan — check off Phase A tasks (A1-A7)
   - File: `docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md`
-  - Change `- [ ]` to `- [x]` for each completed task in Phase A
+  - Change `- [x]` to `- [x]` for each completed task in Phase A
 
-- [ ] **D-B.** Update session log with Agent 1 results
+- [x] **D-B.** Update session log with Agent 1 results
   - File: `docs/Logs/2026-02-18-003-flutter-local-quran-and-classes-revamp.md`
   - Add to "Files Changed" section: list of files Agent 1 created/modified
   - Add any issues encountered or decisions made
 
 ### On Agent 2 (Foundation) Completion
 
-- [ ] **D-C.** Update implementation plan — check off Phase B + C tasks (B1-B4, C1-C2)
+- [x] **D-C.** Update implementation plan — check off Phase B + C tasks (B1-B4, C1-C2)
   - File: `docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md`
 
-- [ ] **D-D.** Update session log with Agent 2 results
+- [x] **D-D.** Update session log with Agent 2 results
   - File: `docs/Logs/2026-02-18-003-flutter-local-quran-and-classes-revamp.md`
   - Add new files created: models, helpers, providers
   - Note any deviations from the plan
 
 ### On Agent 3 (UI Widgets) Completion
 
-- [ ] **D-E.** Update implementation plan — check off Phase D + E tasks (D1-D6, E1-E4)
+- [x] **D-E.** Update implementation plan — check off Phase D + E tasks (D1-D6, E1-E4)
   - File: `docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md`
 
-- [ ] **D-F.** Update session log with Agent 3 results
+- [x] **D-F.** Update session log with Agent 3 results
   - File: `docs/Logs/2026-02-18-003-flutter-local-quran-and-classes-revamp.md`
   - Add new widget files created
   - Add classes_screen.dart rewrite summary
 
 ### On Agent 2 Phase G (Character-Level Rendering) Completion
 
-- [ ] **D-G0.** Update implementation plan — check off Phase G tasks (G1-G5)
+- [x] **D-G0.** Update implementation plan — check off Phase G tasks (G1-G5)
   - File: `docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md`
   - Phase G may not be in the original plan doc — add it if missing
 
-- [ ] **D-G0b.** Update session log with Agent 2 Phase G results
+- [x] **D-G0b.** Update session log with Agent 2 Phase G results
   - File: `docs/Logs/2026-02-18-003-flutter-local-quran-and-classes-revamp.md`
   - Add character-level rendering files modified
   - Note the `arabic_text_utils.dart` extraction
 
 ### When ALL Agents Complete (including Agent 2 Phase G)
 
-- [ ] **D-G.** Update `docs/PROJECT_CHANGELOG.md`
+- [x] **D-G.** Update `docs/PROJECT_CHANGELOG.md`
   - Add a new phase entry (Phase 18 or next available number)
   - Title: "Flutter Offline QPC Fonts + Classes Tab Revamp"
   - Summary of what changed:
@@ -84,7 +84,7 @@ Keep all project documentation in sync as the other 3 agents implement changes. 
     - Shared Arabic text parser extracted (`arabic_text_utils.dart`)
   - List key files created and modified
 
-- [ ] **D-H.** Update `CLAUDE.md` codebase map
+- [x] **D-H.** Update `CLAUDE.md` codebase map
   - Add new files to the Flutter section of the codebase tree:
     - `assets/fonts/qpc/` under quran_mobile
     - `data/models/student_report.dart`
@@ -94,11 +94,11 @@ Keep all project documentation in sync as the other 3 agents implement changes. 
     - `presentation/screens/classes/report/` (6 widgets)
   - Update the description of `classes_screen.dart` (no longer "Current flat classes table")
 
-- [ ] **D-I.** Update `AGENTS.md` to match `CLAUDE.md`
+- [x] **D-I.** Update `AGENTS.md` to match `CLAUDE.md`
   - These two files must stay identical
   - Copy the updated CLAUDE.md content to AGENTS.md
 
-- [ ] **D-J.** Final session log polish
+- [x] **D-J.** Final session log polish
   - File: `docs/Logs/2026-02-18-003-flutter-local-quran-and-classes-revamp.md`
   - Ensure "Files Changed" table is complete with ALL files from all 3 agents
   - Update the "Deliverable" section to reflect what was actually built (not just planned)

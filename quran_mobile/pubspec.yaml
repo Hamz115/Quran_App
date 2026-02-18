@@ -55,4 +55,5 @@ flutter:
     - assets/databases/
     - assets/images/
     - assets/quran-pages/
+    - assets/fonts/qpc/
     - .env

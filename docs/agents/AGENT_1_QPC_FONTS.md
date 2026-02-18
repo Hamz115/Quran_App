@@ -22,12 +22,12 @@ Eliminate the Flutter app's HTTP dependency for QPC fonts. Currently `QpcFontSer
 
 ## Tasks
 
-- [ ] **A1.** Copy 604 TTF files from `quran_backend/fonts/qpc/` to `quran_mobile/assets/fonts/qpc/`
+- [x] **A1.** Copy 604 TTF files from `quran_backend/fonts/qpc/` to `quran_mobile/assets/fonts/qpc/`
   - Files: `QCF_P001.ttf` through `QCF_P604.ttf`
   - Total: 604 files, ~92MB
   - Command: `cp -r quran_backend/fonts/qpc/ quran_mobile/assets/fonts/qpc/`
 
-- [ ] **A2.** Update `quran_mobile/pubspec.yaml` — add `assets/fonts/qpc/` to the assets list
+- [x] **A2.** Update `quran_mobile/pubspec.yaml` — add `assets/fonts/qpc/` to the assets list
   ```yaml
   flutter:
     assets:
@@ -38,7 +38,7 @@ Eliminate the Flutter app's HTTP dependency for QPC fonts. Currently `QpcFontSer
       - .env
   ```
 
-- [ ] **A3.** Rewrite `quran_mobile/lib/core/services/qpc_font_service.dart`
+- [x] **A3.** Rewrite `quran_mobile/lib/core/services/qpc_font_service.dart`
   - Replace `_downloadFontMobile()` with `_loadFontFromAssets()` that uses `rootBundle.load()`
   - Keep `_downloadFontWeb()` unchanged (web still uses HTTP)
   - The `_loadFont()` method should branch: `kIsWeb ? _downloadFontWeb() : _loadFontFromAssets()`
@@ -51,20 +51,20 @@ Eliminate the Flutter app's HTTP dependency for QPC fonts. Currently `QpcFontSer
     }
     ```
 
-- [ ] **A4.** Remove the conditional import of `qpc_font_io_mobile.dart` from `qpc_font_service.dart`
+- [x] **A4.** Remove the conditional import of `qpc_font_io_mobile.dart` from `qpc_font_service.dart`
   - The `import 'qpc_font_io_stub.dart' if (dart.library.io) 'qpc_font_io_mobile.dart'` line is no longer needed for the mobile font path
   - The `_cacheDir` field and `font_io` usage can be removed
 
-- [ ] **A5.** Simplify `quran_mobile/lib/core/services/qpc_font_io_mobile.dart`
+- [x] **A5.** Simplify `quran_mobile/lib/core/services/qpc_font_io_mobile.dart`
   - The disk cache functions (`getFontCacheDir`, `readFileIfExists`, `writeFile`) are no longer needed
   - Either delete the file or add a comment that it's unused
   - Check if anything else imports it first (grep for `qpc_font_io`)
 
-- [ ] **A6.** Update `quran_mobile/lib/presentation/providers/quran_page_provider.dart`
+- [x] **A6.** Update `quran_mobile/lib/presentation/providers/quran_page_provider.dart`
   - Simplify the `qpcFontServiceProvider` — mobile no longer needs `apiClient.baseUrl`
   - Change to: `final baseUrl = kIsWeb ? 'http://localhost:8000/api' : '';`
 
-- [ ] **A7.** Verify the build compiles
+- [x] **A7.** Verify the build compiles
   - Run `cd quran_mobile && flutter pub get`
   - Ensure no import errors or missing asset errors
 
