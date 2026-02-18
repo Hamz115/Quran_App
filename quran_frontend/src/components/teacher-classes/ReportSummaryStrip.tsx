@@ -20,13 +20,13 @@ export default function ReportSummaryStrip({ summary, darkMode }: ReportSummaryS
   ];
 
   return (
-    <div className={`flex border-b ${borderColor}`} style={{ gap: '1px', background: darkMode ? '#334155' : '#e2e8f0' }}>
+    <div className={`flex overflow-x-auto border-b ${borderColor}`} style={{ gap: '1px', background: darkMode ? '#334155' : '#e2e8f0' }}>
       {stats.map((stat, i) => (
-        <div key={i} className={`flex-1 px-5 py-3.5 text-center ${cardBg}`}>
-          <div className={`text-[22px] font-bold ${stat.color || textPrimary}`}>
+        <div key={i} className={`flex-1 min-w-[80px] px-3 sm:px-5 py-3.5 text-center ${cardBg}`}>
+          <div className={`text-lg sm:text-[22px] font-bold ${stat.color || textPrimary}`}>
             {stat.value}
           </div>
-          <div className={`text-[11px] uppercase tracking-wide mt-0.5 ${textMuted}`}>
+          <div className={`text-[10px] sm:text-[11px] uppercase tracking-wide mt-0.5 ${textMuted}`}>
             {stat.label}
           </div>
         </div>

@@ -206,6 +206,11 @@ Quran_App/
 - Never move QPC words between pages
 - Page line numbers: `l: 0-15` normal, `l: 16-18` overflow
 
+### Screenshots
+- ALL screenshots (Playwright, browser, agent-browser) go in the `screenshots/` folder at project root
+- This folder is gitignored — never commit screenshots
+- When taking screenshots with Playwright CLI, use `--filename=screenshots/name.png`
+
 ## Common Tasks
 
 ```bash

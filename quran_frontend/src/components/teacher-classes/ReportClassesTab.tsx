@@ -18,8 +18,8 @@ export default function ReportClassesTab({ classes, expandedClassId, onToggleExp
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
 
   return (
-    <div className={`rounded-xl border ${borderColor} overflow-hidden`}>
-      <table className="w-full border-collapse">
+    <div className={`rounded-xl border ${borderColor} overflow-x-auto`}>
+      <table className="w-full border-collapse min-w-[640px]">
         <thead>
           <tr className={darkMode ? 'bg-slate-900' : 'bg-slate-50'}>
             <th className={`w-7 py-2.5 px-3.5 text-left text-[11px] font-semibold uppercase tracking-wide ${textMuted} border-b ${borderColor}`} />
