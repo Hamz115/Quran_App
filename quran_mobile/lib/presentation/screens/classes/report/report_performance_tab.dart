@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../config/app_colors.dart';
+import '../../../../data/models/report_filters.dart';
 import '../../../../data/models/student_report.dart';
 import '../../../../core/services/report_helpers.dart';
 import '../../../providers/theme_provider.dart';
