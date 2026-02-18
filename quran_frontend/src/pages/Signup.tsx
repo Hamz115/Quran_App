@@ -109,7 +109,7 @@ export default function Signup() {
 
       {/* Quran Verse - Surah Al-Isra 17:9 */}
       <div className="relative z-10 w-full max-w-4xl text-center mb-6">
-        <p className={`text-xl md:text-2xl font-arabic leading-relaxed transition-colors duration-300 ${
+        <p className={`text-xl md:text-2xl font-arabic leading-loose transition-colors duration-300 ${
           darkMode ? 'text-slate-300' : 'text-slate-600'
         }`} dir="rtl">
           إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا

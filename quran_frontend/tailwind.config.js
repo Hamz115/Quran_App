@@ -5,7 +5,11 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        arabic: ['Amiri', '"Scheherazade New"', '"Amiri Quran"', 'serif'],
+      },
+    },
   },
   plugins: [],
 }
