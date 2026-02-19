@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getMyStudents, lookupStudent, addStudent, removeStudent, getClasses, type StudentListItem, type ClassData } from '../api';
+import { surahNames } from '../lib/quran-utils';
 
 interface StudentLookup {
   student_id: string;
@@ -355,6 +356,94 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Recent Classes */}
+      {classes.length > 0 && (
+        <div className={`p-6 rounded-2xl border transition-colors ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Recent Classes</h2>
+              <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Your latest teaching sessions
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/teacher/classes')}
+              className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-500'
+              }`}
+            >
+              View All →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...classes]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 4)
+              .map((cls) => {
+                const dateObj = new Date(cls.date + 'T00:00:00');
+                const dayNum = dateObj.getDate();
+                const monthStr = dateObj.toLocaleDateString('en-US', { month: 'short' });
+
+                const hifz = cls.assignments.filter(a => a.type === 'hifz');
+                const sabqi = cls.assignments.filter(a => a.type === 'sabqi');
+                const revision = cls.assignments.filter(a => a.type === 'revision');
+
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => navigate(`/classroom/${cls.id}`)}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                      darkMode
+                        ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    {/* Date badge + day */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-cyan-500">{dayNum}</div>
+                        <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{monthStr}</div>
+                      </div>
+                      <div className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{cls.day}</div>
+                    </div>
+
+                    {/* Portions */}
+                    <div className="space-y-1.5">
+                      {hifz.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-blue-400">Hifz:</span>
+                          <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {hifz.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {sabqi.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-cyan-400">Sabqi:</span>
+                          <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {sabqi.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {revision.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-slate-400">Revision:</span>
+                          <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {revision.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* Add Student Modal */}
       {showAddStudentModal && (

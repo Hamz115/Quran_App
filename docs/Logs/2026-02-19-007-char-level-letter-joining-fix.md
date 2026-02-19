@@ -31,9 +31,14 @@ The root cause was using `WidgetSpan` for letter-level mistakes in `mushaf_page_
 | `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Modified | Replaced WidgetSpan with TextSpan+backgroundColor for letter-level mistakes |
 | `docs/Logs/2026-02-19-007-char-level-letter-joining-fix.md` | Created | Session log |
 
+## Verification
+
+- Confirmed visually on Al-Mulk page — letters join beautifully now, much better than before
+- The connected Arabic forms render correctly (initial/medial/final), matching how the Quran should look
+- User confirmed they are very satisfied with the result
+
 ## Next Steps
 
-- [ ] Verify letter joining visually on the same Al-Mulk page
 - [ ] Remaining char-level gaps from 006 log: font size, vertical alignment, line spacing
 - [ ] Web: edit/delete/juz portions
 - [ ] Flutter: edit/delete/juz, smart suggestions, tab overflow
