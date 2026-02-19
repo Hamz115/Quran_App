@@ -101,8 +101,8 @@ export default function TeacherClasses() {
 
   // Default configs (used when mode is 'same' or as fallback)
   const [hifzConfig, setHifzConfig] = useState<PortionConfig>({ enabled: true, portions: [createDefaultPortion()] });
-  const [sabqiConfig, setSabqiConfig] = useState<PortionConfig>({ enabled: false, portions: [createDefaultPortion()] });
-  const [revisionConfig, setRevisionConfig] = useState<PortionConfig>({ enabled: false, portions: [createDefaultPortion()] });
+  const [sabqiConfig, setSabqiConfig] = useState<PortionConfig>({ enabled: true, portions: [createDefaultPortion()] });
+  const [revisionConfig, setRevisionConfig] = useState<PortionConfig>({ enabled: true, portions: [createDefaultPortion()] });
 
   // Per-student configs: Map of student_id -> { hifz, sabqi, revision }
   const [perStudentConfigs, setPerStudentConfigs] = useState<Record<string, {
@@ -165,8 +165,8 @@ export default function TeacherClasses() {
     setPortionMode('same');
     setActiveStudentId(null);
     setHifzConfig({ enabled: true, portions: [createDefaultPortion()] });
-    setSabqiConfig({ enabled: false, portions: [createDefaultPortion()] });
-    setRevisionConfig({ enabled: false, portions: [createDefaultPortion()] });
+    setSabqiConfig({ enabled: true, portions: [createDefaultPortion()] });
+    setRevisionConfig({ enabled: true, portions: [createDefaultPortion()] });
     setPerStudentConfigs({});
   };
 
@@ -176,8 +176,8 @@ export default function TeacherClasses() {
     selectedStudents.forEach(studentId => {
       configs[studentId] = {
         hifz: { enabled: true, portions: [createDefaultPortion()] },
-        sabqi: { enabled: false, portions: [createDefaultPortion()] },
-        revision: { enabled: false, portions: [createDefaultPortion()] },
+        sabqi: { enabled: true, portions: [createDefaultPortion()] },
+        revision: { enabled: true, portions: [createDefaultPortion()] },
       };
     });
     setPerStudentConfigs(configs);
@@ -191,8 +191,8 @@ export default function TeacherClasses() {
     if (!activeStudentId || !perStudentConfigs[activeStudentId]) {
       return {
         hifz: { enabled: true, portions: [createDefaultPortion()] },
-        sabqi: { enabled: false, portions: [createDefaultPortion()] },
-        revision: { enabled: false, portions: [createDefaultPortion()] },
+        sabqi: { enabled: true, portions: [createDefaultPortion()] },
+        revision: { enabled: true, portions: [createDefaultPortion()] },
       };
     }
     return perStudentConfigs[activeStudentId];
