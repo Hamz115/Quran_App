@@ -221,6 +221,15 @@ Quran_App/
 
 ## Important Rules
 
+### Session Logs
+- **ALWAYS create a session log** at the start of every development session in `docs/Logs/`
+- **ALWAYS update the log** as you complete work — do NOT wait until the end
+- Naming: `YYYY-MM-DD-NNN-brief-description.md` (e.g. `2026-02-19-001-web-portion-edit.md`)
+- Use the template at `docs/Logs/TEMPLATE.md` for structure
+- Include: objective, summary, work completed, issues encountered, files changed table, next steps
+- Every fix, feature, or bug encountered during the session must be logged
+- If a session is a continuation of previous work, reference the earlier log
+
 ### Git
 - **ALWAYS use `git add .`** before committing
 - Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)
