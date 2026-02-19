@@ -212,7 +212,9 @@ class MushafPageWidget extends StatelessWidget {
       color: AppColors.lightText,
     );
 
-    // Build TextSpan children for each group
+    // Build TextSpan children for each group.
+    // IMPORTANT: All groups MUST be TextSpan (not WidgetSpan) to preserve
+    // Arabic letter joining (initial/medial/final contextual forms).
     final spans = <InlineSpan>[];
     for (final group in groups) {
       final baseMistakeLevel = charMistakeMap[group.baseIndex];
@@ -236,7 +238,6 @@ class MushafPageWidget extends StatelessWidget {
                 fontSize: 26, // 1.3em matching web
                 fontWeight: FontWeight.bold,
                 shadows: [
-                  // 5-layer glow matching web's text-shadow
                   const Shadow(color: Colors.white, blurRadius: 3),
                   Shadow(color: color.withOpacity(0.8), blurRadius: 6),
                   Shadow(color: color.withOpacity(0.6), blurRadius: 10),
@@ -251,34 +252,14 @@ class MushafPageWidget extends StatelessWidget {
         }
         spans.add(TextSpan(children: children));
       } else if (baseMistakeLevel != null) {
-        // Only the base letter has a mistake — highlight just this group
-        // with gradient background + border (matching web's letter-mistake-N)
+        // Only the base letter has a mistake — use TextSpan with backgroundColor
+        // (NOT WidgetSpan — that breaks Arabic letter joining/shaping)
         final mistakeColor = AppColors.getMistakeColor(baseMistakeLevel);
         final groupText = group.base + group.harakat.map((h) => h.char).join();
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  mistakeColor.withOpacity(0.5),
-                  mistakeColor.withOpacity(0.35),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(4),
-              border: Border(
-                bottom: BorderSide(color: mistakeColor, width: 2),
-              ),
-            ),
-            child: Text(
-              groupText,
-              style: baseStyle,
-              textDirection: TextDirection.rtl,
-            ),
+        spans.add(TextSpan(
+          text: groupText,
+          style: TextStyle(
+            backgroundColor: mistakeColor.withOpacity(0.35),
           ),
         ));
       } else {
@@ -288,7 +269,8 @@ class MushafPageWidget extends StatelessWidget {
       }
     }
 
-    // Render with Amiri font — NO background on the whole word (clean, matching web)
+    // Render with Amiri font, keeping all spans in one RichText
+    // so Arabic text shaping (letter joining) works correctly.
     Widget wordWidget = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: RichText(
