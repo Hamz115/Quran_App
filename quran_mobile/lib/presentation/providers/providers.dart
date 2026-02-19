@@ -84,6 +84,8 @@ final teacherStudentsProvider = FutureProvider<List<({String id, String name})>>
 
 // Mistake IDs belonging to a specific class (via mistake_occurrences)
 final classMistakeIdsProvider = FutureProvider.family<Set<String>, String>((ref, classId) async {
+  // Watch mistakesProvider so this re-fetches whenever mistakes are added/removed
+  ref.watch(mistakesProvider);
   if (kIsWeb) {
     final supabase = Supabase.instance.client;
     final response = await supabase
