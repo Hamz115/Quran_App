@@ -570,18 +570,8 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
             .select()
             .eq('student_id', targetId);
 
-        // Group by word to count occurrences
-        final Map<String, Map<String, dynamic>> grouped = {};
-        for (final row in response as List) {
-          final key = '${row['surah_number']}-${row['ayah_number']}-${row['word_index']}';
-          if (grouped.containsKey(key)) {
-            grouped[key]!['count'] = (grouped[key]!['count'] as int) + 1;
-          } else {
-            grouped[key] = {...row, 'count': 1};
-          }
-        }
-
-        final mistakes = grouped.values.map((row) {
+        // Each row is a distinct mistake (including char-level ones)
+        final mistakes = (response as List).map((row) {
           final rawId = row['id'];
           return Mistake(
             id: rawId is int ? rawId : rawId.toString().hashCode,
@@ -590,7 +580,8 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
             ayahNumber: row['ayah_number'] ?? 0,
             wordIndex: row['word_index'] ?? 0,
             wordText: row['word_text'] ?? '',
-            errorCount: row['count'] ?? 1,
+            charIndex: row['char_index'] as int?,
+            errorCount: row['error_count'] ?? 1,
           );
         }).toList();
 
