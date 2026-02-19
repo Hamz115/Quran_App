@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
+import '../../../data/quran_data.dart' show getJuzBoundary;
+import '../../../data/models/suggested_portions.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/report_provider.dart';
@@ -30,6 +32,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     'sabqi': [PortionData(startSurah: 93, endSurah: 96)],
     'revision': [PortionData(startSurah: 97, endSurah: 114)],
   };
+
+  // Per-portion selection mode: 'surah' or 'juz'. Key = "type:index".
+  final Map<String, String> _portionModes = {};
+  // Per-portion selected juz. Key = "type:index".
+  final Map<String, int?> _portionJuz = {};
+
+  String _getPortionMode(String type, int index) =>
+      _portionModes['$type:$index'] ?? 'surah';
+
+  int? _getPortionSelectedJuz(String type, int index) =>
+      _portionJuz['$type:$index'];
 
   bool _isCreating = false;
 
@@ -105,6 +118,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     // Date selector
                     _buildDateSelector(isDarkMode),
                     const SizedBox(height: 24),
+
+                    // Smart Suggestions
+                    if (widget.studentId != null)
+                      _buildSmartSuggestions(isDarkMode),
 
                     // Sections
                     Text(
@@ -286,6 +303,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               final index = entry.key;
               final portion = entry.value;
 
+              final portionMode = _getPortionMode(type, index);
+              final selectedJuz = _getPortionSelectedJuz(type, index);
+              final isJuzMode = portionMode == 'juz';
+
               return Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 padding: const EdgeInsets.all(12),
@@ -306,7 +327,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                         const Spacer(),
                         if (portions.length > 1)
                           IconButton(
-                            onPressed: () => setState(() => portions.removeAt(index)),
+                            onPressed: () => setState(() {
+                              portions.removeAt(index);
+                              _portionModes.remove('$type:$index');
+                              _portionJuz.remove('$type:$index');
+                            }),
                             icon: const Icon(Icons.close_rounded, size: 18),
                             color: AppColors.textMuted(isDarkMode),
                             padding: EdgeInsets.zero,
@@ -315,6 +340,68 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    // Mode selector: By Surah / By Juz
+                    Row(
+                      children: [
+                        _ModeChip(
+                          label: 'By Surah',
+                          isActive: !isJuzMode,
+                          color: color,
+                          isDarkMode: isDarkMode,
+                          onTap: () => setState(() {
+                            _portionModes['$type:$index'] = 'surah';
+                          }),
+                        ),
+                        const SizedBox(width: 8),
+                        _ModeChip(
+                          label: 'By Juz',
+                          isActive: isJuzMode,
+                          color: color,
+                          isDarkMode: isDarkMode,
+                          onTap: () => setState(() {
+                            _portionModes['$type:$index'] = 'juz';
+                          }),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Juz dropdown (shown when mode == 'juz')
+                    if (isJuzMode) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(isDarkMode),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.textMuted(isDarkMode)),
+                        ),
+                        child: DropdownButton<int>(
+                          value: selectedJuz,
+                          hint: Text('Select Juz', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                          isExpanded: true,
+                          dropdownColor: AppColors.surface(isDarkMode),
+                          underline: const SizedBox(),
+                          style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+                          items: List.generate(30, (i) => DropdownMenuItem(
+                            value: i + 1,
+                            child: Text('Juz ${i + 1}'),
+                          )),
+                          onChanged: (juz) {
+                            if (juz == null) return;
+                            final boundary = getJuzBoundary(juz);
+                            if (boundary != null) {
+                              setState(() {
+                                _portionJuz['$type:$index'] = juz;
+                                portion.startSurah = boundary.startSurah;
+                                portion.endSurah = boundary.endSurah;
+                                portion.startAyah = boundary.startAyah;
+                                portion.endAyah = boundary.endAyah;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     Row(
                       children: [
                         Expanded(
@@ -322,7 +409,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'From Surah',
                             portion.startSurah,
                             surahs,
-                            (v) => setState(() {
+                            isJuzMode ? null : (v) => setState(() {
                               portion.startSurah = v;
                               portion.endSurah = v;
                             }),
@@ -335,7 +422,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'To Surah',
                             portion.endSurah,
                             surahs,
-                            (v) => setState(() => portion.endSurah = v),
+                            isJuzMode ? null : (v) => setState(() => portion.endSurah = v),
                             isDarkMode,
                           ),
                         ),
@@ -348,7 +435,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           child: _buildAyahInput(
                             'From Ayah',
                             portion.startAyah,
-                            (v) => setState(() => portion.startAyah = v),
+                            isJuzMode ? null : (v) => setState(() => portion.startAyah = v),
                             isDarkMode,
                           ),
                         ),
@@ -357,7 +444,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           child: _buildAyahInput(
                             'To Ayah',
                             portion.endAyah,
-                            (v) => setState(() => portion.endAyah = v),
+                            isJuzMode ? null : (v) => setState(() => portion.endAyah = v),
                             isDarkMode,
                           ),
                         ),
@@ -389,39 +476,47 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildSurahDropdown(String label, int value, List surahs, Function(int) onChanged, bool isDarkMode) {
+  Widget _buildSurahDropdown(String label, int value, List surahs, Function(int)? onChanged, bool isDarkMode) {
+    final isReadOnly = onChanged == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppColors.surface(isDarkMode),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.textMuted(isDarkMode)),
-          ),
-          child: DropdownButton<int>(
-            value: value,
-            isExpanded: true,
-            dropdownColor: AppColors.surface(isDarkMode),
-            underline: const SizedBox(),
-            style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
-            items: surahs.map<DropdownMenuItem<int>>((s) {
-              return DropdownMenuItem(
-                value: s.number,
-                child: Text('${s.number}. ${s.englishName}', overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: (v) => onChanged(v!),
+        Opacity(
+          opacity: isReadOnly ? 0.6 : 1.0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface(isDarkMode),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.textMuted(isDarkMode)),
+            ),
+            child: IgnorePointer(
+              ignoring: isReadOnly,
+              child: DropdownButton<int>(
+                value: value,
+                isExpanded: true,
+                dropdownColor: AppColors.surface(isDarkMode),
+                underline: const SizedBox(),
+                style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+                items: surahs.map<DropdownMenuItem<int>>((s) {
+                  return DropdownMenuItem(
+                    value: s.number,
+                    child: Text('${s.number}. ${s.englishName}', overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+                onChanged: onChanged != null ? (v) => onChanged(v!) : null,
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAyahInput(String label, int? value, Function(int?) onChanged, bool isDarkMode) {
+  Widget _buildAyahInput(String label, int? value, Function(int?)? onChanged, bool isDarkMode) {
+    final isReadOnly = onChanged == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -430,7 +525,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         TextFormField(
           initialValue: value?.toString() ?? '',
           keyboardType: TextInputType.number,
-          style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+          readOnly: isReadOnly,
+          style: TextStyle(
+            fontSize: 13,
+            color: isReadOnly ? AppColors.textMuted(isDarkMode) : AppColors.text(isDarkMode),
+          ),
           decoration: InputDecoration(
             hintText: 'All',
             hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
@@ -446,10 +545,132 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
             ),
           ),
-          onChanged: (v) => onChanged(int.tryParse(v)),
+          onChanged: onChanged != null ? (v) => onChanged(int.tryParse(v)) : null,
         ),
       ],
     );
+  }
+
+  Widget _buildSmartSuggestions(bool isDarkMode) {
+    final suggestionsAsync = ref.watch(suggestedPortionsProvider(widget.studentId!));
+
+    return suggestionsAsync.when(
+      loading: () => Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              Colors.purple.withOpacity(0.1),
+              Colors.cyan.withOpacity(0.1),
+            ]),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.purple.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 8),
+              Text('Loading suggestions...', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+            ],
+          ),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (suggestions) {
+        if (suggestions.hifz == null && suggestions.sabqi == null && suggestions.manzil == null) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                Colors.purple.withOpacity(0.1),
+                Colors.cyan.withOpacity(0.1),
+              ]),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.purple.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 20, color: Colors.purple[300]),
+                    const SizedBox(width: 8),
+                    Text('Smart Suggestions',
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: Colors.purple[300])),
+                    if (suggestions.lastClass != null) ...[
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '(based on ${suggestions.lastClass!.day}, ${suggestions.lastClass!.date})',
+                          style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (suggestions.hifz != null)
+                      Expanded(child: _SuggestionCard(
+                        label: 'HIFZ',
+                        color: Colors.blue,
+                        portion: suggestions.hifz!,
+                        isDarkMode: isDarkMode,
+                        onTap: () => _applySuggestion('hifz', suggestions.hifz!),
+                      )),
+                    if (suggestions.sabqi != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(child: _SuggestionCard(
+                        label: 'SABQI',
+                        color: Colors.cyan,
+                        portion: suggestions.sabqi!,
+                        isDarkMode: isDarkMode,
+                        onTap: () => _applySuggestion('sabqi', suggestions.sabqi!),
+                      )),
+                    ],
+                    if (suggestions.manzil != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(child: _SuggestionCard(
+                        label: 'MANZIL',
+                        color: Colors.grey,
+                        portion: suggestions.manzil!,
+                        isDarkMode: isDarkMode,
+                        onTap: () => _applySuggestion('revision', suggestions.manzil!),
+                      )),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('Tap a suggestion to auto-fill. You can modify it afterward.',
+                    style: TextStyle(fontSize: 10, color: AppColors.textMuted(isDarkMode))),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _applySuggestion(String sectionType, SuggestedPortion portion) {
+    setState(() {
+      _sectionEnabled[sectionType] = true;
+      _portions[sectionType] = [
+        PortionData(
+          startSurah: portion.startSurah,
+          endSurah: portion.endSurah,
+          startAyah: portion.startAyah,
+          endAyah: portion.endAyah,
+        ),
+      ];
+    });
   }
 
   Future<void> _selectDate(bool isDarkMode) async {
@@ -560,4 +781,96 @@ class PortionData {
     this.startAyah,
     this.endAyah,
   });
+}
+
+/// Toggle chip for "By Surah" / "By Juz" mode selection.
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final Color color;
+  final bool isDarkMode;
+  final VoidCallback onTap;
+
+  const _ModeChip({
+    required this.label,
+    required this.isActive,
+    required this.color,
+    required this.isDarkMode,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? color.withOpacity(0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? color.withOpacity(0.5) : AppColors.textMuted(isDarkMode),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            color: isActive ? color : AppColors.textSecondary(isDarkMode),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card for a single smart suggestion (Hifz/Sabqi/Manzil).
+class _SuggestionCard extends StatelessWidget {
+  final String label;
+  final Color color;
+  final SuggestedPortion portion;
+  final bool isDarkMode;
+  final VoidCallback onTap;
+
+  const _SuggestionCard({
+    required this.label,
+    required this.color,
+    required this.portion,
+    required this.isDarkMode,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+            const SizedBox(height: 4),
+            Text(
+              portion.surahName ?? 'Surah ${portion.startSurah}',
+              style: TextStyle(fontSize: 13, color: color.withOpacity(0.8)),
+            ),
+            if (portion.startAyah != null)
+              Text(
+                'Ayah ${portion.startAyah}-${portion.endAyah}',
+                style: TextStyle(fontSize: 11, color: color.withOpacity(0.6)),
+              ),
+            if (portion.note != null)
+              Text(portion.note!, style: TextStyle(fontSize: 9, color: AppColors.textMuted(isDarkMode))),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
+import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { ReportPanel } from '../components/teacher-classes';
 
 interface SurahInfo {
@@ -15,13 +16,14 @@ interface SurahInfo {
 
 interface SinglePortion {
   id: string;
-  mode: 'page' | 'surah';  // Default to page
+  mode: 'page' | 'surah' | 'juz';  // Default to page
   startPage: number;
   endPage: number;
   startSurah: number;
   endSurah: number;
   startAyah: string;
   endAyah: string;
+  juz: number;
 }
 
 interface PortionConfig {
@@ -93,7 +95,8 @@ export default function TeacherClasses() {
     startSurah: 67,
     endSurah: 67,
     startAyah: '',
-    endAyah: ''
+    endAyah: '',
+    juz: 1,
   });
 
   // Default configs (used when mode is 'same' or as fallback)
@@ -498,9 +501,20 @@ export default function TeacherClasses() {
                     >
                       By Surah
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => updatePortion(portion.id, { mode: 'juz' })}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        portion.mode === 'juz'
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                          : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                      }`}
+                    >
+                      By Juz
+                    </button>
                   </div>
 
-                  {portion.mode === 'page' ? (
+                  {portion.mode === 'page' && (
                     /* Page-based selection */
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -536,7 +550,9 @@ export default function TeacherClasses() {
                         />
                       </div>
                     </div>
-                  ) : (
+                  )}
+
+                  {portion.mode === 'surah' && (
                     /* Surah-based selection */
                     <>
                       <div className="grid grid-cols-2 gap-3">
@@ -613,6 +629,43 @@ export default function TeacherClasses() {
                         </p>
                       )}
                     </>
+                  )}
+
+                  {portion.mode === 'juz' && (
+                    /* Juz-based selection */
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Juz</label>
+                      <select
+                        value={portion.juz}
+                        onChange={(e) => {
+                          const juzNum = Number(e.target.value);
+                          const boundary = JUZ_BOUNDARIES.find(b => b.juz === juzNum);
+                          if (boundary) {
+                            updatePortion(portion.id, {
+                              juz: juzNum,
+                              startSurah: boundary.startSurah,
+                              endSurah: boundary.endSurah,
+                              startAyah: String(boundary.startAyah),
+                              endAyah: String(boundary.endAyah),
+                            });
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
+                          <option key={j} value={j}>Juz {j}</option>
+                        ))}
+                      </select>
+                      {(() => {
+                        const b = JUZ_BOUNDARIES.find(x => x.juz === portion.juz);
+                        if (!b) return null;
+                        return (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Surah {b.startSurah}:{b.startAyah} — Surah {b.endSurah}:{b.endAyah}
+                          </p>
+                        );
+                      })()}
+                    </div>
                   )}
                 </div>
               );

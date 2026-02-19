@@ -13,6 +13,7 @@ import '../../data/models/surah.dart';
 import '../../data/models/class_session.dart';
 import '../../data/models/mistake.dart';
 import '../../data/models/assignment.dart';
+import '../../data/models/suggested_portions.dart';
 import 'auth_provider.dart';
 
 // Core providers
@@ -375,6 +376,43 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     );
     await loadClasses();
     return newClass;
+  }
+
+  /// Update an existing assignment's surah/ayah range.
+  /// Dual-path: Supabase on web, local SQLite on mobile.
+  Future<void> updateAssignment({
+    required String assignmentId,
+    required Map<String, dynamic> data,
+  }) async {
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase
+          .from('assignments')
+          .update(data)
+          .eq('id', assignmentId);
+    } else {
+      final intId = int.tryParse(assignmentId);
+      if (intId == null) throw Exception('Invalid assignment ID');
+      await _repository.updateAssignment(intId, data);
+    }
+    await loadClasses();
+  }
+
+  /// Delete an assignment.
+  /// Dual-path: hard delete on Supabase (web), soft delete on local SQLite (mobile).
+  Future<void> deleteAssignment(String assignmentId) async {
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase
+          .from('assignments')
+          .delete()
+          .eq('id', assignmentId);
+    } else {
+      final intId = int.tryParse(assignmentId);
+      if (intId == null) throw Exception('Invalid assignment ID');
+      await _repository.deleteAssignment(intId);
+    }
+    await loadClasses();
   }
 
   /// Find the Supabase UUID for a class by its int id.
@@ -836,6 +874,77 @@ final mistakeCountsBySurahProvider = FutureProvider<Map<int, int>>((ref) async {
   }
   final repo = ref.watch(mistakeRepositoryProvider);
   return repo.getMistakeCountsBySurah();
+});
+
+// ============ SMART SUGGESTIONS ============
+
+/// Suggests hifz/sabqi/manzil portions based on the student's most recent class.
+/// Mirrors web's getSuggestedPortions at supabase-api.ts:716-831.
+final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, String>((ref, studentId) async {
+  final supabase = Supabase.instance.client;
+
+  SuggestedPortion? hifz, sabqi, manzil;
+  ({String id, String date, String day})? lastClass;
+
+  // Find student's most recent class with assignments
+  final response = await supabase
+      .from('class_students')
+      .select('''
+        class_id,
+        classes (
+          id, date, day,
+          assignments (type, start_surah, end_surah, start_ayah, end_ayah, student_id)
+        )
+      ''')
+      .eq('student_id', studentId)
+      .order('class_id', ascending: false)
+      .limit(10);
+
+  final rows = response as List;
+  if (rows.isEmpty) {
+    // Default to Al-Mulk
+    return SuggestedPortions(
+      hifz: const SuggestedPortion(
+        startSurah: 67, endSurah: 67,
+        startAyah: 1, endAyah: 30,
+        surahName: 'Al-Mulk',
+        note: 'No previous classes — starting from Al-Mulk',
+      ),
+    );
+  }
+
+  final lastClassData = rows[0]['classes'];
+  if (lastClassData == null) return const SuggestedPortions();
+
+  lastClass = (
+    id: lastClassData['id'].toString(),
+    date: lastClassData['date'] ?? '',
+    day: lastClassData['day'] ?? '',
+  );
+
+  // Parse assignments by type (same logic as web)
+  final assignments = (lastClassData['assignments'] as List? ?? [])
+      .where((a) => a['student_id'] == null || a['student_id'] == studentId);
+
+  for (final a in assignments) {
+    final type = a['type'] as String?;
+    final portion = SuggestedPortion(
+      startSurah: a['start_surah'] ?? 0,
+      endSurah: a['end_surah'] ?? 0,
+      startAyah: a['start_ayah'],
+      endAyah: a['end_ayah'],
+      surahName: AppConstants.surahNames[a['start_surah']] ?? 'Surah ${a['start_surah']}',
+      note: 'Same as last class — adjust as needed',
+    );
+
+    if (type == 'hifz') hifz = portion;
+    else if (type == 'sabqi') sabqi = portion;
+    else if (type == 'revision' || type == 'manzil') manzil = portion;
+  }
+
+  return SuggestedPortions(
+    hifz: hifz, sabqi: sabqi, manzil: manzil, lastClass: lastClass,
+  );
 });
 
 // ============ STATIC QURAN DATA FOR WEB ============

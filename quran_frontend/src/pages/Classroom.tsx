@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import FittedLine from '../components/FittedLine';
-import { getClass, getSurahs, getQuranPageWords, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, type QuranPageWord } from '../api';
+import { getClass, getSurahs, getQuranPageWords, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, deleteAssignment, type QuranPageWord } from '../api';
+import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getPageNumber, getSurahsOnPage } from '../data/quranPages';
@@ -663,6 +664,28 @@ export default function Classroom() {
     }
   };
 
+  const handleDeletePortion = async (assignmentId: string) => {
+    if (!classData || !id) return;
+
+    const sectionAssignments = classData.assignments.filter(a => a.type === activeSection);
+    if (sectionAssignments.length <= 1) {
+      alert('Cannot delete the last portion in a section.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this portion?')) return;
+
+    try {
+      await deleteAssignment(assignmentId);
+      const updatedClass = await getClass(id);
+      setClassData(updatedClass);
+      setSelectedPortionIndex(0);
+    } catch (err) {
+      console.error('Failed to delete portion:', err);
+      alert('Failed to delete portion');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -947,22 +970,33 @@ export default function Classroom() {
                         Portion {index + 1}: {formatAssignmentRange(assignment)}
                       </button>
                       {isTeacher && (
-                        <button
-                          onClick={() => {
-                            setEditAssignmentId(assignment.id);
-                            setEditPortionType(assignment.type as SectionType);
-                            setEditPortionStart(assignment.start_surah);
-                            setEditPortionEnd(assignment.end_surah);
-                            setEditPortionStartAyah(assignment.start_ayah);
-                            setEditPortionEndAyah(assignment.end_ayah);
-                            setShowEditPortionModal(true);
-                          }}
-                          className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 flex items-center justify-center"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                          </svg>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditAssignmentId(assignment.id);
+                              setEditPortionType(assignment.type as SectionType);
+                              setEditPortionStart(assignment.start_surah);
+                              setEditPortionEnd(assignment.end_surah);
+                              setEditPortionStartAyah(assignment.start_ayah);
+                              setEditPortionEndAyah(assignment.end_ayah);
+                              setShowEditPortionModal(true);
+                            }}
+                            className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 flex items-center justify-center"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeletePortion(assignment.id)}
+                            className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-red-600/50 text-slate-400 hover:text-red-400 flex items-center justify-center"
+                            title="Delete portion"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1360,6 +1394,28 @@ export default function Classroom() {
             </div>
 
             <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Quick Fill from Juz (optional)</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const juzNum = Number(e.target.value);
+                    const boundary = JUZ_BOUNDARIES.find(b => b.juz === juzNum);
+                    if (boundary) {
+                      setNewPortionStart(boundary.startSurah);
+                      setNewPortionEnd(boundary.endSurah);
+                      setNewPortionStartAyah(boundary.startAyah);
+                      setNewPortionEndAyah(boundary.endAyah);
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100"
+                >
+                  <option value="">— Select Juz —</option>
+                  {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
+                    <option key={j} value={j}>Juz {j}</option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">From Surah</label>
@@ -1419,6 +1475,28 @@ export default function Classroom() {
             </div>
 
             <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Quick Fill from Juz (optional)</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const juzNum = Number(e.target.value);
+                    const boundary = JUZ_BOUNDARIES.find(b => b.juz === juzNum);
+                    if (boundary) {
+                      setEditPortionStart(boundary.startSurah);
+                      setEditPortionEnd(boundary.endSurah);
+                      setEditPortionStartAyah(boundary.startAyah);
+                      setEditPortionEndAyah(boundary.endAyah);
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100"
+                >
+                  <option value="">— Select Juz —</option>
+                  {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
+                    <option key={j} value={j}>Juz {j}</option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">From Surah</label>

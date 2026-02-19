@@ -1681,6 +1681,103 @@ Added per-character mistake highlighting on the Mushaf page, matching the web ap
 
 ---
 
+## Phase 19: Portion Management, Char-Level Polish & Smart Suggestions
+
+**Status:** DONE
+**Date:** 19 February 2026
+
+### Overview
+
+Nine features across web and Flutter: edit/delete portions, "By Juz" selection, character-level mistake polish, tab overflow fix, and smart suggestions. Implemented by a 4-agent team (Web Portions, Flutter Portions, Flutter Polish, Docs).
+
+### Web — Edit / Delete / "By Juz" Portions (Features 1-3)
+
+Migrated portion CRUD from legacy FastAPI fetch calls to Supabase client queries and added Juz-based portion selection.
+
+**Edit Portion:**
+- Added `updateAssignment()` to `supabase-api.ts` (`.update().eq('id', assignmentId)` + cache invalidation)
+- Added `addClassAssignments()` for bulk insert
+- Replaced legacy FastAPI `fetch` calls in `api.ts` with re-exports from `supabase-api.ts`
+
+**Delete Portion:**
+- Added `deleteAssignment()` to `supabase-api.ts` (`.delete().eq('id', assignmentId)`)
+- Added `handleDeletePortion` in `Classroom.tsx` with `confirm()` dialog + last-portion protection
+- Trash icon button next to edit pencil in portion selector
+
+**"By Juz" Selection:**
+- Added `'juz'` to `SinglePortion.mode` type union in `TeacherClasses.tsx`
+- "By Juz" toggle + Juz dropdown (1-30) auto-fills surah/ayah from `JUZ_BOUNDARIES`
+- "Quick Fill from Juz" dropdown in both Add and Edit Portion modals in `Classroom.tsx`
+
+### Flutter — Edit / Delete / "By Juz" Portions (Features 4-6)
+
+Mirrored the web's portion management in Flutter with dual-path architecture (Supabase on web, local SQLite on mobile).
+
+**Edit Portion:**
+- Added `updateAssignment()` to `ClassesNotifier` in `providers.dart` (dual-path Supabase/SQLite)
+- Edit pencil button + `StatefulBuilder` bottom sheet in `classroom_screen.dart`
+
+**Delete Portion:**
+- Added `deleteAssignment()` to `class_repository.dart` (soft delete: `is_deleted: 1` for sync compatibility)
+- `ClassesNotifier` in `providers.dart`: hard delete on web/Supabase, soft delete on mobile
+- Trash icon + `AlertDialog` confirmation in `classroom_screen.dart`, last-portion protection
+
+**"By Juz" Selection:**
+- Added `JuzBoundary` class + full 30-entry `juzBoundaries` list to `quran_data.dart`
+- Updated `report_helpers.dart` to use public `juzBoundaries` instead of private `_JuzBoundary`
+- "By Juz" toggle + Juz dropdown in `create_class_screen.dart`
+
+### Flutter — Character-Level Mistake Polish (Feature 7)
+
+Closed 3 gaps between Flutter and web character-level mistake rendering.
+
+- **Missing harakat codes:** Added 6 Unicode codes (0x0659–0x065E) to `arabic_text_utils.dart` — Flutter now matches web's 21 harakat codes (was 15)
+- **Shadda combination:** Updated `parseArabicWord()` and `groupArabicCharacters()` to combine shadda + following haraka into single entry (matching web's `splitArabicWord`)
+- **Haraka glow effect:** Added `fontSize: 26`, `FontWeight.bold`, two `Shadow` layers (blurRadius 8 + 16) in `mushaf_page_widget.dart` for mistaken harakat
+
+### Flutter — Tab Overflow Fix (Feature 8)
+
+Wrapped `_TabButton` widgets in `Expanded` in `report_panel.dart` so all 3 tabs share width equally, preventing ~4.3px overflow on narrow screens.
+
+### Flutter — Smart Suggestions (Feature 9)
+
+Intelligent portion suggestions based on student's previous classes.
+
+- **Model:** Created `suggested_portions.dart` with `SuggestedPortion` and `SuggestedPortions` data classes
+- **Provider:** Added `suggestedPortionsProvider` (FutureProvider.family) to `providers.dart` — queries Supabase for student's last 10 classes, extracts hifz/sabqi/manzil portions, falls back to Al-Mulk (Surah 67)
+- **UI:** Smart Suggestions panel in `create_class_screen.dart` — purple gradient, lightbulb icon, 3-column grid of suggestion cards (HIFZ/blue, SABQI/cyan, MANZIL/grey), tap to auto-fill
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `quran_mobile/lib/data/models/suggested_portions.dart` | Smart Suggestions data models |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_frontend/src/lib/supabase-api.ts` | Added `updateAssignment()`, `addClassAssignments()`, `deleteAssignment()` |
+| `quran_frontend/src/api.ts` | Replaced legacy FastAPI fetch with Supabase re-exports |
+| `quran_frontend/src/pages/Classroom.tsx` | Delete handler, trash icon, "Quick Fill from Juz" in modals |
+| `quran_frontend/src/pages/TeacherClasses.tsx` | `'juz'` mode, "By Juz" toggle + dropdown |
+| `quran_mobile/lib/core/services/arabic_text_utils.dart` | 6 missing harakat codes, shadda combination logic |
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Haraka glow effect in `_buildCharLevelWord()` |
+| `quran_mobile/lib/presentation/providers/providers.dart` | `updateAssignment()`, `deleteAssignment()` in ClassesNotifier; `suggestedPortionsProvider` |
+| `quran_mobile/lib/data/repositories/class_repository.dart` | `deleteAssignment()` soft delete |
+| `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Edit pencil + bottom sheet, trash icon + delete dialog |
+| `quran_mobile/lib/data/quran_data.dart` | `JuzBoundary` class + `juzBoundaries` list |
+| `quran_mobile/lib/core/services/report_helpers.dart` | Public `juzBoundaries` import |
+| `quran_mobile/lib/presentation/screens/classes/create_class_screen.dart` | "By Juz" toggle + dropdown, Smart Suggestions panel |
+| `quran_mobile/lib/presentation/screens/classes/report/report_panel.dart` | `_TabButton` wrapped in `Expanded` |
+
+### Documentation
+
+- Planning docs: [`Web_Portion_Management_Plan.md`](./Technical%20Implementation%20Journey/Web_Portion_Management_Plan.md), [`Flutter_Portion_Management_Plan.md`](./Technical%20Implementation%20Journey/Flutter_Portion_Management_Plan.md), [`Flutter_CharLevel_Mistakes_Alignment.md`](./Technical%20Implementation%20Journey/Flutter_CharLevel_Mistakes_Alignment.md)
+- Session log: `docs/Logs/2026-02-19-002-feature-implementation.md`
+
+---
+
 ## Running the Project
 
 **Backend:**

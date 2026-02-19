@@ -101,38 +101,8 @@ export async function verifyEmail(_token: string) {
   return { message: 'Not implemented' };
 }
 
-// ============ ASSIGNMENTS (update) ============
-
-export async function updateAssignment(assignmentId: string, assignment: {
-  type: string;
-  start_surah: number;
-  end_surah: number;
-  start_ayah?: number;
-  end_ayah?: number;
-}) {
-  const res = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(assignment),
-  });
-  return res.json();
-}
-
-export async function addClassAssignments(classId: string, assignments: Array<{
-  type: string;
-  start_surah: number;
-  end_surah: number;
-  start_ayah?: number;
-  end_ayah?: number;
-  student_id?: string;
-}>) {
-  const res = await fetch(`${API_BASE}/classes/${classId}/assignments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(assignments),
-  });
-  return res.json();
-}
+// ============ ASSIGNMENTS (Supabase) ============
+export { updateAssignment, addClassAssignments, deleteAssignment } from './lib/supabase-api';
 
 
 // ============ BACKUP (still FastAPI) ============

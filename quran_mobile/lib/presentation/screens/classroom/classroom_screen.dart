@@ -8,6 +8,7 @@ import '../../../data/models/mistake.dart';
 import '../../../data/models/quran_page_word.dart';
 import '../../../data/quran_data.dart';
 import '../../providers/providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/quran_page_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
@@ -281,6 +282,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   }
 
   Widget _buildPortionSelector(List<Assignment> assignments, bool isDarkMode) {
+    final isTeacher = ref.watch(authProvider).isTeacher;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SingleChildScrollView(
@@ -300,30 +303,63 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
             return Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedPortionIndex = index;
-                    _currentPage = 0; // reset so it re-initializes
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? color.withOpacity(0.2) : AppColors.surface(isDarkMode),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedPortionIndex = index;
+                        _currentPage = 0; // reset so it re-initializes
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? color.withOpacity(0.2) : AppColors.surface(isDarkMode),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
+                        ),
+                      ),
+                      child: Text(
+                        'Portion ${index + 1}: $label',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isSelected ? color : AppColors.textSecondary(isDarkMode),
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Portion ${index + 1}: $label',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isSelected ? color : AppColors.textSecondary(isDarkMode),
+                  if (isTeacher) ...[
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _showEditPortionSheet(context, assignment),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(isDarkMode).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.edit, size: 16, color: AppColors.textSecondary(isDarkMode)),
+                      ),
                     ),
-                  ),
-                ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _confirmDeletePortion(context, assignment, assignments),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(isDarkMode).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.delete_outline, size: 16, color: Colors.red.withOpacity(0.6)),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             );
           }).toList(),
@@ -937,6 +973,245 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             SizedBox(height: MediaQuery.of(ctx).padding.bottom),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEditPortionSheet(BuildContext context, Assignment assignment) {
+    final isDarkMode = ref.read(themeProvider);
+    final surahsAsync = ref.read(surahListProvider);
+    final surahs = surahsAsync.value ?? [];
+
+    int startSurah = assignment.startSurah;
+    int endSurah = assignment.endSurah;
+    int? startAyah = assignment.startAyah;
+    int? endAyah = assignment.endAyah;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              left: 20, right: 20, top: 20,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface(isDarkMode),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textMuted(isDarkMode),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Edit Portion',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(isDarkMode),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // From Surah / To Surah
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSheetDropdown(
+                        'From Surah', startSurah, surahs, isDarkMode,
+                        (v) => setSheetState(() {
+                          startSurah = v;
+                          if (endSurah < v) endSurah = v;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildSheetDropdown(
+                        'To Surah', endSurah, surahs, isDarkMode,
+                        (v) => setSheetState(() => endSurah = v),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // From Ayah / To Ayah
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSheetAyahInput(
+                        'From Ayah', startAyah, isDarkMode,
+                        (v) => setSheetState(() => startAyah = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildSheetAyahInput(
+                        'To Ayah', endAyah, isDarkMode,
+                        (v) => setSheetState(() => endAyah = v),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(color: AppColors.textMuted(isDarkMode)),
+                        ),
+                        child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final assignmentId = kIsWeb
+                              ? assignment.id.toString()
+                              : assignment.id.toString();
+                          await ref.read(classesProvider.notifier).updateAssignment(
+                            assignmentId: assignmentId,
+                            data: {
+                              'start_surah': startSurah,
+                              'end_surah': endSurah,
+                              'start_ayah': startAyah,
+                              'end_ayah': endAyah,
+                            },
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: AppColors.cyan500,
+                        ),
+                        child: const Text('Update'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSheetDropdown(String label, int value, List surahs, bool isDarkMode, Function(int) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.background(isDarkMode),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.textMuted(isDarkMode)),
+          ),
+          child: DropdownButton<int>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: AppColors.surface(isDarkMode),
+            underline: const SizedBox(),
+            style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+            items: surahs.map<DropdownMenuItem<int>>((s) {
+              return DropdownMenuItem(
+                value: s.number,
+                child: Text('${s.number}. ${s.englishName}', overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+            onChanged: (v) => onChanged(v!),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSheetAyahInput(String label, int? value, bool isDarkMode, Function(int?) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        const SizedBox(height: 4),
+        TextFormField(
+          initialValue: value?.toString() ?? '',
+          keyboardType: TextInputType.number,
+          style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+          decoration: InputDecoration(
+            hintText: 'All',
+            hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            filled: true,
+            fillColor: AppColors.background(isDarkMode),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
+            ),
+          ),
+          onChanged: (v) => onChanged(int.tryParse(v)),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDeletePortion(BuildContext context, Assignment assignment, List<Assignment> sectionAssignments) {
+    final isDarkMode = ref.read(themeProvider);
+
+    if (sectionAssignments.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot delete the last portion in a section')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface(isDarkMode),
+        title: Text('Delete Portion', style: TextStyle(color: AppColors.text(isDarkMode))),
+        content: Text(
+          'Are you sure you want to delete this portion?',
+          style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(classesProvider.notifier).deleteAssignment(
+                assignment.id.toString(),
+              );
+              setState(() => _selectedPortionIndex = 0);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

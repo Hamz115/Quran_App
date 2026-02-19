@@ -147,32 +147,38 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  _TabButton(
-                    label: 'Classes',
-                    count: filteredReport.summary.totalClasses,
-                    countColor: AppColors.cyan400,
-                    countBgColor: const Color(0x33069291), // cyan-600/20
-                    isActive: _activeTab == _ReportTab.classes,
-                    isDark: isDark,
-                    onTap: () => setState(() => _activeTab = _ReportTab.classes),
+                  Expanded(
+                    child: _TabButton(
+                      label: 'Classes',
+                      count: filteredReport.summary.totalClasses,
+                      countColor: AppColors.cyan400,
+                      countBgColor: const Color(0x33069291), // cyan-600/20
+                      isActive: _activeTab == _ReportTab.classes,
+                      isDark: isDark,
+                      onTap: () => setState(() => _activeTab = _ReportTab.classes),
+                    ),
                   ),
-                  _TabButton(
-                    label: 'Mistakes',
-                    count: filteredReport.summary.totalMistakes,
-                    countColor: const Color(0xFFF87171), // red-400
-                    countBgColor: const Color(0x33EF4444), // red-500/20
-                    isActive: _activeTab == _ReportTab.mistakes,
-                    isDark: isDark,
-                    onTap: () => setState(() => _activeTab = _ReportTab.mistakes),
+                  Expanded(
+                    child: _TabButton(
+                      label: 'Mistakes',
+                      count: filteredReport.summary.totalMistakes,
+                      countColor: const Color(0xFFF87171), // red-400
+                      countBgColor: const Color(0x33EF4444), // red-500/20
+                      isActive: _activeTab == _ReportTab.mistakes,
+                      isDark: isDark,
+                      onTap: () => setState(() => _activeTab = _ReportTab.mistakes),
+                    ),
                   ),
-                  _TabButton(
-                    label: 'Performance',
-                    count: null,
-                    countColor: null,
-                    countBgColor: null,
-                    isActive: _activeTab == _ReportTab.performance,
-                    isDark: isDark,
-                    onTap: () => setState(() => _activeTab = _ReportTab.performance),
+                  Expanded(
+                    child: _TabButton(
+                      label: 'Performance',
+                      count: null,
+                      countColor: null,
+                      countBgColor: null,
+                      isActive: _activeTab == _ReportTab.performance,
+                      isDark: isDark,
+                      onTap: () => setState(() => _activeTab = _ReportTab.performance),
+                    ),
                   ),
                 ],
               ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart' show Color;
 
 import '../../data/models/student_report.dart';
 import '../../data/models/report_filters.dart';
+import '../../data/quran_data.dart' show juzBoundaries;
 
 // ============ CONSTANTS ============
 
@@ -20,51 +21,12 @@ const Map<String, int> perfMap = {
 const List<String> perfLabels = ['', 'Needs Work', 'Good', 'Very Good', 'Excellent'];
 
 // ============ JUZ BOUNDARIES ============
-
-class _JuzBoundary {
-  final int juz;
-  final int startSurah;
-  final int endSurah;
-  const _JuzBoundary(this.juz, this.startSurah, this.endSurah);
-}
-
-const List<_JuzBoundary> _juzBoundaries = [
-  _JuzBoundary(1, 1, 2),
-  _JuzBoundary(2, 2, 2),
-  _JuzBoundary(3, 2, 3),
-  _JuzBoundary(4, 3, 4),
-  _JuzBoundary(5, 4, 4),
-  _JuzBoundary(6, 4, 5),
-  _JuzBoundary(7, 5, 6),
-  _JuzBoundary(8, 6, 7),
-  _JuzBoundary(9, 7, 8),
-  _JuzBoundary(10, 8, 9),
-  _JuzBoundary(11, 9, 11),
-  _JuzBoundary(12, 11, 12),
-  _JuzBoundary(13, 12, 14),
-  _JuzBoundary(14, 15, 16),
-  _JuzBoundary(15, 17, 18),
-  _JuzBoundary(16, 18, 20),
-  _JuzBoundary(17, 21, 22),
-  _JuzBoundary(18, 23, 25),
-  _JuzBoundary(19, 25, 27),
-  _JuzBoundary(20, 27, 29),
-  _JuzBoundary(21, 29, 33),
-  _JuzBoundary(22, 33, 36),
-  _JuzBoundary(23, 36, 39),
-  _JuzBoundary(24, 39, 41),
-  _JuzBoundary(25, 41, 45),
-  _JuzBoundary(26, 46, 51),
-  _JuzBoundary(27, 51, 57),
-  _JuzBoundary(28, 58, 66),
-  _JuzBoundary(29, 67, 77),
-  _JuzBoundary(30, 78, 114),
-];
+// Uses public juzBoundaries from quran_data.dart (single source of truth).
 
 /// Get surah range for a given Juz number (1-30).
 /// Returns null if juz is out of range.
 ({int startSurah, int endSurah})? getSurahRangeForJuz(int juz) {
-  for (final b in _juzBoundaries) {
+  for (final b in juzBoundaries) {
     if (b.juz == juz) {
       return (startSurah: b.startSurah, endSurah: b.endSurah);
     }

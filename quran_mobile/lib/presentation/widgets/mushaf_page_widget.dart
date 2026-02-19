@@ -220,9 +220,24 @@ class MushafPageWidget extends StatelessWidget {
         for (final h in group.harakat) {
           final level = charMistakeMap[h.index];
           if (level != null) {
+            final mistakeColor = AppColors.getMistakeColor(level);
             children.add(TextSpan(
               text: h.char,
-              style: TextStyle(color: AppColors.getMistakeColor(level)),
+              style: TextStyle(
+                color: mistakeColor,
+                fontSize: 26, // ~1.3 * 20 (Amiri base size)
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    color: mistakeColor.withOpacity(0.6),
+                    blurRadius: 8,
+                  ),
+                  Shadow(
+                    color: mistakeColor.withOpacity(0.3),
+                    blurRadius: 16,
+                  ),
+                ],
+              ),
             ));
           } else {
             children.add(TextSpan(text: h.char));

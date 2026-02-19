@@ -448,6 +448,67 @@ export async function deleteClass(classId: string): Promise<{ message: string }>
   return { message: 'Class deleted successfully' };
 }
 
+export async function updateAssignment(assignmentId: string, data: {
+  type?: string;
+  start_surah?: number;
+  end_surah?: number;
+  start_ayah?: number | null;
+  end_ayah?: number | null;
+}): Promise<{ message: string }> {
+  const { error } = await supabase
+    .from('assignments' as any)
+    .update(data as any)
+    .eq('id', assignmentId);
+
+  if (error) throw new Error(error.message);
+
+  invalidateCache('classes');
+
+  return { message: 'Assignment updated successfully' };
+}
+
+export async function addClassAssignments(classId: string, assignments: Array<{
+  type: string;
+  start_surah: number;
+  end_surah: number;
+  start_ayah?: number | null;
+  end_ayah?: number | null;
+  student_id?: string | null;
+}>): Promise<{ message: string }> {
+  const rows = assignments.map(a => ({
+    class_id: classId,
+    type: a.type,
+    start_surah: a.start_surah,
+    end_surah: a.end_surah,
+    start_ayah: a.start_ayah,
+    end_ayah: a.end_ayah,
+    student_id: a.student_id || null,
+  }));
+
+  const { error } = await supabase
+    .from('assignments' as any)
+    .insert(rows as any);
+
+  if (error) throw new Error(error.message);
+
+  invalidateCache('classes');
+
+  return { message: 'Assignments added successfully' };
+}
+
+export async function deleteAssignment(assignmentId: string): Promise<{ message: string }> {
+  const { error } = await supabase
+    .from('assignments' as any)
+    .delete()
+    .eq('id', assignmentId);
+
+  if (error) throw new Error(error.message);
+
+  invalidateCache('classes');
+
+  return { message: 'Assignment deleted successfully' };
+}
+
 export async function updateClassNotes(classId: string, notes: string | null): Promise<{ message: string }> {
   const { error } = await (supabase as any).from('classes').update({ notes }).eq('id', classId);
   if (error) throw new Error(error.message);

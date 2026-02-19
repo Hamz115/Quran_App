@@ -43,7 +43,7 @@ Quran_App/
 ├── quran_frontend/                     # ── React Web Frontend ───────────────
 │   ├── src/
 │   │   ├── App.tsx                     # Route config (public, protected, role-based)
-│   │   ├── api.ts                      # FastAPI client functions (legacy/backup)
+│   │   ├── api.ts                      # Supabase re-exports + legacy FastAPI fallback
 │   │   │
 │   │   ├── pages/
 │   │   │   ├── Login.tsx               # Email login
@@ -53,10 +53,10 @@ Quran_App/
 │   │   │   ├── Dashboard.tsx           # Role-based redirect hub
 │   │   │   ├── TeacherDashboard.tsx    # Teacher home (stats, shortcuts)
 │   │   │   ├── StudentDashboard.tsx    # Student home (stats, shortcuts)
-│   │   │   ├── TeacherClasses.tsx      # Teacher: create/manage classes, notes, performance
+│   │   │   ├── TeacherClasses.tsx      # Teacher: create/manage classes, notes, performance, "By Juz" selection
 │   │   │   ├── StudentClasses.tsx      # Student: view joined classes (read-only)
 │   │   │   ├── Classes.tsx             # Legacy classes page
-│   │   │   ├── Classroom.tsx           # Active class session (QPC reader + mistakes)
+│   │   │   ├── Classroom.tsx           # Active class session (QPC reader + mistakes + portion edit/delete)
 │   │   │   ├── QuranReader.tsx         # Standalone Quran reader (read-only)
 │   │   │   └── Settings.tsx            # Profile update, password change
 │   │   │
@@ -81,7 +81,7 @@ Quran_App/
 │   │   │
 │   │   ├── lib/
 │   │   │   ├── supabase.ts             # Supabase client init
-│   │   │   ├── supabase-api.ts         # Supabase RLS queries (classes, mistakes, students)
+│   │   │   ├── supabase-api.ts         # Supabase RLS queries (classes, mistakes, students, portions CRUD)
 │   │   │   ├── quran-api.ts            # Quran data API (pages, surahs)
 │   │   │   ├── quran-utils.ts          # Centralized surahNames, Juz boundaries, helpers
 │   │   │   ├── local-api.ts            # Local FastAPI calls (fallback)
@@ -114,13 +114,14 @@ Quran_App/
 │   │   │       │                      #   report helpers, Arabic text utils
 │   │   │       ├── qpc_font_service.dart    # Loads QPC fonts from bundled assets (mobile) or HTTP (web)
 │   │   │       ├── report_helpers.dart      # Pure functions: filtering, stats, badge colors, formatting
-│   │   │       └── arabic_text_utils.dart   # Shared Arabic word parser (char-level rendering)
+│   │   │       └── arabic_text_utils.dart   # Shared Arabic word parser (char-level rendering, 21 harakat codes)
 │   │   │
 │   │   ├── data/
-│   │   │   ├── quran_data.dart         # Static Quran metadata (604 pages, 114 surahs)
+│   │   │   ├── quran_data.dart         # Static Quran metadata (604 pages, 114 surahs, JuzBoundary data)
 │   │   │   ├── models/               # Data models (User, Class, Mistake, Assignment, Quran)
 │   │   │   │   ├── student_report.dart    # Report data models (StudentReport, StudentInfo, etc.)
-│   │   │   │   └── report_filters.dart    # Filter + stats models (ReportFilters, PerformanceStats)
+│   │   │   │   ├── report_filters.dart    # Filter + stats models (ReportFilters, PerformanceStats)
+│   │   │   │   └── suggested_portions.dart # Smart Suggestions models (SuggestedPortion, SuggestedPortions)
 │   │   │   └── repositories/         # CRUD operations (classes, mistakes, quran)
 │   │   │
 │   │   └── presentation/
@@ -160,7 +161,10 @@ Quran_App/
     │   ├── 2026-02-18-001-ux-polish-login.md
     │   ├── 2026-02-18-002-responsive-fixes.md
     │   ├── 2026-02-18-003-flutter-local-quran-and-classes-revamp.md
-    │   └── 2026-02-18-003-team-lead-log.md
+    │   ├── 2026-02-18-003-team-lead-log.md
+    │   ├── 2026-02-19-001-implementation-plans.md
+    │   ├── 2026-02-19-002-feature-implementation.md
+    │   └── 2026-02-19-002-team-lead-log.md
     ├── Mockups/                        # HTML/PDF report mockups
     ├── Architecture/                   # System design docs
     ├── Technical Implementation Journey/
@@ -177,6 +181,9 @@ Quran_App/
     │   ├── Student_Reports.md          # Student reports (data, export, UI)
     │   ├── Tauri_Desktop_App_Plan.md   # Tauri desktop app planning doc
     │   ├── Flutter_Local_Quran_And_Classes_Revamp_Plan.md  # Flutter QPC fonts + classes revamp plan
+    │   ├── Web_Portion_Management_Plan.md  # Web edit/delete/juz portion features plan
+    │   ├── Flutter_Portion_Management_Plan.md  # Flutter edit/delete/juz/suggestions plan
+    │   ├── Flutter_CharLevel_Mistakes_Alignment.md  # Flutter char-level mistake polish plan
     │   ├── Supabase Implementation/    # Schema, RLS policies, frontend integration
     │   ├── Quran Reader/               # Web & Flutter rendering docs
     │   └── Flutter App Overhaul/       # Mobile UI overhaul (6 docs)
@@ -220,6 +227,15 @@ Quran_App/
 - Students: view classes, read Quran, see progress
 
 ## Important Rules
+
+### Session Logs
+- **ALWAYS create a session log** at the start of every development session in `docs/Logs/`
+- **ALWAYS update the log** as you complete work — do NOT wait until the end
+- Naming: `YYYY-MM-DD-NNN-brief-description.md` (e.g. `2026-02-19-001-web-portion-edit.md`)
+- Use the template at `docs/Logs/TEMPLATE.md` for structure
+- Include: objective, summary, work completed, issues encountered, files changed table, next steps
+- Every fix, feature, or bug encountered during the session must be logged
+- If a session is a continuation of previous work, reference the earlier log
 
 ### Git
 - **ALWAYS use `git add .`** before committing

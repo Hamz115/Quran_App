@@ -173,6 +173,21 @@ class ClassRepository {
     await _logSyncOperation(db, 'assignment', id, 'update');
   }
 
+  // Delete assignment (soft delete for sync compatibility)
+  Future<void> deleteAssignment(int id) async {
+    final db = await _dbHelper.appDatabase;
+    await db.update(
+      'assignments',
+      {
+        'is_deleted': 1,
+        'sync_status': 'pending',
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await _logSyncOperation(db, 'assignment', id, 'delete');
+  }
+
   // Delete class (soft delete)
   Future<void> deleteClass(int id) async {
     final db = await _dbHelper.appDatabase;
