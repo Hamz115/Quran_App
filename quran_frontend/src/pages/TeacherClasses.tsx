@@ -245,6 +245,7 @@ export default function TeacherClasses() {
       endSurah: suggestion.end_surah,
       startAyah: suggestion.start_ayah?.toString() || '',
       endAyah: suggestion.end_ayah?.toString() || '',
+      juz: 1,
     };
 
     const portionType = type === 'manzil' ? 'revision' : type;
@@ -503,7 +504,18 @@ export default function TeacherClasses() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => updatePortion(portion.id, { mode: 'juz' })}
+                      onClick={() => {
+                        const boundary = JUZ_BOUNDARIES.find(b => b.juz === portion.juz);
+                        updatePortion(portion.id, {
+                          mode: 'juz',
+                          ...(boundary && {
+                            startSurah: boundary.startSurah,
+                            endSurah: boundary.endSurah,
+                            startAyah: String(boundary.startAyah),
+                            endAyah: String(boundary.endAyah),
+                          }),
+                        });
+                      }}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                         portion.mode === 'juz'
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
