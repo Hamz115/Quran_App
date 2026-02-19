@@ -365,7 +365,7 @@ export default function TeacherClasses() {
       type="button"
       onClick={() => onChange(!enabled)}
       className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-        enabled ? color : 'bg-slate-600'
+        enabled ? color : (darkMode ? 'bg-slate-600' : 'bg-slate-300')
       }`}
     >
       <span
@@ -438,15 +438,15 @@ export default function TeacherClasses() {
 
     return (
       <div className={`p-4 rounded-xl border-2 transition-all ${
-        config.enabled ? borderColor : 'border-slate-700 bg-slate-800/30'
+        config.enabled ? borderColor : (darkMode ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50')
       }`}>
         {/* Header with toggle */}
         <div className="flex items-start justify-between mb-1">
           <div>
-            <h3 className={`font-semibold ${config.enabled ? 'text-slate-100' : 'text-slate-400'}`}>
+            <h3 className={`font-semibold ${config.enabled ? (darkMode ? 'text-slate-100' : 'text-slate-800') : 'text-slate-400'}`}>
               {label}
             </h3>
-            <p className="text-sm text-slate-500">{description}</p>
+            <p className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>{description}</p>
           </div>
           <ToggleSwitch enabled={config.enabled} onChange={(v) => setConfig({ ...config, enabled: v })} color={toggleColor} />
         </div>
@@ -462,7 +462,7 @@ export default function TeacherClasses() {
 
               return (
                 <div key={portion.id} className="space-y-3">
-                  {index > 0 && <div className="border-t border-slate-700 pt-3" />}
+                  {index > 0 && <div className={`border-t pt-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`} />}
 
                   {config.portions.length > 1 && (
                     <div className="flex justify-between items-center">
@@ -485,7 +485,7 @@ export default function TeacherClasses() {
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                         portion.mode === 'page'
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                          : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                          : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
                       }`}
                     >
                       By Page
@@ -496,7 +496,7 @@ export default function TeacherClasses() {
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                         portion.mode === 'surah'
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                          : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                          : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
                       }`}
                     >
                       By Surah
@@ -507,7 +507,7 @@ export default function TeacherClasses() {
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                         portion.mode === 'juz'
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                          : 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700'
+                          : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
                       }`}
                     >
                       By Juz
@@ -518,7 +518,7 @@ export default function TeacherClasses() {
                     /* Page-based selection */
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">From Page</label>
+                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Page</label>
                         <input
                           type="number"
                           min="1"
@@ -532,11 +532,11 @@ export default function TeacherClasses() {
                               Math.max(newStart, portion.endPage)
                             );
                           }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">To Page</label>
+                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Page</label>
                         <input
                           type="number"
                           min={portion.startPage}
@@ -546,7 +546,7 @@ export default function TeacherClasses() {
                             const newEnd = Math.min(Math.max(portion.startPage, parseInt(e.target.value) || portion.startPage), TOTAL_PAGES);
                             handlePageChange(portion.id, portion.startPage, newEnd);
                           }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                         />
                       </div>
                     </div>
@@ -557,7 +557,7 @@ export default function TeacherClasses() {
                     <>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">From Surah</label>
+                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Surah</label>
                           <select
                             value={portion.startSurah}
                             onChange={(e) => {
@@ -569,7 +569,7 @@ export default function TeacherClasses() {
                                 endAyah: ''
                               });
                             }}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                           >
                             {surahList.map((surah) => (
                               <option key={surah.number} value={surah.number}>
@@ -579,11 +579,11 @@ export default function TeacherClasses() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">To Surah</label>
+                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Surah</label>
                           <select
                             value={portion.endSurah}
                             onChange={(e) => updatePortion(portion.id, { endSurah: parseInt(e.target.value), startAyah: '', endAyah: '' })}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                           >
                             {surahList.filter(s => s.number >= portion.startSurah).map((surah) => (
                               <option key={surah.number} value={surah.number}>
@@ -596,7 +596,7 @@ export default function TeacherClasses() {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">From Ayah (optional)</label>
+                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Ayah (optional)</label>
                           <input
                             type="number"
                             min="1"
@@ -605,11 +605,11 @@ export default function TeacherClasses() {
                             value={portion.startAyah}
                             onChange={(e) => updatePortion(portion.id, { startAyah: e.target.value })}
                             disabled={!isSameSurah}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">To Ayah (optional)</label>
+                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Ayah (optional)</label>
                           <input
                             type="number"
                             min="1"
@@ -618,7 +618,7 @@ export default function TeacherClasses() {
                             value={portion.endAyah}
                             onChange={(e) => updatePortion(portion.id, { endAyah: e.target.value })}
                             disabled={!isSameSurah}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
                           />
                         </div>
                       </div>
@@ -634,7 +634,7 @@ export default function TeacherClasses() {
                   {portion.mode === 'juz' && (
                     /* Juz-based selection */
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Juz</label>
+                      <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Juz</label>
                       <select
                         value={portion.juz}
                         onChange={(e) => {
@@ -650,7 +650,7 @@ export default function TeacherClasses() {
                             });
                           }
                         }}
-                        className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                       >
                         {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
                           <option key={j} value={j}>Juz {j}</option>
@@ -674,7 +674,7 @@ export default function TeacherClasses() {
             <button
               type="button"
               onClick={addPortion}
-              className="w-full py-2 border border-dashed border-slate-600 rounded-lg text-slate-400 hover:text-slate-200 hover:border-slate-500 text-sm transition-colors"
+              className={`w-full py-2 border border-dashed rounded-lg text-sm transition-colors ${darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400'}`}
             >
               + Add Another Portion
             </button>
@@ -763,13 +763,13 @@ export default function TeacherClasses() {
                 /* Step 1: Select Students */
                 <div className="space-y-4">
                   {/* Class Type Toggle */}
-                  <label className="block text-sm font-medium text-slate-300">
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     Select students for this class
                   </label>
                   {students.length === 0 ? (
-                    <div className="p-6 bg-slate-700/30 rounded-xl text-center">
-                      <p className="text-slate-400">No students added yet</p>
-                      <p className="text-sm text-slate-500 mt-1">Add students from the Dashboard first</p>
+                    <div className={`p-6 rounded-xl text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                      <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>No students added yet</p>
+                      <p className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Add students from the Dashboard first</p>
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -782,14 +782,14 @@ export default function TeacherClasses() {
                             onClick={() => toggleStudent(student.id)}
                             className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-blue-500/20 border-2 border-blue-500'
-                                : 'bg-slate-700/50 border-2 border-transparent hover:bg-slate-700'
+                                ? (darkMode ? 'bg-blue-500/20 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-500')
+                                : (darkMode ? 'bg-slate-700/50 border-2 border-transparent hover:bg-slate-700' : 'bg-slate-50 border-2 border-transparent hover:bg-slate-100')
                             }`}
                           >
                             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
                               isSelected
                                 ? 'bg-blue-500 border-blue-500'
-                                : 'border-slate-500'
+                                : (darkMode ? 'border-slate-500' : 'border-slate-300')
                             }`}>
                               {isSelected && (
                                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -800,7 +800,7 @@ export default function TeacherClasses() {
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
                               {student.first_name[0]}{student.last_name[0]}
                             </div>
-                            <span className="text-slate-200 font-medium">{student.first_name} {student.last_name}</span>
+                            <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{student.first_name} {student.last_name}</span>
                           </button>
                         );
                       })}
@@ -810,16 +810,16 @@ export default function TeacherClasses() {
               ) : (
                 /* Step 2: Configure Portions */
                 <div className="space-y-4">
-                  <div className="p-3 bg-slate-700/50 rounded-lg flex items-center gap-2">
-                    <p className="text-sm text-slate-400">
-                      {'Class'} with: <span className={`font-medium text-blue-400`}>{selectedStudentNames}</span>
+                  <div className={`p-3 rounded-lg flex items-center gap-2 ${darkMode ? 'bg-slate-700/50' : 'bg-slate-100'}`}>
+                    <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {'Class'} with: <span className={`font-medium ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{selectedStudentNames}</span>
                     </p>
                   </div>
 
                   {/* Portion Mode Toggle - only show if multiple students selected */}
                   {selectedStudents.length > 1 && (
-                    <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                      <label className="block text-sm font-medium text-slate-300 mb-3">
+                    <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                      <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                         How do you want to assign portions?
                       </label>
                       <div className="flex gap-2">
@@ -829,7 +829,7 @@ export default function TeacherClasses() {
                           className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
                             portionMode === 'same'
                               ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-500'
-                              : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                              : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
                           }`}
                         >
                           Same for all students
@@ -843,7 +843,7 @@ export default function TeacherClasses() {
                           className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
                             portionMode === 'per-student'
                               ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                              : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                              : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
                           }`}
                         >
                           Different per student
@@ -870,7 +870,7 @@ export default function TeacherClasses() {
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                               isActive
                                 ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                                : 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700'
+                                : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
                             }`}
                           >
                             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-xs font-bold text-white">
@@ -888,7 +888,7 @@ export default function TeacherClasses() {
                     </div>
                   )}
 
-                  <p className="text-sm text-slate-300">
+                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     {portionMode === 'per-student' && selectedStudents.length > 1
                       ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
                       : 'Select the Quran portions for this class (you can also add/edit later):'}
@@ -908,7 +908,7 @@ export default function TeacherClasses() {
                           <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                           </svg>
-                          <span className="text-sm font-medium text-purple-300">Smart Suggestions</span>
+                          <span className={`text-sm font-medium ${darkMode ? 'text-purple-300' : 'text-purple-600'}`}>Smart Suggestions</span>
                           {studentSuggestions?.last_class && (
                             <span className="text-xs text-slate-500">
                               (based on {studentSuggestions.last_class.day}, {studentSuggestions.last_class.date})
@@ -970,7 +970,7 @@ export default function TeacherClasses() {
                                 className="p-2 rounded-lg bg-slate-500/10 border border-slate-500/30 hover:bg-slate-500/20 transition-colors text-left"
                               >
                                 <div className="text-xs font-medium text-slate-400 mb-1">MANZIL</div>
-                                <div className="text-sm text-slate-300">{studentSuggestions.manzil.surah_name || `Surah ${studentSuggestions.manzil.start_surah}`}</div>
+                                <div className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>{studentSuggestions.manzil.surah_name || `Surah ${studentSuggestions.manzil.start_surah}`}</div>
                                 {studentSuggestions.manzil.start_ayah && (
                                   <div className="text-xs text-slate-400/70">
                                     Ayah {studentSuggestions.manzil.start_ayah}-{studentSuggestions.manzil.end_ayah}
@@ -1055,12 +1055,12 @@ export default function TeacherClasses() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-700 flex gap-3 flex-shrink-0">
+            <div className={`px-6 py-4 border-t flex gap-3 flex-shrink-0 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
               {modalStep === 1 ? (
                 <>
                   <button
                     onClick={resetModal}
-                    className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+                    className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                   >
                     Cancel
                   </button>
@@ -1076,7 +1076,7 @@ export default function TeacherClasses() {
                 <>
                   <button
                     onClick={() => setModalStep(1)}
-                    className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+                    className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                   >
                     Back
                   </button>
@@ -1107,10 +1107,10 @@ export default function TeacherClasses() {
       {/* Notes Modal */}
       {showNotesModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg">
+          <div className={`rounded-2xl border w-full max-w-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <h2 className={`text-xl font-semibold flex items-center gap-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
@@ -1121,7 +1121,7 @@ export default function TeacherClasses() {
                   setShowNotesModal(false);
                   setNotesClassId(null);
                 }}
-                className="text-slate-400 hover:text-slate-200"
+                className={darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1136,18 +1136,18 @@ export default function TeacherClasses() {
                 onChange={(e) => setNotesText(e.target.value)}
                 placeholder="Add observations, feedback, or reminders for this class..."
                 rows={5}
-                className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow"
+                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow ${darkMode ? 'border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
               />
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-700 flex gap-3">
+            <div className={`px-6 py-4 border-t flex gap-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
               <button
                 onClick={() => {
                   setShowNotesModal(false);
                   setNotesClassId(null);
                 }}
-                className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium transition-colors"
+                className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
               >
                 Cancel
               </button>
