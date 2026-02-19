@@ -206,6 +206,12 @@ class MushafPageWidget extends StatelessWidget {
     // Group characters: each base letter with its following harakat
     final groups = groupArabicCharacters(word.textUthmani);
 
+    final baseStyle = GoogleFonts.amiri(
+      fontSize: 20, // ~0.85 * 24 (QPC size)
+      height: 1.8,
+      color: AppColors.lightText,
+    );
+
     // Build TextSpan children for each group
     final spans = <InlineSpan>[];
     for (final group in groups) {
@@ -213,29 +219,29 @@ class MushafPageWidget extends StatelessWidget {
       final harakatWithMistakes = group.harakat.where((h) => charMistakeMap.containsKey(h.index)).toList();
 
       if (harakatWithMistakes.isNotEmpty) {
-        // Haraka has a mistake — color only the mistaken harakat
+        // Haraka has a mistake — color only the mistaken harakat with glow
         final children = <InlineSpan>[
           TextSpan(text: group.base),
         ];
         for (final h in group.harakat) {
           final level = charMistakeMap[h.index];
           if (level != null) {
-            final mistakeColor = AppColors.getMistakeColor(level);
+            // Bright haraka color matching web's haraka-mistake-N
+            final color = _getHarakaBrightColor(level);
+            final darkerColor = AppColors.getMistakeColor(level);
             children.add(TextSpan(
               text: h.char,
               style: TextStyle(
-                color: mistakeColor,
-                fontSize: 26, // ~1.3 * 20 (Amiri base size)
+                color: color,
+                fontSize: 26, // 1.3em matching web
                 fontWeight: FontWeight.bold,
                 shadows: [
-                  Shadow(
-                    color: mistakeColor.withOpacity(0.6),
-                    blurRadius: 8,
-                  ),
-                  Shadow(
-                    color: mistakeColor.withOpacity(0.3),
-                    blurRadius: 16,
-                  ),
+                  // 5-layer glow matching web's text-shadow
+                  const Shadow(color: Colors.white, blurRadius: 3),
+                  Shadow(color: color.withOpacity(0.8), blurRadius: 6),
+                  Shadow(color: color.withOpacity(0.6), blurRadius: 10),
+                  Shadow(color: darkerColor.withOpacity(0.5), blurRadius: 15),
+                  Shadow(color: darkerColor.withOpacity(0.4), blurRadius: 20),
                 ],
               ),
             ));
@@ -245,11 +251,35 @@ class MushafPageWidget extends StatelessWidget {
         }
         spans.add(TextSpan(children: children));
       } else if (baseMistakeLevel != null) {
-        // Only the base letter has a mistake — color the whole group
+        // Only the base letter has a mistake — highlight just this group
+        // with gradient background + border (matching web's letter-mistake-N)
+        final mistakeColor = AppColors.getMistakeColor(baseMistakeLevel);
         final groupText = group.base + group.harakat.map((h) => h.char).join();
-        spans.add(TextSpan(
-          text: groupText,
-          style: TextStyle(color: AppColors.getMistakeColor(baseMistakeLevel)),
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  mistakeColor.withOpacity(0.5),
+                  mistakeColor.withOpacity(0.35),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(4),
+              border: Border(
+                bottom: BorderSide(color: mistakeColor, width: 2),
+              ),
+            ),
+            child: Text(
+              groupText,
+              style: baseStyle,
+              textDirection: TextDirection.rtl,
+            ),
+          ),
         ));
       } else {
         // No mistake — plain text
@@ -258,35 +288,13 @@ class MushafPageWidget extends StatelessWidget {
       }
     }
 
-    // Render with Amiri font (textUthmani) at slightly smaller size (matches web's 0.85em)
-    Widget wordWidget = Container(
-      margin: const EdgeInsets.symmetric(horizontal: 1),
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.getMistakeColor(charMistakes.first.severityLevel).withOpacity(0.15),
-            AppColors.getMistakeColor(charMistakes.first.severityLevel).withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(4),
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.getMistakeColor(charMistakes.first.severityLevel).withOpacity(0.5),
-            width: 1,
-          ),
-        ),
-      ),
+    // Render with Amiri font — NO background on the whole word (clean, matching web)
+    Widget wordWidget = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 1),
       child: RichText(
         textDirection: TextDirection.rtl,
         text: TextSpan(
-          style: GoogleFonts.amiri(
-            fontSize: 20, // ~0.85 * 24 (QPC size)
-            height: 1.8,
-            color: AppColors.lightText,
-          ),
+          style: baseStyle,
           children: spans,
         ),
       ),
@@ -301,6 +309,19 @@ class MushafPageWidget extends StatelessWidget {
     }
 
     return wordWidget;
+  }
+
+  /// Bright haraka colors matching web's haraka-mistake-N CSS classes.
+  /// These are brighter than the standard mistake colors for visibility on the glow.
+  static Color _getHarakaBrightColor(int level) {
+    switch (level) {
+      case 1: return const Color(0xFFFBBF24); // amber-400
+      case 2: return const Color(0xFF60A5FA); // blue-400
+      case 3: return const Color(0xFFFB923C); // orange-400
+      case 4: return const Color(0xFFC084FC); // purple-400
+      case 5: return const Color(0xFFF87171); // red-400
+      default: return const Color(0xFFFBBF24);
+    }
   }
 
   /// Get all mistakes for a specific word.

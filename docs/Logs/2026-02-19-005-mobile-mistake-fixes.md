@@ -46,6 +46,7 @@ Fixed 4 critical bugs in the Flutter mistake system: (1) stale `classMistakeIdsP
 | `quran_mobile/lib/presentation/providers/providers.dart` | Modified | Added `ref.watch(mistakesProvider)` to `classMistakeIdsProvider`; removed broken grouping in `loadMistakes()` web path; added `classIdString` param to `addMistake()`; fixed UUID-based `mistake_occurrences` insert; added missing `charIndex` to returned Mistake objects |
 | `quran_mobile/lib/presentation/screens/classroom/classroom_screen.dart` | Modified | Pass `classIdString: widget.classId` to both `addMistake()` calls |
 | `quran_frontend/src/pages/TeacherClasses.tsx` | Modified | Default all 3 section toggles to enabled |
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Modified | Rewrote `_buildCharLevelWord` to match web: no background on whole word, letter mistakes get per-letter gradient+border via WidgetSpan, haraka mistakes get 5-layer glow with bright colors matching web's CSS |
 
 ## Next Steps
 
