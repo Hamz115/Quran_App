@@ -392,47 +392,56 @@ export default function TeacherDashboard() {
                 const sabqi = cls.assignments.filter(a => a.type === 'sabqi');
                 const revision = cls.assignments.filter(a => a.type === 'revision');
 
+                const studentNames = cls.students?.map(s => `${s.first_name} ${s.last_name}`).join(', ');
+
                 return (
                   <div
                     key={cls.id}
-                    onClick={() => navigate(`/classroom/${cls.id}`)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                    onClick={() => navigate(`/teacher/classes/${cls.id}`)}
+                    className={`p-5 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${
                       darkMode
-                        ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                        ? 'border-slate-600 bg-slate-700/60 hover:border-cyan-500/50 hover:shadow-cyan-500/10'
+                        : 'border-slate-300 bg-white hover:border-cyan-400 hover:shadow-cyan-100 shadow-sm'
                     }`}
                   >
                     {/* Date badge + day */}
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="text-center">
+                      <div className={`text-center px-3 py-1.5 rounded-lg ${
+                        darkMode ? 'bg-cyan-500/15' : 'bg-cyan-50'
+                      }`}>
                         <div className="text-2xl font-bold text-cyan-500">{dayNum}</div>
-                        <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{monthStr}</div>
+                        <div className={`text-xs font-medium ${darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>{monthStr}</div>
                       </div>
-                      <div className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{cls.day}</div>
+                      <div>
+                        <div className={`text-sm font-semibold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{cls.day}</div>
+                        {studentNames && (
+                          <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{studentNames}</div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Portions */}
-                    <div className="space-y-1.5">
+                    <div className={`space-y-1.5 pt-3 border-t ${darkMode ? 'border-slate-600' : 'border-slate-200'}`}>
                       {hifz.length > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-blue-400">Hifz:</span>
-                          <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <span className="text-xs font-semibold text-blue-400">Hifz:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                             {hifz.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
                           </span>
                         </div>
                       )}
                       {sabqi.length > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-cyan-400">Sabqi:</span>
-                          <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <span className="text-xs font-semibold text-cyan-400">Sabqi:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                             {sabqi.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
                           </span>
                         </div>
                       )}
                       {revision.length > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-slate-400">Revision:</span>
-                          <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <span className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Revision:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                             {revision.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
                           </span>
                         </div>
