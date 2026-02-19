@@ -1,15 +1,12 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/qpc_font_service.dart';
 import '../../core/services/quran_page_data_service.dart';
 import '../../data/models/quran_page_data.dart';
 
-/// Singleton QpcFontService - loads QPC .ttf fonts.
-/// Mobile: loads from bundled assets (offline). Web: downloads from backend API.
+/// Singleton QpcFontService - loads QPC .ttf fonts from bundled assets.
+/// Fully offline on both web and mobile (no backend dependency).
 final qpcFontServiceProvider = Provider<QpcFontService>((ref) {
-  // baseUrl only matters for web (mobile loads from assets)
-  final baseUrl = kIsWeb ? 'http://localhost:8000/api' : '';
-  return QpcFontService(baseUrl: baseUrl);
+  return QpcFontService();
 });
 
 /// Singleton QuranPageDataService - loads page JSON from bundled assets.

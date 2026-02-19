@@ -17,8 +17,10 @@ import 'report_performance_tab.dart';
 /// Mirrors web's ReportPanel.tsx.
 class ReportPanel extends ConsumerStatefulWidget {
   final String studentId;
+  final ValueChanged<String>? onTapClass;
+  final ValueChanged<String>? onDeleteClass;
 
-  const ReportPanel({super.key, required this.studentId});
+  const ReportPanel({super.key, required this.studentId, this.onTapClass, this.onDeleteClass});
 
   @override
   ConsumerState<ReportPanel> createState() => _ReportPanelState();
@@ -196,6 +198,8 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
           onToggleExpand: (id) => setState(() {
             _expandedClassId = _expandedClassId == id ? null : id;
           }),
+          onTapClass: widget.onTapClass,
+          onDeleteClass: widget.onDeleteClass,
         );
       case _ReportTab.mistakes:
         return ReportMistakesTab(

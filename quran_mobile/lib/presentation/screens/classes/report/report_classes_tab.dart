@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,12 +15,16 @@ class ReportClassesTab extends ConsumerWidget {
   final List<StudentClass> classes;
   final String? expandedClassId;
   final ValueChanged<String> onToggleExpand;
+  final ValueChanged<String>? onTapClass;
+  final ValueChanged<String>? onDeleteClass;
 
   const ReportClassesTab({
     super.key,
     required this.classes,
     required this.expandedClassId,
     required this.onToggleExpand,
+    this.onTapClass,
+    this.onDeleteClass,
   });
 
   @override
@@ -42,53 +48,87 @@ class ReportClassesTab extends ConsumerWidget {
     final sorted = [...classes]
       ..sort((a, b) => b.date.compareTo(a.date));
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border(isDark)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          children: [
-            // Table header
-            Container(
-              color: isDark ? AppColors.slate900 : AppColors.slate50,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  const SizedBox(width: 28), // chevron column
-                  Expanded(
-                    flex: 2,
-                    child: _HeaderText('DATE', isDark),
+    // Compute previous mistakes map (accumulated from earlier classes)
+    final chronological = [...classes]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final Map<String, List<ClassMistake>> previousMistakesMap = {};
+    final Map<String, ClassMistake> accumulated = {};
+    for (final cls in chronological) {
+      // Store accumulated so far (before this class) for this class
+      previousMistakesMap[cls.id] = accumulated.values.toList()
+        ..sort((a, b) => b.errorCount.compareTo(a.errorCount));
+      // Add this class's mistakes into the accumulator
+      for (final m in cls.mistakes) {
+        final key = '${m.surahNumber}-${m.ayahNumber}-${m.wordText}';
+        final existing = accumulated[key];
+        if (existing == null || m.errorCount > existing.errorCount) {
+          accumulated[key] = m;
+        }
+      }
+    }
+
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: 640,
+          maxWidth: math.max(640, screenWidth - 32),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border(isDark)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Table header
+                Container(
+                  color: isDark ? AppColors.slate900 : AppColors.slate50,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 28), // chevron column
+                      Expanded(
+                        flex: 2,
+                        child: _HeaderText('DATE', isDark),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: _HeaderText('PORTIONS', isDark),
+                      ),
+                      SizedBox(
+                        width: 50,
+                        child: _HeaderText('MIST.', isDark, center: true),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: _HeaderText('PERFORMANCE', isDark),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: _HeaderText('NOTES', isDark),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    flex: 3,
-                    child: _HeaderText('PORTIONS', isDark),
-                  ),
-                  SizedBox(
-                    width: 50,
-                    child: _HeaderText('MIST.', isDark, center: true),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: _HeaderText('PERFORMANCE', isDark),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: _HeaderText('NOTES', isDark),
-                  ),
-                ],
-              ),
+                ),
+                // Rows
+                ...sorted.map((cls) => _ClassRow(
+                  cls: cls,
+                  isExpanded: expandedClassId == cls.id,
+                  isDark: isDark,
+                  onToggle: () => onToggleExpand(cls.id),
+                  onTap: onTapClass != null ? () => onTapClass!(cls.id) : null,
+                  onDelete: onDeleteClass != null ? () => onDeleteClass!(cls.id) : null,
+                  previousMistakes: previousMistakesMap[cls.id] ?? [],
+                )),
+              ],
             ),
-            // Rows
-            ...sorted.map((cls) => _ClassRow(
-              cls: cls,
-              isExpanded: expandedClassId == cls.id,
-              isDark: isDark,
-              onToggle: () => onToggleExpand(cls.id),
-            )),
-          ],
+          ),
         ),
       ),
     );
@@ -124,12 +164,18 @@ class _ClassRow extends StatelessWidget {
   final bool isExpanded;
   final bool isDark;
   final VoidCallback onToggle;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete;
+  final List<ClassMistake> previousMistakes;
 
   const _ClassRow({
     required this.cls,
     required this.isExpanded,
     required this.isDark,
     required this.onToggle,
+    this.onTap,
+    this.onDelete,
+    this.previousMistakes = const [],
   });
 
   @override
@@ -140,18 +186,26 @@ class _ClassRow extends StatelessWidget {
         Container(
           color: AppColors.card(isDark),
           child: InkWell(
-            onTap: onToggle,
+            onTap: onTap ?? onToggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(
                 children: [
-                  // Chevron
-                  SizedBox(
-                    width: 28,
-                    child: Icon(
-                      isExpanded ? Icons.expand_more : Icons.chevron_right,
-                      size: 18,
-                      color: AppColors.textMuted(isDark),
+                  // Chevron — only this toggles expand
+                  GestureDetector(
+                    onTap: () {
+                      // Stop the InkWell from also firing
+                      onToggle();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(
+                      width: 28,
+                      height: 40,
+                      child: Icon(
+                        isExpanded ? Icons.expand_more : Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.textMuted(isDark),
+                      ),
                     ),
                   ),
                   // Date + Day
@@ -259,33 +313,21 @@ class _ClassRow extends StatelessWidget {
             : '';
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: portionTagColor(a.type),
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: portionTagBorderColor(a.type)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                a.type.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
-                  color: portionTagTextColor(a.type),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '$surahName$ayahRange',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: portionTagTextColor(a.type),
-                ),
-              ),
-            ],
+          child: Text(
+            '${a.type.toUpperCase()} $surahName$ayahRange',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: portionTagTextColor(a.type),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         );
       }).toList(),
@@ -403,6 +445,73 @@ class _ClassRow extends StatelessWidget {
                 ),
               )).toList(),
             ),
+          // Previous mistakes (amber scheme)
+          if (previousMistakes.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'MISTAKES FROM PREVIOUS CLASSES',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: AppColors.textMuted(isDark),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: previousMistakes.map((m) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0x1AF59E0B) // amber-500/10
+                      : const Color(0xFFFFFBEB), // amber-50
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0x33F59E0B) // amber-500/20
+                        : const Color(0xFFFDE68A), // amber-200
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      m.wordText,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontFamily: AppConstants.arabicFontFamily,
+                        color: isDark
+                            ? const Color(0xFFFCD34D) // amber-300
+                            : const Color(0xFFD97706), // amber-600
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${m.surahName}:${m.ayahNumber}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFFFCD34D)
+                            : const Color(0xFFD97706),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${m.errorCount}x',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFBBF24), // amber-400
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ],
           const SizedBox(height: 16),
           // Teacher Notes
           Text(
@@ -446,8 +555,31 @@ class _ClassRow extends StatelessWidget {
                 ),
               ),
             ),
+          // Delete button
+          if (onDelete != null) ...[
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _confirmDelete(isDark),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Delete Class'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  void _confirmDelete(bool isDark) {
+    // Find the nearest context via the Builder pattern
+    // Since _ClassRow is a StatelessWidget, we use the onDelete callback
+    // which will be called after confirmation in the parent
+    onDelete!();
   }
 }

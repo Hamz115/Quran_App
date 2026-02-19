@@ -5,6 +5,8 @@ import '../../../config/app_colors.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/report_provider.dart';
+import '../classroom/classroom_screen.dart';
 import 'create_class_screen.dart';
 import 'report/report_panel.dart';
 
@@ -28,14 +30,6 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
-      floatingActionButton: isTeacher
-          ? FloatingActionButton.extended(
-              onPressed: () => _showCreateClassSheet(context),
-              backgroundColor: AppColors.cyan500,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('New Class'),
-            )
-          : null,
       body: SafeArea(
         child: isTeacher
             ? _buildTeacherView(isDarkMode)
@@ -69,16 +63,47 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header + New Class button
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text(
-                'Classes',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text(isDarkMode),
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Classes',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(isDarkMode),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _showCreateClassSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.cyan500,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                          SizedBox(width: 6),
+                          Text(
+                            'New Class',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -90,10 +115,12 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             Expanded(
               child: _selectedStudentId != null
                   ? SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 80), // space for FAB
+                      padding: const EdgeInsets.only(bottom: 24),
                       child: ReportPanel(
                         key: ValueKey(_selectedStudentId),
                         studentId: _selectedStudentId!,
+                        onTapClass: (classId) => _navigateToClass(context, classId),
+                        onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
                       ),
                     )
                   : students.isEmpty
@@ -223,7 +250,11 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 24),
-            child: ReportPanel(studentId: userId),
+            child: ReportPanel(
+              studentId: userId,
+              onTapClass: (classId) => _navigateToClass(context, classId),
+              onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
+            ),
           ),
         ),
       ],
@@ -283,12 +314,61 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     return parts.isNotEmpty ? parts.first : fullName;
   }
 
+  void _navigateToClass(BuildContext context, String classId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ClassroomScreen(classId: classId),
+      ),
+    );
+  }
+
   void _showCreateClassSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const CreateClassScreen(),
+      builder: (context) => CreateClassScreen(studentId: _selectedStudentId),
+    );
+  }
+
+  void _confirmDeleteClass(BuildContext context, WidgetRef ref, String classId) {
+    final isDarkMode = ref.read(themeProvider);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface(isDarkMode),
+        title: Text(
+          'Delete Class',
+          style: TextStyle(color: AppColors.text(isDarkMode)),
+        ),
+        content: Text(
+          'Are you sure you want to delete this class? This action cannot be undone.',
+          style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(classesProvider.notifier).deleteClassById(classId);
+              // Refresh the report data
+              ref.invalidate(studentReportProvider);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

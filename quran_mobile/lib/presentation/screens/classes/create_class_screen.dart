@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
@@ -5,9 +6,13 @@ import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/report_provider.dart';
+import '../classroom/classroom_screen.dart';
 
 class CreateClassScreen extends ConsumerStatefulWidget {
-  const CreateClassScreen({super.key});
+  final String? studentId;
+
+  const CreateClassScreen({super.key, this.studentId});
 
   @override
   ConsumerState<CreateClassScreen> createState() => _CreateClassScreenState();
@@ -506,14 +511,28 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       final dayName = AppConstants.daysOfWeek[_selectedDate.weekday % 7];
       final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
-      await ref.read(classesProvider.notifier).createClass(
+      final newClass = await ref.read(classesProvider.notifier).createClass(
         date: dateStr,
         day: dayName,
         assignments: assignments,
+        studentIds: widget.studentId != null ? [widget.studentId!] : [],
       );
 
+      // Refresh the report so the new class appears
+      ref.invalidate(studentReportProvider);
+
       if (mounted) {
+        // Close the bottom sheet, then navigate into the new class
+        final classId = kIsWeb
+            ? (newClass.supabaseId ?? newClass.id.toString())
+            : newClass.id.toString();
         Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ClassroomScreen(classId: classId),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

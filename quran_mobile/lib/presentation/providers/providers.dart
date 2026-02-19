@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/constants.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/connectivity_service.dart';
@@ -80,6 +81,179 @@ final teacherStudentsProvider = FutureProvider<List<({String id, String name})>>
   }).toList();
 });
 
+// Mistake IDs belonging to a specific class (via mistake_occurrences)
+final classMistakeIdsProvider = FutureProvider.family<Set<String>, String>((ref, classId) async {
+  if (kIsWeb) {
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('mistake_occurrences')
+        .select('mistake_id')
+        .eq('class_id', classId);
+    return (response as List).map((r) => r['mistake_id'].toString()).toSet();
+  } else {
+    final intId = int.tryParse(classId);
+    if (intId == null) return <String>{};
+    final db = await DatabaseHelper.instance.appDatabase;
+    final results = await db.query(
+      'mistake_occurrences',
+      columns: ['mistake_id'],
+      where: 'class_id = ? AND is_deleted = 0',
+      whereArgs: [intId],
+    );
+    return results.map((r) => r['mistake_id'].toString()).toSet();
+  }
+});
+
+/// A mistake from a previous class, carrying class date context.
+class PreviousMistakeInfo {
+  final int surahNumber;
+  final int ayahNumber;
+  final int wordIndex;
+  final String wordText;
+  final int errorCount;
+  final String classDate;
+  final String classDay;
+
+  const PreviousMistakeInfo({
+    required this.surahNumber,
+    required this.ayahNumber,
+    required this.wordIndex,
+    required this.wordText,
+    required this.errorCount,
+    required this.classDate,
+    required this.classDay,
+  });
+}
+
+/// Fetches mistakes from classes dated BEFORE the given class, with class date info.
+/// Returns deduplicated list (one entry per unique word location, keeping most recent class).
+final previousClassMistakesProvider = FutureProvider.family<List<PreviousMistakeInfo>, String>((ref, classId) async {
+  if (kIsWeb) {
+    final supabase = Supabase.instance.client;
+
+    // 1. Get current class date
+    final classData = await supabase
+        .from('classes')
+        .select('date, teacher_id')
+        .eq('id', classId)
+        .maybeSingle();
+    if (classData == null) return [];
+    final currentDate = classData['date'] as String;
+    final teacherId = classData['teacher_id'] as String;
+
+    // 2. Get all classes by this teacher dated BEFORE the current class
+    final olderClassesRaw = await supabase
+        .from('classes')
+        .select('id, date, day')
+        .eq('teacher_id', teacherId)
+        .lt('date', currentDate)
+        .order('date', ascending: false);
+    final olderClasses = olderClassesRaw as List;
+    if (olderClasses.isEmpty) return [];
+
+    final classInfoMap = <String, Map<String, dynamic>>{};
+    final olderClassIds = <String>[];
+    for (final c in olderClasses) {
+      final cId = c['id'].toString();
+      classInfoMap[cId] = c;
+      olderClassIds.add(cId);
+    }
+
+    // 3. Get mistake occurrences for those classes
+    final occRaw = await supabase
+        .from('mistake_occurrences')
+        .select('mistake_id, class_id')
+        .inFilter('class_id', olderClassIds);
+    final occurrences = occRaw as List;
+    if (occurrences.isEmpty) return [];
+
+    // Map mistake_id → most recent class_id (olderClasses already sorted desc)
+    final mistakeToClass = <String, String>{};
+    for (final occ in occurrences) {
+      final mId = occ['mistake_id'].toString();
+      if (!mistakeToClass.containsKey(mId)) {
+        mistakeToClass[mId] = occ['class_id'].toString();
+      }
+    }
+
+    // 4. Fetch those mistakes
+    final mistakeIds = mistakeToClass.keys.toList();
+    final mistakesRaw = await supabase
+        .from('mistakes')
+        .select('id, surah_number, ayah_number, word_index, word_text, error_count')
+        .inFilter('id', mistakeIds);
+    final mistakes = mistakesRaw as List;
+
+    // 5. Build result — deduplicate by location, keep highest error count + most recent date
+    final Map<String, PreviousMistakeInfo> deduped = {};
+    for (final m in mistakes) {
+      final mId = m['id'].toString();
+      final classId = mistakeToClass[mId];
+      final classInfo = classId != null ? classInfoMap[classId] : null;
+      final key = '${m['surah_number']}-${m['ayah_number']}-${m['word_index']}';
+
+      final info = PreviousMistakeInfo(
+        surahNumber: m['surah_number'] as int? ?? 0,
+        ayahNumber: m['ayah_number'] as int? ?? 0,
+        wordIndex: m['word_index'] as int? ?? 0,
+        wordText: (m['word_text'] as String?) ?? '',
+        errorCount: m['error_count'] as int? ?? 1,
+        classDate: (classInfo?['date'] as String?) ?? '',
+        classDay: (classInfo?['day'] as String?) ?? '',
+      );
+
+      if (!deduped.containsKey(key) || info.errorCount > deduped[key]!.errorCount) {
+        deduped[key] = info;
+      }
+    }
+
+    return deduped.values.toList()
+      ..sort((a, b) => b.errorCount.compareTo(a.errorCount));
+  } else {
+    // Local SQLite
+    final intId = int.tryParse(classId);
+    if (intId == null) return [];
+    final db = await DatabaseHelper.instance.appDatabase;
+
+    // Get current class date
+    final classRows = await db.query('classes', where: 'id = ?', whereArgs: [intId]);
+    if (classRows.isEmpty) return [];
+    final currentDate = classRows.first['date'] as String;
+
+    // Query mistakes from older classes via join
+    final results = await db.rawQuery('''
+      SELECT m.surah_number, m.ayah_number, m.word_index, m.word_text, m.error_count,
+             c.date AS class_date, c.day AS class_day
+      FROM mistake_occurrences mo
+      JOIN mistakes m ON m.id = mo.mistake_id
+      JOIN classes c ON c.id = mo.class_id
+      WHERE c.date < ? AND mo.is_deleted = 0 AND c.is_deleted = 0
+      ORDER BY c.date DESC
+    ''', [currentDate]);
+
+    // Deduplicate by location, keep most recent class date + highest error count
+    final Map<String, PreviousMistakeInfo> deduped = {};
+    for (final row in results) {
+      final key = '${row['surah_number']}-${row['ayah_number']}-${row['word_index']}';
+      final info = PreviousMistakeInfo(
+        surahNumber: row['surah_number'] as int,
+        ayahNumber: row['ayah_number'] as int,
+        wordIndex: row['word_index'] as int,
+        wordText: row['word_text'] as String,
+        errorCount: row['error_count'] as int? ?? 1,
+        classDate: row['class_date'] as String? ?? '',
+        classDay: row['class_day'] as String? ?? '',
+      );
+      if (!deduped.containsKey(key) || info.errorCount > deduped[key]!.errorCount) {
+        deduped[key] = info;
+      }
+    }
+
+    return deduped.values.toList()
+      ..sort((a, b) => b.errorCount.compareTo(a.errorCount));
+  }
+});
+
 // Classes provider
 final classesProvider = StateNotifierProvider<ClassesNotifier, AsyncValue<List<ClassSession>>>((ref) {
   return ClassesNotifier(ref.watch(classRepositoryProvider), ref);
@@ -152,6 +326,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     required String day,
     String? notes,
     required List<Map<String, dynamic>> assignments,
+    List<String> studentIds = const [],
   }) async {
     if (kIsWeb) {
       final user = _ref.read(authProvider).user;
@@ -176,6 +351,16 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
           'start_ayah': assignment['start_ayah'],
           'end_ayah': assignment['end_ayah'],
         });
+      }
+
+      // Link students to the class via class_students table
+      if (studentIds.isNotEmpty) {
+        for (final studentId in studentIds) {
+          await supabase.from('class_students').insert({
+            'class_id': classId,
+            'student_id': studentId,
+          });
+        }
       }
 
       await loadClasses();
@@ -203,12 +388,27 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
       final sbId = _findSupabaseId(id);
       if (sbId == null) return;
       final supabase = Supabase.instance.client;
-      await supabase.from('classes').update({'is_deleted': true}).eq('id', sbId);
+      await supabase.from('classes').delete().eq('id', sbId);
       await loadClasses();
       return;
     }
     await _repository.deleteClass(id);
     await loadClasses();
+  }
+
+  /// Delete a class by its string ID (Supabase UUID or local int string).
+  Future<void> deleteClassById(String classId) async {
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase.from('classes').delete().eq('id', classId);
+      await loadClasses();
+      return;
+    }
+    final intId = int.tryParse(classId);
+    if (intId != null) {
+      await _repository.deleteClass(intId);
+      await loadClasses();
+    }
   }
 
   Future<void> updateNotes(int id, String? notes) async {
@@ -238,7 +438,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
   }
 }
 
-// Single class provider
+// Single class provider (int ID — local SQLite)
 final classProvider = FutureProvider.family<ClassSession?, int>((ref, id) async {
   if (kIsWeb) {
     // Web: find from already-loaded classes list (avoids UUID/int mismatch)
@@ -248,6 +448,44 @@ final classProvider = FutureProvider.family<ClassSession?, int>((ref, id) async 
   }
   final repo = ref.watch(classRepositoryProvider);
   return repo.getClass(id);
+});
+
+// Single class provider (String ID — handles both int IDs and Supabase UUIDs)
+final classFromStringIdProvider = FutureProvider.family<ClassSession?, String>((ref, classId) async {
+  // Try local int ID first
+  final intId = int.tryParse(classId);
+  if (intId != null) {
+    return await ref.watch(classProvider(intId).future);
+  }
+
+  // UUID — fetch from Supabase
+  final supabase = Supabase.instance.client;
+  final data = await supabase
+      .from('classes')
+      .select('*, assignments(*)')
+      .eq('id', classId)
+      .maybeSingle();
+  if (data == null) return null;
+
+  final assignmentsRaw = (data['assignments'] as List?) ?? [];
+  final assignments = assignmentsRaw.map<Assignment>((a) => Assignment(
+    classId: 0, // Supabase class — no local int ID
+    type: (a['type'] as String?) ?? '',
+    startSurah: a['start_surah'] as int? ?? 0,
+    endSurah: a['end_surah'] as int? ?? 0,
+    startAyah: a['start_ayah'] as int?,
+    endAyah: a['end_ayah'] as int?,
+  )).toList();
+
+  return ClassSession(
+    supabaseId: classId,
+    date: (data['date'] as String?) ?? '',
+    day: (data['day'] as String?) ?? '',
+    notes: data['notes'] as String?,
+    performance: data['performance'] as String?,
+    createdAt: (data['created_at'] as String?) ?? '',
+    assignments: assignments,
+  );
 });
 
 // Mistakes provider
@@ -604,15 +842,27 @@ final mistakeCountsBySurahProvider = FutureProvider<Map<int, int>>((ref) async {
 // Note: User data (classes, mistakes) is now fetched from Supabase.
 // Only Quran text data is static since it doesn't change per user.
 
-final _staticSurahs = [
-  Surah(number: 1, name: 'الفاتحة', englishName: 'Al-Fatihah', englishNameTranslation: 'The Opening', numberOfAyahs: 7, revelationType: 'Meccan'),
-  Surah(number: 67, name: 'الملك', englishName: 'Al-Mulk', englishNameTranslation: 'The Sovereignty', numberOfAyahs: 30, revelationType: 'Meccan'),
-  Surah(number: 68, name: 'القلم', englishName: 'Al-Qalam', englishNameTranslation: 'The Pen', numberOfAyahs: 52, revelationType: 'Meccan'),
-  Surah(number: 78, name: 'النبأ', englishName: 'An-Naba', englishNameTranslation: 'The Tidings', numberOfAyahs: 40, revelationType: 'Meccan'),
-  Surah(number: 112, name: 'الإخلاص', englishName: 'Al-Ikhlas', englishNameTranslation: 'Sincerity', numberOfAyahs: 4, revelationType: 'Meccan'),
-  Surah(number: 113, name: 'الفلق', englishName: 'Al-Falaq', englishNameTranslation: 'The Daybreak', numberOfAyahs: 5, revelationType: 'Meccan'),
-  Surah(number: 114, name: 'الناس', englishName: 'An-Nas', englishNameTranslation: 'Mankind', numberOfAyahs: 6, revelationType: 'Meccan'),
+// Ayah counts for all 114 surahs (standard Quran data)
+const _surahAyahCounts = [
+  7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,
+  112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,
+  89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,
+  12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,
+  30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6,
 ];
+
+final _staticSurahs = List<Surah>.generate(114, (i) {
+  final num = i + 1;
+  final name = AppConstants.surahNames[num] ?? 'Surah $num';
+  return Surah(
+    number: num,
+    name: name, // Using English name as placeholder for Arabic
+    englishName: name,
+    englishNameTranslation: '',
+    numberOfAyahs: _surahAyahCounts[i],
+    revelationType: '',
+  );
+});
 
 SurahWithAyahs _getStaticSurahWithAyahs(int surahNumber) {
   final surah = _staticSurahs.firstWhere(

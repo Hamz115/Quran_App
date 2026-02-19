@@ -9,6 +9,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
+import '../classes/report/report_panel.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -21,6 +22,7 @@ class DashboardScreen extends ConsumerWidget {
     final classesAsync = ref.watch(classesProvider);
     final isDarkMode = ref.watch(themeProvider);
     final authState = ref.watch(authProvider);
+    final teacherStudentsAsync = ref.watch(teacherStudentsProvider);
 
     // User info from auth
     final user = authState.user;
@@ -151,7 +153,7 @@ class DashboardScreen extends ConsumerWidget {
                                 Expanded(
                                   child: StatCard(
                                     label: 'Total Students',
-                                    value: '1', // TODO: Fetch from students provider
+                                    value: '${teacherStudentsAsync.valueOrNull?.length ?? 0}',
                                     icon: Icons.people_rounded,
                                     color: AppColors.cyan500,
                                     badge: 'Active',
@@ -263,44 +265,126 @@ class DashboardScreen extends ConsumerWidget {
                     child: SectionCard(
                       title: 'My Students',
                       subtitle: 'Manage your halaqah students',
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: AppColors.cyan500.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Icon(
-                                  Icons.people_rounded,
-                                  size: 48,
-                                  color: AppColors.cyan500,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Student Management',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.text(isDarkMode),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Coming soon! You\'ll be able to add students, track their progress, and review their mistakes here.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.textSecondary(isDarkMode),
-                                ),
-                              ),
-                            ],
-                          ),
+                      child: teacherStudentsAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(child: CircularProgressIndicator()),
                         ),
+                        error: (e, _) => Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text('Error loading students: $e',
+                            style: const TextStyle(color: AppColors.error)),
+                        ),
+                        data: (students) {
+                          if (students.isEmpty) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.cyan500.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Icon(
+                                        Icons.people_rounded,
+                                        size: 48,
+                                        color: AppColors.cyan500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No students yet',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: AppColors.textSecondary(isDarkMode),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Add students to your halaqah to start tracking their progress.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: AppColors.textMuted(isDarkMode),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: students.map((student) {
+                              final initials = student.name.isNotEmpty
+                                  ? student.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+                                  : '?';
+
+                              return InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => _StudentReportPage(
+                                        studentId: student.id,
+                                        studentName: student.name,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppColors.border(isDarkMode).withOpacity(0.5)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.cyan500.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          initials,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.cyan500,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          student.name,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.text(isDarkMode),
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: AppColors.textMuted(isDarkMode),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -611,5 +695,34 @@ class DashboardScreen extends ConsumerWidget {
     final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final month = int.tryParse(date.split('-')[1]) ?? 1;
     return months[month];
+  }
+}
+
+/// Full-screen page showing a student's report (navigated from dashboard).
+class _StudentReportPage extends ConsumerWidget {
+  final String studentId;
+  final String studentName;
+
+  const _StudentReportPage({
+    required this.studentId,
+    required this.studentName,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background(isDark),
+      appBar: AppBar(
+        title: Text(studentName),
+        backgroundColor: AppColors.card(isDark),
+        foregroundColor: AppColors.text(isDark),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        child: ReportPanel(studentId: studentId),
+      ),
+    );
   }
 }

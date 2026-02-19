@@ -18,10 +18,10 @@ class ReportSummaryStrip extends ConsumerWidget {
 
     final stats = [
       _Stat('Classes', summary.totalClasses.toString(), AppColors.cyan400),
-      _Stat('Total Mistakes', summary.totalMistakes.toString(), null),
+      _Stat('Mistakes', summary.totalMistakes.toString(), null),
       _Stat('Unique', summary.uniqueMistakes.toString(), null),
       _Stat('Repeated', summary.repeatedMistakes.toString(), const Color(0xFFF87171)),
-      _Stat('Avg Performance', summary.avgPerformance, const Color(0xFF4ADE80)),
+      _Stat('Avg Perf', summary.avgPerformance, const Color(0xFF4ADE80)),
     ];
 
     return Container(
@@ -52,15 +52,16 @@ class ReportSummaryStrip extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      stat.value,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: stat.color ?? AppColors.text(isDark),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        stat.value,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: stat.color ?? AppColors.text(isDark),
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(

@@ -16,7 +16,7 @@ import '../../widgets/section_badge.dart';
 import 'word_popup.dart';
 
 class ClassroomScreen extends ConsumerStatefulWidget {
-  final int classId;
+  final String classId;
 
   const ClassroomScreen({super.key, required this.classId});
 
@@ -47,7 +47,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final classAsync = ref.watch(classProvider(widget.classId));
+    final classAsync = ref.watch(classFromStringIdProvider(widget.classId));
     final mistakesAsync = ref.watch(mistakesProvider);
     final isDarkMode = ref.watch(themeProvider);
 
@@ -142,7 +142,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 // Mushaf page with swipe (mistakes visible on scroll down)
                 Expanded(
                   child: currentAssignment != null
-                      ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode)
+                      ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode, ref)
                       : Center(
                           child: Text(
                             'No portion selected',
@@ -462,6 +462,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     AsyncValue<List<Mistake>> mistakesAsync,
     Assignment? assignment,
     bool isDarkMode,
+    WidgetRef ref,
   ) {
     // Ensure page controller exists
     if (_pageController == null || !_pageController!.hasClients) {
@@ -477,7 +478,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       },
       itemBuilder: (context, index) {
         final pageNum = firstPage + index;
-        return _buildScrollablePage(pageNum, mistakesAsync, assignment, isDarkMode);
+        return _buildScrollablePage(pageNum, mistakesAsync, assignment, isDarkMode, ref);
       },
     );
   }
@@ -489,6 +490,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     AsyncValue<List<Mistake>> mistakesAsync,
     Assignment? assignment,
     bool isDarkMode,
+    WidgetRef ref,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -501,7 +503,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode),
               ),
               // Mistakes summary below (scroll down to see)
-              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode),
+              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref),
             ],
           ),
         );
@@ -596,13 +598,40 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     AsyncValue<List<Mistake>> mistakesAsync,
     Assignment? assignment,
     bool isDarkMode,
+    WidgetRef ref,
   ) {
     if (assignment == null) return const SizedBox.shrink();
 
     final mistakes = mistakesAsync.value ?? [];
     final relevantMistakes = _getMistakesForAssignment(mistakes, assignment);
 
-    if (relevantMistakes.isEmpty) return const SizedBox.shrink();
+    // Get mistake IDs belonging to this class
+    final classMistakeIdsAsync = ref.watch(classMistakeIdsProvider(widget.classId));
+    final classMistakeIds = classMistakeIdsAsync.valueOrNull ?? <String>{};
+
+    // This class mistakes
+    final thisClassMistakes = <Mistake>[];
+    for (final m in relevantMistakes) {
+      final mistakeKey = kIsWeb
+          ? (m.supabaseId ?? '')
+          : (m.id?.toString() ?? '');
+      if (classMistakeIds.contains(mistakeKey)) {
+        thisClassMistakes.add(m);
+      }
+    }
+
+    // Previous class mistakes (only from classes dated BEFORE this one)
+    final prevMistakesAsync = ref.watch(previousClassMistakesProvider(widget.classId));
+    final allPrevMistakes = prevMistakesAsync.valueOrNull ?? [];
+    // Filter to only those within the current assignment's surah/ayah range
+    final prevMistakes = allPrevMistakes.where((m) {
+      return _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment);
+    }).toList();
+
+    // Nothing to show at all
+    if (thisClassMistakes.isEmpty && prevMistakes.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       width: double.infinity,
@@ -615,27 +644,166 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Mistakes in this class (red)
           Text(
-            'Mistakes in this section (${relevantMistakes.length}):',
+            'MISTAKES IN THIS CLASS (${thisClassMistakes.length})',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
               color: AppColors.textSecondary(isDarkMode),
             ),
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: relevantMistakes.map((m) => MistakeBadge(
-              errorCount: m.errorCount,
-              wordText: m.wordText,
-              location: '${m.ayahNumber}:${m.wordIndex + 1}',
-            )).toList(),
-          ),
+          if (thisClassMistakes.isEmpty)
+            Text(
+              'No mistakes in this class',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textMuted(isDarkMode),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: thisClassMistakes.map((m) => MistakeBadge(
+                errorCount: m.errorCount,
+                wordText: m.wordText,
+                location: '${m.ayahNumber}:${m.wordIndex + 1}',
+              )).toList(),
+            ),
+
+          // Mistakes from previous classes (amber, with class date)
+          if (prevMistakes.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'MISTAKES FROM PREVIOUS CLASSES (${prevMistakes.length})',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: AppColors.textSecondary(isDarkMode),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: prevMistakes.map((m) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? const Color(0x1AF59E0B) // amber-500/10
+                      : const Color(0xFFFFFBEB), // amber-50
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDarkMode
+                        ? const Color(0x33F59E0B) // amber-500/20
+                        : const Color(0xFFFDE68A), // amber-200
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBBF24).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${m.errorCount}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFBBF24),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      m.wordText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Uthmanic',
+                        color: isDarkMode
+                            ? const Color(0xFFFCD34D)
+                            : const Color(0xFFD97706),
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${m.ayahNumber}:${m.wordIndex + 1}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDarkMode
+                            ? const Color(0xFFFCD34D).withOpacity(0.7)
+                            : const Color(0xFFD97706).withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Class date label
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? const Color(0x1AF59E0B)
+                            : const Color(0xFFFEF3C7), // amber-100
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _formatShortDate(m.classDate),
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                          color: isDarkMode
+                              ? const Color(0xFFFCD34D).withOpacity(0.6)
+                              : const Color(0xFFB45309), // amber-700
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Check if a mistake (surah/ayah) falls within an assignment's range.
+  bool _isMistakeInAssignment(int surahNumber, int ayahNumber, Assignment assignment) {
+    if (surahNumber < assignment.startSurah || surahNumber > assignment.endSurah) {
+      return false;
+    }
+    if (assignment.startSurah == assignment.endSurah && assignment.hasAyahRange) {
+      return ayahNumber >= assignment.startAyah! && ayahNumber <= assignment.endAyah!;
+    }
+    if (surahNumber == assignment.startSurah && assignment.startAyah != null) {
+      if (ayahNumber < assignment.startAyah!) return false;
+    }
+    if (surahNumber == assignment.endSurah && assignment.endAyah != null) {
+      if (ayahNumber > assignment.endAyah!) return false;
+    }
+    return true;
+  }
+
+  /// Format "2026-02-15" → "Feb 15"
+  String _formatShortDate(String dateStr) {
+    if (dateStr.isEmpty) return '';
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length < 3) return dateStr;
+      final month = int.parse(parts[1]);
+      final day = int.parse(parts[2]);
+      const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${months[month]} $day';
+    } catch (_) {
+      return dateStr;
+    }
   }
 
   void _showWordPopup(BuildContext context, QuranPageWord word) {
@@ -650,7 +818,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             ayahNumber: word.ayahNum,
             wordIndex: word.wordPosition - 1, // QPC is 1-based, mistakes are 0-based
             wordText: word.textUthmani,
-            classId: widget.classId,
+            classId: int.tryParse(widget.classId),
             studentId: _selectedStudentId,
           );
           Navigator.pop(ctx);
@@ -662,7 +830,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             wordIndex: word.wordPosition - 1,
             wordText: charText,
             charIndex: charIndex,
-            classId: widget.classId,
+            classId: int.tryParse(widget.classId),
             studentId: _selectedStudentId,
           );
           Navigator.pop(ctx);
