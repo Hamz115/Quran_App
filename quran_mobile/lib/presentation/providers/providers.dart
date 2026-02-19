@@ -602,6 +602,7 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
     required String wordText,
     int? charIndex,
     int? classId,
+    String? classIdString, // Raw class ID string (UUID on web, int-as-string on mobile)
     String? studentId, // Supabase student UUID (web only)
   }) async {
     if (kIsWeb) {
@@ -635,16 +636,12 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
         final newCount = (existing['error_count'] as int? ?? 1) + 1;
         await supabase.from('mistakes').update({'error_count': newCount}).eq('id', existing['id']);
 
-        // Add occurrence if class_id provided
-        if (classId != null) {
-          final classes = _ref.read(classesProvider).value ?? [];
-          final cls = classes.where((c) => c.id == classId).firstOrNull;
-          if (cls?.supabaseId != null) {
-            await supabase.from('mistake_occurrences').insert({
-              'mistake_id': existing['id'],
-              'class_id': cls!.supabaseId,
-            });
-          }
+        // Add occurrence if class ID provided
+        if (classIdString != null && classIdString.isNotEmpty) {
+          await supabase.from('mistake_occurrences').insert({
+            'mistake_id': existing['id'],
+            'class_id': classIdString,
+          });
         }
 
         await loadMistakes();
@@ -655,6 +652,7 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
           ayahNumber: ayahNumber,
           wordIndex: wordIndex,
           wordText: wordText,
+          charIndex: charIndex,
           errorCount: newCount,
         );
       }
@@ -670,16 +668,12 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
         'error_count': 1,
       }).select().single();
 
-      // Add occurrence if class_id provided
-      if (classId != null) {
-        final classes = _ref.read(classesProvider).value ?? [];
-        final cls = classes.where((c) => c.id == classId).firstOrNull;
-        if (cls?.supabaseId != null) {
-          await supabase.from('mistake_occurrences').insert({
-            'mistake_id': response['id'],
-            'class_id': cls!.supabaseId,
-          });
-        }
+      // Add occurrence if class ID provided
+      if (classIdString != null && classIdString.isNotEmpty) {
+        await supabase.from('mistake_occurrences').insert({
+          'mistake_id': response['id'],
+          'class_id': classIdString,
+        });
       }
 
       await loadMistakes();
@@ -690,6 +684,7 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
         ayahNumber: ayahNumber,
         wordIndex: wordIndex,
         wordText: wordText,
+        charIndex: charIndex,
         errorCount: 1,
       );
     }

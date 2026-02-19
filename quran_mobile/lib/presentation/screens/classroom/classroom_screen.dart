@@ -855,6 +855,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             wordIndex: word.wordPosition - 1, // QPC is 1-based, mistakes are 0-based
             wordText: word.textUthmani,
             classId: int.tryParse(widget.classId),
+            classIdString: widget.classId,
             studentId: _selectedStudentId,
           );
           Navigator.pop(ctx);
@@ -867,6 +868,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             wordText: charText,
             charIndex: charIndex,
             classId: int.tryParse(widget.classId),
+            classIdString: widget.classId,
             studentId: _selectedStudentId,
           );
           Navigator.pop(ctx);
