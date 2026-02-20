@@ -740,14 +740,30 @@ export async function getStats(role?: 'teacher' | 'student') {
     };
   } else {
     // Get student stats
-    const [classesResult, mistakesResult] = await Promise.all([
+    const [classesResult, mistakesResult, repeatedResult, allMistakesResult, topRepeatedResult] = await Promise.all([
       supabase.from('class_students').select('id', { count: 'exact' }).eq('student_id', user.id),
       supabase.from('mistakes').select('id', { count: 'exact' }).eq('student_id', user.id),
+      supabase.from('mistakes').select('id', { count: 'exact' }).eq('student_id', user.id).gt('error_count', 1),
+      supabase.from('mistakes').select('surah_number').eq('student_id', user.id),
+      supabase.from('mistakes').select('id, surah_number, ayah_number, word_text, error_count').eq('student_id', user.id).gt('error_count', 1).order('error_count', { ascending: false }).limit(5),
     ]);
+
+    // Group mistakes by surah in JS (Supabase doesn't support GROUP BY)
+    const surahCounts = new Map<number, number>();
+    for (const row of (allMistakesResult.data ?? []) as { surah_number: number }[]) {
+      surahCounts.set(row.surah_number, (surahCounts.get(row.surah_number) || 0) + 1);
+    }
+    const mistakes_by_surah = Array.from(surahCounts.entries())
+      .map(([surah_number, count]) => ({ surah_number, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
 
     return {
       total_classes: classesResult.count ?? 0,
       total_mistakes: mistakesResult.count ?? 0,
+      repeated_mistakes: repeatedResult.count ?? 0,
+      mistakes_by_surah,
+      top_repeated_mistakes: (topRepeatedResult.data ?? []) as { id: string; surah_number: number; ayah_number: number; word_text: string; error_count: number }[],
     };
   }
 }

@@ -23,13 +23,13 @@ interface Teacher {
   added_at: string;
 }
 
-const getPerformanceStyle = (perf?: string) => {
+const getPerformanceStyle = (perf: string | undefined, darkMode: boolean) => {
   switch (perf) {
-    case 'Excellent': return 'bg-cyan-500/20 text-cyan-400';
-    case 'Very Good': return 'bg-teal-500/20 text-teal-400';
-    case 'Good': return 'bg-amber-500/20 text-amber-400';
-    case 'Needs Work': return 'bg-red-500/20 text-red-400';
-    default: return 'bg-slate-600/50 text-slate-400';
+    case 'Excellent': return darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-cyan-100 text-cyan-700 border border-cyan-200';
+    case 'Very Good': return darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-200';
+    case 'Good': return darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-200';
+    case 'Needs Work': return darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-200';
+    default: return darkMode ? 'bg-slate-600/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-500 border border-slate-200';
   }
 };
 
@@ -346,7 +346,7 @@ export default function StudentDashboard() {
       <div className={`card p-6 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center justify-between mb-6">
           <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>My Recent Classes</h2>
-          <a href="/classes" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1">
+          <a href="/student/classes" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1">
             View All
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -389,7 +389,7 @@ export default function StudentDashboard() {
                       ))}
                     </td>
                     <td className="py-4">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getPerformanceStyle(classItem.performance)}`}>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getPerformanceStyle(classItem.performance, darkMode)}`}>
                         {classItem.performance || 'Not rated'}
                       </span>
                     </td>
@@ -398,7 +398,7 @@ export default function StudentDashboard() {
                     </td>
                     <td className="py-4">
                       <a
-                        href={`/classes/${classItem.id}`}
+                        href={`/student/classes/${classItem.id}`}
                         className="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1"
                       >
                         View

@@ -8,9 +8,10 @@ interface ReportClassesTabProps {
   expandedClassId: string | null;
   onToggleExpand: (classId: string) => void;
   darkMode: boolean;
+  basePath?: string;
 }
 
-export default function ReportClassesTab({ classes, expandedClassId, onToggleExpand, darkMode }: ReportClassesTabProps) {
+export default function ReportClassesTab({ classes, expandedClassId, onToggleExpand, darkMode, basePath = '/teacher/classes' }: ReportClassesTabProps) {
   const navigate = useNavigate();
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-800';
@@ -48,7 +49,7 @@ export default function ReportClassesTab({ classes, expandedClassId, onToggleExp
                     cls={cls}
                     isExpanded={isExpanded}
                     onToggle={() => onToggleExpand(cls.id)}
-                    onOpen={() => navigate(`/teacher/classes/${cls.id}`)}
+                    onOpen={() => navigate(`${basePath}/${cls.id}`)}
                     darkMode={darkMode}
                     borderColor={borderColor}
                     textPrimary={textPrimary}
