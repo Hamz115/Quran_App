@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
-import '../../../data/quran_data.dart' show getJuzBoundary;
+import '../../../data/quran_data.dart' show getJuzBoundary, pageStarts, totalPages, getPageForSurah, getLastPageForSurah;
 import '../../../data/models/suggested_portions.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
@@ -306,6 +306,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               final portionMode = _getPortionMode(type, index);
               final selectedJuz = _getPortionSelectedJuz(type, index);
               final isJuzMode = portionMode == 'juz';
+              final isPageMode = portionMode == 'page';
 
               return Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -340,12 +341,26 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    // Mode selector: By Surah / By Juz
+                    // Mode selector: By Page / By Surah / By Juz
                     Row(
                       children: [
                         _ModeChip(
+                          label: 'By Page',
+                          isActive: isPageMode,
+                          color: color,
+                          isDarkMode: isDarkMode,
+                          onTap: () => setState(() {
+                            _portionModes['$type:$index'] = 'page';
+                            portion.startPage = getPageForSurah(portion.startSurah);
+                            portion.endPage = getLastPageForSurah(portion.endSurah);
+                            portion.startAyah = null;
+                            portion.endAyah = null;
+                          }),
+                        ),
+                        const SizedBox(width: 8),
+                        _ModeChip(
                           label: 'By Surah',
-                          isActive: !isJuzMode,
+                          isActive: portionMode == 'surah',
                           color: color,
                           isDarkMode: isDarkMode,
                           onTap: () => setState(() {
@@ -365,6 +380,49 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    // Page inputs (shown when mode == 'page')
+                    if (isPageMode) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildPageInput(
+                              'From Page',
+                              portion.startPage,
+                              (v) {
+                                setState(() {
+                                  portion.startPage = v;
+                                  if (v != null && v >= 1 && v <= totalPages) {
+                                    portion.startSurah = pageStarts[v - 1][0];
+                                    if (portion.endPage != null && portion.endPage! < v) {
+                                      portion.endPage = v;
+                                      portion.endSurah = pageStarts[v - 1][0];
+                                    }
+                                  }
+                                });
+                              },
+                              isDarkMode,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildPageInput(
+                              'To Page',
+                              portion.endPage,
+                              (v) {
+                                setState(() {
+                                  portion.endPage = v;
+                                  if (v != null && v >= 1 && v <= totalPages) {
+                                    portion.endSurah = pageStarts[v - 1][0];
+                                  }
+                                });
+                              },
+                              isDarkMode,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     // Juz dropdown (shown when mode == 'juz')
                     if (isJuzMode) ...[
                       Container(
@@ -409,7 +467,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'From Surah',
                             portion.startSurah,
                             surahs,
-                            isJuzMode ? null : (v) => setState(() {
+                            (isJuzMode || isPageMode) ? null : (v) => setState(() {
                               portion.startSurah = v;
                               portion.endSurah = v;
                             }),
@@ -422,7 +480,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'To Surah',
                             portion.endSurah,
                             surahs,
-                            isJuzMode ? null : (v) => setState(() => portion.endSurah = v),
+                            (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.endSurah = v),
                             isDarkMode,
                           ),
                         ),
@@ -435,7 +493,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           child: _buildAyahInput(
                             'From Ayah',
                             portion.startAyah,
-                            isJuzMode ? null : (v) => setState(() => portion.startAyah = v),
+                            (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.startAyah = v),
                             isDarkMode,
                           ),
                         ),
@@ -444,7 +502,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           child: _buildAyahInput(
                             'To Ayah',
                             portion.endAyah,
-                            isJuzMode ? null : (v) => setState(() => portion.endAyah = v),
+                            (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.endAyah = v),
                             isDarkMode,
                           ),
                         ),
@@ -546,6 +604,44 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             ),
           ),
           onChanged: onChanged != null ? (v) => onChanged(int.tryParse(v)) : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPageInput(String label, int? value, Function(int?) onChanged, bool isDarkMode) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        const SizedBox(height: 4),
+        TextFormField(
+          initialValue: value?.toString() ?? '',
+          keyboardType: TextInputType.number,
+          style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+          decoration: InputDecoration(
+            hintText: '1–604',
+            hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            filled: true,
+            fillColor: AppColors.surface(isDarkMode),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
+            ),
+          ),
+          onChanged: (v) {
+            final parsed = int.tryParse(v);
+            if (parsed != null && parsed >= 1 && parsed <= totalPages) {
+              onChanged(parsed);
+            } else if (v.isEmpty) {
+              onChanged(null);
+            }
+          },
         ),
       ],
     );
@@ -774,12 +870,16 @@ class PortionData {
   int endSurah;
   int? startAyah;
   int? endAyah;
+  int? startPage;
+  int? endPage;
 
   PortionData({
     required this.startSurah,
     required this.endSurah,
     this.startAyah,
     this.endAyah,
+    this.startPage,
+    this.endPage,
   });
 }
 
