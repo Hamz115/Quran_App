@@ -532,17 +532,16 @@ export default function TeacherClasses() {
                       <div>
                         <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Page</label>
                         <input
-                          type="number"
-                          min="1"
-                          max={TOTAL_PAGES}
-                          value={portion.startPage}
+                          type="text"
+                          inputMode="numeric"
+                          value={portion.startPage || ''}
                           onChange={(e) => {
-                            const newStart = Math.min(Math.max(1, parseInt(e.target.value) || 1), TOTAL_PAGES);
-                            handlePageChange(
-                              portion.id,
-                              newStart,
-                              Math.max(newStart, portion.endPage)
-                            );
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            updatePortion(portion.id, { startPage: raw === '' ? 0 : parseInt(raw) });
+                          }}
+                          onBlur={() => {
+                            const clamped = Math.min(Math.max(1, portion.startPage || 1), TOTAL_PAGES);
+                            handlePageChange(portion.id, clamped, Math.max(clamped, portion.endPage || clamped));
                           }}
                           className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                         />
@@ -550,13 +549,17 @@ export default function TeacherClasses() {
                       <div>
                         <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Page</label>
                         <input
-                          type="number"
-                          min={portion.startPage}
-                          max={TOTAL_PAGES}
-                          value={portion.endPage}
+                          type="text"
+                          inputMode="numeric"
+                          value={portion.endPage || ''}
                           onChange={(e) => {
-                            const newEnd = Math.min(Math.max(portion.startPage, parseInt(e.target.value) || portion.startPage), TOTAL_PAGES);
-                            handlePageChange(portion.id, portion.startPage, newEnd);
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            updatePortion(portion.id, { endPage: raw === '' ? 0 : parseInt(raw) });
+                          }}
+                          onBlur={() => {
+                            const start = portion.startPage || 1;
+                            const clamped = Math.min(Math.max(start, portion.endPage || start), TOTAL_PAGES);
+                            handlePageChange(portion.id, Math.min(Math.max(1, start), TOTAL_PAGES), clamped);
                           }}
                           className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
                         />
@@ -610,12 +613,20 @@ export default function TeacherClasses() {
                         <div>
                           <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Ayah (optional)</label>
                           <input
-                            type="number"
-                            min="1"
-                            max={maxStartAyahs}
+                            type="text"
+                            inputMode="numeric"
                             placeholder="All"
                             value={portion.startAyah}
-                            onChange={(e) => updatePortion(portion.id, { startAyah: e.target.value })}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^0-9]/g, '');
+                              updatePortion(portion.id, { startAyah: raw });
+                            }}
+                            onBlur={() => {
+                              if (portion.startAyah) {
+                                const val = Math.min(Math.max(1, parseInt(portion.startAyah) || 1), maxStartAyahs);
+                                updatePortion(portion.id, { startAyah: String(val) });
+                              }
+                            }}
                             disabled={!isSameSurah}
                             className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
                           />
@@ -623,12 +634,20 @@ export default function TeacherClasses() {
                         <div>
                           <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Ayah (optional)</label>
                           <input
-                            type="number"
-                            min="1"
-                            max={maxEndAyahs}
+                            type="text"
+                            inputMode="numeric"
                             placeholder="All"
                             value={portion.endAyah}
-                            onChange={(e) => updatePortion(portion.id, { endAyah: e.target.value })}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^0-9]/g, '');
+                              updatePortion(portion.id, { endAyah: raw });
+                            }}
+                            onBlur={() => {
+                              if (portion.endAyah) {
+                                const val = Math.min(Math.max(1, parseInt(portion.endAyah) || 1), maxEndAyahs);
+                                updatePortion(portion.id, { endAyah: String(val) });
+                              }
+                            }}
                             disabled={!isSameSurah}
                             className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
                           />
