@@ -690,7 +690,8 @@ export async function addMistake(mistake: {
 
     // Add occurrence if class_id provided
     if (mistake.class_id) {
-      await supabase.from('mistake_occurrences' as any).insert({ mistake_id: existing.id, class_id: mistake.class_id } as any);
+      const { error: occError } = await supabase.from('mistake_occurrences' as any).insert({ mistake_id: existing.id, class_id: mistake.class_id } as any);
+      if (occError) console.error('Failed to create mistake occurrence:', occError);
     }
 
     return { id: existing.id, error_count: newCount };
@@ -704,7 +705,8 @@ export async function addMistake(mistake: {
 
     // Add occurrence if class_id provided
     if (mistake.class_id) {
-      await supabase.from('mistake_occurrences' as any).insert({ mistake_id: newMistake.id, class_id: mistake.class_id } as any);
+      const { error: occError } = await supabase.from('mistake_occurrences' as any).insert({ mistake_id: newMistake.id, class_id: mistake.class_id } as any);
+      if (occError) console.error('Failed to create mistake occurrence:', occError);
     }
 
     return { id: newMistake.id, error_count: 1 };
