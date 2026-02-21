@@ -1,11 +1,11 @@
 ---
 project: QuranTrack
 created: 2025-12-31T14:46:00
-last_updated: 2026-02-15T18:30:00
-last_commit: 0ca0779
-update_count: 4
-total_files: 2854
-total_folders: 96
+last_updated: 2026-02-21T23:30:00
+last_commit: 8684ab7
+update_count: 5
+total_files: 3673
+total_folders: 119
 ---
 
 # Project Map: QuranTrack
@@ -16,13 +16,13 @@ QuranTrack is a Quran memorization and recitation tracking application designed 
 
 The application uses QPC (Quran Printing Complex) fonts from the King Fahd Complex to render Quran pages pixel-perfect, exactly matching the printed Madani Mushaf. Each of the 604 pages has its own dedicated font file for perfect glyph accuracy. The system supports word-level and character-level mistake tracking with color-coded severity based on error frequency.
 
-The architecture follows a three-tier approach with a FastAPI backend serving a React web frontend and a Flutter mobile app. Authentication and cloud data storage are handled by Supabase (PostgreSQL with RLS policies and JWT authentication). Local SQLite databases provide offline-first capability with bidirectional sync to Supabase. The web frontend uses Supabase client-side SDK for direct database access, while the FastAPI backend provides local-first endpoints and serves QPC font/page data.
+The architecture follows a multi-platform approach with a FastAPI backend serving a React web frontend, a Flutter mobile app, and a Tauri v2 desktop app (which embeds the React frontend with a PyInstaller-bundled FastAPI sidecar). Authentication and cloud data storage are handled by Supabase (PostgreSQL with RLS policies and JWT authentication). Local SQLite databases provide offline-first capability with bidirectional sync to Supabase. The web frontend uses Supabase client-side SDK for direct database access, while the FastAPI backend provides local-first endpoints and serves QPC font/page data. The mobile app bundles QPC fonts locally for fully offline Quran rendering.
 
 ## Tech Stack
 
-**Languages:** Python 3.x, TypeScript, JavaScript, Dart, Kotlin, Java
-**Frameworks:** FastAPI, React 19, Flutter, Tailwind CSS
-**Tools:** Vite, SQLite, Riverpod (Flutter state management), JWT, Supabase
+**Languages:** Python 3.x, TypeScript, JavaScript, Dart, Rust, Kotlin, Java
+**Frameworks:** FastAPI, React 19, Flutter, Tauri v2, Tailwind CSS
+**Tools:** Vite, SQLite, Riverpod (Flutter state management), PyInstaller, JWT, Supabase
 **Databases:** SQLite (quran.db read-only, app.db read-write), Supabase PostgreSQL (cloud sync)
 **Authentication:** Supabase Auth (JWT + RLS policies), replaces legacy custom JWT
 
@@ -53,14 +53,14 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
          +-----< bidirectional sync >-----+
                 (sync_service.py)
 
-+------------------+
-| Flutter Mobile   |
-| (quran_mobile)   |
-+--------+---------+
-         |
-         +---> Supabase Cloud (Auth + Data)
-         +---> Local SQLite (offline-first)
-         +---> QPC Fonts (.ttf via API)
++------------------+   +------------------+
+| Flutter Mobile   |   | Tauri Desktop    |
+| (quran_mobile)   |   | (src-tauri/)     |
++--------+---------+   +--------+---------+
+         |                      |
+         +---> Supabase Cloud   +---> React Frontend (embedded)
+         +---> Local SQLite     +---> FastAPI sidecar (PyInstaller exe)
+         +---> QPC Fonts (.ttf) +---> Supabase Cloud
 ```
 
 ## Directory Structure
@@ -151,7 +151,7 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Handles JWT authentication with access/refresh tokens
 - Implements bidirectional sync with Supabase cloud database
 
-**Contains:** main.py, auth/, sync_service.py, fonts/qpc/, quran-pages/, Backups/
+**Contains:** main.py, auth/, sync_service.py, scripts/, fonts/qpc/, quran-pages/, Backups/, pyinstaller_entry.py
 
 ---
 
@@ -300,9 +300,22 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 🐍 create_test_users.py
+### 📂 quran_backend/scripts/ 🔄
 
-**Path:** `quran_backend/create_test_users.py`
+**Purpose:** Backend utility scripts for database management, seeding, and data cleanup.
+
+**What it does:**
+- Contains all backend utility scripts (previously at quran_backend/ root)
+- Scripts for creating test users, clearing mistakes, seeding databases, and nuking all data
+- Moved from quran_backend/ root to quran_backend/scripts/ for organization
+
+**Contains:** create_test_users.py, clear_mistakes.py, seed_database.py, seed.js, nuke_all_data.py
+
+---
+
+#### 🐍 scripts/create_test_users.py 🔄
+
+**Path:** `quran_backend/scripts/create_test_users.py`
 
 **Purpose:** Script to seed the database with test users for development.
 
@@ -311,12 +324,13 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Creates 5 teacher accounts (verified)
 - All accounts use password "Test123!"
 - Generates unique student IDs for each user
+- Moved from quran_backend/ root to scripts/
 
 ---
 
-#### 🐍 clear_mistakes.py
+#### 🐍 scripts/clear_mistakes.py 🔄
 
-**Path:** `quran_backend/clear_mistakes.py`
+**Path:** `quran_backend/scripts/clear_mistakes.py`
 
 **Purpose:** Utility script to clear all mistakes from the database for testing.
 
@@ -324,6 +338,61 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Deletes all records from mistake_occurrences table
 - Deletes all records from mistakes table
 - Preserves users, classes, and assignments
+- Moved from quran_backend/ root to scripts/
+
+---
+
+#### 🐍 scripts/nuke_all_data.py 🆕
+
+**Path:** `quran_backend/scripts/nuke_all_data.py`
+
+**Purpose:** Nuclear data wipe script that clears ALL data from both Supabase and local SQLite.
+
+**What it does:**
+- Deletes all rows from 7 Supabase tables in foreign-key-safe order (mistake_occurrences, mistakes, assignments, class_students, classes, teacher_students, profiles)
+- Deletes all Supabase auth users via admin API
+- Clears all tables in local app.db SQLite database
+- Requires SUPABASE_SERVICE_KEY in .env (uses service role for admin operations)
+- Safety prompt: requires typing "NUKE" to confirm
+
+**Key Functions:**
+- `nuke_supabase()` -- Deletes all cloud data and auth users via REST API
+- `nuke_local()` -- Empties all local SQLite tables
+
+**Integrates with:** -> Supabase REST API, -> `quran_backend/app.db`
+
+---
+
+#### 🐍 scripts/seed_database.py 🔄
+
+**Path:** `quran_backend/scripts/seed_database.py`
+
+**Purpose:** Database seeding script for populating test data.
+
+**What it does:**
+- Seeds the database with sample classes, assignments, and mistakes
+- Moved from quran_backend/ root to scripts/
+
+---
+
+#### 🐍 pyinstaller_entry.py 🆕
+
+**Path:** `quran_backend/pyinstaller_entry.py`
+
+**Purpose:** PyInstaller entry point for bundling FastAPI backend as a standalone executable for the Tauri desktop app.
+
+**What it does:**
+- Handles frozen-mode quirks: redirects stdout/stderr to backend.log in --noconsole mode
+- Calls multiprocessing.freeze_support() to prevent infinite child processes on Windows
+- Starts a parent process watcher that kills the sidecar if the Tauri parent process dies (prevents orphan processes)
+- Uses Windows kernel32 OpenProcess to monitor parent PID health
+- Launches uvicorn on 127.0.0.1:8000 with single worker
+
+**Key Functions:**
+- `watch_parent()` -- Background thread that monitors parent PID and calls os._exit(0) if parent dies
+- `main()` -- Initializes frozen environment and starts uvicorn server
+
+**Integrates with:** -> `main.py`, -> Tauri sidecar system (`src-tauri/`)
 
 ---
 
@@ -369,7 +438,7 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Provides local-first caching for instant page loading
 - Responsive 3-tier layout: phone, tablet, desktop
 
-**Contains:** src/, public/, scripts/, config files
+**Contains:** src/, public/, scripts/, src-tauri/, config files
 
 ---
 
@@ -498,6 +567,171 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### 📂 quran_frontend/src/components/teacher-classes/ 🆕
+
+**Purpose:** Report components for the student report tab-based dashboard used in TeacherClasses and StudentClasses pages.
+
+**What it does:**
+- Provides a complete report system with filter bar, summary strip, and three tabs (classes, mistakes, performance)
+- ReportPanel orchestrator handles state, data fetching, and tab switching
+- Pure helper functions separated from React components for testability
+- Export modal supports PDF (backend Playwright + client fallback), CSV, and Word export
+- All components support light/dark mode theming
+
+**Contains:** index.ts, report-helpers.ts, ReportPanel.tsx, ReportFilterBar.tsx, ReportSummaryStrip.tsx, ReportClassesTab.tsx, ReportMistakesTab.tsx, ReportPerformanceTab.tsx, ExportModal.tsx
+
+---
+
+#### 📄 src/components/teacher-classes/index.ts 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/index.ts`
+
+**Purpose:** Barrel exports for all teacher-classes report components.
+
+**What it does:**
+- Re-exports ReportPanel, ReportFilterBar, ReportSummaryStrip, all tab components, ExportModal, and report-helpers
+- Provides clean import path: `import { ReportPanel } from '../components/teacher-classes'`
+
+---
+
+#### 📄 src/components/teacher-classes/report-helpers.ts 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/report-helpers.ts`
+
+**Purpose:** Pure TypeScript helper functions and constants for student report components (zero React imports).
+
+**What it does:**
+- Defines performance map (PERF_MAP) converting string ratings to numeric values
+- Provides badge CSS class generators for performance, mistake count, and portion type
+- Implements date formatting, month list generation, and filter application logic
+- Computes performance statistics (streaks, trends, sparkline data)
+- Filters report data by date range, surah range, and juz
+
+**Key Functions:**
+- `applyReportFilters(report, filters)` -- Filters a StudentReport by date, surah, and juz
+- `computePerformanceStats(classes)` -- Calculates streaks, trends, and sparkline from class data
+- `perfBadgeClasses(perf)` -- Returns Tailwind CSS classes for performance badge
+- `formatDate(dateStr)` -- Formats ISO date to human-readable format
+
+---
+
+#### 📄 src/components/teacher-classes/ReportPanel.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ReportPanel.tsx`
+
+**Purpose:** Main report orchestrator component that assembles filter bar, summary strip, tabs, and tab content.
+
+**What it does:**
+- Fetches student report data via getStudentReport() on mount
+- Manages filter state (date range, surah range, juz) and applies filters reactively
+- Computes performance stats from filtered data
+- Renders 3 tabs: Classes, Mistakes, Performance
+- Shows export button (hideable via hideExport prop)
+- Accepts basePath prop for navigation context (teacher vs student routes)
+- Loading, error, and empty states with theme-aware styling
+
+**Key Props:**
+- `studentId` -- Which student's report to load
+- `basePath` -- Navigation base path for class links (defaults to '/teacher/classes')
+- `hideExport` -- Whether to hide the export button
+
+**Integrates with:** -> `report-helpers.ts`, -> `ReportFilterBar`, -> `ReportSummaryStrip`, -> `ReportClassesTab`, -> `ReportMistakesTab`, -> `ReportPerformanceTab`, -> `ExportModal`
+
+---
+
+#### 📄 src/components/teacher-classes/ReportFilterBar.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ReportFilterBar.tsx`
+
+**Purpose:** Filter bar with month pills (scrollable row), date preset buttons, surah range selectors, and juz selector.
+
+**What it does:**
+- Generates scrollable month pills for the last 12 months
+- Provides date preset buttons (1m, 2m, 6m, All)
+- Surah range dropdowns (From/To) with all 114 surahs
+- Juz selector (1-30) that auto-fills surah range from JUZ_BOUNDARIES
+- Clear All button to reset filters
+- All selectors sync with each other (juz updates surah range, etc.)
+
+---
+
+#### 📄 src/components/teacher-classes/ReportSummaryStrip.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ReportSummaryStrip.tsx`
+
+**Purpose:** Horizontal 5-stat summary bar showing key report metrics.
+
+**What it does:**
+- Displays: Classes count, Total Mistakes, Unique Mistakes, Repeated Mistakes, Avg Performance
+- Responsive layout with horizontal scroll on small screens
+- Color-coded values (cyan for classes, red for repeated, green for performance)
+
+---
+
+#### 📄 src/components/teacher-classes/ReportClassesTab.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ReportClassesTab.tsx`
+
+**Purpose:** Classes table with expandable rows showing class details, portions, and mistakes.
+
+**What it does:**
+- Renders sortable table of classes with date, portions, mistake count, and performance
+- Click to expand row showing assignment details and individual mistakes
+- Chevron toggle for expand/collapse
+- Navigate to class view on row click
+- Accepts basePath prop for correct routing (teacher vs student context)
+- Portion type tags with color coding (Hifz=blue, Sabqi=amber, Manzil=green)
+
+---
+
+#### 📄 src/components/teacher-classes/ReportMistakesTab.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ReportMistakesTab.tsx`
+
+**Purpose:** Two-column layout showing mistakes by surah and repeated mistakes list.
+
+**What it does:**
+- Left column: Mistakes grouped by surah with total and unique counts
+- Right column: Repeated mistakes list with surah, ayah, word text, and error count
+- Progress bars for surah mistake distribution
+- Color-coded mistake severity badges
+
+---
+
+#### 📄 src/components/teacher-classes/ReportPerformanceTab.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ReportPerformanceTab.tsx`
+
+**Purpose:** Performance bar chart with statistics sidebar.
+
+**What it does:**
+- SVG bar chart showing performance trend over time (4-level: Needs Work to Excellent)
+- Y-axis labels, grid lines, and date labels on X-axis
+- Stats sidebar showing: current streak, best streak, mistakes per class, trend indicator
+- Mistake sparkline visualization
+- Responsive grid layout (chart 5fr, sidebar 2fr)
+
+---
+
+#### 📄 src/components/teacher-classes/ExportModal.tsx 🆕
+
+**Path:** `quran_frontend/src/components/teacher-classes/ExportModal.tsx`
+
+**Purpose:** Export format picker modal with section toggles, loading states, and error handling.
+
+**What it does:**
+- Format selection: PDF, CSV, Word
+- Section toggles: summary, class details, mistakes by surah, repeated mistakes, performance chart, teacher notes
+- Loading state during export generation
+- Error state with retry option
+- PDF export uses backend Playwright with client-side html2pdf.js fallback
+- CSV export via file-saver
+- Word export via docx library
+
+**Integrates with:** -> `lib/report-export.ts`
+
+---
+
 #### 📄 src/pages/QuranReader.tsx 🔄
 
 **Path:** `quran_frontend/src/pages/QuranReader.tsx`
@@ -554,14 +788,18 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Path:** `quran_frontend/src/pages/TeacherDashboard.tsx`
 
-**Purpose:** Teacher's main dashboard with student roster and quick stats.
+**Purpose:** Teacher's main dashboard with student roster, quick stats, and recent classes.
 
 **What it does:**
-- Displays total students, classes this week, and other stats
-- Shows student roster with add/remove functionality
+- Displays total students, total classes, and classes this week stats
+- Shows student roster with add/remove functionality and email lookup modal
 - Provides quick actions to start new class
+- Recent Classes section showing last 5 classes with date, portions, student names, and performance
 - Light/dark mode theming with conditional card styles
-- Uses isMounted cleanup pattern for data fetching
+- Uses isMounted cleanup pattern
+- Calculates classes this week based on Sunday-Saturday window
+
+**Integrates with:** -> `lib/quran-utils` (surahNames) for data fetching
 
 ---
 
@@ -569,14 +807,24 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Path:** `quran_frontend/src/pages/TeacherClasses.tsx`
 
-**Purpose:** Teacher's class list with creation, management, notes, and performance.
+**Purpose:** Teacher's class list with creation, management, notes, performance, and inline student report panel.
 
 **What it does:**
 - Lists all classes created by the teacher with click-to-navigate cards
-- Create new class with student selection and portion assignment
+- Create new class with student selection and multi-mode portion assignment (By Page, By Surah, By Juz)
 - Manage performance ratings per student
+- Inline ReportPanel slide-out for student progress viewing
 - Light/dark mode conditional styling for dropdowns, portions, and badges
 - Classes auto-publish on creation (Draft/Live toggle removed)
+- PortionSelector and ToggleSwitch extracted as standalone components outside main function to fix input focus loss from re-renders
+- Smart suggestions integration for pre-filling portions from last class
+- Juz boundary data properly applied when switching between portion modes
+
+**Key Components:**
+- `ToggleSwitch` -- Extracted toggle component to prevent re-render focus loss
+- `PortionSelector` -- Extracted portion config component with page/surah/juz modes
+
+**Integrates with:** -> `components/teacher-classes/ReportPanel`, -> `lib/quran-utils` (JUZ_BOUNDARIES, surahNames)
 
 ---
 
@@ -584,13 +832,21 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Path:** `quran_frontend/src/pages/StudentDashboard.tsx`
 
-**Purpose:** Student's main dashboard with stats and progress overview.
+**Purpose:** Student's main dashboard with stats, progress overview, recent classes, and teacher info.
 
 **What it does:**
-- Displays student stats and progress
-- Shows email instead of Student ID (more useful for non-tech users)
-- Light/dark mode theming
+- Displays student stats (total classes, total mistakes, unique mistakes, repeated mistakes)
+- Shows recent classes with portions and performance badges
+- Shows teacher info (name, added date)
+- Shows top repeated mistakes with surah/ayah references
+- Shows mistakes by surah distribution
+- Enhanced getStats('student') with mistakes_by_surah, repeated_mistakes, top_repeated_mistakes
+- Performance style badges with light/dark mode variants
+- Links to /student/classes for class navigation
+- Light/dark mode theming with proper contrast
 - Uses isMounted cleanup pattern
+
+**Integrates with:** -> `lib/quran-utils` (surahNames)
 
 ---
 
@@ -598,13 +854,16 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Path:** `quran_frontend/src/pages/StudentClasses.tsx`
 
-**Purpose:** Student's view of joined classes (read-only).
+**Purpose:** Student's view of their own classes and progress using the shared ReportPanel.
 
 **What it does:**
-- Lists classes the student is enrolled in
-- Shows individual performance for each class
+- Complete rewrite from 430 lines to 55 lines by delegating to ReportPanel
+- Loads teacher name for header display
+- Renders ReportPanel with student's own ID and basePath="/student/classes"
+- Passes hideExport prop to hide export functionality for students
 - Light/dark mode theming
-- Uses isMounted cleanup pattern
+
+**Integrates with:** -> `components/teacher-classes/ReportPanel`
 
 ---
 
@@ -723,18 +982,20 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 src/lib/supabase-api.ts 🆕
+#### 📄 src/lib/supabase-api.ts 🔄
 
 **Path:** `quran_frontend/src/lib/supabase-api.ts`
 
-**Purpose:** Supabase RLS-protected API functions for students, classes, and mistakes.
+**Purpose:** Supabase RLS-protected API functions for students, classes, mistakes, stats, and reports.
 
 **What it does:**
 - Handles student management (lookup, add, remove, list)
 - Handles class CRUD with assignments and student associations
-- Handles mistake tracking with occurrences
+- Handles mistake tracking with occurrences (enhanced error logging for inserts)
 - Handles performance updates per student per class
 - Handles suggested portion queries
+- Provides getStats('student') with enhanced data: mistakes_by_surah, repeated_mistakes, top_repeated_mistakes
+- Provides getStudentReport() for comprehensive report data
 - All queries use Supabase client with automatic RLS enforcement
 - Integrated with local-first caching (cache.ts)
 
@@ -782,6 +1043,66 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+#### 📄 src/lib/quran-utils.ts 🆕
+
+**Path:** `quran_frontend/src/lib/quran-utils.ts`
+
+**Purpose:** Centralized Quran utilities including surah names, Juz boundaries, and helper functions.
+
+**What it does:**
+- Provides surahNames mapping (1-114) for all surah English names
+- Defines all 30 Juz boundaries (startSurah:ayah to endSurah:ayah) matching Madani Mushaf standard
+- Provides getSurahRangeForJuz() to convert Juz number to surah range
+- Used by TeacherClasses for Juz-based portion selection
+- Used by report components and export utilities for surah name display
+
+**Key Constants:**
+- `surahNames` -- Record<number, string> mapping surah number to English name
+- `JUZ_BOUNDARIES` -- Array of 30 Juz boundary objects
+
+**Key Functions:**
+- `getSurahRangeForJuz(juz)` -- Returns {startSurah, endSurah} for a Juz number
+
+---
+
+#### 📄 src/lib/report-types.ts 🆕
+
+**Path:** `quran_frontend/src/lib/report-types.ts`
+
+**Purpose:** TypeScript interfaces for the student report system.
+
+**What it does:**
+- Defines StudentReport (student info, summary, classes, mistakes by surah, repeated mistakes, performance trend)
+- Defines StudentClass, ClassAssignment, ClassMistake for class-level data
+- Defines MistakeBySurah and RepeatedMistake for mistake analysis
+- Defines DatePreset ('1m', '2m', '6m', 'all') and ReportFilters for filter state
+- Defines ExportConfig for PDF/CSV/Word export settings
+- Defines PerformanceStats (streaks, trends, sparkline data)
+
+---
+
+#### 📄 src/lib/report-export.ts 🆕
+
+**Path:** `quran_frontend/src/lib/report-export.ts`
+
+**Purpose:** Report export utilities providing PDF, CSV, and Word export for student reports.
+
+**What it does:**
+- PDF export: backend Playwright-based rendering with client-side html2pdf.js fallback
+- CSV export: generates comma-separated data using file-saver
+- Word export: generates .docx files using the docx library with tables, headings, and formatted text
+- Builds filter summary text from active filters
+- Formats dates for export documents
+
+**Key Functions:**
+- `exportToPDFBackend(config)` -- Sends report to backend for Playwright PDF generation
+- `exportToCSV(config)` -- Generates and downloads CSV file
+- `exportToWord(config)` -- Generates and downloads .docx file
+
+**Integrates with:** -> `report-types.ts`, -> `quran-utils.ts`, -> `file-saver`, -> `docx`, -> `html2pdf.js`
+
+---
+
 #### 📄 src/lib/database.types.ts 🆕
 
 **Path:** `quran_frontend/src/lib/database.types.ts`
@@ -807,6 +1128,78 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### 📂 quran_frontend/src-tauri/ 🆕
+
+**Purpose:** Tauri v2 desktop application shell that wraps the React web frontend with a bundled FastAPI backend.
+
+**What it does:**
+- Provides a native desktop window (1280x800, min 900x600) for QuranTrack
+- Embeds the Vite-built React frontend as the desktop UI
+- Manages a PyInstaller-bundled FastAPI sidecar (quran-backend executable)
+- Spawns sidecar on app startup, kills it on window close
+- Logs sidecar stdout/stderr for debugging
+- Configures CSP for Supabase, Google Fonts, and localhost API access
+- Bundles app icons for Windows (.ico), macOS (.icns), iOS, and Android
+
+**Contains:** src/main.rs, src/lib.rs, Cargo.toml, tauri.conf.json, build.rs, capabilities/, icons/, binaries/, resources/
+
+---
+
+#### 🦀 src-tauri/src/lib.rs 🆕
+
+**Path:** `quran_frontend/src-tauri/src/lib.rs`
+
+**Purpose:** Main Tauri application logic with sidecar lifecycle management.
+
+**What it does:**
+- Initializes Tauri app with shell plugin for sidecar support
+- Spawns "quran-backend" sidecar executable on app setup
+- Stores sidecar child handle in SidecarState (Mutex-protected)
+- Background task logs sidecar stdout/stderr and detects termination
+- Kills sidecar process on window close event to prevent orphan processes
+
+**Key Structs:**
+- `SidecarState` -- Holds Mutex<Option<CommandChild>> for sidecar lifecycle
+
+---
+
+#### 🦀 src-tauri/src/main.rs 🆕
+
+**Path:** `quran_frontend/src-tauri/src/main.rs`
+
+**Purpose:** Desktop entry point that delegates to lib.rs run() function.
+
+---
+
+#### 📄 src-tauri/Cargo.toml 🆕
+
+**Path:** `quran_frontend/src-tauri/Cargo.toml`
+
+**Purpose:** Rust package configuration for the Tauri desktop app.
+
+**What it does:**
+- Defines quran-track package v0.1.0
+- Depends on tauri 2.10.0, tauri-plugin-shell 2, tauri-plugin-log 2
+- Builds as staticlib + cdylib + rlib for cross-platform support
+
+---
+
+#### 📄 src-tauri/tauri.conf.json 🆕
+
+**Path:** `quran_frontend/src-tauri/tauri.conf.json`
+
+**Purpose:** Tauri v2 application configuration.
+
+**What it does:**
+- Sets product name "QuranTrack" with identifier com.qurantrack.app
+- Configures dev URL (localhost:5173) and production frontend dist path
+- Defines window properties (1280x800, centered, resizable)
+- Configures CSP allowing Supabase, Google Fonts, and localhost:8000
+- Declares "quran-backend" as external binary (sidecar)
+- Bundle targets: all platforms with icon paths
+
+---
+
 ### 📂 quran_mobile/
 
 **Purpose:** Flutter mobile application for Android/iOS with Supabase integration.
@@ -814,10 +1207,11 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 **What it does:**
 - Provides native mobile experience for QuranTrack
 - Uses Supabase Auth for login, signup, and password reset
-- Supports QPC page-based Quran rendering with downloadable fonts
+- Supports QPC page-based Quran rendering with bundled offline fonts
 - Provides teacher and student dashboards, class management, and settings
 - Uses Riverpod for state management
 - Dark/light mode theming with AppColors and AppTheme
+- Offline-first: QPC fonts bundled as .ttf assets, Quran page data bundled as JSON
 
 **Contains:** lib/, android/, assets/, test/, web/
 
@@ -942,48 +1336,23 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 lib/core/services/qpc_font_service.dart 🆕
+#### 📄 lib/core/services/qpc_font_service.dart 🔄
 
 **Path:** `quran_mobile/lib/core/services/qpc_font_service.dart`
 
-**Purpose:** Downloads, caches, and loads QPC TTF fonts for Quran page rendering.
+**Purpose:** Loads QPC TTF fonts from bundled assets for offline Quran page rendering.
 
 **What it does:**
-- On mobile: downloads .ttf from FastAPI backend, caches to disk, loads via FontLoader
-- On web: loads .woff2 directly from the web server via FontLoader (no disk cache)
-- Uses conditional imports for platform-specific file I/O
+- Loads .ttf fonts directly from bundled Flutter assets (assets/fonts/qpc/)
+- No network download needed -- all 604 fonts bundled with the app
 - Pre-loads fonts for current page, previous page, and next page
 - Prevents duplicate font loading with pending load tracking
+- Previous platform-specific io_mobile/io_stub files removed (no longer needed with bundled assets)
 
 **Key Functions:**
 - `ensureFontsForPage(pageNum)` -- Loads fonts for page and neighbors
 - `isFontLoaded(pageNum)` -- Checks if font is already loaded
 - `fontFamily(pageNum)` -- Returns font family name for a page
-
----
-
-#### 📄 lib/core/services/qpc_font_io_mobile.dart 🆕
-
-**Path:** `quran_mobile/lib/core/services/qpc_font_io_mobile.dart`
-
-**Purpose:** Mobile-specific file I/O for QPC font caching using dart:io.
-
-**What it does:**
-- Saves downloaded TTF font bytes to app's cache directory
-- Reads cached font bytes from disk
-- Uses path_provider for platform-specific cache paths
-
----
-
-#### 📄 lib/core/services/qpc_font_io_stub.dart 🆕
-
-**Path:** `quran_mobile/lib/core/services/qpc_font_io_stub.dart`
-
-**Purpose:** Stub implementation of font I/O for web platform (no dart:io).
-
-**What it does:**
-- Provides no-op implementations that throw UnsupportedError on web
-- Used as fallback when dart:io is not available (Flutter web)
 
 ---
 
@@ -1000,16 +1369,66 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-#### 📄 lib/data/quran_data.dart 🆕
+#### 📄 lib/core/services/arabic_text_utils.dart 🆕
+
+**Path:** `quran_mobile/lib/core/services/arabic_text_utils.dart`
+
+**Purpose:** Shared Arabic text utilities for parsing words into letters and harakat (diacritical marks).
+
+**What it does:**
+- Parses Arabic words into separate letter and harakat lists
+- Defines 21 Arabic harakat Unicode code points (0x064B-0x065E, 0x0670)
+- Combines shadda + following haraka into a single entry (matches web behavior)
+- Used by both word_popup.dart (mistake selection) and mushaf_page_widget.dart (char-level rendering)
+
+**Key Classes:**
+- `CharInfo` -- Information about a single character (char + index)
+- `ParsedWord` -- Result of parsing: separate lists of letters and harakat
+
+**Key Functions:**
+- `parseArabicWord(word)` -- Splits Arabic word into letters and harakat
+- `isHaraka(char)` -- Checks if a character is a diacritical mark
+
+**Integrates with:** -> `mushaf_page_widget.dart`, -> `classroom/word_popup.dart`
+
+---
+
+#### 📄 lib/core/services/report_helpers.dart 🆕
+
+**Path:** `quran_mobile/lib/core/services/report_helpers.dart`
+
+**Purpose:** Pure helper functions for student report components, ported from web's report-helpers.ts.
+
+**What it does:**
+- Provides performance map (perfMap) and label constants
+- Badge color generators for performance level, mistake count, and portion type
+- Juz-to-surah range lookup using shared juzBoundaries data
+- Report filter application logic (date, surah, juz)
+- Performance statistics computation (streaks, trends, sparkline)
+- Date formatting utilities
+
+**Key Functions:**
+- `applyReportFilters(report, filters)` -- Filters StudentReport by date/surah/juz
+- `computePerformanceStats(classes)` -- Calculates streaks and trends
+- `getSurahRangeForJuz(juz)` -- Returns surah range for a Juz number
+- `perfBadgeColor(perf)` / `perfBadgeTextColor(perf)` -- Badge styling
+
+**Integrates with:** -> `data/models/student_report.dart`, -> `data/models/report_filters.dart`, -> `data/quran_data.dart`
+
+---
+
+#### 📄 lib/data/quran_data.dart 🔄
 
 **Path:** `quran_mobile/lib/data/quran_data.dart`
 
-**Purpose:** Static Quran metadata including page-to-surah mappings.
+**Purpose:** Static Quran metadata including page-to-surah mappings and Juz boundaries.
 
 **What it does:**
 - Maps page numbers to surah numbers for page range helpers
 - Provides getPageRangeForSurah() and related utility functions
+- Defines JuzBoundary class and juzBoundaries list (30 entries matching Madani Mushaf)
 - Used by ClassroomScreen for constraining navigation to assignment ranges
+- Used by report_helpers.dart for juz-to-surah range lookup
 
 ---
 
@@ -1076,11 +1495,52 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+#### 📄 lib/data/models/student_report.dart 🆕
+
+**Path:** `quran_mobile/lib/data/models/student_report.dart`
+
+**Purpose:** Student report data models mirroring web's report-types.ts interfaces.
+
+**What it does:**
+- Defines StudentReport (student info, summary, classes, mistakes by surah, repeated mistakes, performance trend)
+- Defines StudentInfo, ReportSummary, StudentClass, ClassAssignment, ClassMistake
+- Defines MistakeBySurah and RepeatedMistake for mistake analysis
+- Defines PerformanceDataPoint for trend charting
+- All classes have copyWith() methods for immutable state updates
+
+---
+
+#### 📄 lib/data/models/report_filters.dart 🆕
+
+**Path:** `quran_mobile/lib/data/models/report_filters.dart`
+
+**Purpose:** Report filter and performance stats models mirroring web's report-types.ts.
+
+**What it does:**
+- Defines DatePreset enum (oneMonth, twoMonths, sixMonths, all)
+- Defines ReportFilters (dateFrom, dateTo, datePreset, surahFrom, surahTo, juz) with copyWith
+- Defines PerformanceStats (currentStreak, bestStreak, mistakesPerClass, trend, sparkline)
+- Provides isActive getter to check if any filter is active
+
+---
+
+#### 📄 lib/data/models/suggested_portions.dart 🆕
+
+**Path:** `quran_mobile/lib/data/models/suggested_portions.dart`
+
+**Purpose:** Data models for Smart Suggestions feature, mirroring web's SuggestedPortions interface.
+
+**What it does:**
+- Defines SuggestedPortion (startSurah, endSurah, startAyah, endAyah, surahName, note)
+- Defines SuggestedPortions (hifz, sabqi, manzil, lastClass) for pre-filling class portions
+
+---
+
 ### 📂 quran_mobile/lib/data/models/
 
 **Purpose:** Dart model classes for data entities.
 
-**Contains:** assignment.dart, class_session.dart, mistake.dart, surah.dart, app_user.dart, quran_page_data.dart, quran_page_word.dart
+**Contains:** assignment.dart, class_session.dart, mistake.dart, surah.dart, app_user.dart, quran_page_data.dart, quran_page_word.dart, student_report.dart, report_filters.dart, suggested_portions.dart
 
 ---
 
@@ -1150,6 +1610,27 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Loads QPC page word data for a given page number
 - Manages font loading state via QpcFontService
 - Provides QuranPageData to MushafPageWidget
+
+---
+
+#### 📄 lib/presentation/providers/report_provider.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/providers/report_provider.dart`
+
+**Purpose:** Riverpod providers for fetching and filtering student report data from Supabase.
+
+**What it does:**
+- Defines studentReportProvider (FutureProvider.family) that fetches full report from Supabase
+- Queries profiles, class_students, classes, assignments, mistakes, and mistake_occurrences
+- Builds per-class mistake mapping from occurrences
+- Computes summary statistics (total mistakes, unique, repeated, avg performance)
+- Groups mistakes by surah and identifies repeated mistakes
+- Mirrors web's supabase-api.ts:getStudentReport() logic
+
+**Key Providers:**
+- `studentReportProvider` -- FutureProvider.family<StudentReport, String> keyed by studentId
+
+**Integrates with:** -> `data/models/student_report.dart`, -> `core/services/report_helpers.dart`
 
 ---
 
@@ -1266,7 +1747,13 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Path:** `quran_mobile/lib/presentation/screens/classes/classes_screen.dart`
 
-**Purpose:** Class list screen showing enrolled/created classes.
+**Purpose:** Class list screen with student pills for teachers and ReportPanel for student data.
+
+**What it does:**
+- Teacher view: horizontal student pill selector + ReportPanel showing selected student's data
+- Student view: shows own report using ReportPanel with current user's ID
+- Class card navigation to ClassroomScreen
+- Delete class support for teachers
 
 ---
 
@@ -1274,7 +1761,82 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 **Path:** `quran_mobile/lib/presentation/screens/classes/create_class_screen.dart`
 
-**Purpose:** Class creation screen for teachers.
+**Purpose:** Class creation screen for teachers with multi-mode portion selection.
+
+**What it does:**
+- Student selection from teacher's roster
+- Multi-mode portion assignment (By Surah, By Page) for Hifz, Sabqi, Manzil
+- Smart suggestions pre-fill from last class data
+- Supabase integration for class creation
+
+---
+
+### 📂 quran_mobile/lib/presentation/screens/classes/report/ 🆕
+
+**Purpose:** Flutter report widgets mirroring the web's teacher-classes report components.
+
+**What it does:**
+- Provides a complete report system for the mobile classes screen
+- Same tab-based architecture as web: filter bar, summary strip, classes/mistakes/performance tabs
+- All components use Riverpod for state management
+- Theme-aware styling using AppColors
+
+**Contains:** report_panel.dart, report_filter_bar.dart, report_summary_strip.dart, report_classes_tab.dart, report_mistakes_tab.dart, report_performance_tab.dart
+
+---
+
+#### 📄 lib/presentation/screens/classes/report/report_panel.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/report/report_panel.dart`
+
+**Purpose:** Report orchestrator that assembles filter bar, summary strip, tabs, and tab content (mirrors web ReportPanel.tsx).
+
+**What it does:**
+- ConsumerStatefulWidget that manages active tab, filters, and expanded class state
+- Watches studentReportProvider for data and applies filters reactively
+- Computes performance stats from filtered data
+- Renders 3 tabs: Classes, Mistakes, Performance
+- Resets state when student changes
+
+---
+
+#### 📄 lib/presentation/screens/classes/report/report_filter_bar.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/report/report_filter_bar.dart`
+
+**Purpose:** Filter bar with month pills and surah/juz selectors (mirrors web ReportFilterBar.tsx).
+
+---
+
+#### 📄 lib/presentation/screens/classes/report/report_summary_strip.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/report/report_summary_strip.dart`
+
+**Purpose:** Horizontal 5-stat summary strip (mirrors web ReportSummaryStrip.tsx).
+
+---
+
+#### 📄 lib/presentation/screens/classes/report/report_classes_tab.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/report/report_classes_tab.dart`
+
+**Purpose:** Classes table with expandable rows (mirrors web ReportClassesTab.tsx).
+
+---
+
+#### 📄 lib/presentation/screens/classes/report/report_mistakes_tab.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/report/report_mistakes_tab.dart`
+
+**Purpose:** Mistakes by surah and repeated mistakes list (mirrors web ReportMistakesTab.tsx).
+
+---
+
+#### 📄 lib/presentation/screens/classes/report/report_performance_tab.dart 🆕
+
+**Path:** `quran_mobile/lib/presentation/screens/classes/report/report_performance_tab.dart`
+
+**Purpose:** Performance bar chart with stats sidebar (mirrors web ReportPerformanceTab.tsx).
 
 ---
 
@@ -1359,6 +1921,20 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### 📂 quran_mobile/assets/fonts/qpc/ 🆕
+
+**Purpose:** Contains 604 QPC TTF font files bundled directly with the Flutter app for fully offline rendering.
+
+**What it does:**
+- Stores TrueType (.ttf) QPC fonts (QCF_P001.ttf to QCF_P604.ttf) bundled as Flutter assets
+- Loaded directly by QpcFontService from asset bundle (no network download needed)
+- Enables fully offline Quran rendering on mobile devices
+- Same fonts as quran_backend/fonts/qpc/ but accessed via Flutter asset system
+
+**Contains:** 604 TTF font files
+
+---
+
 ### 📂 quran_mobile/assets/quran-pages/ 🆕
 
 **Purpose:** Contains 605 JSON files with QPC word data for each Quran page (bundled with app).
@@ -1410,7 +1986,7 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Production readiness analysis
 - Template for session logs
 
-**Contains:** PROJECT_CHANGELOG.md, PRODUCTION_READINESS.md, TEMPLATE.md, Architecture/, Technical Implementation Journey/, Guides/, Logs/
+**Contains:** PROJECT_CHANGELOG.md, PRODUCTION_READINESS.md, Architecture/, Technical Implementation Journey/, Guides/, Logs/, agents/, Mockups/
 
 ---
 
@@ -1458,30 +2034,33 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-### 📂 docs/Logs/ 🆕
+### 📂 docs/Logs/ 🔄
 
 **Purpose:** Development session logs tracking what was accomplished in each work session.
 
 **What it does:**
-- Contains timestamped session logs following the TEMPLATE.md format
+- Contains 43 timestamped session logs following the TEMPLATE.md format
 - Tracks objectives, work completed, issues encountered, and next steps
+- Covers development from Feb 15-21, 2026
 
-**Contains:** 2026-02-15-001-session-log.md
+**Contains:** 43 session logs (2026-02-15-001 through 2026-02-21-004) + TEMPLATE.md
 
 ---
 
-#### 📄 docs/Logs/2026-02-15-001-session-log.md 🆕
+#### 📄 docs/Logs/ (43 session logs) 🔄
 
-**Path:** `docs/Logs/2026-02-15-001-session-log.md`
+**Path:** `docs/Logs/*.md`
 
-**Purpose:** Session log for the February 15, 2026 documentation overhaul.
+**Purpose:** Development session logs from February 15-21, 2026.
 
 **What it does:**
-- Documents the comprehensive documentation audit using parallel agents
-- Records CLAUDE.md rewrite and AGENTS.md creation
-- Tracks file organization (moving TEMPLATE.md, PRODUCTION_READINESS.md)
-- Lists audit findings: backend 85%, frontend 75%, mobile 95% accurate
-- Documents all fixes applied to Technical_Documentation.md, 00-OVERVIEW.md, 04-SCREENS.md, etc.
+- 2026-02-15: 4 logs — docs overhaul, test feature removal, student reports, report redesign
+- 2026-02-16: 4 logs — classes revamp planning, implementation, architecture fix, export/PDF
+- 2026-02-17: 5 logs — Tauri desktop planning, Phase 1-4 implementation
+- 2026-02-18: 5 logs — UX polish, responsive fixes, Flutter QPC/classes, runtime fixes, UX polish
+- 2026-02-19: 10 logs — implementation plans, features, Flutter audit, Supabase RLS, mobile mistakes, char-level rendering, web recent classes, light mode
+- 2026-02-20: 7 logs — light mode, juz selection, input UX, Flutter page selector, student view audit, light mode fixes, student stats
+- 2026-02-21: 4 logs — input focus fix, auto-update strategy, nuke data, project map update
 
 ---
 
@@ -1569,7 +2148,7 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Explains complex features like QPC rendering, test scoring, and Supabase migration
 - Contains subdirectories for major feature areas
 
-**Contains:** 8 standalone files + 3 subdirectories (Flutter App Overhaul/, Quran Reader/, Supabase Implementation/)
+**Contains:** 17 standalone files + 3 subdirectories (Flutter App Overhaul/, Quran Reader/, Supabase Implementation/)
 
 ---
 
@@ -1671,6 +2250,103 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 - Explains CSS custom properties for both themes
 - Covers conditional styling patterns across all pages
 - Documents light mode: cyan/teal gradient; dark mode: dark slate
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Student_Reports.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Student_Reports.md`
+
+**Purpose:** Student report feature documentation (data model, UI design, export capabilities).
+
+**What it does:**
+- Documents the tab-based report dashboard design (classes, mistakes, performance tabs)
+- Explains report data model and Supabase queries
+- Covers export implementation (PDF, CSV, Word)
+- Documents filter system (date, surah, juz)
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Classes_Revamp_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Classes_Revamp_Plan.md`
+
+**Purpose:** Planning document for the classes page revamp with inline student reports.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Classes_Revamp_Agents.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Classes_Revamp_Agents.md`
+
+**Purpose:** Agent coordination guide for the classes revamp multi-agent implementation.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Classes_Revamp_Implementation.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Classes_Revamp_Implementation.md`
+
+**Purpose:** Classes revamp implementation documentation including report components and PDF export architecture.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Tauri_Desktop_App_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Tauri_Desktop_App_Plan.md`
+
+**Purpose:** Tauri v2 desktop app planning document covering 4 implementation phases.
+
+**What it does:**
+- Documents Phase 1 (scaffold), Phase 2 (PyInstaller sidecar), Phase 3 (shell integration), Phase 4 (icon + polish)
+- Explains sidecar architecture for bundling FastAPI as executable
+- Covers CSP configuration for Supabase and Google Fonts access
+- Documents parent process watcher for orphan prevention
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md`
+
+**Purpose:** Planning document for Flutter offline QPC fonts and classes tab revamp.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Web_Portion_Management_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Web_Portion_Management_Plan.md`
+
+**Purpose:** Planning document for web edit/delete/juz portion management features.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter_Portion_Management_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_Portion_Management_Plan.md`
+
+**Purpose:** Planning document for Flutter edit/delete/juz/suggestions portion management features.
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter_CharLevel_Mistakes_Alignment.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_CharLevel_Mistakes_Alignment.md`
+
+**Purpose:** Documentation for aligning Flutter char-level mistake rendering with web implementation.
+
+**What it does:**
+- Documents the 21 harakat Unicode code points used in Arabic text parsing
+- Explains shadda + haraka combination logic
+- Covers letter joining issues for isolated Arabic characters
+
+---
+
+#### 📄 docs/Technical Implementation Journey/Flutter_UX_Polish.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_UX_Polish.md`
+
+**Purpose:** Flutter UX polish documentation covering dashboard, mistake display, and class creation improvements.
 
 ---
 
@@ -1847,6 +2523,34 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### 📂 docs/agents/ 🆕
+
+**Purpose:** Multi-agent workflow prompts and team coordination documents for parallel AI development sessions.
+
+**What it does:**
+- Contains agent-specific task prompts for parallel development (Agent 1-4 with different specializations)
+- Team lead coordination prompt for orchestrating multi-agent sessions
+- Team overview document describing the agent team structure
+- Used during Feb 18-19, 2026 sessions for parallel Flutter/Web feature development
+
+**Contains:** AGENT_1_QPC_FONTS.md, AGENT_1_WEB_PORTIONS.md, AGENT_2_FLUTTER_PORTIONS.md, AGENT_2_FOUNDATION.md, AGENT_3_FLUTTER_POLISH.md, AGENT_3_UI_WIDGETS.md, AGENT_4_DOCS.md, TEAM_LEAD_PROMPT.md, TEAM_OVERVIEW.md
+
+---
+
+### 📂 docs/Mockups/ 🆕
+
+**Purpose:** HTML/PDF mockups for the student report feature design.
+
+**What it does:**
+- Contains 3 HTML mockup variants for the student report: timeline (A), tabs (B), printable (C)
+- Includes a PDF export of the printable mockup
+- Contains a convert.py script for converting mockup HTML to PDF
+- Used during the student report design phase (Feb 15-16, 2026)
+
+**Contains:** report-mockup-A-timeline.html, report-mockup-B-tabs.html, report-mockup-C-printable.html, report-mockup-C-printable.pdf, convert.py
+
+---
+
 ### 📂 docs/Guides/
 
 **Purpose:** Troubleshooting guides for AI assistants and developers.
@@ -1990,15 +2694,14 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
-### docs/Logs/2026-02-15-001-session-log.md 🆕
+### docs/Logs/ (43 session logs) 🔄
 
-**Path:** `docs/Logs/2026-02-15-001-session-log.md`
+**Path:** `docs/Logs/*.md`
 
-**Purpose:** Session log for the Feb 15, 2026 documentation overhaul.
+**Purpose:** Development session logs from February 15-21, 2026.
 
-- Documents parallel-agent documentation audit (backend 85%, frontend 75%, mobile 95%)
-- Records CLAUDE.md rewrite and AGENTS.md creation
-- Lists all fixes applied across 6 documentation files
+- 43 timestamped logs covering docs overhaul, student reports, classes revamp, Tauri desktop, Flutter features, bug fixes
+- Each follows TEMPLATE.md structure: objective, summary, work completed, issues, files changed, next steps
 
 ---
 
@@ -2131,6 +2834,86 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 
 ---
 
+### docs/Technical Implementation Journey/Student_Reports.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Student_Reports.md`
+
+**Purpose:** Student report feature documentation.
+
+- Tab-based report dashboard design, data model, export capabilities
+
+---
+
+### docs/Technical Implementation Journey/Classes_Revamp_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Classes_Revamp_Plan.md`
+
+**Purpose:** Planning document for classes page revamp with inline student reports.
+
+---
+
+### docs/Technical Implementation Journey/Classes_Revamp_Implementation.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Classes_Revamp_Implementation.md`
+
+**Purpose:** Classes revamp implementation including report components and PDF export architecture.
+
+---
+
+### docs/Technical Implementation Journey/Tauri_Desktop_App_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Tauri_Desktop_App_Plan.md`
+
+**Purpose:** Tauri v2 desktop app planning document (4 phases).
+
+- Scaffold, PyInstaller sidecar, shell integration, icon polish
+
+---
+
+### docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_Local_Quran_And_Classes_Revamp_Plan.md`
+
+**Purpose:** Planning for Flutter offline QPC fonts and classes tab revamp.
+
+---
+
+### docs/Technical Implementation Journey/Flutter_CharLevel_Mistakes_Alignment.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_CharLevel_Mistakes_Alignment.md`
+
+**Purpose:** Aligning Flutter char-level mistake rendering with web implementation.
+
+---
+
+### docs/Technical Implementation Journey/Flutter_UX_Polish.md 🆕
+
+**Path:** `docs/Technical Implementation Journey/Flutter_UX_Polish.md`
+
+**Purpose:** Flutter UX polish documentation.
+
+---
+
+### docs/agents/ 🆕
+
+**Path:** `docs/agents/`
+
+**Purpose:** Multi-agent workflow prompts (9 files) for parallel AI development sessions.
+
+- Agent 1-4 task prompts, team lead coordination, team overview
+
+---
+
+### docs/Mockups/ 🆕
+
+**Path:** `docs/Mockups/`
+
+**Purpose:** HTML/PDF mockups for the student report feature (5 files).
+
+- Timeline (A), tabs (B), and printable (C) mockup variants
+
+---
+
 ### docs/Technical Implementation Journey/Flutter App Overhaul/ 🆕
 
 **Path:** `docs/Technical Implementation Journey/Flutter App Overhaul/`
@@ -2206,11 +2989,151 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 ## Git History
 
 **Branch:** main
-**Last Commit:** 0ca0779
-**Total Commits:** 58
+**Last Commit:** 8684ab7
+**Total Commits:** 108
 **Repository:** Local
 
 ### Recent Commits
+
+#### 🔵 8684ab7 — docs: update README, docs README, CLAUDE.md for scripts/ move
+**Author:** Hamza Feroze
+**Date:** February 21, 2026
+
+#### 🔵 0c9de7d — refactor: move utility scripts into quran_backend/scripts/
+**Author:** Hamza Feroze
+**Date:** February 21, 2026
+
+#### 🔵 3e94c22 — chore: add nuke script and clear all data for fresh start
+**Author:** Hamza Feroze
+**Date:** February 21, 2026
+
+#### 🔵 b4d4596 — fix(web): input focus loss in class creation modal
+**Author:** Hamza Feroze
+**Date:** February 21, 2026
+
+#### 🔵 a80562f — fix(web): add error logging for mistake_occurrences inserts
+**Author:** Hamza Feroze
+**Date:** February 21, 2026
+
+#### 🔵 61a30ae — fix(web): student view audit fixes - stats, light mode, links, and classes redesign
+**Author:** Hamza Feroze
+**Date:** February 21, 2026
+
+#### 🔵 4f216a5 — feat(mobile): add "By Page" portion selector to class creation
+**Author:** Hamza Feroze
+**Date:** February 20, 2026
+
+#### 🔵 276ce30 — fix(web): number input UX in class creation modal
+**Author:** Hamza Feroze
+**Date:** February 20, 2026
+
+#### 🔵 5de4d62 — fix(web): Juz selection not applying boundary data on mode switch
+**Author:** Hamza Feroze
+**Date:** February 20, 2026
+
+#### 🔵 a45342b — fix(web): light/dark mode support for class creation modals
+**Author:** Hamza Feroze
+**Date:** February 20, 2026
+
+#### 🔵 2ba58f3 — fix(web): recent classes navigation, styling, and student names
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 703f966 — feat(web): add Recent Classes section to teacher dashboard
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 485be34 — fix(mobile): Arabic letter joining in char-level mistake rendering
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 68e38da — fix(mobile): match web's char-level mistake rendering style
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 1281c0f — fix(mobile): mistake_occurrences never created for Supabase UUID classIds
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 6ede6b6 — fix(mobile): character-level mistakes not rendering on web/Supabase path
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 a713779 — fix(mobile): mistake badges not showing on pages without prior mistakes
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 ce98161 — fix(web): default all three portion sections to enabled in new class
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 9873267 — feat: portion management, char-level polish & smart suggestions (9 features)
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 40e66e1 — feat(mobile): UX polish — dashboard students, previous mistakes, class fixes
+**Author:** Hamza Feroze
+**Date:** February 19, 2026
+
+#### 🔵 0639721 — feat(mobile): offline QPC fonts, classes tab revamp, char-level mistakes
+**Author:** Hamza Feroze
+**Date:** February 18, 2026
+
+#### 🔵 e08ea94 — docs: add Flutter local QPC fonts + classes revamp planning & agent team setup
+**Author:** Hamza Feroze
+**Date:** February 18, 2026
+
+#### 🔵 e3a0fb9 — fix(responsive): mobile layout for dashboard, classes, and report components
+**Author:** Hamza Feroze
+**Date:** February 18, 2026
+
+#### 🔵 6139a5a — fix(ux): friendly login errors, Arabic font (Amiri), CSP for Google Fonts
+**Author:** Hamza Feroze
+**Date:** February 18, 2026
+
+#### 🔵 4041f65 — feat(tauri): add QuranTrack app icon + fix sidecar parent watcher
+**Author:** Hamza Feroze
+**Date:** February 18, 2026
+
+#### 🔵 0fd4572 — feat(tauri): wire sidecar lifecycle into Tauri shell (Phase 3)
+**Author:** Hamza Feroze
+**Date:** February 17, 2026
+
+#### 🔵 bc93b64 — feat(tauri): build PyInstaller sidecar for FastAPI backend (Phase 2)
+**Author:** Hamza Feroze
+**Date:** February 17, 2026
+
+#### 🔵 0631574 — feat(tauri): scaffold Tauri v2 desktop app shell (Phase 1)
+**Author:** Hamza Feroze
+**Date:** February 17, 2026
+
+#### 🔵 3308771 — docs: add Tauri desktop app planning doc and session log
+**Author:** Hamza Feroze
+**Date:** February 17, 2026
+
+#### 🔵 fe2f3cd — feat(export): add backend Playwright PDF export with loading states
+**Author:** Hamza Feroze
+**Date:** February 17, 2026
+
+#### 🔵 c90a40c — refactor(teacher-classes): inline student report as slide-out panel
+**Author:** Hamza Feroze
+**Date:** February 16, 2026
+
+#### 🔵 180c066 — feat(report-components): add ReportPanel orchestrator and barrel exports
+**Author:** Hamza Feroze
+**Date:** February 16, 2026
+
+#### 🔵 dde1e20 — feat(report-components): add classes, mistakes, and performance tab components
+**Author:** Hamza Feroze
+**Date:** February 16, 2026
+
+#### 🔵 b933837 — feat: Redesign student report as tab-based dashboard with filters
+**Author:** Hamza Feroze
+**Date:** February 15, 2026
+
+#### 🔵 22dd67c — refactor: Remove test feature completely
+**Author:** Hamza Feroze
+**Date:** February 15, 2026
 
 #### 🔵 0ca0779 — docs: Add docs README, move TEMPLATE into Logs, update references
 **Author:** Hamza Feroze
@@ -2232,163 +3155,67 @@ The architecture follows a three-tier approach with a FastAPI backend serving a 
 **Author:** Hamza Feroze
 **Date:** February 11, 2026
 
-#### 🔵 94a7588 — docs: Mark Phase 14 done, add Phase 15 (light mode + bug fixes)
-**Author:** Hamza Feroze
-**Date:** February 11, 2026
-
-#### 🔵 644f86d — fix: Light mode contrast for performance dropdowns, portions, and mistakes
-**Author:** Hamza Feroze
-**Date:** February 11, 2026
-
-#### 🔵 03b9230 — fix: Move light mode gradient to navbar, fix "Class not found" bug
-**Author:** Hamza Feroze
-**Date:** February 11, 2026
-
-#### 🔵 8a1f3af — fix: Prevent overflow lines from being cut off on pages with surah headers
-**Author:** Hamza Feroze
-**Date:** February 11, 2026
-
-#### 🔵 b370aeb — docs: Update rendering docs and changelog with final responsive values
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 44aa0a7 — Web: Show legend on tablet, enlarge page to fill dead space
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 147e679 — Web: Move all QuranReader content breakpoints from sm to lg
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 dfef1a4 — Web: Fix text cutoff -- responsive font size based on page height
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 ec42931 — Web: Increase tablet chromeHeight to 300 for small screen fit
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 12e6b0c — docs: Add Phase 14 -- Web Quran Reader responsive overhaul
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 690fc54 — Web: Fix mushaf page cutoff on tablet -- hide cards, increase chrome
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 3cd5d2b — Web: Move bottom nav breakpoint to lg (1024px), 3-tier responsive
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 ee9d030 — Web: Fix QPC rendering - scaleDown only, full-width surah headers
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 73bece0 — Web: FittedLine scale-to-fit, mobile fullscreen reader, bottom nav
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 688eb6b — Web: Add text justification, document rendering issues for Quran Reader
-**Author:** Hamza Feroze
-**Date:** February 9, 2026
-
-#### 🔵 bb059f6 — Flutter: Rewrite Quran Reader with page-based QPC rendering and cream theme
-**Author:** Hamza Feroze
-**Date:** February 8, 2026
-
-#### 🔵 565e147 — Flutter: Fix Supabase columns, redesign dashboard, enhance auth screens
-**Author:** Hamza Feroze
-**Date:** February 3, 2026
-
-#### 🔵 869622f — Flutter: Add logout, fix teacher dashboard, center login
-**Author:** Hamza Feroze
-**Date:** February 3, 2026
-
-#### 🔵 0d2a92a — Fix performance dropdown and remove draft toggle
-**Author:** Hamza Feroze
-**Date:** January 26, 2026
-
-#### 🔵 8cb01dc — Migrate getSuggestedPortions to Supabase and update docs
-**Author:** Hamza Feroze
-**Date:** January 26, 2026
-
-#### 🔵 e83c0fe — Migrate getMistakesWithOccurrences to Supabase API
-**Author:** Hamza Feroze
-**Date:** January 26, 2026
-
-#### 🔵 01dafc5 — Fix mistakes feature and auto-publish classes
-**Author:** Hamza Feroze
-**Date:** January 26, 2026
-
-#### 🔵 41f1e17 — Add settings/password reset and fix auth navigation issues
-**Author:** Hamza Feroze
-**Date:** January 26, 2026
-
-#### 🔵 a1d45fd — Add background image to auth pages and show email instead of ID
-**Author:** Hamza Feroze
-**Date:** January 25, 2026
-
-#### 🔵 4128328 — Implement complete light/dark mode theming across app
-**Author:** Hamza Feroze
-**Date:** January 25, 2026
-
-#### 🔵 5a25df4 — Add .env support and update PROJECT_CHANGELOG
-**Author:** Hamza Feroze
-**Date:** January 24, 2026
-
-#### 🔵 00dcde1 — Implement local-first sync with app.db and Supabase
-**Author:** Hamza Feroze
-**Date:** January 24, 2026
-
-#### 🔵 65eed79 — Implement local-first caching for instant page loading
-**Author:** Hamza Feroze
-**Date:** January 20, 2026
-
-#### 🔵 8b041bc — Update documentation for navigation and timeout fixes
-**Author:** Hamza Feroze
-**Date:** January 20, 2026
-
-#### 🔵 1db7751 — Fix rapid navigation causing app to freeze
-**Author:** Hamza Feroze
-**Date:** January 20, 2026
-
-#### 🔵 c725f6d — Add auth timeout mechanism to prevent infinite hangs
-**Author:** Hamza Feroze
-**Date:** January 20, 2026
-
-#### 🔵 985bebc — Fix role-based routing for teachers
-**Author:** Hamza Feroze
-**Date:** January 20, 2026
-
-#### 🔵 5a834b8 — Fix race condition and localStorage corruption issues
-**Author:** Hamza Feroze
-**Date:** January 20, 2026
-
-#### 🔵 b768b0b — Integrate Supabase client into React frontend
-**Author:** Hamza Feroze
-**Date:** January 19, 2026
-
-#### 🔵 89d8ec4 — Add CLAUDE.md to version control and update with Supabase info
-**Author:** Hamza Feroze
-**Date:** January 19, 2026
-
-#### 🔵 0ef9528 — Add Supabase cloud database setup and rename docs to Title_Case
-**Author:** Hamza Feroze
-**Date:** January 19, 2026
-
-#### 🔵 b08c1b8 — Update PROJECT_MAP with self-reference and git history
-**Author:** Hamza Feroze
-**Date:** December 31, 2025
-
 ### Top Contributors
 
-1. Hamza Feroze (58 commits)
+1. Hamza Feroze (108 commits)
 
 ---
 
 ## Update History
 
-### February 15, 2026 - Update 4 (Latest)
+### February 21, 2026 - Update 5 (Latest)
+
+Major update after 47 commits spanning Phases 16-20+ of development. Key additions: student reports with tab-based dashboard, classes revamp with report components, Tauri v2 desktop app, Flutter offline QPC fonts, Flutter classes tab revamp, char-level mistake rendering alignment, smart suggestions, backend scripts reorganization, and many bug fixes across web and mobile.
+
+**Added (new files/directories):**
+- `quran_frontend/src/components/teacher-classes/` -- 9 files: ReportPanel, ReportFilterBar, ReportSummaryStrip, ReportClassesTab, ReportMistakesTab, ReportPerformanceTab, ExportModal, report-helpers, index
+- `quran_frontend/src/lib/quran-utils.ts` -- Centralized surah names, Juz boundaries
+- `quran_frontend/src/lib/report-types.ts` -- TypeScript interfaces for report system
+- `quran_frontend/src/lib/report-export.ts` -- PDF, CSV, Word export utilities
+- `quran_frontend/src-tauri/` -- Tauri v2 desktop app shell (lib.rs, main.rs, Cargo.toml, tauri.conf.json, icons, capabilities)
+- `quran_backend/pyinstaller_entry.py` -- PyInstaller entry point for Tauri sidecar
+- `quran_backend/scripts/` -- Moved create_test_users.py, clear_mistakes.py, seed_database.py, seed.js
+- `quran_backend/scripts/nuke_all_data.py` -- Nuclear data wipe for Supabase + local
+- `quran_mobile/lib/core/services/arabic_text_utils.dart` -- Arabic text parsing (letters + harakat)
+- `quran_mobile/lib/core/services/report_helpers.dart` -- Pure report helper functions
+- `quran_mobile/lib/data/models/student_report.dart` -- Report data models
+- `quran_mobile/lib/data/models/report_filters.dart` -- Filter and stats models
+- `quran_mobile/lib/data/models/suggested_portions.dart` -- Smart suggestion models
+- `quran_mobile/lib/presentation/providers/report_provider.dart` -- Report data provider
+- `quran_mobile/lib/presentation/screens/classes/report/` -- 6 report widgets (panel, filter bar, summary strip, 3 tabs)
+- `quran_mobile/assets/fonts/qpc/` -- 604 bundled QPC TTF fonts for offline rendering
+- `docs/agents/` -- 9 multi-agent workflow documents
+- `docs/Mockups/` -- 5 report mockup files (HTML, PDF, convert script)
+- `docs/Technical Implementation Journey/` -- 9 new docs (Student_Reports, Classes_Revamp_*, Tauri_Desktop_App_Plan, Flutter_*, Web_Portion_Management_Plan)
+- `docs/Logs/` -- 42 new session logs (2026-02-15 through 2026-02-21)
+
+**Updated (modified files):**
+- `quran_frontend/src/pages/TeacherClasses.tsx` -- Major refactor: extracted PortionSelector/ToggleSwitch, added By Juz mode, smart suggestions, ReportPanel integration
+- `quran_frontend/src/pages/StudentClasses.tsx` -- Complete rewrite from 430 to 55 lines using ReportPanel
+- `quran_frontend/src/pages/TeacherDashboard.tsx` -- Added Recent Classes section, surahNames import
+- `quran_frontend/src/pages/StudentDashboard.tsx` -- Enhanced stats (mistakes_by_surah, repeated_mistakes, top_repeated)
+- `quran_frontend/src/lib/supabase-api.ts` -- Added getStudentReport(), enhanced getStats('student'), error logging
+- `quran_mobile/lib/core/services/qpc_font_service.dart` -- Switched from HTTP download to bundled asset loading
+- `quran_mobile/lib/data/quran_data.dart` -- Added JuzBoundary class and juzBoundaries list
+- `quran_mobile/lib/presentation/screens/classes/classes_screen.dart` -- Student pills + ReportPanel integration
+- `quran_mobile/lib/presentation/screens/classes/create_class_screen.dart` -- Added By Page selector, smart suggestions
+- Various mobile screens -- Char-level mistake rendering fixes, light mode improvements
+
+**Removed:**
+- `quran_mobile/lib/core/services/qpc_font_io_mobile.dart` -- No longer needed with bundled fonts
+- `quran_mobile/lib/core/services/qpc_font_io_stub.dart` -- No longer needed with bundled fonts
+- `quran_backend/create_test_users.py` -- Moved to scripts/
+- `quran_backend/clear_mistakes.py` -- Moved to scripts/
+- `quran_backend/seed_database.py` -- Moved to scripts/
+
+**Stats:**
+- Total files: 2854 -> 3673
+- Total folders: 96 -> 119
+- Total commits: 58 -> 108
+
+---
+
+### February 15, 2026 - Update 4
 
 Updated project map to reflect the deletion of Test_System.md and recent documentation changes.
 
