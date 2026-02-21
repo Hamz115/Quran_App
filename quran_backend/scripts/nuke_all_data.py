@@ -13,11 +13,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-DB_PATH = Path(__file__).parent / "app.db"
+DB_PATH = Path(__file__).parent.parent / "app.db"
 
 HEADERS = {
     "apikey": SERVICE_KEY,

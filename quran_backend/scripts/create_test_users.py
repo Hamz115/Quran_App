@@ -11,7 +11,7 @@ from pathlib import Path
 from passlib.context import CryptContext
 
 # Database path
-APP_DB = Path(__file__).parent / "app.db"
+APP_DB = Path(__file__).parent.parent / "app.db"
 
 # Password hashing (same as auth/utils.py)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)

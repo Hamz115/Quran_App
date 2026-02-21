@@ -9,7 +9,7 @@ Usage:
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "app.db"
+DB_PATH = Path(__file__).parent.parent / "app.db"
 
 def clear_all_mistakes():
     conn = sqlite3.connect(DB_PATH)
