@@ -1778,6 +1778,125 @@ Intelligent portion suggestions based on student's previous classes.
 
 ---
 
+## Phase 20: Post-Launch Polish, Student View Audit & Tooling (Feb 19–22, 2026)
+
+Comprehensive polish pass across web and mobile — fixing edge-case bugs from Phase 19, auditing the student experience end-to-end, extracting components for performance, and improving developer tooling.
+
+### Web — Class Creation & Dashboard Polish
+
+**Default portion sections enabled:**
+- All three portion sections (Hifz, Sabqi, Manzil) now default to enabled in the new class creation modal (`TeacherClasses.tsx`)
+- Previously only Hifz was enabled by default, confusing teachers
+
+**Recent Classes on Teacher Dashboard:**
+- Added "Recent Classes" section to `TeacherDashboard.tsx` showing last 5 classes with student names, date, and portion summaries
+- Fixed navigation to use correct class IDs and student context
+- Fixed styling and student name display
+
+**Light/Dark mode for class creation modals:**
+- Fixed all modals in `TeacherClasses.tsx` (New Class, Edit Class, Add Portion, Edit Portion) to properly support light mode
+- Added `dark:` prefixes for backgrounds, text, borders, and input fields
+
+**Juz selection boundary bug:**
+- Fixed `TeacherClasses.tsx` — switching to "By Juz" mode wasn't applying `JUZ_BOUNDARIES` data until user changed the dropdown value
+- Now auto-fills surah/ayah fields immediately on mode switch
+
+**Number input UX:**
+- Fixed page/ayah number inputs in class creation modal to prevent non-numeric input and enforce min/max constraints
+
+**Input focus loss fix (React anti-pattern):**
+- Root-caused input fields losing focus on every keystroke in class creation modal
+- **Cause:** `PortionSelector` and `ToggleSwitch` were defined as arrow functions *inside* the `TeacherClasses` render function, creating new component references on every re-render → React unmounts/remounts DOM
+- **Fix:** Extracted both as standalone `function` components outside the parent, with explicit props (`darkMode`, `surahList`, `modalBodyRef`) replacing closure captures
+- Net change: 387 insertions, 355 deletions in `TeacherClasses.tsx`
+
+**Error logging for mistake_occurrences:**
+- Added detailed error logging for `mistake_occurrences` insert failures in `supabase-api.ts` to help diagnose sync issues
+
+### Web — Student View Audit
+
+Full audit of the student experience revealed multiple issues:
+
+- **Stats fix:** `getStats()` in `supabase-api.ts` was failing for students because it queried `class_students` with teacher-oriented logic — fixed to query student's own classes
+- **Light mode:** Fixed `StudentDashboard.tsx` and `StudentClasses.tsx` backgrounds, text colors, and card styles for light mode
+- **Navigation links:** Fixed broken links on student dashboard (Classes, Quran Reader, Settings)
+- **StudentClasses redesign:** Complete visual overhaul — card-based layout with portion chips, teacher name, date, and status indicators (replacing plain table)
+
+### Mobile — Character-Level Mistake Bug Fixes
+
+Several critical bugs prevented char-level mistakes from rendering on Flutter/Supabase:
+
+- **Mistake badges not showing:** Fixed `mushaf_page_widget.dart` — pages without pre-existing mistakes weren't initializing the mistake tracking data structure, so new mistakes on clean pages were invisible
+- **Character-level mistakes not rendering on Supabase path:** Fixed code path that was only checking local SQLite for char-level data even when running against Supabase
+- **mistake_occurrences never created for UUID classIds:** Fixed `providers.dart` — Supabase UUID class IDs were being compared with integer equality, causing occurrence inserts to silently fail
+- **Rendering style alignment:** Updated `mushaf_page_widget.dart` to match web's char-level rendering style (glow effects, font sizing, color coding)
+- **Arabic letter joining:** Fixed `arabic_text_utils.dart` — isolated Arabic letters weren't joining correctly in char-level mistake display; added proper Unicode joining logic
+- **Gaps documented:** Created `Flutter_CharLevel_Mistakes_Alignment.md` documenting remaining differences between web and Flutter rendering
+
+### Mobile — "By Page" Portion Selector
+
+- Added "By Page" selection mode to `create_class_screen.dart` — enter start/end page numbers directly
+- Complements existing "By Surah" and "By Juz" modes
+
+### Developer Tooling
+
+**Nuke All Data script:**
+- Created `quran_backend/scripts/nuke_all_data.py` — wipes ALL data from both Supabase and local SQLite
+- Supabase: deletes all rows from 7 tables (mistake_occurrences → profiles) + deletes all auth users via Admin API
+- Local SQLite: empties all 12 tables in foreign-key-safe order
+- Safety: requires typing "NUKE" to confirm
+
+**Scripts reorganization:**
+- Moved 5 utility scripts into `quran_backend/scripts/` folder (was cluttering backend root)
+- Updated all `Path(__file__).parent` references to `Path(__file__).parent.parent`
+- Files moved: `create_test_users.py`, `clear_mistakes.py`, `seed_database.py`, `nuke_all_data.py`, `seed.js`
+
+### Documentation Updates
+
+- Updated root `README.md` with fuller feature descriptions, current project structure, and scripts/ paths
+- Updated `docs/README.md` with all newer docs and quick links
+- Updated `CLAUDE.md` and `AGENTS.md` with scripts/ folder structure and new commands
+- Updated `PROJECT_MAP.md` and `PROJECT_MAP.html` with 47 commits of changes (new Tauri section, Flutter report system, scripts reorganization)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `quran_backend/scripts/nuke_all_data.py` | Wipe all data from Supabase + local SQLite |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `quran_frontend/src/pages/TeacherClasses.tsx` | Extracted PortionSelector/ToggleSwitch as standalone components; default portions enabled; juz boundary fix; number input UX; light/dark mode |
+| `quran_frontend/src/pages/TeacherDashboard.tsx` | Recent Classes section |
+| `quran_frontend/src/pages/StudentDashboard.tsx` | Light mode fixes, navigation link fixes |
+| `quran_frontend/src/pages/StudentClasses.tsx` | Complete visual redesign with card-based layout |
+| `quran_frontend/src/pages/Classroom.tsx` | Light/dark mode for modals |
+| `quran_frontend/src/lib/supabase-api.ts` | Student stats fix, error logging for mistake_occurrences |
+| `quran_mobile/lib/presentation/widgets/mushaf_page_widget.dart` | Mistake badge init fix, char-level Supabase path fix, rendering style alignment |
+| `quran_mobile/lib/presentation/providers/providers.dart` | UUID class ID comparison fix for mistake_occurrences |
+| `quran_mobile/lib/core/services/arabic_text_utils.dart` | Arabic letter joining in char-level display |
+| `quran_mobile/lib/presentation/screens/classes/create_class_screen.dart` | "By Page" portion selector |
+| `quran_backend/scripts/create_test_users.py` | Path update for scripts/ move |
+| `quran_backend/scripts/clear_mistakes.py` | Path update for scripts/ move |
+| `quran_backend/scripts/seed_database.py` | Path update for scripts/ move |
+| `quran_backend/scripts/seed.js` | Moved to scripts/ |
+| `README.md` | Updated features, project structure, scripts paths |
+| `docs/README.md` | Updated doc map and quick links |
+| `CLAUDE.md` | Updated codebase map and common tasks |
+| `AGENTS.md` | Synced with CLAUDE.md |
+| `PROJECT_MAP.md` | Updated with 47 commits of changes |
+
+### Session Logs
+
+- `docs/Logs/2026-02-21-001-input-focus-fix.md`
+- `docs/Logs/2026-02-21-002-auto-update-strategy.md`
+- `docs/Logs/2026-02-21-003-nuke-all-data.md`
+- `docs/Logs/2026-02-21-004-project-map-update.md`
+
+---
+
 ## Running the Project
 
 **Backend:**
