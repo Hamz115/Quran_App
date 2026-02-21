@@ -32,9 +32,12 @@ Quran_App/
 │   │   ├── dependencies.py             #   JWT dependency injection
 │   │   └── utils.py                    #   Password hashing, JWT helpers
 │   ├── sync_service.py                 # Supabase push/pull sync service
-│   ├── seed_database.py / seed.js      # Database seeding scripts
-│   ├── create_test_users.py            # Creates demo accounts
-│   ├── clear_mistakes.py               # Clears all mistakes (testing)
+│   ├── scripts/                        # Utility scripts
+│   │   ├── nuke_all_data.py            #   Wipe ALL data (Supabase + local)
+│   │   ├── create_test_users.py        #   Creates demo accounts
+│   │   ├── clear_mistakes.py           #   Clears all mistakes (testing)
+│   │   ├── seed_database.py            #   Database seeding (Python)
+│   │   └── seed.js                     #   Database seeding (JS)
 │   ├── app.db                          # SQLite: users, classes, mistakes (read-write)
 │   ├── quran.db                        # SQLite: Quran text data (READ-ONLY)
 │   ├── quran-pages/                    # 604 JSON files with QPC word data per page
@@ -264,10 +267,13 @@ cd quran_frontend && npm run dev
 cd quran_frontend && npm run build
 
 # Create test users
-cd quran_backend && python create_test_users.py
+cd quran_backend && python scripts/create_test_users.py
 
 # Clear all mistakes (testing)
-cd quran_backend && python clear_mistakes.py
+cd quran_backend && python scripts/clear_mistakes.py
+
+# Nuke ALL data (Supabase + local)
+cd quran_backend && python scripts/nuke_all_data.py
 ```
 
 ## Documentation
