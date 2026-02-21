@@ -31,6 +31,375 @@ interface PortionConfig {
   portions: SinglePortion[];
 }
 
+// Toggle Switch - extracted to avoid focus loss from re-renders
+function ToggleSwitch({ enabled, onChange, color, darkMode }: { enabled: boolean; onChange: (v: boolean) => void; color: string; darkMode: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+        enabled ? color : (darkMode ? 'bg-slate-600' : 'bg-slate-300')
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+          enabled ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+}
+
+// PortionSelector - extracted to avoid focus loss from re-renders
+function PortionSelector({
+  label,
+  description,
+  borderColor,
+  toggleColor,
+  config,
+  setConfig,
+  darkMode,
+  surahList,
+  modalBodyRef
+}: {
+  label: string;
+  description: string;
+  borderColor: string;
+  toggleColor: string;
+  config: PortionConfig;
+  setConfig: (c: PortionConfig) => void;
+  darkMode: boolean;
+  surahList: SurahInfo[];
+  modalBodyRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const updatePortion = (portionId: string, updates: Partial<SinglePortion>) => {
+    const scrollTop = modalBodyRef.current?.scrollTop || 0;
+    setConfig({
+      ...config,
+      portions: config.portions.map(p => p.id === portionId ? { ...p, ...updates } : p)
+    });
+    requestAnimationFrame(() => {
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTop = scrollTop;
+      }
+    });
+  };
+
+  const createDefaultPortion = (): SinglePortion => ({
+    id: Math.random().toString(36).substr(2, 9),
+    mode: 'page',
+    startPage: 1,
+    endPage: 1,
+    startSurah: 1,
+    endSurah: 1,
+    startAyah: '',
+    endAyah: '',
+    juz: 1,
+  });
+
+  const addPortion = () => {
+    setConfig({
+      ...config,
+      portions: [...config.portions, createDefaultPortion()]
+    });
+  };
+
+  const removePortion = (portionId: string) => {
+    if (config.portions.length > 1) {
+      setConfig({
+        ...config,
+        portions: config.portions.filter(p => p.id !== portionId)
+      });
+    }
+  };
+
+  const handlePageChange = (portionId: string, startPage: number, endPage: number) => {
+    const startRange = getPageRange(startPage);
+    const endRange = getPageRange(endPage);
+    updatePortion(portionId, {
+      startPage,
+      endPage,
+      startSurah: startRange.startSurah,
+      endSurah: endRange.endSurah,
+      startAyah: String(startRange.startAyah),
+      endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
+    });
+  };
+
+  return (
+    <div className={`p-4 rounded-xl border-2 transition-all ${
+      config.enabled ? borderColor : (darkMode ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50')
+    }`}>
+      <div className="flex items-start justify-between mb-1">
+        <div>
+          <h3 className={`font-semibold ${config.enabled ? (darkMode ? 'text-slate-100' : 'text-slate-800') : 'text-slate-400'}`}>
+            {label}
+          </h3>
+          <p className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>{description}</p>
+        </div>
+        <ToggleSwitch enabled={config.enabled} onChange={(v) => setConfig({ ...config, enabled: v })} color={toggleColor} darkMode={darkMode} />
+      </div>
+
+      {config.enabled && (
+        <div className="mt-4 space-y-4">
+          {config.portions.map((portion, index) => {
+            const startSurahInfo = surahList.find(s => s.number === portion.startSurah);
+            const endSurahInfo = surahList.find(s => s.number === portion.endSurah);
+            const isSameSurah = portion.startSurah === portion.endSurah;
+            const maxStartAyahs = startSurahInfo?.numberOfAyahs || 286;
+            const maxEndAyahs = endSurahInfo?.numberOfAyahs || 286;
+
+            return (
+              <div key={portion.id} className="space-y-3">
+                {index > 0 && <div className={`border-t pt-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`} />}
+
+                {config.portions.length > 1 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500">Portion {index + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removePortion(portion.id)}
+                      className="text-red-400 hover:text-red-300 text-xs"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+
+                {/* Mode Toggle */}
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => updatePortion(portion.id, { mode: 'page' })}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      portion.mode === 'page'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                        : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
+                    }`}
+                  >
+                    By Page
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePortion(portion.id, { mode: 'surah' })}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      portion.mode === 'surah'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                        : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
+                    }`}
+                  >
+                    By Surah
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const boundary = JUZ_BOUNDARIES.find(b => b.juz === portion.juz);
+                      updatePortion(portion.id, {
+                        mode: 'juz',
+                        ...(boundary && {
+                          startSurah: boundary.startSurah,
+                          endSurah: boundary.endSurah,
+                          startAyah: String(boundary.startAyah),
+                          endAyah: String(boundary.endAyah),
+                        }),
+                      });
+                    }}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      portion.mode === 'juz'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                        : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
+                    }`}
+                  >
+                    By Juz
+                  </button>
+                </div>
+
+                {portion.mode === 'page' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Page</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={portion.startPage || ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          updatePortion(portion.id, { startPage: raw === '' ? 0 : parseInt(raw) });
+                        }}
+                        onBlur={() => {
+                          const clamped = Math.min(Math.max(1, portion.startPage || 1), TOTAL_PAGES);
+                          handlePageChange(portion.id, clamped, Math.max(clamped, portion.endPage || clamped));
+                        }}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Page</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={portion.endPage || ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          updatePortion(portion.id, { endPage: raw === '' ? 0 : parseInt(raw) });
+                        }}
+                        onBlur={() => {
+                          const start = portion.startPage || 1;
+                          const clamped = Math.min(Math.max(start, portion.endPage || start), TOTAL_PAGES);
+                          handlePageChange(portion.id, Math.min(Math.max(1, start), TOTAL_PAGES), clamped);
+                        }}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {portion.mode === 'surah' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Surah</label>
+                        <select
+                          value={portion.startSurah}
+                          onChange={(e) => {
+                            const newStart = parseInt(e.target.value);
+                            updatePortion(portion.id, {
+                              startSurah: newStart,
+                              endSurah: newStart > portion.endSurah ? newStart : portion.endSurah,
+                              startAyah: '',
+                              endAyah: ''
+                            });
+                          }}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
+                        >
+                          {surahList.map((surah) => (
+                            <option key={surah.number} value={surah.number}>
+                              {surah.number}. {surah.englishName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Surah</label>
+                        <select
+                          value={portion.endSurah}
+                          onChange={(e) => updatePortion(portion.id, { endSurah: parseInt(e.target.value), startAyah: '', endAyah: '' })}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
+                        >
+                          {surahList.filter(s => s.number >= portion.startSurah).map((surah) => (
+                            <option key={surah.number} value={surah.number}>
+                              {surah.number}. {surah.englishName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Ayah (optional)</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="All"
+                          value={portion.startAyah}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            updatePortion(portion.id, { startAyah: raw });
+                          }}
+                          onBlur={() => {
+                            if (portion.startAyah) {
+                              const val = Math.min(Math.max(1, parseInt(portion.startAyah) || 1), maxStartAyahs);
+                              updatePortion(portion.id, { startAyah: String(val) });
+                            }
+                          }}
+                          disabled={!isSameSurah}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Ayah (optional)</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="All"
+                          value={portion.endAyah}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            updatePortion(portion.id, { endAyah: raw });
+                          }}
+                          onBlur={() => {
+                            if (portion.endAyah) {
+                              const val = Math.min(Math.max(1, parseInt(portion.endAyah) || 1), maxEndAyahs);
+                              updatePortion(portion.id, { endAyah: String(val) });
+                            }
+                          }}
+                          disabled={!isSameSurah}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
+                        />
+                      </div>
+                    </div>
+
+                    {!isSameSurah && (
+                      <p className="text-xs text-slate-500 italic">
+                        Note: Ayah range only applies when start and end surah are the same
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {portion.mode === 'juz' && (
+                  <div>
+                    <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Juz</label>
+                    <select
+                      value={portion.juz}
+                      onChange={(e) => {
+                        const juzNum = parseInt(e.target.value);
+                        const boundary = JUZ_BOUNDARIES.find(b => b.juz === juzNum);
+                        updatePortion(portion.id, {
+                          juz: juzNum,
+                          ...(boundary && {
+                            startSurah: boundary.startSurah,
+                            endSurah: boundary.endSurah,
+                            startAyah: String(boundary.startAyah),
+                            endAyah: String(boundary.endAyah),
+                          }),
+                        });
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
+                        <option key={j} value={j}>Juz {j}</option>
+                      ))}
+                    </select>
+                    {(() => {
+                      const b = JUZ_BOUNDARIES.find(x => x.juz === portion.juz);
+                      if (!b) return null;
+                      return (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Surah {b.startSurah}:{b.startAyah} — Surah {b.endSurah}:{b.endAyah}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={addPortion}
+            className={`w-full py-2 border border-dashed rounded-lg text-sm transition-colors ${darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400'}`}
+          >
+            + Add Another Portion
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TeacherClasses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { darkMode } = useTheme();
@@ -360,361 +729,6 @@ export default function TeacherClasses() {
     );
   }
 
-  // Toggle Switch Component
-  const ToggleSwitch = ({ enabled, onChange, color }: { enabled: boolean; onChange: (v: boolean) => void; color: string }) => (
-    <button
-      type="button"
-      onClick={() => onChange(!enabled)}
-      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-        enabled ? color : (darkMode ? 'bg-slate-600' : 'bg-slate-300')
-      }`}
-    >
-      <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
-          enabled ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
-    </button>
-  );
-
-  const PortionSelector = ({
-    label,
-    description,
-    borderColor,
-    toggleColor,
-    config,
-    setConfig
-  }: {
-    label: string;
-    description: string;
-    borderColor: string;
-    toggleColor: string;
-    config: PortionConfig;
-    setConfig: (c: PortionConfig) => void;
-  }) => {
-    const updatePortion = (portionId: string, updates: Partial<SinglePortion>) => {
-      // Save scroll position before state update
-      const scrollTop = modalBodyRef.current?.scrollTop || 0;
-      setConfig({
-        ...config,
-        portions: config.portions.map(p => p.id === portionId ? { ...p, ...updates } : p)
-      });
-      // Restore scroll position after state update
-      requestAnimationFrame(() => {
-        if (modalBodyRef.current) {
-          modalBodyRef.current.scrollTop = scrollTop;
-        }
-      });
-    };
-
-    const addPortion = () => {
-      setConfig({
-        ...config,
-        portions: [...config.portions, createDefaultPortion()]
-      });
-    };
-
-    const removePortion = (portionId: string) => {
-      if (config.portions.length > 1) {
-        setConfig({
-          ...config,
-          portions: config.portions.filter(p => p.id !== portionId)
-        });
-      }
-    };
-
-    // Convert page to surah/ayah when page changes
-    const handlePageChange = (portionId: string, startPage: number, endPage: number) => {
-      const startRange = getPageRange(startPage);
-      const endRange = getPageRange(endPage);
-      updatePortion(portionId, {
-        startPage,
-        endPage,
-        startSurah: startRange.startSurah,
-        endSurah: endRange.endSurah,
-        startAyah: String(startRange.startAyah),
-        endAyah: endRange.endAyah === 999 ? '' : String(endRange.endAyah)
-      });
-    };
-
-    return (
-      <div className={`p-4 rounded-xl border-2 transition-all ${
-        config.enabled ? borderColor : (darkMode ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50')
-      }`}>
-        {/* Header with toggle */}
-        <div className="flex items-start justify-between mb-1">
-          <div>
-            <h3 className={`font-semibold ${config.enabled ? (darkMode ? 'text-slate-100' : 'text-slate-800') : 'text-slate-400'}`}>
-              {label}
-            </h3>
-            <p className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>{description}</p>
-          </div>
-          <ToggleSwitch enabled={config.enabled} onChange={(v) => setConfig({ ...config, enabled: v })} color={toggleColor} />
-        </div>
-
-        {config.enabled && (
-          <div className="mt-4 space-y-4">
-            {config.portions.map((portion, index) => {
-              const startSurahInfo = surahList.find(s => s.number === portion.startSurah);
-              const endSurahInfo = surahList.find(s => s.number === portion.endSurah);
-              const isSameSurah = portion.startSurah === portion.endSurah;
-              const maxStartAyahs = startSurahInfo?.numberOfAyahs || 286;
-              const maxEndAyahs = endSurahInfo?.numberOfAyahs || 286;
-
-              return (
-                <div key={portion.id} className="space-y-3">
-                  {index > 0 && <div className={`border-t pt-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`} />}
-
-                  {config.portions.length > 1 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-500">Portion {index + 1}</span>
-                      <button
-                        type="button"
-                        onClick={() => removePortion(portion.id)}
-                        className="text-red-400 hover:text-red-300 text-xs"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Mode Toggle - Page (default) or Surah */}
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => updatePortion(portion.id, { mode: 'page' })}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                        portion.mode === 'page'
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                          : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
-                      }`}
-                    >
-                      By Page
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updatePortion(portion.id, { mode: 'surah' })}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                        portion.mode === 'surah'
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                          : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
-                      }`}
-                    >
-                      By Surah
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const boundary = JUZ_BOUNDARIES.find(b => b.juz === portion.juz);
-                        updatePortion(portion.id, {
-                          mode: 'juz',
-                          ...(boundary && {
-                            startSurah: boundary.startSurah,
-                            endSurah: boundary.endSurah,
-                            startAyah: String(boundary.startAyah),
-                            endAyah: String(boundary.endAyah),
-                          }),
-                        });
-                      }}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                        portion.mode === 'juz'
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                          : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
-                      }`}
-                    >
-                      By Juz
-                    </button>
-                  </div>
-
-                  {portion.mode === 'page' && (
-                    /* Page-based selection */
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Page</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={portion.startPage || ''}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, '');
-                            updatePortion(portion.id, { startPage: raw === '' ? 0 : parseInt(raw) });
-                          }}
-                          onBlur={() => {
-                            const clamped = Math.min(Math.max(1, portion.startPage || 1), TOTAL_PAGES);
-                            handlePageChange(portion.id, clamped, Math.max(clamped, portion.endPage || clamped));
-                          }}
-                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Page</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={portion.endPage || ''}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, '');
-                            updatePortion(portion.id, { endPage: raw === '' ? 0 : parseInt(raw) });
-                          }}
-                          onBlur={() => {
-                            const start = portion.startPage || 1;
-                            const clamped = Math.min(Math.max(start, portion.endPage || start), TOTAL_PAGES);
-                            handlePageChange(portion.id, Math.min(Math.max(1, start), TOTAL_PAGES), clamped);
-                          }}
-                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {portion.mode === 'surah' && (
-                    /* Surah-based selection */
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Surah</label>
-                          <select
-                            value={portion.startSurah}
-                            onChange={(e) => {
-                              const newStart = parseInt(e.target.value);
-                              updatePortion(portion.id, {
-                                startSurah: newStart,
-                                endSurah: newStart > portion.endSurah ? newStart : portion.endSurah,
-                                startAyah: '',
-                                endAyah: ''
-                              });
-                            }}
-                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
-                          >
-                            {surahList.map((surah) => (
-                              <option key={surah.number} value={surah.number}>
-                                {surah.number}. {surah.englishName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Surah</label>
-                          <select
-                            value={portion.endSurah}
-                            onChange={(e) => updatePortion(portion.id, { endSurah: parseInt(e.target.value), startAyah: '', endAyah: '' })}
-                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
-                          >
-                            {surahList.filter(s => s.number >= portion.startSurah).map((surah) => (
-                              <option key={surah.number} value={surah.number}>
-                                {surah.number}. {surah.englishName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Ayah (optional)</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="All"
-                            value={portion.startAyah}
-                            onChange={(e) => {
-                              const raw = e.target.value.replace(/[^0-9]/g, '');
-                              updatePortion(portion.id, { startAyah: raw });
-                            }}
-                            onBlur={() => {
-                              if (portion.startAyah) {
-                                const val = Math.min(Math.max(1, parseInt(portion.startAyah) || 1), maxStartAyahs);
-                                updatePortion(portion.id, { startAyah: String(val) });
-                              }
-                            }}
-                            disabled={!isSameSurah}
-                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
-                          />
-                        </div>
-                        <div>
-                          <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>To Ayah (optional)</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="All"
-                            value={portion.endAyah}
-                            onChange={(e) => {
-                              const raw = e.target.value.replace(/[^0-9]/g, '');
-                              updatePortion(portion.id, { endAyah: raw });
-                            }}
-                            onBlur={() => {
-                              if (portion.endAyah) {
-                                const val = Math.min(Math.max(1, parseInt(portion.endAyah) || 1), maxEndAyahs);
-                                updatePortion(portion.id, { endAyah: String(val) });
-                              }
-                            }}
-                            disabled={!isSameSurah}
-                            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
-                          />
-                        </div>
-                      </div>
-
-                      {!isSameSurah && (
-                        <p className="text-xs text-slate-500 italic">
-                          Note: Ayah range only applies when start and end surah are the same
-                        </p>
-                      )}
-                    </>
-                  )}
-
-                  {portion.mode === 'juz' && (
-                    /* Juz-based selection */
-                    <div>
-                      <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Juz</label>
-                      <select
-                        value={portion.juz}
-                        onChange={(e) => {
-                          const juzNum = Number(e.target.value);
-                          const boundary = JUZ_BOUNDARIES.find(b => b.juz === juzNum);
-                          if (boundary) {
-                            updatePortion(portion.id, {
-                              juz: juzNum,
-                              startSurah: boundary.startSurah,
-                              endSurah: boundary.endSurah,
-                              startAyah: String(boundary.startAyah),
-                              endAyah: String(boundary.endAyah),
-                            });
-                          }
-                        }}
-                        className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-300 bg-white text-slate-900'}`}
-                      >
-                        {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
-                          <option key={j} value={j}>Juz {j}</option>
-                        ))}
-                      </select>
-                      {(() => {
-                        const b = JUZ_BOUNDARIES.find(x => x.juz === portion.juz);
-                        if (!b) return null;
-                        return (
-                          <p className="text-xs text-slate-500 mt-1">
-                            Surah {b.startSurah}:{b.startAyah} — Surah {b.endSurah}:{b.endAyah}
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={addPortion}
-              className={`w-full py-2 border border-dashed rounded-lg text-sm transition-colors ${darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400'}`}
-            >
-              + Add Another Portion
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1034,6 +1048,9 @@ export default function TeacherClasses() {
                           toggleColor="bg-blue-500"
                           config={hifzConfig}
                           setConfig={setHifzConfig}
+                          darkMode={darkMode}
+                          surahList={surahList}
+                          modalBodyRef={modalBodyRef}
                         />
                         <PortionSelector
                           label="Sabqi (Recent)"
@@ -1042,6 +1059,9 @@ export default function TeacherClasses() {
                           toggleColor="bg-blue-500"
                           config={sabqiConfig}
                           setConfig={setSabqiConfig}
+                          darkMode={darkMode}
+                          surahList={surahList}
+                          modalBodyRef={modalBodyRef}
                         />
                         <PortionSelector
                           label="Revision (Manzil)"
@@ -1050,6 +1070,9 @@ export default function TeacherClasses() {
                           toggleColor="bg-purple-500"
                           config={revisionConfig}
                           setConfig={setRevisionConfig}
+                          darkMode={darkMode}
+                          surahList={surahList}
+                          modalBodyRef={modalBodyRef}
                         />
                       </>
                     ) : (
@@ -1061,6 +1084,9 @@ export default function TeacherClasses() {
                           toggleColor="bg-blue-500"
                           config={getActiveStudentConfig().hifz}
                           setConfig={(c) => updateActiveStudentConfig('hifz', c)}
+                          darkMode={darkMode}
+                          surahList={surahList}
+                          modalBodyRef={modalBodyRef}
                         />
                         <PortionSelector
                           label="Sabqi (Recent)"
@@ -1069,6 +1095,9 @@ export default function TeacherClasses() {
                           toggleColor="bg-blue-500"
                           config={getActiveStudentConfig().sabqi}
                           setConfig={(c) => updateActiveStudentConfig('sabqi', c)}
+                          darkMode={darkMode}
+                          surahList={surahList}
+                          modalBodyRef={modalBodyRef}
                         />
                         <PortionSelector
                           label="Revision (Manzil)"
@@ -1077,6 +1106,9 @@ export default function TeacherClasses() {
                           toggleColor="bg-purple-500"
                           config={getActiveStudentConfig().revision}
                           setConfig={(c) => updateActiveStudentConfig('revision', c)}
+                          darkMode={darkMode}
+                          surahList={surahList}
+                          modalBodyRef={modalBodyRef}
                         />
                       </>
                     )}
