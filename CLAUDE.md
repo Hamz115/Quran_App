@@ -234,7 +234,13 @@ Quran_App/
 ### Session Logs
 - **ALWAYS create a session log** at the start of every development session in `docs/Logs/`
 - **ALWAYS update the log** as you complete work — do NOT wait until the end
-- Naming: `YYYY-MM-DD-NNN-brief-description.md` (e.g. `2026-02-19-001-web-portion-edit.md`)
+- Naming: `YYYY-MM-DD-NNN-brief-description.md`
+  - **Logs before `2026-02-22-002`**: No version suffix (pre-installer, no shippable product yet)
+  - **All logs from `2026-02-22-002` onward MUST include a version suffix**: `YYYY-MM-DD-NNN-description-vX.Y.Z.md`
+  - Every session = a version bump. Bug fixes, features, polish — each gets its own version.
+  - Examples: `2026-02-23-001-tauri-navbar-fix-v1.0.1.md`, `2026-02-24-001-flutter-classes-fix-v1.0.2.md`
+  - Use semver: patch (v1.0.1) for bug fixes, minor (v1.1.0) for features, major (v2.0.0) for breaking changes
+  - Check the last log's version to determine the next version number
 - Use the template at `docs/Logs/TEMPLATE.md` for structure
 - Include: objective, summary, work completed, issues encountered, files changed table, next steps
 - Every fix, feature, or bug encountered during the session must be logged
