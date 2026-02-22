@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuranTrack - Quran Memorization Tracking for Teachers & Students</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cyan: #06b6d4;
+            --cyan-dark: #0891b2;
+            --teal: #14b8a6;
+            --teal-dark: #0d9488;
+            --emerald: #10b981;
+
+            /* Light palette */
+            --bg: #f8fafc;
+            --bg-alt: #f1f5f9;
+            --white: #ffffff;
+            --text: #0f172a;
+            --text-2: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --border-cyan: rgba(6, 182, 212, 0.2);
+
+            /* App navbar gradient */
+            --nav-gradient: linear-gradient(135deg, rgb(186, 230, 253) 0%, rgb(165, 243, 252) 50%, rgb(207, 250, 254) 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Navigation ── */
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 40px;
+            background: var(--nav-gradient);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .nav-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+
+        .nav-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+        }
+
+        .nav-links a {
+            color: var(--text-2);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--cyan-dark);
+        }
+
+        /* ── Hero Section ── */
+        .hero {
+            padding: 90px 60px 70px;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            color: var(--cyan-dark);
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 25px;
+            color: var(--text);
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--cyan), var(--teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-description {
+            font-size: 1.2rem;
+            color: var(--text-2);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.8;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cyan), var(--teal));
+            color: var(--white);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--white);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--cyan);
+            color: var(--cyan-dark);
+        }
+
+        /* ── Tinted Sections (app navbar gradient) ── */
+        .tinted-section {
+            background: var(--nav-gradient);
+        }
+
+        /* ── Who Is It For ── */
+        .audience {
+            padding: 80px 40px;
+        }
+
+        .section-content {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-2);
+            max-width: 600px;
+            margin: 0 auto 50px;
+            font-size: 1.05rem;
+        }
+
+        .audience-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .audience-card {
+            background: var(--white);
+            padding: 35px 30px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .audience-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .audience-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(20, 184, 166, 0.15));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin: 0 auto 20px;
+        }
+
+        .audience-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .audience-card p {
+            color: var(--text-2);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        /* ── Features ── */
+        .features {
+            padding: 80px 40px;
+            background: var(--white);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+        }
+
+        .feature-card {
+            background: var(--bg);
+            padding: 30px 25px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-color: var(--border-cyan);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(20, 184, 166, 0.15));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 18px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        .feature-card p {
+            color: var(--text-2);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        /* ── How It Works ── */
+        .how-it-works {
+            padding: 80px 40px;
+        }
+
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .role-column h3 {
+            font-size: 1.3rem;
+            margin-bottom: 25px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .role-column.teacher h3 {
+            border-color: var(--cyan);
+            color: var(--cyan-dark);
+        }
+
+        .role-column.student h3 {
+            border-color: var(--teal);
+            color: var(--teal-dark);
+        }
+
+        .step {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 22px;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+            color: var(--white);
+        }
+
+        .teacher .step-num {
+            background: linear-gradient(135deg, var(--cyan), var(--cyan-dark));
+        }
+
+        .student .step-num {
+            background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+        }
+
+        .step-text h4 {
+            font-size: 1rem;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+
+        .step-text p {
+            color: var(--text-2);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* ── Quran Rendering Showcase ── */
+        .showcase {
+            padding: 80px 40px;
+            text-align: center;
+            background: var(--white);
+        }
+
+        .showcase-box {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--nav-gradient);
+            border-radius: 20px;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            padding: 50px 40px;
+        }
+
+        .showcase-box h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .showcase-box .gradient-text {
+            background: linear-gradient(135deg, var(--cyan-dark), var(--teal-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .showcase-box p {
+            color: var(--text-2);
+            font-size: 1.05rem;
+            line-height: 1.8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .quran-sample {
+            font-family: 'Traditional Arabic', 'Scheherazade New', 'Amiri', serif;
+            font-size: 2.2rem;
+            direction: rtl;
+            color: var(--text);
+            margin: 30px 0;
+            line-height: 2;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            border: 1px solid rgba(6, 182, 212, 0.15);
+        }
+
+        /* ── Download ── */
+        .download {
+            padding: 80px 40px;
+        }
+
+        .download-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .download-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .download-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .platform-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(20, 184, 166, 0.1));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+        }
+
+        .download-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        .download-card p {
+            color: var(--text-2);
+            margin-bottom: 25px;
+            font-size: 0.95rem;
+        }
+
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--cyan), var(--teal));
+            color: var(--white);
+            text-decoration: none;
+            padding: 14px 35px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.4);
+        }
+
+        .download-btn.coming-soon {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            box-shadow: none;
+            cursor: default;
+            color: var(--text-muted);
+        }
+
+        .download-btn.coming-soon:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .version-text {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Note Box */
+        .note-box {
+            max-width: 800px;
+            margin: 35px auto 0;
+            background: rgba(6, 182, 212, 0.06);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 20px 25px;
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .note-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .note-content h4 {
+            color: var(--cyan-dark);
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .note-content p {
+            color: var(--text-2);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* ── Footer ── */
+        footer {
+            background: var(--nav-gradient);
+            border-top: 1px solid rgba(6, 182, 212, 0.2);
+            text-align: center;
+            padding: 35px 20px;
+        }
+
+        footer p {
+            color: var(--text-2);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--cyan-dark);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .footer-links {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1000px) {
+            .hero {
+                padding: 70px 40px 60px;
+            }
+
+            .hero h1 {
+                font-size: 2.8rem;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 15px 20px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 50px 20px 40px;
+            }
+
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+
+            .hero-description {
+                font-size: 1.05rem;
+            }
+
+            .audience-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps-container {
+                grid-template-columns: 1fr;
+            }
+
+            .download-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .showcase-box {
+                padding: 35px 25px;
+            }
+
+            .quran-sample {
+                font-size: 1.6rem;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .hero-badge {
+                font-size: 0.8rem;
+                padding: 6px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="#" class="nav-brand">
+            <img src="logo.png" alt="QuranTrack" class="nav-logo">
+            <span class="nav-title">QuranTrack</span>
+        </a>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#download">Download</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-badge">
+            &#9733; Built for Quran teachers and students
+        </div>
+        <h1>
+            Track Quran Memorization<br>
+            <span class="gradient-text">The Smart Way</span>
+        </h1>
+        <p class="hero-description">
+            QuranTrack helps Quran teachers manage their classes, assign daily portions,
+            and track each student's mistakes — all in one place. Students can see their
+            progress, read the Quran, and know exactly what to work on next.
+        </p>
+        <div class="hero-buttons">
+            <a href="#download" class="btn btn-primary">
+                Download for Windows
+            </a>
+            <a href="#features" class="btn btn-secondary">
+                See What It Does
+            </a>
+        </div>
+    </section>
+
+    <!-- Who Is It For -->
+    <section class="audience tinted-section">
+        <div class="section-content">
+            <h2 class="section-title">Who Is QuranTrack For?</h2>
+            <p class="section-subtitle">
+                Whether you teach, memorize, or support someone's Quran journey — QuranTrack is made for you.
+            </p>
+
+            <div class="audience-grid">
+                <div class="audience-card">
+                    <div class="audience-icon">&#128218;</div>
+                    <h3>Quran Teachers</h3>
+                    <p>
+                        Create classes, add students, assign daily Hifz, Sabqi, and Manzil portions.
+                        Mark mistakes at the word level and track each student's improvement over time.
+                    </p>
+                </div>
+
+                <div class="audience-card">
+                    <div class="audience-icon">&#128214;</div>
+                    <h3>Students</h3>
+                    <p>
+                        See your assigned portions, view your mistake history, and read the Quran
+                        with beautiful page rendering. Know exactly where you need to improve.
+                    </p>
+                </div>
+
+                <div class="audience-card">
+                    <div class="audience-icon">&#128106;</div>
+                    <h3>Parents</h3>
+                    <p>
+                        Stay informed about your child's progress. See which surahs they're working on,
+                        how many mistakes they made, and how they're improving week over week.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="section-content">
+            <h2 class="section-title">What Can QuranTrack Do?</h2>
+            <p class="section-subtitle">
+                Everything a teacher and student need — from class management to detailed progress reports.
+            </p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">&#128209;</div>
+                    <h3>Class Management</h3>
+                    <p>
+                        Teachers create classes and add their students directly.
+                        Manage multiple classes, each with their own students and schedules.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">&#128221;</div>
+                    <h3>Daily Portions</h3>
+                    <p>
+                        Assign Hifz (new memorization), Sabqi (recent review), and Manzil (older review)
+                        for each class session. Select by page, surah, or juz.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">&#128270;</div>
+                    <h3>Mistake Tracking</h3>
+                    <p>
+                        Tap on any word to mark a mistake. QuranTrack records exactly where each student
+                        struggles, so you can focus on what matters most.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">&#128214;</div>
+                    <h3>Beautiful Quran Reader</h3>
+                    <p>
+                        Read the Quran rendered exactly like the printed Madani Mushaf.
+                        Every page looks identical to the physical copy students use in class.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">&#128200;</div>
+                    <h3>Student Reports</h3>
+                    <p>
+                        View detailed reports showing performance trends, mistake patterns,
+                        and progress over time. Filter by month, surah, or juz.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">&#128230;</div>
+                    <h3>Export Reports</h3>
+                    <p>
+                        Export student reports as PDF, CSV, or Word documents.
+                        Share progress reports with parents or keep them for your records.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works tinted-section" id="how-it-works">
+        <div class="section-content">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">
+                Getting started is simple — here's what teachers and students do.
+            </p>
+
+            <div class="steps-container">
+                <!-- Teacher Steps -->
+                <div class="role-column teacher">
+                    <h3>&#128218; For Teachers</h3>
+
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-text">
+                            <h4>Create an Account</h4>
+                            <p>Sign up and choose "Teacher" as your role.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-text">
+                            <h4>Create a Class</h4>
+                            <p>Give your class a name and add your students to it.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-text">
+                            <h4>Assign Portions</h4>
+                            <p>Select the pages or surahs for today's Hifz, Sabqi, and Manzil.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">4</div>
+                        <div class="step-text">
+                            <h4>Track Mistakes</h4>
+                            <p>During recitation, tap any word the student gets wrong. It's recorded instantly.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">5</div>
+                        <div class="step-text">
+                            <h4>Review & Report</h4>
+                            <p>View each student's progress, see repeated mistakes, and export reports.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Steps -->
+                <div class="role-column student">
+                    <h3>&#128214; For Students</h3>
+
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-text">
+                            <h4>Create an Account</h4>
+                            <p>Sign up and choose "Student" as your role.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-text">
+                            <h4>View Your Classes</h4>
+                            <p>Once your teacher adds you, the class appears in your dashboard automatically.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-text">
+                            <h4>See Your Portions</h4>
+                            <p>View what you need to memorize and review for each session.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">4</div>
+                        <div class="step-text">
+                            <h4>Read the Quran</h4>
+                            <p>Open the built-in Quran reader to practice your assigned pages.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">5</div>
+                        <div class="step-text">
+                            <h4>Track Your Progress</h4>
+                            <p>See your mistakes, watch your improvement, and know where to focus.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quran Rendering Showcase -->
+    <section class="showcase">
+        <div class="section-content">
+            <div class="showcase-box">
+                <h3>Quran Pages That Look <span class="gradient-text">Exactly Like the Book</span></h3>
+                <div class="quran-sample">
+                    بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+                </div>
+                <p>
+                    QuranTrack uses the same fonts as the printed Madani Mushaf.
+                    Every page — all 604 of them — renders exactly as it appears in the physical Quran.
+                    Students see the same layout they use in class, making practice feel natural and familiar.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download -->
+    <section class="download tinted-section" id="download">
+        <div class="section-content">
+            <h2 class="section-title">Download QuranTrack</h2>
+            <p class="section-subtitle">
+                Available for Windows desktop. Mobile app coming soon.
+            </p>
+
+            <div class="download-cards">
+                <!-- Windows -->
+                <div class="download-card">
+                    <div class="platform-icon">&#128187;</div>
+                    <h3>Windows Desktop</h3>
+                    <p>Full-featured desktop app with all teacher and student tools.</p>
+                    <a href="https://github.com/Hamz115/Quran_App/releases/download/v1.0.0/QuranTrack_1.0.0_x64-setup.exe" class="download-btn">
+                        Download for Windows
+                    </a>
+                    <p class="version-text">Version 1.0.0 &middot; Windows 10/11 &middot; 85 MB</p>
+                </div>
+
+                <!-- Mobile -->
+                <div class="download-card">
+                    <div class="platform-icon">&#128241;</div>
+                    <h3>Mobile App</h3>
+                    <p>Android and iOS apps for students and teachers on the go.</p>
+                    <span class="download-btn coming-soon">
+                        Coming Soon
+                    </span>
+                    <p class="version-text">Available soon on Android &middot; iOS planned</p>
+                </div>
+            </div>
+
+            <!-- Installation Note -->
+            <div class="note-box">
+                <span class="note-icon">&#128161;</span>
+                <div class="note-content">
+                    <h4>First Time Installing?</h4>
+                    <p>
+                        Since QuranTrack is a new app, Windows may show a "Windows protected your PC" message.
+                        This is normal for apps that haven't been widely distributed yet.
+                        Simply click <strong>"More info"</strong>, then click <strong>"Run anyway"</strong> to proceed with the installation.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>QuranTrack &copy; 2026 &middot; Built with care for the Quran community</p>
+        <div class="footer-links">
+            <a href="https://hamzas.world">Hamza Feroze</a>
+        </div>
+    </footer>
+
+</body>
+</html>

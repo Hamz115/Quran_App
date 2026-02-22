@@ -1,8 +1,8 @@
 # QuranTrack - Production Readiness Analysis
 
 **Generated:** 3 February 2026
-**Last Updated:** 18 February 2026
-**Status:** In Development — Desktop App (Tauri) nearing MVP
+**Last Updated:** 23 February 2026
+**Status:** v1.0.0 Released — Desktop installer built and tested on clean VM
 
 ---
 
@@ -23,6 +23,9 @@
 - **Classes Revamp** - Inline report dashboard replaces standalone report page (Phase 16.2)
 - **Responsive Web Layout** - 3-tier responsive design: phone, tablet, desktop (Phase 14)
 - **Tauri Desktop App** - Native Windows app wrapping React frontend with PyInstaller FastAPI sidecar (Phase 17)
+- **v1.0.0 NSIS Installer** - 85 MB installer built, tested on clean VM, works end-to-end (Phase 17.5)
+- **Navbar Polish** - Role switcher moved to dropdown, clean layout for desktop context (Phase 17.5)
+- **Landing/Download Page** - QuranTrack branded page at `hamzas.world/apps/quran-track/` with features, how-it-works, download section (Phase 17.5)
 
 ### Architecture (Solid)
 - Clean separation - FastAPI backend, React frontend, Flutter mobile, Tauri desktop shell
@@ -106,25 +109,25 @@
 
 ---
 
-### 5. **Desktop Distribution** (HIGH PRIORITY — Phase 17.5)
-**Status:** Tauri Phases 1-4 complete, Phase 5 (installer) pending
-**Impact:** Can't distribute the app to users yet
+### 5. **Desktop Distribution** (COMPLETED — Phase 17.5)
+**Status:** v1.0.0 installer built and tested on clean VM
+**Impact:** App is distributable to users
 
 **Done:**
 - Tauri v2 shell wrapping React frontend
 - PyInstaller sidecar (31MB) with FastAPI backend
 - Sidecar lifecycle (auto-start, auto-kill on close)
-- App icon generated from logo
-- Windows Defender exclusion documented
+- App icons regenerated from QuranTrack logo (`npx tauri icon`)
+- NSIS installer with custom icon (85 MB)
+- Tested on clean Windows 11 VM — installs, runs, uninstalls cleanly
+- Navbar polished for desktop (role switcher moved to dropdown)
+- Version bumped to 1.0.0
+- Landing/download page built (`website/index.html`)
 
-**Missing:**
-- Test `tauri build` → NSIS installer (.exe setup file)
-- Test installer on a clean Windows machine
-- Verify Supabase sync works from installed app
-- Code-signing certificate (removes SmartScreen "Windows protected your PC" warning)
-- Auto-update mechanism (Tauri has built-in updater plugin)
-
-**Estimate:** 1-2 days for basic installer, code-signing is ongoing cost (~$200-300/year)
+**Remaining (not blockers):**
+- Code-signing certificate (removes SmartScreen "Windows protected your PC" warning, ~$200-300/year)
+- Tauri auto-updater plugin (seamless updates without uninstall/reinstall)
+- Landing page AWS deployment (S3 + CloudFront + GitHub Actions CI/CD)
 
 ---
 
@@ -170,6 +173,9 @@ These were marked as critical/high priority gaps on 3 Feb but have since been co
 | **Light Mode Overhaul** — Proper contrast and styling | 11 Feb | Phase 15 |
 | **Desktop App** — Tauri v2 with PyInstaller sidecar | 17 Feb | Phase 17 |
 | **App Icons** — All sizes generated for desktop | 17 Feb | Phase 17 (Phase 4) |
+| **NSIS Installer** — v1.0.0, 85 MB, tested on clean VM | 22 Feb | Phase 17.5 |
+| **Navbar Polish** — Role switcher to dropdown, clean desktop layout | 22 Feb | Phase 17.5 |
+| **Landing Page** — Download/features page for `hamzas.world/apps/quran-track/` | 22 Feb | Phase 17.5 |
 
 ---
 
@@ -315,7 +321,7 @@ These were marked as critical/high priority gaps on 3 Feb but have since been co
 
 | Priority | Feature | Impact | Effort | Status |
 |----------|---------|--------|--------|--------|
-| **P0** | Desktop Distribution (installer) | Critical | Low | Phase 5 pending |
+| ~~P0~~ | ~~Desktop Distribution (installer)~~ | ~~Critical~~ | ~~Low~~ | **DONE (v1.0.0)** |
 | **P0** | Security Hardening | Critical | Low-Medium | Not Started |
 | **P1** | Onboarding Flow | High | Low | Not Started |
 | **P1** | Error Monitoring | High | Medium | Not Started |
@@ -335,10 +341,12 @@ These were marked as critical/high priority gaps on 3 Feb but have since been co
 ### **Sprint 1: Ship Desktop MVP (1-2 weeks)**
 **Goal:** Distribute to first 10-20 users (teachers + their students)
 
+- ~~Test `tauri build` installer on clean machine~~ **DONE (v1.0.0)**
+- ~~Landing/download page~~ **DONE**
+- Deploy landing page to `hamzas.world/apps/quran-track/`
 - Security hardening (rate limiting, input validation)
 - Onboarding / first-launch experience
-- Test `tauri build` installer on clean machine
-- Fix any remaining sidecar/sync issues
+- Tauri auto-updater plugin
 - Distribute installer to beta testers
 
 ---
@@ -454,15 +462,15 @@ These were marked as critical/high priority gaps on 3 Feb but have since been co
 
 ## Summary
 
-**QuranTrack is ~85% complete** for a desktop MVP launch.
+**QuranTrack v1.0.0 is built and installable.** The desktop MVP is functional.
 
-**What's done:** QPC rendering (web + mobile), mistake tracking, student reports with export, classes dashboard, Supabase auth + sync, Tauri desktop app with sidecar, responsive design, light/dark mode.
+**What's done:** QPC rendering (web + mobile), mistake tracking, student reports with export, classes dashboard, Supabase auth + sync, Tauri desktop app with sidecar, v1.0.0 NSIS installer (tested on clean VM), landing/download page, responsive design, light/dark mode.
 
-**Must-fix before launch:** Security hardening (1-2 days), desktop installer test (1 day), basic onboarding (2 days).
+**Must-fix before wider distribution:** Security hardening (1-2 days), basic onboarding (2 days).
 
-**Should-add soon:** Error monitoring, student search/filter, notifications.
+**Should-add soon:** Auto-updater plugin, error monitoring, student search/filter, notifications.
 
 **Game-changer:** Voice recording (premium feature, future sprint).
 
 **Recommended next step:**
-Security Hardening → Onboarding → Build Installer → Beta Distribution
+Deploy Landing Page → Security Hardening → Onboarding → Auto-Updater → Beta Distribution
