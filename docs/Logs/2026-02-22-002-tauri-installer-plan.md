@@ -1,15 +1,15 @@
-# Session Log: Tauri Installer Build Plan
+# Session Log: Tauri Installer Build — Plan & Execution
 
 **Date:** 2026-02-22
 **Session:** 002
 
 ## Objective
 
-Investigate the current state of the Tauri desktop app setup and create a detailed step-by-step plan for building the production NSIS installer.
+Investigate the current state of the Tauri desktop app setup, create a detailed step-by-step plan, and build the production NSIS installer.
 
 ## Summary
 
-Thoroughly investigated all Tauri-related files, toolchain versions, sidecar setup, and previous session logs. Phases 1-4 are complete (scaffold, PyInstaller sidecar, sidecar integration, icons/polish). Phase 5 (production NSIS installer build) has never been attempted. Created a detailed plan below.
+Thoroughly investigated all Tauri-related files, toolchain versions, sidecar setup, and previous session logs. Phases 1-4 were complete. Executed Phase 5: disabled Supabase email confirmation, rebuilt PyInstaller sidecar, fixed a TS build error, removed dead Cargo dependencies, and successfully built the first production NSIS installer (`QuranTrack_0.1.0_x64-setup.exe`, 85 MB). Tested on VMware VM — app launches and works. Two issues identified: installer uses default icon instead of QuranTrack logo, and navbar needs visual polish in the desktop context.
 
 ---
 
@@ -238,24 +238,51 @@ src-tauri/target/release/bundle/nsis/QuranTrack_0.1.0_x64-setup.exe
 | File | Action | Description |
 |------|--------|-------------|
 | `docs/Logs/2026-02-22-002-tauri-installer-plan.md` | Created | This session log / plan |
+| `quran_frontend/src-tauri/Cargo.toml` | Modified | Removed unused `tauri-plugin-log` and `log` dependencies |
+| `quran_frontend/src-tauri/Cargo.lock` | Modified | Lockfile updated after dependency removal |
+| `quran_frontend/src/lib/supabase-api.ts` | Modified | Fixed TS2345 type error in `updateAssignment()` |
+| `quran_backend/dist/QuranTrackBackend.exe` | Rebuilt | Fresh sidecar exe (31 MB) |
+| `quran_frontend/src-tauri/quran-backend-x86_64-pc-windows-msvc.exe` | Updated | Copied fresh sidecar (gitignored) |
+
+## Build Results
+
+| Artifact | Size | Location |
+|----------|------|----------|
+| NSIS installer (.exe) | 85 MB | `src-tauri/target/release/bundle/nsis/QuranTrack_0.1.0_x64-setup.exe` |
+| MSI installer (.msi) | 86 MB | `src-tauri/target/release/bundle/msi/QuranTrack_0.1.0_x64_en-US.msi` |
+| Release binary | ~5 MB | `src-tauri/target/release/quran-track.exe` |
+
+## Execution Log
+
+- [x] Step 1: Added Windows Defender exclusion (user ran PowerShell as admin)
+- [x] Step 2: Port 8000 was already free
+- [x] Step 3: Removed dead `tauri-plugin-log` + `log` from Cargo.toml
+- [x] Step 4: Installed PyInstaller 6.19.0 in venv
+- [x] Step 5: Rebuilt sidecar exe (31 MB)
+- [x] Step 6: Copied sidecar to src-tauri/
+- [x] Step 7: Frontend build — fixed TS2345 error in supabase-api.ts, then clean build
+- [x] Step 8: `tauri build` — failed twice (OOM from VMware install), succeeded on 3rd try with 2 jobs (2m 40s)
+- [x] Step 9: Tested locally — works
+- [x] Step 10: Tested on VMware VM — app launches, Quran renders, login works
+
+## Issues Found During VM Testing
+
+1. **Installer icon** — uses default Tauri icon, needs QuranTrack logo
+2. **Navbar** — looks cramped/unpolished in the desktop window context
 
 ## Next Steps
 
-- [ ] Step 1: Add Windows Defender exclusion
-- [ ] Step 2: Kill orphan processes
-- [ ] Step 3: Remove dead `tauri-plugin-log` dependency
-- [ ] Step 4: Install PyInstaller
-- [ ] Step 5: Rebuild sidecar exe
-- [ ] Step 6: Copy sidecar to src-tauri/
-- [ ] Step 7: Verify frontend builds clean
-- [ ] Step 8: Run `tauri build`
-- [ ] Step 9: Test installer locally
-- [ ] Step 10: Test on clean VM
+- [ ] Fix installer icon to use QuranTrack logo
+- [ ] Polish navbar for desktop context
+- [ ] Add Tauri auto-updater plugin
+- [ ] Code signing (later, for wider distribution)
 
 ## Notes
 
 - The sidecar bundles `.env` (Supabase keys) inside the exe via PyInstaller. This is fine for family distribution but should NOT be done for public release — keys should be fetched at runtime.
 - The installer will be unsigned, triggering SmartScreen. For family testers, they just click "More info" → "Run anyway". Code signing ($200-400/year certificate) can come later.
-- First `tauri build` in release mode will be slow (~5-8 min) because it compiles all Rust crates. Subsequent builds are incremental.
+- First `tauri build` in release mode was slow (~2m 40s) because it compiles all Rust crates. Subsequent builds are incremental.
 - The `bundle.targets` is set to `"all"` which builds NSIS (.exe) + MSI. We only need NSIS for now but building both doesn't hurt.
 - Previous Tauri session logs: `2026-02-17-002` through `2026-02-17-005` (Phases 1-4).
+- Supabase email confirmation was disabled during this session (was blocking signups with broken localhost:5173 redirect).
+- OOM during build was caused by VMware running a Windows install simultaneously — resolved after VM install completed.
