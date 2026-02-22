@@ -267,13 +267,39 @@ src-tauri/target/release/bundle/nsis/QuranTrack_0.1.0_x64-setup.exe
 
 ## Issues Found During VM Testing
 
-1. **Installer icon** — uses default Tauri icon, needs QuranTrack logo
-2. **Navbar** — looks cramped/unpolished in the desktop window context
+1. **Installer icon** — uses default Tauri icon, needs QuranTrack logo — FIXED (regenerated icons, added NSIS config)
+2. **Navbar** — looks cramped/unpolished in the desktop window context — FIXED (moved role switcher to dropdown, removed role banner, cleaned up spacing)
+
+## Post-Build Fixes
+
+### Installer Icon Fix
+- Regenerated all icon sizes from `public/logo.png` via `npx tauri icon`
+- Added `windows.nsis.installerIcon` config pointing to `icons/icon.ico`
+- Fixed bundle identifier from `com.qurantrack.app` to `com.qurantrack.desktop` (removes macOS warning)
+
+### Navbar Polish
+- Removed "Teacher View / Student View" role banner below navbar (wasted vertical space)
+- Moved Teacher/Student role switcher into user dropdown menu (under "Switch View" with checkmarks)
+- Simplified theme toggle — removed heavy border/background, clean icon-only button
+- Cleaned up user menu button — removed bordered container, rounded avatar
+- Result: Navbar is now just Logo | Nav tabs | Theme toggle | User menu
+
+### Version Bump
+- Updated version from `0.1.0` to `1.0.0` in `tauri.conf.json` and `Cargo.toml`
+
+## Additional Files Changed
+
+| File | Action | Description |
+|------|--------|-------------|
+| `quran_frontend/src-tauri/tauri.conf.json` | Modified | Version 1.0.0, NSIS icon config, fixed identifier |
+| `quran_frontend/src-tauri/Cargo.toml` | Modified | Version 1.0.0 |
+| `quran_frontend/src-tauri/icons/*` | Regenerated | All icon sizes from QuranTrack logo |
+| `quran_frontend/src/components/Layout.tsx` | Modified | Navbar polish — removed role banner, moved role switcher to dropdown |
 
 ## Next Steps
 
-- [ ] Fix installer icon to use QuranTrack logo
-- [ ] Polish navbar for desktop context
+- [ ] Rebuild installer as v1.0.0 with fixes
+- [ ] Test on VM again
 - [ ] Add Tauri auto-updater plugin
 - [ ] Code signing (later, for wider distribution)
 
