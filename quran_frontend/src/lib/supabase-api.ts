@@ -455,9 +455,9 @@ export async function updateAssignment(assignmentId: string, data: {
   start_ayah?: number | null;
   end_ayah?: number | null;
 }): Promise<{ message: string }> {
-  const { error } = await supabase
-    .from('assignments' as any)
-    .update(data as any)
+  const { error } = await (supabase
+    .from('assignments' as any) as any)
+    .update(data)
     .eq('id', assignmentId);
 
   if (error) throw new Error(error.message);
