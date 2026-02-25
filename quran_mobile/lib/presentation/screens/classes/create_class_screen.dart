@@ -5,7 +5,6 @@ import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../../data/quran_data.dart' show getJuzBoundary, pageStarts, totalPages, getPageForSurah, getLastPageForSurah;
-import '../../../data/models/suggested_portions.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/report_provider.dart';
@@ -45,6 +44,59 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       _portionJuz['$type:$index'];
 
   bool _isCreating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillFromPreviousClass();
+  }
+
+  /// Fetch previous class data and auto-fill portion fields.
+  Future<void> _prefillFromPreviousClass() async {
+    if (widget.studentId == null) return;
+    try {
+      final suggestions = await ref.read(suggestedPortionsProvider(widget.studentId!).future);
+      if (!mounted) return;
+
+      setState(() {
+        if (suggestions.hifz != null) {
+          _sectionEnabled['hifz'] = true;
+          _portions['hifz'] = [
+            PortionData(
+              startSurah: suggestions.hifz!.startSurah,
+              endSurah: suggestions.hifz!.endSurah,
+              startAyah: suggestions.hifz!.startAyah,
+              endAyah: suggestions.hifz!.endAyah,
+            ),
+          ];
+        }
+        if (suggestions.sabqi != null) {
+          _sectionEnabled['sabqi'] = true;
+          _portions['sabqi'] = [
+            PortionData(
+              startSurah: suggestions.sabqi!.startSurah,
+              endSurah: suggestions.sabqi!.endSurah,
+              startAyah: suggestions.sabqi!.startAyah,
+              endAyah: suggestions.sabqi!.endAyah,
+            ),
+          ];
+        }
+        if (suggestions.manzil != null) {
+          _sectionEnabled['revision'] = true;
+          _portions['revision'] = [
+            PortionData(
+              startSurah: suggestions.manzil!.startSurah,
+              endSurah: suggestions.manzil!.endSurah,
+              startAyah: suggestions.manzil!.startAyah,
+              endAyah: suggestions.manzil!.endAyah,
+            ),
+          ];
+        }
+      });
+    } catch (_) {
+      // Silently fall back to defaults if fetch fails
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,10 +170,6 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     // Date selector
                     _buildDateSelector(isDarkMode),
                     const SizedBox(height: 24),
-
-                    // Smart Suggestions
-                    if (widget.studentId != null)
-                      _buildSmartSuggestions(isDarkMode),
 
                     // Sections
                     Text(
@@ -647,128 +695,6 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildSmartSuggestions(bool isDarkMode) {
-    final suggestionsAsync = ref.watch(suggestedPortionsProvider(widget.studentId!));
-
-    return suggestionsAsync.when(
-      loading: () => Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [
-              Colors.purple.withOpacity(0.1),
-              Colors.cyan.withOpacity(0.1),
-            ]),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.purple.withOpacity(0.2)),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-              const SizedBox(width: 8),
-              Text('Loading suggestions...', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
-            ],
-          ),
-        ),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (suggestions) {
-        if (suggestions.hifz == null && suggestions.sabqi == null && suggestions.manzil == null) {
-          return const SizedBox.shrink();
-        }
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [
-                Colors.purple.withOpacity(0.1),
-                Colors.cyan.withOpacity(0.1),
-              ]),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.purple.withOpacity(0.2)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.lightbulb_outline, size: 20, color: Colors.purple[300]),
-                    const SizedBox(width: 8),
-                    Text('Smart Suggestions',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: Colors.purple[300])),
-                    if (suggestions.lastClass != null) ...[
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '(based on ${suggestions.lastClass!.day}, ${suggestions.lastClass!.date})',
-                          style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode)),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    if (suggestions.hifz != null)
-                      Expanded(child: _SuggestionCard(
-                        label: 'HIFZ',
-                        color: Colors.blue,
-                        portion: suggestions.hifz!,
-                        isDarkMode: isDarkMode,
-                        onTap: () => _applySuggestion('hifz', suggestions.hifz!),
-                      )),
-                    if (suggestions.sabqi != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(child: _SuggestionCard(
-                        label: 'SABQI',
-                        color: Colors.cyan,
-                        portion: suggestions.sabqi!,
-                        isDarkMode: isDarkMode,
-                        onTap: () => _applySuggestion('sabqi', suggestions.sabqi!),
-                      )),
-                    ],
-                    if (suggestions.manzil != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(child: _SuggestionCard(
-                        label: 'MANZIL',
-                        color: Colors.grey,
-                        portion: suggestions.manzil!,
-                        isDarkMode: isDarkMode,
-                        onTap: () => _applySuggestion('revision', suggestions.manzil!),
-                      )),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text('Tap a suggestion to auto-fill. You can modify it afterward.',
-                    style: TextStyle(fontSize: 10, color: AppColors.textMuted(isDarkMode))),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _applySuggestion(String sectionType, SuggestedPortion portion) {
-    setState(() {
-      _sectionEnabled[sectionType] = true;
-      _portions[sectionType] = [
-        PortionData(
-          startSurah: portion.startSurah,
-          endSurah: portion.endSurah,
-          startAyah: portion.startAyah,
-          endAyah: portion.endAyah,
-        ),
-      ];
-    });
-  }
-
   Future<void> _selectDate(bool isDarkMode) async {
     final date = await showDatePicker(
       context: context,
@@ -925,52 +851,3 @@ class _ModeChip extends StatelessWidget {
   }
 }
 
-/// Card for a single smart suggestion (Hifz/Sabqi/Manzil).
-class _SuggestionCard extends StatelessWidget {
-  final String label;
-  final Color color;
-  final SuggestedPortion portion;
-  final bool isDarkMode;
-  final VoidCallback onTap;
-
-  const _SuggestionCard({
-    required this.label,
-    required this.color,
-    required this.portion,
-    required this.isDarkMode,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          border: Border.all(color: color.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
-            const SizedBox(height: 4),
-            Text(
-              portion.surahName ?? 'Surah ${portion.startSurah}',
-              style: TextStyle(fontSize: 13, color: color.withOpacity(0.8)),
-            ),
-            if (portion.startAyah != null)
-              Text(
-                'Ayah ${portion.startAyah}-${portion.endAyah}',
-                style: TextStyle(fontSize: 11, color: color.withOpacity(0.6)),
-              ),
-            if (portion.note != null)
-              Text(portion.note!, style: TextStyle(fontSize: 9, color: AppColors.textMuted(isDarkMode))),
-          ],
-        ),
-      ),
-    );
-  }
-}

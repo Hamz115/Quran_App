@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
-import type { StudentListItem, ClassData, SuggestedPortions } from '../api';
+import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
 import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { ReportPanel } from '../components/teacher-classes';
@@ -450,9 +450,8 @@ export default function TeacherClasses() {
   const [portionMode, setPortionMode] = useState<'same' | 'per-student'>('same');
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
 
-  // Suggestions state - keyed by student ID
-  const [suggestions, setSuggestions] = useState<Record<string, SuggestedPortions>>({});
-  const [loadingSuggestions, setLoadingSuggestions] = useState<Record<string, boolean>>({});
+  // Cache of previously fetched portions per student (for auto pre-fill)
+  const previousPortionsCache = useRef<Record<string, SuggestedPortions>>({});
 
   // Portion configuration - shared (for 'same' mode) or per-student (for 'per-student' mode)
   // Default to page mode with page 560 (Surah Al-Mulk starts on page 560)
@@ -467,6 +466,25 @@ export default function TeacherClasses() {
     endAyah: '',
     juz: 1,
   });
+
+  // Convert a suggestion into a PortionConfig with a single portion
+  const suggestionToPortionConfig = (s: SuggestedPortion | null): PortionConfig | null => {
+    if (!s) return null;
+    return {
+      enabled: true,
+      portions: [{
+        id: String(Date.now() + Math.random()),
+        mode: 'surah',
+        startPage: 1,
+        endPage: 1,
+        startSurah: s.start_surah,
+        endSurah: s.end_surah,
+        startAyah: s.start_ayah?.toString() || '',
+        endAyah: s.end_ayah?.toString() || '',
+        juz: 1,
+      }],
+    };
+  };
 
   // Default configs (used when mode is 'same' or as fallback)
   const [hifzConfig, setHifzConfig] = useState<PortionConfig>({ enabled: true, portions: [createDefaultPortion()] });
@@ -543,11 +561,20 @@ export default function TeacherClasses() {
   const initPerStudentConfigs = () => {
     const configs: Record<string, { hifz: PortionConfig; sabqi: PortionConfig; revision: PortionConfig }> = {};
     selectedStudents.forEach(studentId => {
-      configs[studentId] = {
-        hifz: { enabled: true, portions: [createDefaultPortion()] },
-        sabqi: { enabled: true, portions: [createDefaultPortion()] },
-        revision: { enabled: true, portions: [createDefaultPortion()] },
-      };
+      const cached = previousPortionsCache.current[studentId];
+      if (cached) {
+        configs[studentId] = {
+          hifz: suggestionToPortionConfig(cached.hifz) || { enabled: true, portions: [createDefaultPortion()] },
+          sabqi: suggestionToPortionConfig(cached.sabqi) || { enabled: true, portions: [createDefaultPortion()] },
+          revision: suggestionToPortionConfig(cached.manzil) || { enabled: true, portions: [createDefaultPortion()] },
+        };
+      } else {
+        configs[studentId] = {
+          hifz: { enabled: true, portions: [createDefaultPortion()] },
+          sabqi: { enabled: true, portions: [createDefaultPortion()] },
+          revision: { enabled: true, portions: [createDefaultPortion()] },
+        };
+      }
     });
     setPerStudentConfigs(configs);
     if (selectedStudents.length > 0) {
@@ -579,75 +606,42 @@ export default function TeacherClasses() {
     }));
   };
 
-  // Fetch suggestions for a student
-  const fetchSuggestionsForStudent = async (studentId: string) => {
-    if (suggestions[studentId] || loadingSuggestions[studentId]) return;
+  // Auto pre-fill portions from previous class when entering step 2
+  useEffect(() => {
+    if (modalStep !== 2 || selectedStudents.length === 0) return;
 
-    setLoadingSuggestions(prev => ({ ...prev, [studentId]: true }));
-    try {
-      const data = await getSuggestedPortions(studentId);
-      setSuggestions(prev => ({ ...prev, [studentId]: data }));
-    } catch (err) {
-      console.error('Failed to fetch suggestions:', err);
-    } finally {
-      setLoadingSuggestions(prev => ({ ...prev, [studentId]: false }));
-    }
-  };
+    let cancelled = false;
 
-  // Apply suggestion to portion config
-  const applySuggestion = (
-    type: 'hifz' | 'sabqi' | 'manzil',
-    studentId?: string
-  ) => {
-    const studentSuggestions = studentId ? suggestions[studentId] : suggestions[selectedStudents[0]];
-    if (!studentSuggestions) return;
+    const prefill = async () => {
+      // Fetch previous portions for each student (skip cached)
+      const fetchPromises = selectedStudents.map(async (studentId) => {
+        if (previousPortionsCache.current[studentId]) return;
+        try {
+          const data = await getSuggestedPortions(studentId);
+          previousPortionsCache.current[studentId] = data;
+        } catch (err) {
+          console.error('Failed to fetch previous portions for', studentId, err);
+        }
+      });
 
-    const suggestion = type === 'manzil' ? studentSuggestions.manzil : studentSuggestions[type];
-    if (!suggestion) return;
+      await Promise.all(fetchPromises);
+      if (cancelled) return;
 
-    const newPortion: SinglePortion = {
-      id: String(Date.now()),
-      mode: 'surah',
-      startPage: 1,
-      endPage: 1,
-      startSurah: suggestion.start_surah,
-      endSurah: suggestion.end_surah,
-      startAyah: suggestion.start_ayah?.toString() || '',
-      endAyah: suggestion.end_ayah?.toString() || '',
-      juz: 1,
+      // Pre-fill shared config from the first selected student's data
+      const firstStudentData = previousPortionsCache.current[selectedStudents[0]];
+      if (firstStudentData) {
+        const h = suggestionToPortionConfig(firstStudentData.hifz);
+        const s = suggestionToPortionConfig(firstStudentData.sabqi);
+        const r = suggestionToPortionConfig(firstStudentData.manzil);
+        if (h) setHifzConfig(h);
+        if (s) setSabqiConfig(s);
+        if (r) setRevisionConfig(r);
+      }
     };
 
-    const portionType = type === 'manzil' ? 'revision' : type;
-
-    if (portionMode === 'per-student' && studentId) {
-      // Update per-student config
-      setPerStudentConfigs(prev => ({
-        ...prev,
-        [studentId]: {
-          ...prev[studentId],
-          [portionType]: { enabled: true, portions: [newPortion] },
-        },
-      }));
-    } else {
-      // Update shared config
-      if (portionType === 'hifz') {
-        setHifzConfig({ enabled: true, portions: [newPortion] });
-      } else if (portionType === 'sabqi') {
-        setSabqiConfig({ enabled: true, portions: [newPortion] });
-      } else {
-        setRevisionConfig({ enabled: true, portions: [newPortion] });
-      }
-    }
-  };
-
-  // Auto-fetch suggestions when students are selected
-  useEffect(() => {
-    if (modalStep === 2 && selectedStudents.length > 0) {
-      selectedStudents.forEach(studentId => {
-        fetchSuggestionsForStudent(studentId);
-      });
-    }
-  }, [modalStep, selectedStudents]);
+    prefill();
+    return () => { cancelled = true; };
+  }, [modalStep, selectedStudents.join(',')]);
 
   const handleCreateClass = async () => {
     setCreating(true);
@@ -938,105 +932,6 @@ export default function TeacherClasses() {
                       ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
                       : 'Select the Quran portions for this class (you can also add/edit later):'}
                   </p>
-
-                  {/* Smart Suggestions Panel */}
-                  {(() => {
-                    const targetStudentId = portionMode === 'per-student' ? activeStudentId : selectedStudents[0];
-                    const studentSuggestions = targetStudentId ? suggestions[targetStudentId] : null;
-                    const isLoading = targetStudentId ? loadingSuggestions[targetStudentId] : false;
-
-                    if (!targetStudentId) return null;
-
-                    return (
-                      <div className="p-4 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-xl border border-purple-500/20">
-                        <div className="flex items-center gap-2 mb-3">
-                          <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                          </svg>
-                          <span className={`text-sm font-medium ${darkMode ? 'text-purple-300' : 'text-purple-600'}`}>Smart Suggestions</span>
-                          {studentSuggestions?.last_class && (
-                            <span className="text-xs text-slate-500">
-                              (based on {studentSuggestions.last_class.day}, {studentSuggestions.last_class.date})
-                            </span>
-                          )}
-                        </div>
-
-                        {isLoading ? (
-                          <div className="text-sm text-slate-400 flex items-center gap-2">
-                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Loading suggestions...
-                          </div>
-                        ) : studentSuggestions ? (
-                          <div className="grid grid-cols-3 gap-2">
-                            {/* Hifz Suggestion */}
-                            {studentSuggestions.hifz && (
-                              <button
-                                type="button"
-                                onClick={() => applySuggestion('hifz', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
-                                className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors text-left"
-                              >
-                                <div className="text-xs font-medium text-blue-400 mb-1">HIFZ</div>
-                                <div className="text-sm text-blue-300">{studentSuggestions.hifz.surah_name || `Surah ${studentSuggestions.hifz.start_surah}`}</div>
-                                {studentSuggestions.hifz.start_ayah && (
-                                  <div className="text-xs text-blue-400/70">
-                                    Ayah {studentSuggestions.hifz.start_ayah}-{studentSuggestions.hifz.end_ayah}
-                                  </div>
-                                )}
-                                <div className="text-[10px] text-slate-500 mt-1">{studentSuggestions.hifz.note}</div>
-                              </button>
-                            )}
-
-                            {/* Sabqi Suggestion */}
-                            {studentSuggestions.sabqi && (
-                              <button
-                                type="button"
-                                onClick={() => applySuggestion('sabqi', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
-                                className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 transition-colors text-left"
-                              >
-                                <div className="text-xs font-medium text-cyan-400 mb-1">SABQI</div>
-                                <div className="text-sm text-cyan-300">{studentSuggestions.sabqi.surah_name || `Surah ${studentSuggestions.sabqi.start_surah}`}</div>
-                                {studentSuggestions.sabqi.start_ayah && (
-                                  <div className="text-xs text-cyan-400/70">
-                                    Ayah {studentSuggestions.sabqi.start_ayah}-{studentSuggestions.sabqi.end_ayah}
-                                  </div>
-                                )}
-                                <div className="text-[10px] text-slate-500 mt-1">{studentSuggestions.sabqi.note}</div>
-                              </button>
-                            )}
-
-                            {/* Manzil Suggestion */}
-                            {studentSuggestions.manzil && (
-                              <button
-                                type="button"
-                                onClick={() => applySuggestion('manzil', portionMode === 'per-student' ? activeStudentId || undefined : undefined)}
-                                className="p-2 rounded-lg bg-slate-500/10 border border-slate-500/30 hover:bg-slate-500/20 transition-colors text-left"
-                              >
-                                <div className="text-xs font-medium text-slate-400 mb-1">MANZIL</div>
-                                <div className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>{studentSuggestions.manzil.surah_name || `Surah ${studentSuggestions.manzil.start_surah}`}</div>
-                                {studentSuggestions.manzil.start_ayah && (
-                                  <div className="text-xs text-slate-400/70">
-                                    Ayah {studentSuggestions.manzil.start_ayah}-{studentSuggestions.manzil.end_ayah}
-                                  </div>
-                                )}
-                                <div className="text-[10px] text-slate-500 mt-1">{studentSuggestions.manzil.note}</div>
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-slate-400">
-                            No previous classes found for this student. Start with default portions.
-                          </div>
-                        )}
-
-                        <p className="text-[10px] text-slate-500 mt-2">
-                          Click a suggestion to auto-fill the portion. You can modify it afterward.
-                        </p>
-                      </div>
-                    );
-                  })()}
 
                   <div className="space-y-3">
                     {portionMode === 'same' ? (
