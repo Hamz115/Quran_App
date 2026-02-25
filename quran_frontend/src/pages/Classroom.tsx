@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import FittedLine from '../components/FittedLine';
-import { getClass, getSurahs, getQuranPageWords, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, deleteAssignment, type QuranPageWord } from '../api';
+import { getClass, getSurahs, getQuranPage, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, deleteAssignment, type QuranPageWord, type QuranPageData } from '../api';
 import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -45,17 +45,6 @@ interface Mistake {
   error_count: number;
   char_index?: number;
   occurrences?: MistakeOccurrence[];
-}
-
-interface WordData {
-  id: number;
-  surahNum: number;
-  ayahNum: number;
-  wordPosition: number;
-  textUthmani: string;
-  codeV1: string;
-  lineNumber: number;
-  charType: string;
 }
 
 type SectionType = 'hifz' | 'sabqi' | 'revision';
@@ -131,9 +120,7 @@ const splitArabicWord = (word: string): {
 };
 
 // Strip Quranic pause marks that don't render properly in most fonts
-// These appear as "0" or "00" when font doesn't support them
 const stripQuranMarks = (text: string): string => {
-  // Remove Quranic annotation marks (U+06D6 to U+06ED range)
   return text.replace(/[\u06D6-\u06ED]/g, '').trim();
 };
 
@@ -155,7 +142,6 @@ export default function Classroom() {
   }, []);
 
   const getPageDimensions = useCallback(() => {
-    // Account for bottom nav (56px) when below lg breakpoint (1024px)
     const hasBottomNav = windowSize.w < 1024;
     const chromeHeight = hasBottomNav ? 220 : 160;
     const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
@@ -205,16 +191,16 @@ export default function Classroom() {
   const [editPortionStartAyah, setEditPortionStartAyah] = useState<number | undefined>(undefined);
   const [editPortionEndAyah, setEditPortionEndAyah] = useState<number | undefined>(undefined);
 
-  // QPC page-based state
+  // QPC v2 page-based state
   const [currentPage, setCurrentPage] = useState<number>(560);
-  const [wordsByLine, setWordsByLine] = useState<Map<number, WordData[]>>(new Map());
+  const [pageData, setPageData] = useState<QuranPageData | null>(null);
   const [pageLoading, setPageLoading] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
 
   // Word popup state
   const [wordPopup, setWordPopup] = useState<{
     show: boolean;
-    word: WordData;
+    word: QuranPageWord;
     position: { x: number; y: number };
     showAbove?: boolean;
   } | null>(null);
@@ -227,7 +213,7 @@ export default function Classroom() {
     return () => window.removeEventListener('scroll', handleScroll, true);
   }, [wordPopup]);
 
-  // Load QPC font for current page
+  // Load QPC font for current page (no overflow in v2)
   useEffect(() => {
     const paddedPage = currentPage.toString().padStart(3, '0');
     const style = document.createElement('style');
@@ -255,46 +241,24 @@ export default function Classroom() {
     });
   }, [currentPage]);
 
-  // Load page words from backend
+  // Load page data from backend
   useEffect(() => {
     let isMounted = true;
 
-    const loadPageWords = async () => {
+    const loadPage = async () => {
       setPageLoading(true);
       try {
-        const words = await getQuranPageWords(currentPage);
-
+        const data = await getQuranPage(currentPage);
         if (!isMounted) return;
-
-        const lineMap = new Map<number, WordData[]>();
-
-        words.forEach((word: QuranPageWord) => {
-          const wordData: WordData = {
-            id: word.id,
-            surahNum: word.s,
-            ayahNum: word.a,
-            wordPosition: word.p,
-            textUthmani: word.t,
-            codeV1: word.c1,
-            lineNumber: word.l,
-            charType: word.ct
-          };
-
-          if (!lineMap.has(word.l)) {
-            lineMap.set(word.l, []);
-          }
-          lineMap.get(word.l)!.push(wordData);
-        });
-
-        setWordsByLine(lineMap);
+        setPageData(data);
       } catch (err) {
-        console.error('Failed to load page words:', err);
+        console.error('Failed to load page:', err);
       } finally {
         if (isMounted) setPageLoading(false);
       }
     };
 
-    loadPageWords();
+    loadPage();
 
     return () => { isMounted = false; };
   }, [currentPage]);
@@ -351,7 +315,6 @@ export default function Classroom() {
 
   // Get assignments for active section
   const sectionAssignments = classData?.assignments.filter(a => {
-    // Filter by section type
     if (a.type !== activeSection) return false;
     if (!a.student_id) return true;
     if (isTeacher && selectedStudentId) return a.student_id === selectedStudentId;
@@ -375,22 +338,18 @@ export default function Classroom() {
   })();
 
   // Check if a word is within the assigned portion
-  const isWordInPortion = (word: WordData): boolean => {
-    if (!currentAssignment) return true; // No assignment, show everything
+  const isWordInPortion = (word: QuranPageWord): boolean => {
+    if (!currentAssignment) return true;
 
     const { start_surah, start_ayah, end_surah, end_ayah } = currentAssignment;
     const startAyah = start_ayah || 1;
-    const endAyah = end_ayah || 286; // Default to full surah if not specified
+    const endAyah = end_ayah || 286;
 
-    // Check if word is within the surah/ayah range
-    const surah = word.surahNum;
-    const ayah = word.ayahNum;
+    const surah = word.surah;
+    const ayah = word.ayah;
 
-    // Before start
     if (surah < start_surah) return false;
     if (surah === start_surah && ayah < startAyah) return false;
-
-    // After end
     if (surah > end_surah) return false;
     if (surah === end_surah && ayah > endAyah) return false;
 
@@ -406,16 +365,15 @@ export default function Classroom() {
   }, [activeSection, selectedPortionIndex, currentAssignment?.start_surah, currentAssignment?.start_ayah]);
 
   // Mistake helpers - convert QPC 1-based position to 0-based word_index
-  // Returns mistake info including which specific characters have mistakes
-  const getWordMistakeInfo = (word: WordData): {
+  const getWordMistakeInfo = (word: QuranPageWord): {
     wholeWordLevel: number;
     charMistakes: { charIndex: number; level: number }[];
     totalMistakes: number
   } => {
-    const wordIndex = word.wordPosition - 1; // Convert to 0-based
+    const wordIndex = word.word - 1; // Convert to 0-based
     const wordMistakes = mistakes.filter(
-      m => m.surah_number === word.surahNum &&
-           m.ayah_number === word.ayahNum &&
+      m => m.surah_number === word.surah &&
+           m.ayah_number === word.ayah &&
            m.word_index === wordIndex
     );
 
@@ -423,7 +381,6 @@ export default function Classroom() {
       return { wholeWordLevel: 0, charMistakes: [], totalMistakes: 0 };
     }
 
-    // Separate whole-word mistakes from character-level mistakes
     const wholeWordMistakes = wordMistakes.filter(m => m.char_index === undefined || m.char_index === null);
     const charLevelMistakes = wordMistakes.filter(m => m.char_index !== undefined && m.char_index !== null);
 
@@ -439,7 +396,6 @@ export default function Classroom() {
       return 0;
     };
 
-    // Build char mistakes array with char_index and level
     const charMistakes = charLevelMistakes.map(m => ({
       charIndex: m.char_index!,
       level: getLevel(m.error_count)
@@ -452,25 +408,20 @@ export default function Classroom() {
     };
   };
 
-  // Render word with textUthmani
-  // - Haraka mistakes: color ONLY the haraka using SVG text layering
-  // - Letter mistakes: background box highlight on letter (harakat follow)
-  const renderWordWithColoredChar = (word: WordData, charMistakes: { charIndex: number; level: number }[]) => {
-    const text = word.textUthmani;
+  // Render word with textUthmani for char-level mistakes
+  const renderWordWithColoredChar = (word: QuranPageWord, charMistakes: { charIndex: number; level: number }[]) => {
+    const text = word.text_uthmani || '';
 
-    // Create a map of char_index to mistake level
     const charMistakeMap = new Map<number, number>();
     charMistakes.forEach(cm => {
       charMistakeMap.set(cm.charIndex, cm.level);
     });
 
-    // Group characters: each letter with its following harakat
     const groups: { baseIndex: number; base: string; harakat: { char: string; index: number; mistakeLevel?: number }[] }[] = [];
     let currentGroup: typeof groups[0] | null = null;
 
     [...text].forEach((char, index) => {
       if (isHaraka(char)) {
-        // Add haraka to current group
         if (currentGroup) {
           currentGroup.harakat.push({
             char,
@@ -479,7 +430,6 @@ export default function Classroom() {
           });
         }
       } else {
-        // Start new group with this letter
         currentGroup = {
           baseIndex: index,
           base: char,
@@ -493,7 +443,6 @@ export default function Classroom() {
       const baseMistakeLevel = charMistakeMap.get(group.baseIndex);
       const harakatWithMistakes = group.harakat.filter(h => h.mistakeLevel);
 
-      // If any HARAKA has a mistake, color ONLY the mistaken harakat (glow effect)
       if (harakatWithMistakes.length > 0) {
         return (
           <span key={group.baseIndex}>
@@ -508,7 +457,6 @@ export default function Classroom() {
         );
       }
 
-      // If only the BASE letter has a mistake (no harakat mistake), highlight the whole group but with letter-style
       if (baseMistakeLevel) {
         return (
           <span key={group.baseIndex} className={`letter-mistake-${baseMistakeLevel}`}>
@@ -517,14 +465,13 @@ export default function Classroom() {
         );
       }
 
-      // No mistakes - render plain
       return <span key={group.baseIndex}>{group.base}{group.harakat.map(h => h.char).join('')}</span>;
     });
   };
 
-  const handleWordClick = (e: React.MouseEvent, word: WordData) => {
+  const handleWordClick = (e: React.MouseEvent, word: QuranPageWord) => {
     if (!isTeacher) return;
-    if (word.charType !== 'word') return;
+    if (word.is_end) return;
 
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const popupHeight = 350;
@@ -547,12 +494,11 @@ export default function Classroom() {
     if (isTeacher && !selectedStudentId) return;
 
     try {
-      // Regular class mistake
       await addMistake({
         student_id: isTeacher ? selectedStudentId || undefined : undefined,
-        surah_number: wordPopup.word.surahNum,
-        ayah_number: wordPopup.word.ayahNum,
-        word_index: wordPopup.word.wordPosition - 1, // Convert to 0-based
+        surah_number: wordPopup.word.surah,
+        ayah_number: wordPopup.word.ayah,
+        word_index: wordPopup.word.word - 1, // Convert to 0-based
         word_text: mistakeText,
         char_index: charIndex,
         class_id: id || undefined,
@@ -567,15 +513,15 @@ export default function Classroom() {
     setWordPopup(null);
   };
 
-  const handleWordRightClick = async (e: React.MouseEvent, word: WordData) => {
+  const handleWordRightClick = async (e: React.MouseEvent, word: QuranPageWord) => {
     e.preventDefault();
     if (!isTeacher) return;
-    if (word.charType !== 'word') return;
+    if (word.is_end) return;
 
-    const wordIndex = word.wordPosition - 1;
+    const wordIndex = word.word - 1;
     const existingMistake = mistakes.find(
-      m => m.surah_number === word.surahNum &&
-           m.ayah_number === word.ayahNum &&
+      m => m.surah_number === word.surah &&
+           m.ayah_number === word.ayah &&
            m.word_index === wordIndex
     );
 
@@ -736,33 +682,7 @@ export default function Classroom() {
   const totalPagesInAssignment = assignmentPageRange.maxPage - assignmentPageRange.minPage + 1;
   const currentPageInAssignment = currentPage - assignmentPageRange.minPage + 1;
 
-  const lineNumbers = Array.from(wordsByLine.keys()).sort((a, b) => a - b);
   const availableSections: SectionType[] = ['hifz', 'sabqi', 'revision'];
-
-  // Detect which surahs START on this page (ayah 1 appears)
-  const surahsStartingOnPage = (): { surahNum: number; lineNum: number }[] => {
-    const starts: { surahNum: number; lineNum: number }[] = [];
-    const seenSurahs = new Set<number>();
-
-    for (const lineNum of lineNumbers) {
-      const words = wordsByLine.get(lineNum) || [];
-      for (const word of words) {
-        if (word.ayahNum === 1 && word.wordPosition === 1 && !seenSurahs.has(word.surahNum)) {
-          starts.push({ surahNum: word.surahNum, lineNum });
-          seenSurahs.add(word.surahNum);
-        }
-      }
-    }
-    return starts;
-  };
-
-  const surahStarts = surahsStartingOnPage();
-
-  // Check if a line is the first line of a surah (ayah 1)
-  const getSurahStartForLine = (lineNum: number): number | null => {
-    const start = surahStarts.find(s => s.lineNum === lineNum);
-    return start ? start.surahNum : null;
-  };
 
   return (
     <div className="space-y-6">
@@ -797,6 +717,7 @@ export default function Classroom() {
         {isTeacher && selectedStudentId && classData.students && (() => {
           const selectedStudent = classData.students.find(s => s.id === selectedStudentId);
           const studentPerf = selectedStudent?.performance;
+
           return (
             <div className="flex items-center gap-2">
               <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Performance:</span>
@@ -1039,7 +960,7 @@ export default function Classroom() {
             <span className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Page {currentPage} (Madani Mushaf)</span>
           </div>
 
-          {/* Quran Display with QPC Fonts */}
+          {/* Quran Display with QPC v2 Fonts */}
           <div className="flex items-center gap-1 justify-center">
             {/* Next Page (Left for RTL) */}
             <button
@@ -1059,7 +980,7 @@ export default function Classroom() {
               {/* Page Content */}
               <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 1, padding: '4% 6%' }}>
 
-              {(pageLoading || !fontLoaded) ? (
+              {(pageLoading || !fontLoaded || !pageData) ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="spinner mb-2"></div>
@@ -1075,47 +996,50 @@ export default function Classroom() {
                     fontSize: `${Math.min(28, Math.floor(pageDims.height / 21))}px`,
                   }}
                 >
-                  {lineNumbers.map((lineNum) => {
-                    const words = wordsByLine.get(lineNum) || [];
-                    const surahStarting = getSurahStartForLine(lineNum);
-                    // Show bismillah for surahs 2-114 except surah 9 (At-Tawbah has no bismillah)
-                    const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
+                  {pageData.lines.map((line) => {
+                    // Surah header line
+                    if (line.line_type === 'surah_name' && line.surah_number) {
+                      return (
+                        <div
+                          key={`surah-${line.line_number}`}
+                          className="flex-none w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
+                          style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
+                        >
+                          <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
+                            سُورَةُ {SURAH_NAMES[line.surah_number]}
+                          </span>
+                        </div>
+                      );
+                    }
 
+                    // Bismillah line
+                    if (line.line_type === 'basmallah') {
+                      return (
+                        <div
+                          key={`bismillah-${line.line_number}`}
+                          className="flex-none text-center text-cyan-700"
+                          style={{
+                            fontFamily: "'Amiri Quran', 'Amiri', serif",
+                            fontSize: '18px',
+                          }}
+                        >
+                          بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
+                        </div>
+                      );
+                    }
+
+                    // Ayah line — render words with FittedLine
                     return (
-                      <Fragment key={lineNum}>
-                        {/* Surah Header - shown before the first ayah of a new surah */}
-                        {surahStarting && (
-                          <div
-                            className="flex-none w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
-                            style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
-                          >
-                            <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
-                              سُورَةُ {SURAH_NAMES[surahStarting]}
-                            </span>
-                          </div>
-                        )}
-                        {/* Bismillah - shown for surahs 2-114 except 9 */}
-                        {showBismillah && (
-                          <div
-                            className="flex-none text-center text-cyan-700"
-                            style={{
-                              fontFamily: "'Amiri Quran', 'Amiri', serif",
-                              fontSize: '18px',
-                            }}
-                          >
-                            بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
-                          </div>
-                        )}
-                        <div className={`${lineNum >= 16 ? 'flex-none' : 'flex-1 min-h-0'} flex items-center justify-center`}>
+                      <div key={`line-${line.line_number}`} className="flex-1 min-h-0 flex items-center justify-center">
                         <FittedLine className="text-slate-800">
-                          {words.map((word) => {
+                          {line.words.map((word) => {
                             const { wholeWordLevel, charMistakes, totalMistakes } = getWordMistakeInfo(word);
                             const hasCharMistakes = charMistakes.length > 0;
                             const inPortion = isWordInPortion(word);
                             const dimStyle = !inPortion ? { opacity: 0.25, filter: 'blur(0.5px)' } : {};
 
                             // Character-level mistakes: render with textUthmani (smaller), highlight char
-                            if (hasCharMistakes && word.charType === 'word') {
+                            if (hasCharMistakes && !word.is_end) {
                               return (
                                 <span
                                   key={word.id}
@@ -1124,8 +1048,8 @@ export default function Classroom() {
                                   className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block ${
                                     inPortion && wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher && inPortion ? 'hover:bg-cyan-200 rounded' : ''
                                   }`}
-                                  style={{ fontSize: '0.85em', fontWeight: 400, letterSpacing: '0.02em', lineHeight: 1, position: 'relative', top: '-0.3em', ...dimStyle }}
-                                  title={inPortion ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}` : 'Outside assigned portion'}
+                                  style={{ fontSize: '0.95em', fontWeight: 400, letterSpacing: '0.02em', lineHeight: 1, position: 'relative', top: '-0.15em', WebkitTextStroke: '0', color: 'rgba(30,41,59,0.92)', ...dimStyle }}
+                                  title={inPortion ? `${word.text_uthmani || ''} (${word.surah}:${word.ayah}:${word.word})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}` : 'Outside assigned portion'}
                                 >
                                   {renderWordWithColoredChar(word, charMistakes)}
                                 </span>
@@ -1136,33 +1060,32 @@ export default function Classroom() {
                               <span
                                 key={word.id}
                                 onClick={(e) => {
-                                  if (inPortion && word.charType === 'word') {
+                                  if (inPortion && !word.is_end) {
                                     handleWordClick(e, word);
                                   }
                                 }}
-                                onContextMenu={(e) => inPortion && word.charType === 'word' && handleWordRightClick(e, word)}
-                                className={`${isTeacher && inPortion && word.charType === 'word' ? 'cursor-pointer' : ''} transition-all rounded px-0.5 ${
-                                  word.charType === 'word'
+                                onContextMenu={(e) => inPortion && !word.is_end && handleWordRightClick(e, word)}
+                                className={`${isTeacher && inPortion && !word.is_end ? 'cursor-pointer' : ''} transition-all rounded px-0.5 ${
+                                  !word.is_end
                                     ? inPortion && wholeWordLevel > 0
                                       ? `mistake-${wholeWordLevel}`
                                       : isTeacher && inPortion ? 'hover:bg-cyan-200' : ''
                                     : inPortion ? 'text-cyan-700' : ''
                                 }`}
                                 style={dimStyle}
-                                title={word.charType === 'word'
+                                title={!word.is_end
                                   ? inPortion
-                                    ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}`
+                                    ? `${word.text_uthmani || ''} (${word.surah}:${word.ayah}:${word.word})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}`
                                     : 'Outside assigned portion'
-                                  : `Ayah ${word.ayahNum} end`
+                                  : `Ayah ${word.ayah} end`
                                 }
                               >
-                                {word.codeV1}
+                                {word.text}
                               </span>
                             );
                           })}
                         </FittedLine>
-                        </div>
-                      </Fragment>
+                      </div>
                     );
                   })}
                 </div>
@@ -1188,12 +1111,10 @@ export default function Classroom() {
           {currentMistakes.length > 0 && (() => {
             const currentClassId = classData?.id;
 
-            // Mistakes that occurred in THIS class (may also have previous occurrences)
             const mistakesInThisClass = currentMistakes.filter(m =>
               m.occurrences?.some(o => o.class_id === currentClassId)
             );
 
-            // Mistakes that have ANY occurrence in a PREVIOUS class (even if also in this class)
             const mistakesFromPrevious = currentMistakes.filter(m =>
               m.occurrences?.some(o => o.class_id !== currentClassId)
             );
@@ -1233,7 +1154,6 @@ export default function Classroom() {
 
                 {/* Mistakes from previous classes - grouped by day */}
                 {mistakesFromPrevious.length > 0 && (() => {
-                  // Group mistakes by class day
                   const mistakesByDay: { [key: string]: { day: string; date: string; class_id: string; mistakes: Mistake[] }[] } = {};
 
                   mistakesFromPrevious.forEach(m => {
@@ -1242,20 +1162,17 @@ export default function Classroom() {
                       if (!mistakesByDay[key]) {
                         mistakesByDay[key] = [];
                       }
-                      // Check if this class_id entry exists
                       let classEntry = mistakesByDay[key].find(e => e.class_id === o.class_id);
                       if (!classEntry) {
                         classEntry = { day: o.class_day || '', date: o.class_date || '', class_id: o.class_id, mistakes: [] };
                         mistakesByDay[key].push(classEntry);
                       }
-                      // Add mistake if not already there
                       if (!classEntry.mistakes.find(em => em.id === m.id)) {
                         classEntry.mistakes.push(m);
                       }
                     });
                   });
 
-                  // Sort by date (most recent first)
                   const sortedDays = Object.keys(mistakesByDay).sort((a, b) => {
                     const dateA = mistakesByDay[a][0]?.date || '';
                     const dateB = mistakesByDay[b][0]?.date || '';
@@ -1275,7 +1192,6 @@ export default function Classroom() {
                           const entries = mistakesByDay[dayKey];
                           const { day, date } = entries[0];
                           const allMistakes = entries.flatMap(e => e.mistakes);
-                          // Remove duplicates
                           const uniqueMistakes = allMistakes.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
 
                           return (
@@ -1321,19 +1237,19 @@ export default function Classroom() {
             }`} />
 
             <div className="text-center mb-2 pb-2 border-b border-slate-700">
-              <p className="font-amiri text-xl text-slate-100">{wordPopup.word.textUthmani}</p>
-              <p className="text-xs text-slate-500 mt-1">{wordPopup.word.surahNum}:{wordPopup.word.ayahNum} word {wordPopup.word.wordPosition}</p>
+              <p className="font-amiri text-xl text-slate-100">{wordPopup.word.text_uthmani || ''}</p>
+              <p className="text-xs text-slate-500 mt-1">{wordPopup.word.surah}:{wordPopup.word.ayah} word {wordPopup.word.word}</p>
             </div>
 
             <button
-              onClick={() => handleAddMistake(wordPopup.word.textUthmani, undefined)}
+              onClick={() => handleAddMistake(wordPopup.word.text_uthmani || '', undefined)}
               className="w-full mb-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium"
             >
               Whole Word
             </button>
 
             {(() => {
-              const { letters, harakat } = splitArabicWord(wordPopup.word.textUthmani);
+              const { letters, harakat } = splitArabicWord(wordPopup.word.text_uthmani || '');
               return (
                 <>
                   <div className="mb-2">

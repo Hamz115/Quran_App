@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
-import { getQuranPageWords, getMistakes, type QuranPageWord, type MistakeData } from '../api';
+import { useState, useEffect, useCallback } from 'react';
+import { getQuranPage, getMistakes, type QuranPageData, type QuranPageWord, type MistakeData } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getPageNumber } from '../data/quranPages';
@@ -32,18 +32,6 @@ const SURAH_NAMES: Record<number, string> = {
   111: 'المسد', 112: 'الإخلاص', 113: 'الفلق', 114: 'الناس'
 };
 
-interface WordData {
-  id: number;
-  surahNum: number;
-  ayahNum: number;
-  wordPosition: number;
-  textUthmani: string;
-  codeV1: string;
-  codeV2: string;
-  lineNumber: number;
-  charType: string;
-}
-
 const TOTAL_PAGES = 604;
 
 // Get mistake level (1-5) based on error_count
@@ -59,7 +47,7 @@ export default function QuranReader() {
   const { user } = useAuth();
   const { darkMode } = useTheme();
   const [currentPage, setCurrentPage] = useState(1);
-  const [wordsByLine, setWordsByLine] = useState<Map<number, WordData[]>>(new Map());
+  const [pageData, setPageData] = useState<QuranPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
   const [jumpToPage, setJumpToPage] = useState('');
@@ -70,11 +58,9 @@ export default function QuranReader() {
   const [mistakesLoading, setMistakesLoading] = useState(false);
   const [surahs, setSurahs] = useState<number[]>([]);
 
-  // Get highest mistake level for a word (considering all char-level and word-level mistakes)
-  // Note: word_index in mistakes is 0-based, but wordPosition from QPC is 1-based
-  // So we need to convert: wordPosition - 1 = word_index
+  // Get highest mistake level for a word
+  // Note: word position in v2 is 1-based, word_index in mistakes is 0-based
   const getWordMistakeInfo = (surah: number, ayah: number, wordIndex: number): { errorCount: number; mistakeId: string | null } => {
-    // Find all mistakes for this word (both whole-word and character-level)
     const wordMistakes = mistakes.filter(
       m => m.surah_number === surah && m.ayah_number === ayah && m.word_index === wordIndex
     );
@@ -83,22 +69,18 @@ export default function QuranReader() {
       return { errorCount: 0, mistakeId: null };
     }
 
-    // Find the one with highest error_count for display
     const highest = wordMistakes.reduce((prev, curr) =>
       curr.error_count > prev.error_count ? curr : prev
     );
 
-    // Sum all error counts for the word
     const totalErrors = wordMistakes.reduce((sum, m) => sum + m.error_count, 0);
 
     return { errorCount: totalErrors, mistakeId: highest.id };
   };
 
-  // Load QPC fonts from LOCAL files (OFFLINE)
-  // Load both current page font AND previous page font (for overflow ayahs)
+  // Load QPC font for current page only (no overflow in v2)
   useEffect(() => {
     const paddedPage = currentPage.toString().padStart(3, '0');
-    const paddedPrevPage = (currentPage - 1).toString().padStart(3, '0');
 
     // Remove old font styles
     document.querySelectorAll('[id^="qpc-font-"]').forEach(el => el.remove());
@@ -115,80 +97,44 @@ export default function QuranReader() {
     style.id = `qpc-font-${currentPage}`;
     document.head.appendChild(style);
 
-    // Add previous page font (for overflow ayahs with glyph codes > 0xFC00)
-    if (currentPage > 1) {
-      const prevStyle = document.createElement('style');
-      prevStyle.textContent = `
-        @font-face {
-          font-family: 'QPC-Page-${currentPage - 1}';
-          src: url('/fonts/qpc/QCF_P${paddedPrevPage}.woff2') format('woff2');
-          font-display: swap;
-        }
-      `;
-      prevStyle.id = `qpc-font-${currentPage - 1}`;
-      document.head.appendChild(prevStyle);
-    }
-
     setFontLoaded(false);
     const fontName = `QPC-Page-${currentPage}`;
-    const prevFontName = `QPC-Page-${currentPage - 1}`;
-
-    // Load both fonts
-    Promise.all([
-      document.fonts.load(`32px "${fontName}"`),
-      currentPage > 1 ? document.fonts.load(`32px "${prevFontName}"`) : Promise.resolve()
-    ]).then(() => {
+    document.fonts.load(`32px "${fontName}"`).then(() => {
       setFontLoaded(true);
     }).catch(() => {
       setFontLoaded(true);
     });
   }, [currentPage]);
 
-  // Load words from backend API
+  // Load page data from backend API
   useEffect(() => {
     let isMounted = true;
 
-    const loadPageWords = async () => {
+    const loadPage = async () => {
       setLoading(true);
       try {
-        const words = await getQuranPageWords(currentPage);
+        const data = await getQuranPage(currentPage);
 
         if (!isMounted) return;
 
-        const lineMap = new Map<number, WordData[]>();
+        setPageData(data);
+
+        // Extract unique surahs from ayah lines
         const surahSet = new Set<number>();
-
-        words.forEach((word: QuranPageWord) => {
-          const wordData: WordData = {
-            id: word.id,
-            surahNum: word.s,
-            ayahNum: word.a,
-            wordPosition: word.p,
-            textUthmani: word.t,
-            codeV1: word.c1,
-            codeV2: word.c2,
-            lineNumber: word.l,
-            charType: word.ct
-          };
-
-          surahSet.add(word.s);
-
-          if (!lineMap.has(word.l)) {
-            lineMap.set(word.l, []);
+        for (const line of data.lines) {
+          for (const word of line.words) {
+            surahSet.add(word.surah);
           }
-          lineMap.get(word.l)!.push(wordData);
-        });
-
-        setWordsByLine(lineMap);
+        }
         setSurahs(Array.from(surahSet));
       } catch (err) {
-        console.error('Failed to load page words:', err);
+        console.error('Failed to load page:', err);
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
-    loadPageWords();
+    loadPage();
 
     return () => { isMounted = false; };
   }, [currentPage]);
@@ -229,17 +175,13 @@ export default function QuranReader() {
   }, []);
 
   const isMobile = windowSize.w < 640;
-  const hasBottomNav = windowSize.w < 1024; // bottom nav shows below lg breakpoint
+  const hasBottomNav = windowSize.w < 1024;
   const getPageDimensions = useCallback(() => {
     if (isMobile) {
-      // Phone: full width, fill entire available vertical space
-      // Viewport minus: header(56px) + bottom nav(56px)
       const w = windowSize.w;
       const h = windowSize.h - 112;
       return { width: w, height: h };
     }
-    // Tablet & Desktop: centered page with 0.7 width ratio
-    // Account for bottom nav (56px) when present (below lg)
     const chromeHeight = hasBottomNav ? 220 : 160;
     const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
     const w = maxH * 0.7;
@@ -253,33 +195,6 @@ export default function QuranReader() {
   const canGoNext = currentPage < TOTAL_PAGES;
   const canGoPrev = currentPage > 1;
 
-  const lineNumbers = Array.from(wordsByLine.keys()).sort((a, b) => a - b);
-
-  // Detect which surahs START on this page (ayah 1 appears)
-  const surahsStartingOnPage = (): { surahNum: number; lineNum: number }[] => {
-    const starts: { surahNum: number; lineNum: number }[] = [];
-    const seenSurahs = new Set<number>();
-
-    for (const lineNum of lineNumbers) {
-      const words = wordsByLine.get(lineNum) || [];
-      for (const word of words) {
-        if (word.ayahNum === 1 && word.wordPosition === 1 && !seenSurahs.has(word.surahNum)) {
-          starts.push({ surahNum: word.surahNum, lineNum });
-          seenSurahs.add(word.surahNum);
-        }
-      }
-    }
-    return starts;
-  };
-
-  const surahStarts = surahsStartingOnPage();
-
-  // Check if a line is the first line of a surah (ayah 1)
-  const getSurahStartForLine = (lineNum: number): number | null => {
-    const start = surahStarts.find(s => s.lineNum === lineNum);
-    return start ? start.surahNum : null;
-  };
-
   const handleJumpToPage = () => {
     const pageNum = parseInt(jumpToPage);
     if (pageNum && pageNum >= 1 && pageNum <= TOTAL_PAGES) {
@@ -290,17 +205,19 @@ export default function QuranReader() {
   };
 
   const getCurrentSurahNum = () => {
-    const firstLine = wordsByLine.get(lineNumbers[0]);
-    if (firstLine && firstLine.length > 0) {
-      return firstLine[0].surahNum;
+    if (!pageData) return null;
+    for (const line of pageData.lines) {
+      if (line.words.length > 0) {
+        return line.words[0].surah;
+      }
     }
     return null;
   };
 
   // Get word styling based on mistake status
-  const getWordStyle = (word: WordData) => {
-    // Convert 1-based wordPosition to 0-based word_index for lookup
-    const { errorCount, mistakeId } = getWordMistakeInfo(word.surahNum, word.ayahNum, word.wordPosition - 1);
+  const getWordStyle = (word: QuranPageWord) => {
+    // Convert 1-based word position to 0-based word_index for lookup
+    const { errorCount, mistakeId } = getWordMistakeInfo(word.surah, word.ayah, word.word - 1);
 
     if (errorCount > 0) {
       const level = getMistakeLevel(errorCount);
@@ -313,6 +230,10 @@ export default function QuranReader() {
 
     return { className: '', errorCount: 0, mistakeId: null };
   };
+
+  // Count total words across all lines
+  const totalWords = pageData ? pageData.lines.reduce((sum, line) => sum + line.words.length, 0) : 0;
+  const ayahLines = pageData ? pageData.lines.filter(l => l.line_type === 'ayah') : [];
 
   return (
     <div className="space-y-2 lg:space-y-4 -mx-3 -mt-4 -mb-20 lg:mx-0 lg:mt-0 lg:mb-0">
@@ -429,12 +350,11 @@ export default function QuranReader() {
           )}
         </div>
         <div className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          {lineNumbers.length} lines | {Array.from(wordsByLine.values()).flat().length} words
+          {ayahLines.length} lines | {totalWords} words
         </div>
       </div>
 
       {/* Mushaf Display */}
-      {/* Mobile: full-width page filling the screen | Desktop: centered with nav arrows */}
       <div className="flex items-center justify-center gap-1 relative">
         {/* Next Page Button - LEFT side (RTL) - only on desktop */}
         <button
@@ -466,7 +386,7 @@ export default function QuranReader() {
             className="absolute inset-0 overflow-hidden"
             style={{ zIndex: 1, padding: '4% 6%' }}
           >
-          {(loading || !fontLoaded) ? (
+          {(loading || !fontLoaded || !pageData) ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="spinner mb-2"></div>
@@ -482,65 +402,64 @@ export default function QuranReader() {
                 fontSize: `${Math.min(28, Math.floor(pageDims.height / 21))}px`,
               }}
             >
-              {lineNumbers.map((lineNum) => {
-                const words = wordsByLine.get(lineNum) || [];
-                const surahStarting = getSurahStartForLine(lineNum);
-                const showBismillah = surahStarting && surahStarting !== 1 && surahStarting !== 9;
+              {pageData.lines.map((line) => {
+                // Surah header line
+                if (line.line_type === 'surah_name' && line.surah_number) {
+                  return (
+                    <div
+                      key={`surah-${line.line_number}`}
+                      className="flex-none w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
+                      style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
+                    >
+                      <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
+                        سُورَةُ {SURAH_NAMES[line.surah_number]}
+                      </span>
+                    </div>
+                  );
+                }
 
+                // Bismillah line
+                if (line.line_type === 'basmallah') {
+                  return (
+                    <div
+                      key={`bismillah-${line.line_number}`}
+                      className="flex-none text-center text-cyan-700"
+                      style={{
+                        fontFamily: "'Amiri Quran', 'Amiri', serif",
+                        fontSize: '18px',
+                      }}
+                    >
+                      بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
+                    </div>
+                  );
+                }
+
+                // Ayah line — render words with FittedLine
                 return (
-                  <Fragment key={lineNum}>
-                    {surahStarting && (
-                      <div
-                        className="flex-none w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
-                        style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
-                      >
-                        <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
-                          سُورَةُ {SURAH_NAMES[surahStarting]}
-                        </span>
-                      </div>
-                    )}
-                    {showBismillah && (
-                      <div
-                        className="flex-none text-center text-cyan-700"
-                        style={{
-                          fontFamily: "'Amiri Quran', 'Amiri', serif",
-                          fontSize: '18px',
-                        }}
-                      >
-                        بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
-                      </div>
-                    )}
-                    <div className={`${lineNum >= 16 ? 'flex-none' : 'flex-1 min-h-0'} flex items-center justify-center`}>
+                  <div key={`line-${line.line_number}`} className="flex-1 min-h-0 flex items-center justify-center">
                     <FittedLine className="text-slate-800">
-                      {words.map((word) => {
+                      {line.words.map((word) => {
                         const wordStyle = getWordStyle(word);
-                        const glyphCode = word.codeV1.charCodeAt(0);
-                        const needsPrevPageFont = currentPage === 586 && glyphCode >= 0xFC00;
-                        const fontFamily = needsPrevPageFont
-                          ? `'QPC-Page-${currentPage - 1}', 'Amiri Quran', serif`
-                          : undefined;
 
                         return (
                           <span
                             key={word.id}
                             className={`rounded px-0.5 ${
-                              word.charType === 'word'
+                              !word.is_end
                                 ? wordStyle.className
                                 : 'text-cyan-700'
                             }`}
-                            style={fontFamily ? { fontFamily } : undefined}
-                            title={word.charType === 'word'
-                              ? `${word.textUthmani} (${word.surahNum}:${word.ayahNum}:${word.wordPosition})${wordStyle.errorCount > 0 ? ` - ${wordStyle.errorCount}x mistakes` : ''}`
-                              : `Ayah ${word.ayahNum} end`
+                            title={!word.is_end
+                              ? `${word.text_uthmani || ''} (${word.surah}:${word.ayah}:${word.word})${wordStyle.errorCount > 0 ? ` - ${wordStyle.errorCount}x mistakes` : ''}`
+                              : `Ayah ${word.ayah} end`
                             }
                           >
-                            {word.codeV1}
+                            {word.text}
                           </span>
                         );
                       })}
                     </FittedLine>
-                    </div>
-                  </Fragment>
+                  </div>
                 );
               })}
             </div>

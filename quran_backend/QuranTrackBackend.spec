@@ -38,10 +38,12 @@ hiddenimports += [
 # --- Data files to bundle (read-only) ---
 datas = [
     ('quran.db', '.'),
-    ('quran-pages', 'quran-pages'),
+    ('qpc-v2-15-lines.db', '.'),
+    ('qpc-v2.db', '.'),
     ('.env', '.'),
     # NOTE: app.db is NOT bundled — it's read-write and lives next to the exe
     # NOTE: QPC fonts are NOT bundled here — they're in the frontend public/ dir
+    # NOTE: quran-pages/ (v1 JSON) no longer needed — replaced by v2 SQLite DBs
 ]
 
 # --- Exclude unnecessary packages to reduce size ---

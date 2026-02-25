@@ -428,8 +428,9 @@ class ClassNotesUpdate(BaseModel):
 
 # ============ QURAN ENDPOINTS ============
 
-# Directory for QPC word data (code_v1, line_number, etc.)
-QURAN_PAGES_DIR = _BASE_DIR / "quran-pages"      # Read-only (bundled)
+# QPC v2 databases (read-only, bundled)
+QPC_LAYOUT_DB = _BASE_DIR / "qpc-v2-15-lines.db"  # Page layout: lines per page
+QPC_WORDS_DB  = _BASE_DIR / "qpc-v2.db"           # Word data: glyphs + uthmani text
 
 # Directory for QPC .ttf fonts (converted from .woff2 for Flutter)
 QPC_FONTS_DIR = _BASE_DIR / "fonts" / "qpc"      # Read-only (bundled)
@@ -453,19 +454,86 @@ def get_qpc_font(page_number: int):
 
 @app.get("/api/quran/page/{page_number}")
 def get_quran_page_words(page_number: int):
-    """Get word-by-word data for a specific page (1-604) with QPC glyph codes"""
+    """Get line-structured word data for a specific Quran page (1-604) using QPC v2"""
     if page_number < 1 or page_number > 604:
         raise HTTPException(status_code=404, detail="Page not found (must be 1-604)")
 
-    page_file = QURAN_PAGES_DIR / f"page_{page_number:03d}.json"
-    if not page_file.exists():
-        raise HTTPException(status_code=404, detail="Page data not found")
+    # Read layout lines for this page
+    layout_conn = sqlite3.connect(QPC_LAYOUT_DB)
+    layout_conn.row_factory = sqlite3.Row
+    layout_rows = layout_conn.execute(
+        "SELECT line_number, line_type, is_centered, first_word_id, last_word_id, surah_number "
+        "FROM pages WHERE page_number = ? ORDER BY line_number",
+        (page_number,)
+    ).fetchall()
+    layout_conn.close()
 
-    import json
-    with open(page_file, 'r', encoding='utf-8') as f:
-        words = json.load(f)
+    if not layout_rows:
+        raise HTTPException(status_code=404, detail="Page layout not found")
 
-    return {"data": words, "page": page_number}
+    # Collect all word ID ranges we need to fetch
+    word_ranges = []
+    for row in layout_rows:
+        if row["line_type"] == "ayah" and row["first_word_id"] != "" and row["last_word_id"] != "":
+            word_ranges.append((int(row["first_word_id"]), int(row["last_word_id"])))
+
+    # Fetch all words for this page in one query
+    words_by_id = {}
+    if word_ranges:
+        words_conn = sqlite3.connect(QPC_WORDS_DB)
+        words_conn.row_factory = sqlite3.Row
+
+        # Build OR conditions for each range
+        conditions = " OR ".join(
+            f"(id BETWEEN {first} AND {last})" for first, last in word_ranges
+        )
+        word_rows = words_conn.execute(
+            f"SELECT id, surah, ayah, word, text, text_uthmani FROM words WHERE {conditions} ORDER BY id"
+        ).fetchall()
+        words_conn.close()
+
+        for w in word_rows:
+            words_by_id[w["id"]] = w
+
+    # Pre-compute max word position per (surah, ayah) on this page for is_end detection
+    max_word_pos = {}
+    for w in words_by_id.values():
+        key = (w["surah"], w["ayah"])
+        if key not in max_word_pos or w["word"] > max_word_pos[key]:
+            max_word_pos[key] = w["word"]
+
+    # Build line-structured response
+    lines = []
+    for row in layout_rows:
+        line = {
+            "line_number": row["line_number"],
+            "line_type": row["line_type"],
+            "is_centered": bool(row["is_centered"]),
+            "surah_number": int(row["surah_number"]) if row["surah_number"] != "" else None,
+            "words": [],
+        }
+
+        if row["line_type"] == "ayah" and row["first_word_id"] != "" and row["last_word_id"] != "":
+            first_id = int(row["first_word_id"])
+            last_id = int(row["last_word_id"])
+
+            for wid in range(first_id, last_id + 1):
+                w = words_by_id.get(wid)
+                if w:
+                    is_end = w["word"] == max_word_pos.get((w["surah"], w["ayah"]), -1)
+                    line["words"].append({
+                        "id": w["id"],
+                        "surah": w["surah"],
+                        "ayah": w["ayah"],
+                        "word": w["word"],
+                        "text": w["text"],
+                        "text_uthmani": w["text_uthmani"],
+                        "is_end": is_end,
+                    })
+
+        lines.append(line)
+
+    return {"page_number": page_number, "lines": lines}
 
 
 @app.get("/api/surahs")

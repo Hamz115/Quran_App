@@ -44,10 +44,10 @@ export type {
 export {
   getSurahs,
   getSurah,
-  getQuranPageWords,
+  getQuranPage,
 } from './lib/quran-api';
 
-export type { QuranPageWord, Surah } from './lib/quran-api';
+export type { QuranPageWord, QuranPageLine, QuranPageData, Surah } from './lib/quran-api';
 
 // ============ LEGACY FastAPI functions (to be migrated) ============
 

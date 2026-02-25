@@ -3,17 +3,30 @@
 
 const QURAN_API_BASE = 'http://localhost:8000/api';
 
-// QPC word data for a page
+// QPC v2 word data
 export interface QuranPageWord {
   id: number;
-  s: number;    // surah
-  a: number;    // ayah
-  p: number;    // position in ayah
-  t: string;    // text_uthmani
-  c1: string;   // code_v1 (QPC glyph)
-  c2: string;   // code_v2
-  l: number;    // line_number (1-15)
-  ct: string;   // char_type ('word' | 'end')
+  surah: number;
+  ayah: number;
+  word: number;           // position in ayah (1-based)
+  text: string;           // QPC v2 glyph code(s)
+  text_uthmani?: string;  // Arabic text (for char-level mistakes)
+  is_end: boolean;        // true = ayah end marker
+}
+
+// QPC v2 line data
+export interface QuranPageLine {
+  line_number: number;
+  line_type: 'ayah' | 'surah_name' | 'basmallah';
+  is_centered: boolean;
+  surah_number: number | null;
+  words: QuranPageWord[];
+}
+
+// QPC v2 page data
+export interface QuranPageData {
+  page_number: number;
+  lines: QuranPageLine[];
 }
 
 export interface Surah {
@@ -39,9 +52,8 @@ export async function getSurah(surahNumber: number): Promise<Surah> {
   return data.data;
 }
 
-export async function getQuranPageWords(pageNumber: number): Promise<QuranPageWord[]> {
+export async function getQuranPage(pageNumber: number): Promise<QuranPageData> {
   const res = await fetch(`${QURAN_API_BASE}/quran/page/${pageNumber}`);
-  if (!res.ok) throw new Error('Failed to fetch page words');
-  const data = await res.json();
-  return data.data;
+  if (!res.ok) throw new Error('Failed to fetch page data');
+  return res.json();
 }
