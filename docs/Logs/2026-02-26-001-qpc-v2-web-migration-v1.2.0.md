@@ -40,6 +40,10 @@ Migrated the entire web Quran rendering pipeline from QPC v1 to v2. Rewrote the 
 - Updated mistake field mapping (surahNum → surah, etc.)
 - Word popup still uses text_uthmani from enriched v2 DB
 - Tuned char-level mistake Uthmani text styling: size `0.95em`, weight `400`, color `rgba(30,41,59,0.92)` to visually blend with surrounding QPC glyphs (Amiri only supports 400/700 weights)
+- Fixed portion selector only showing when >1 portions — now shows edit/delete buttons for single portions too
+- Fixed edit/delete button styling in light mode (was grey-on-grey, now proper contrast)
+- Centered letter buttons in word popup (added `flex items-center justify-center`)
+- Redesigned harakat mistake display: instead of isolated glow on haraka character, now colors the entire letter+harakat group together (no box, just color tint) — much cleaner and distinguishable from letter mistakes (which use background+border)
 
 ## Issues Encountered
 

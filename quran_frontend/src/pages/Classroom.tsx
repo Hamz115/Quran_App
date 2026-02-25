@@ -444,15 +444,10 @@ export default function Classroom() {
       const harakatWithMistakes = group.harakat.filter(h => h.mistakeLevel);
 
       if (harakatWithMistakes.length > 0) {
+        const highestLevel = Math.max(...harakatWithMistakes.map(h => h.mistakeLevel!));
         return (
-          <span key={group.baseIndex}>
-            {group.base}
-            {group.harakat.map((h, i) => {
-              if (h.mistakeLevel) {
-                return <span key={i} className={`haraka-mistake-${h.mistakeLevel}`}>{h.char}</span>;
-              }
-              return h.char;
-            })}
+          <span key={group.baseIndex} className={`haraka-group-mistake-${highestLevel}`}>
+            {group.base}{group.harakat.map(h => h.char).join('')}
           </span>
         );
       }
@@ -873,7 +868,7 @@ export default function Classroom() {
       {currentAssignment ? (
         <>
           {/* Portion selector */}
-          {sectionAssignments.length > 1 && (
+          {sectionAssignments.length >= 1 && (
             <div className={`card p-4 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-4">
                 <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Select Portion:</span>
@@ -902,7 +897,7 @@ export default function Classroom() {
                               setEditPortionEndAyah(assignment.end_ayah);
                               setShowEditPortionModal(true);
                             }}
-                            className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 flex items-center justify-center"
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-500'}`}
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
@@ -910,7 +905,7 @@ export default function Classroom() {
                           </button>
                           <button
                             onClick={() => handleDeletePortion(assignment.id)}
-                            className="w-8 h-8 rounded-lg bg-slate-700/50 hover:bg-red-600/50 text-slate-400 hover:text-red-400 flex items-center justify-center"
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'bg-slate-700/50 hover:bg-red-600/50 text-slate-400 hover:text-red-400' : 'bg-slate-200 hover:bg-red-100 text-slate-500 hover:text-red-500'}`}
                             title="Delete portion"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1259,7 +1254,7 @@ export default function Classroom() {
                         <button
                           key={`letter-${l.index}`}
                           onClick={() => handleAddMistake(l.char, l.index)}
-                          className="w-8 h-8 font-amiri text-lg bg-slate-700/50 hover:bg-cyan-500/30 border border-slate-600 hover:border-cyan-500/50 rounded text-slate-200 hover:text-cyan-400"
+                          className="w-8 h-8 font-amiri text-lg bg-slate-700/50 hover:bg-cyan-500/30 border border-slate-600 hover:border-cyan-500/50 rounded text-slate-200 hover:text-cyan-400 flex items-center justify-center"
                         >
                           {l.char}
                         </button>
