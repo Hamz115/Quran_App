@@ -258,8 +258,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.2.1 | 2026-02-26 | Flutter QPC v2 migration (mirrors web v1.2.0) | `2026-02-26-002` |
 | v1.2.2 | 2026-02-26 | Flutter classroom fixes: PageView reset, add portion, performance, notes | `2026-02-26-003` |
 | v1.2.3 | 2026-02-26 | Web pre-fill fix, delete class cascade, portion label cross-surah fix, delete button in report | `2026-02-26-004` |
+| v1.2.4 | 2026-02-26 | Remove demo accounts from web and Flutter login pages | `2026-02-26-005` |
 
-**Current version: v1.2.3**
+**Current version: v1.2.4**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform

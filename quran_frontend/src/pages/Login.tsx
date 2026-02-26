@@ -8,8 +8,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
-
   const { login } = useAuth();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
@@ -34,11 +32,6 @@ export default function Login() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillDemo = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
   };
 
   return (
@@ -167,20 +160,8 @@ export default function Login() {
                 />
               </div>
 
-              {/* Demo Accounts Toggle & Forgot Password */}
-              <div className="flex items-center justify-between text-sm">
-                <button
-                  type="button"
-                  onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-                  className={`font-medium flex items-center gap-1 ${
-                    darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
-                  }`}
-                >
-                  <svg className={`w-4 h-4 transition-transform ${showDemoAccounts ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  Demo accounts
-                </button>
+              {/* Forgot Password */}
+              <div className="flex items-center justify-end text-sm">
                 <Link
                   to="/forgot-password"
                   className={`font-medium ${
@@ -190,51 +171,6 @@ export default function Login() {
                   Forgot Password?
                 </Link>
               </div>
-
-              {/* Demo Accounts Panel */}
-              {showDemoAccounts && (
-                <div className={`p-3 rounded-xl border space-y-2 ${
-                  darkMode
-                    ? 'bg-[rgb(37,45,61)] border-cyan-900/50'
-                    : 'bg-cyan-50/50 border-cyan-200'
-                }`}>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fillDemo('hamzaferoze115@gmail.com', '12345678')}
-                      className={`px-3 py-2 rounded-lg text-xs transition-colors ${
-                        darkMode
-                          ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30'
-                          : 'bg-cyan-100 border border-cyan-200 text-cyan-700 hover:bg-cyan-200'
-                      }`}
-                    >
-                      Teacher 1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillDemo('hamzaferoze115+23@gmail.com', '12345678')}
-                      className={`px-3 py-2 rounded-lg text-xs transition-colors ${
-                        darkMode
-                          ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30'
-                          : 'bg-cyan-100 border border-cyan-200 text-cyan-700 hover:bg-cyan-200'
-                      }`}
-                    >
-                      Teacher 2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillDemo('hamza@iiotsolutions.sa', '12345678')}
-                      className={`px-3 py-2 rounded-lg text-xs transition-colors ${
-                        darkMode
-                          ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30'
-                          : 'bg-purple-100 border border-purple-200 text-purple-700 hover:bg-purple-200'
-                      }`}
-                    >
-                      Student 1
-                    </button>
-                  </div>
-                </div>
-              )}
 
               <button
                 type="submit"

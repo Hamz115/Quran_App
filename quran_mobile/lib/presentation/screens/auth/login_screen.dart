@@ -19,7 +19,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _showDemoAccounts = false;
   String? _error;
 
   @override
@@ -52,11 +51,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _fillDemo(String email, String password) {
-    _emailController.text = email;
-    _passwordController.text = password;
   }
 
   @override
@@ -453,86 +447,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Demo accounts and forgot password
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _showDemoAccounts = !_showDemoAccounts),
-                child: Row(
-                  children: [
-                    Icon(
-                      _showDemoAccounts
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.cyan500,
-                      size: 20,
-                    ),
-                    Text(
-                      'Demo accounts',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.cyan500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ForgotPasswordScreen(),
-                    ),
-                  );
-                },
-                child: Text(
-                  'Forgot Password?',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.cyan500,
+          // Forgot password
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ForgotPasswordScreen(),
                   ),
+                );
+              },
+              child: Text(
+                'Forgot Password?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.cyan500,
                 ),
-              ),
-            ],
-          ),
-
-          // Demo accounts panel
-          if (_showDemoAccounts) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDarkMode
-                    ? const Color(0xFF252D3D)
-                    : AppColors.cyan50.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDarkMode
-                      ? AppColors.cyan500.withOpacity(0.2)
-                      : AppColors.cyan200,
-                ),
-              ),
-              child: Row(
-                children: [
-                  _buildDemoButton('Teacher 1', () {
-                    _fillDemo('hamzaferoze115@gmail.com', '12345678');
-                  }, AppColors.cyan500, isDarkMode),
-                  const SizedBox(width: 8),
-                  _buildDemoButton('Teacher 2', () {
-                    _fillDemo('hamzaferoze115+23@gmail.com', '12345678');
-                  }, AppColors.cyan500, isDarkMode),
-                  const SizedBox(width: 8),
-                  _buildDemoButton('Student', () {
-                    _fillDemo('hamza@iiotsolutions.sa', '12345678');
-                  }, AppColors.purple500, isDarkMode),
-                ],
               ),
             ),
-          ],
+          ),
           const SizedBox(height: 24),
 
           // Sign in button
@@ -685,35 +621,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildDemoButton(
-    String label,
-    VoidCallback onTap,
-    Color color,
-    bool isDarkMode,
-  ) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(isDarkMode ? 0.2 : 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: color.withOpacity(0.3),
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isDarkMode ? color.withOpacity(0.9) : color,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
