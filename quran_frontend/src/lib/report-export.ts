@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, HeadingLevel, TextRun } from 'docx';
 import html2pdf from 'html2pdf.js';
 import type { ExportConfig } from './report-types';
-import { surahNames } from './quran-utils';
+import { surahNames, formatPortionLabel } from './quran-utils';
 
 // Helper to create bold text
 function boldText(text: string): TextRun {
@@ -92,9 +92,7 @@ export function buildReportHTML(config: ExportConfig): { html: string; filename:
               const portions = cls.assignments.length > 0
                 ? cls.assignments.map(a => {
                     const typeClass = a.type.toLowerCase() === 'hifz' ? 'hifz' : a.type.toLowerCase() === 'sabqi' ? 'sabqi' : 'manzil';
-                    const startName = surahNames[a.start_surah] || `Surah ${a.start_surah}`;
-                    const ayahPart = a.start_ayah ? (a.end_ayah && a.end_ayah !== a.start_ayah ? ` ${a.start_ayah}-${a.end_ayah}` : ` ${a.start_ayah}`) : '';
-                    return `<span class="portion-tag"><span class="type-tag ${typeClass}">${a.type.toUpperCase()}</span> ${escHtml(startName)}${ayahPart}</span>`;
+                    return `<span class="portion-tag"><span class="type-tag ${typeClass}">${a.type.toUpperCase()}</span> ${escHtml(formatPortionLabel(a))}</span>`;
                   }).join(' ')
                 : '<span style="color:#94a3b8;">-</span>';
               return `<tr>

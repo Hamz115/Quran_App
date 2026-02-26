@@ -92,3 +92,24 @@ export function isSurahInJuz(surah: number, juz: number): boolean {
   if (!boundary) return false;
   return surah >= boundary.startSurah && surah <= boundary.endSurah;
 }
+
+/**
+ * Format a portion/assignment label for display.
+ * Handles same-surah ("At-Tawbah 93-100") and cross-surah ("At-Tawbah 93 - Yunus 5") cases.
+ */
+export function formatPortionLabel(a: { start_surah: number; end_surah: number; start_ayah?: number | null; end_ayah?: number | null }): string {
+  const startName = surahNames[a.start_surah] || `Surah ${a.start_surah}`;
+  const endName = surahNames[a.end_surah] || `Surah ${a.end_surah}`;
+
+  if (a.start_surah === a.end_surah) {
+    // Same surah
+    if (!a.start_ayah) return startName;
+    if (!a.end_ayah || a.end_ayah === a.start_ayah) return `${startName} ${a.start_ayah}`;
+    return `${startName} ${a.start_ayah}-${a.end_ayah}`;
+  }
+
+  // Different surahs
+  const startPart = a.start_ayah ? `${startName} ${a.start_ayah}` : startName;
+  const endPart = a.end_ayah ? `${endName} ${a.end_ayah}` : endName;
+  return `${startPart} - ${endPart}`;
+}

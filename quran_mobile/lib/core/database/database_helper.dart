@@ -9,6 +9,8 @@ class DatabaseHelper {
   static DatabaseHelper? _instance;
   static Database? _quranDb;
   static Database? _appDb;
+  static Database? _qpcLayoutDb;
+  static Database? _qpcWordsDb;
 
   DatabaseHelper._();
 
@@ -31,9 +33,28 @@ class DatabaseHelper {
     return _appDb!;
   }
 
+  // Get QPC v2 layout database (read-only, bundled asset)
+  Future<Database> get qpcLayoutDatabase async {
+    if (_qpcLayoutDb != null) return _qpcLayoutDb!;
+    _qpcLayoutDb = await _initBundledDatabase(AppConstants.qpcLayoutDbName);
+    return _qpcLayoutDb!;
+  }
+
+  // Get QPC v2 words database (read-only, bundled asset)
+  Future<Database> get qpcWordsDatabase async {
+    if (_qpcWordsDb != null) return _qpcWordsDb!;
+    _qpcWordsDb = await _initBundledDatabase(AppConstants.qpcWordsDbName);
+    return _qpcWordsDb!;
+  }
+
   Future<Database> _initQuranDatabase() async {
+    return _initBundledDatabase(AppConstants.quranDbName);
+  }
+
+  /// Copy a bundled database from assets if it doesn't exist locally, then open read-only.
+  Future<Database> _initBundledDatabase(String dbName) async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
-    final path = join(documentsDirectory.path, AppConstants.quranDbName);
+    final path = join(documentsDirectory.path, dbName);
 
     // Check if database already exists
     final exists = await databaseExists(path);
@@ -45,7 +66,7 @@ class DatabaseHelper {
       } catch (_) {}
 
       // Copy from assets
-      final data = await rootBundle.load('assets/databases/${AppConstants.quranDbName}');
+      final data = await rootBundle.load('assets/databases/$dbName');
       final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
       await File(path).writeAsBytes(bytes, flush: true);
     }
@@ -185,6 +206,14 @@ class DatabaseHelper {
     if (_appDb != null) {
       await _appDb!.close();
       _appDb = null;
+    }
+    if (_qpcLayoutDb != null) {
+      await _qpcLayoutDb!.close();
+      _qpcLayoutDb = null;
+    }
+    if (_qpcWordsDb != null) {
+      await _qpcWordsDb!.close();
+      _qpcWordsDb = null;
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../../data/models/assignment.dart';
+import '../../../data/models/class_session.dart';
 import '../../../data/models/mistake.dart';
 import '../../../data/models/quran_page_word.dart';
 import '../../../data/quran_data.dart';
@@ -129,9 +130,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 // Section tabs
                 _buildSectionTabs(availableSections.toList(), classData.assignments, isDarkMode),
 
-                // Portion selector (if multiple)
-                if (sectionAssignments.length > 1)
-                  _buildPortionSelector(sectionAssignments, isDarkMode),
+                // Portion selector (always visible)
+                _buildPortionSelector(sectionAssignments, isDarkMode),
+
+                // Performance & Notes (teacher only)
+                if (ref.watch(authProvider).isTeacher && classData.id != null)
+                  _buildPerformanceAndNotes(classData, isDarkMode),
 
                 // Legend & stats
                 _buildInfoBar(mistakesAsync, currentAssignment, isDarkMode),
@@ -289,81 +293,447 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: assignments.asMap().entries.map((entry) {
-            final index = entry.key;
-            final assignment = entry.value;
-            final isSelected = _selectedPortionIndex == index;
-            final color = AppColors.getSectionColor(assignment.type);
+          children: [
+            ...assignments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final assignment = entry.value;
+              final isSelected = _selectedPortionIndex == index;
+              final color = AppColors.getSectionColor(assignment.type);
 
-            final surahName = AppConstants.surahNames[assignment.startSurah] ?? '';
-            String label = surahName;
-            if (assignment.hasAyahRange) {
-              label += ' (${assignment.startAyah}-${assignment.endAyah})';
-            }
+              final label = AppConstants.formatPortionLabel(
+                startSurah: assignment.startSurah,
+                endSurah: assignment.endSurah,
+                startAyah: assignment.startAyah,
+                endAyah: assignment.endAyah,
+              );
 
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedPortionIndex = index;
-                        _currentPage = 0; // reset so it re-initializes
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? color.withOpacity(0.2) : AppColors.surface(isDarkMode),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedPortionIndex = index;
+                          _currentPage = 0; // reset so it re-initializes
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? color.withOpacity(0.2) : AppColors.surface(isDarkMode),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
+                          ),
+                        ),
+                        child: Text(
+                          assignments.length > 1 ? 'Portion ${index + 1}: $label' : label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isSelected ? color : AppColors.textSecondary(isDarkMode),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        'Portion ${index + 1}: $label',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isSelected ? color : AppColors.textSecondary(isDarkMode),
+                    ),
+                    if (isTeacher) ...[
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => _showEditPortionSheet(context, assignment),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface(isDarkMode).withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.edit, size: 16, color: AppColors.textSecondary(isDarkMode)),
                         ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => _confirmDeletePortion(context, assignment, assignments),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface(isDarkMode).withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.delete_outline, size: 16, color: Colors.red.withOpacity(0.6)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+            // Add portion button (teacher only)
+            if (isTeacher)
+              GestureDetector(
+                onTap: () => _showAddPortionSheet(context),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.cyan500.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cyan500.withOpacity(0.3)),
+                  ),
+                  child: Icon(Icons.add, size: 20, color: AppColors.cyan500),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPerformanceAndNotes(ClassSession classData, bool isDarkMode) {
+    final performance = classData.performance;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          // Performance dropdown
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getPerformanceColor(performance).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _getPerformanceColor(performance).withOpacity(0.3)),
+              ),
+              child: DropdownButton<String?>(
+                value: performance,
+                isExpanded: true,
+                isDense: true,
+                underline: const SizedBox.shrink(),
+                dropdownColor: AppColors.surface(isDarkMode),
+                hint: Text(
+                  'Rate performance...',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted(isDarkMode)),
+                ),
+                style: TextStyle(fontSize: 12, color: AppColors.text(isDarkMode)),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Not rated', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                  ),
+                  ...['Excellent', 'Very Good', 'Good', 'Needs Work'].map((p) =>
+                    DropdownMenuItem<String?>(
+                      value: p,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              color: _getPerformanceColor(p),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(p),
+                        ],
                       ),
                     ),
                   ),
-                  if (isTeacher) ...[
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () => _showEditPortionSheet(context, assignment),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(isDarkMode).withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(Icons.edit, size: 16, color: AppColors.textSecondary(isDarkMode)),
+                ],
+                onChanged: (value) {
+                  final classId = classData.id;
+                  if (classId != null) {
+                    ref.read(classesProvider.notifier).updatePerformance(classId, value);
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Notes button
+          GestureDetector(
+            onTap: () => _showNotesSheet(context, classData, isDarkMode),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: (classData.notes?.isNotEmpty == true)
+                    ? AppColors.cyan500.withOpacity(0.12)
+                    : AppColors.surface(isDarkMode),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (classData.notes?.isNotEmpty == true)
+                      ? AppColors.cyan500.withOpacity(0.3)
+                      : AppColors.border(isDarkMode),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.note_alt_outlined,
+                    size: 16,
+                    color: (classData.notes?.isNotEmpty == true)
+                        ? AppColors.cyan500
+                        : AppColors.textSecondary(isDarkMode),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    (classData.notes?.isNotEmpty == true) ? 'Notes' : 'Add Notes',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: (classData.notes?.isNotEmpty == true)
+                          ? AppColors.cyan500
+                          : AppColors.textSecondary(isDarkMode),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPerformanceColor(String? performance) {
+    switch (performance) {
+      case 'Excellent': return AppColors.cyan500;
+      case 'Very Good': return const Color(0xFF14B8A6); // teal-500
+      case 'Good': return const Color(0xFFF59E0B); // amber-500
+      case 'Needs Work': return const Color(0xFFEF4444); // red-500
+      default: return Colors.grey;
+    }
+  }
+
+  void _showNotesSheet(BuildContext context, ClassSession classData, bool isDarkMode) {
+    final controller = TextEditingController(text: classData.notes ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          left: 20, right: 20, top: 20,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surface(isDarkMode),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted(isDarkMode),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Class Notes',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(isDarkMode),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: controller,
+              maxLines: 5,
+              style: TextStyle(fontSize: 14, color: AppColors.text(isDarkMode)),
+              decoration: InputDecoration(
+                hintText: 'Add notes about this class session...',
+                hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+                filled: true,
+                fillColor: AppColors.background(isDarkMode),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.border(isDarkMode)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.border(isDarkMode)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: AppColors.textMuted(isDarkMode)),
+                    ),
+                    child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final classId = classData.id;
+                      if (classId != null) {
+                        final text = controller.text.trim();
+                        ref.read(classesProvider.notifier).updateNotes(
+                          classId,
+                          text.isEmpty ? null : text,
+                        );
+                      }
+                      Navigator.pop(ctx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppColors.cyan500,
+                    ),
+                    child: const Text('Save Notes'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddPortionSheet(BuildContext context) {
+    final isDarkMode = ref.read(themeProvider);
+    final surahsAsync = ref.read(surahListProvider);
+    final surahs = surahsAsync.value ?? [];
+
+    int startSurah = 1;
+    int endSurah = 1;
+    int? startAyah;
+    int? endAyah;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              left: 20, right: 20, top: 20,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface(isDarkMode),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textMuted(isDarkMode),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Add Portion ($_activeSection)',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(isDarkMode),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // From Surah / To Surah
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSheetDropdown(
+                        'From Surah', startSurah, surahs, isDarkMode,
+                        (v) => setSheetState(() {
+                          startSurah = v;
+                          if (endSurah < v) endSurah = v;
+                        }),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () => _confirmDeletePortion(context, assignment, assignments),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(isDarkMode).withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(Icons.delete_outline, size: 16, color: Colors.red.withOpacity(0.6)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildSheetDropdown(
+                        'To Surah', endSurah, surahs, isDarkMode,
+                        (v) => setSheetState(() => endSurah = v),
                       ),
                     ),
                   ],
-                ],
-              ),
-            );
-          }).toList(),
-        ),
+                ),
+                const SizedBox(height: 12),
+                // From Ayah / To Ayah
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSheetAyahInput(
+                        'From Ayah', startAyah, isDarkMode,
+                        (v) => setSheetState(() => startAyah = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildSheetAyahInput(
+                        'To Ayah', endAyah, isDarkMode,
+                        (v) => setSheetState(() => endAyah = v),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(color: AppColors.textMuted(isDarkMode)),
+                        ),
+                        child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await ref.read(classesProvider.notifier).addAssignment(
+                            classId: widget.classId,
+                            type: _activeSection,
+                            startSurah: startSurah,
+                            endSurah: endSurah,
+                            startAyah: startAyah,
+                            endAyah: endAyah,
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: AppColors.cyan500,
+                        ),
+                        child: const Text('Add Portion'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -500,12 +870,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     bool isDarkMode,
     WidgetRef ref,
   ) {
-    // Ensure page controller exists
-    if (_pageController == null || !_pageController!.hasClients) {
-      _initPageController(firstPage, lastPage);
-    }
-
     return PageView.builder(
+      key: ValueKey('$_activeSection-$_selectedPortionIndex'),
       controller: _pageController,
       reverse: true, // RTL: swipe left = next page (higher number)
       itemCount: totalPagesInRange,
@@ -850,9 +1216,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         word: word.textUthmani,
         onSelectWhole: () {
           ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: word.surahNum,
-            ayahNumber: word.ayahNum,
-            wordIndex: word.wordPosition - 1, // QPC is 1-based, mistakes are 0-based
+            surahNumber: word.surah,
+            ayahNumber: word.ayah,
+            wordIndex: word.word - 1, // QPC is 1-based, mistakes are 0-based
             wordText: word.textUthmani,
             classId: int.tryParse(widget.classId),
             classIdString: widget.classId,
@@ -862,9 +1228,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         },
         onSelectChar: (charIndex, charText) {
           ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: word.surahNum,
-            ayahNumber: word.ayahNum,
-            wordIndex: word.wordPosition - 1,
+            surahNumber: word.surah,
+            ayahNumber: word.ayah,
+            wordIndex: word.word - 1,
             wordText: charText,
             charIndex: charIndex,
             classId: int.tryParse(widget.classId),
@@ -878,10 +1244,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   }
 
   void _removeMistake(QuranPageWord word, List<Mistake> mistakes) {
-    final wordIndex = word.wordPosition - 1;
+    final wordIndex = word.word - 1;
     final wordMistakes = mistakes.where((m) =>
-      m.surahNumber == word.surahNum &&
-      m.ayahNumber == word.ayahNum &&
+      m.surahNumber == word.surah &&
+      m.ayahNumber == word.ayah &&
       m.wordIndex == wordIndex
     ).toList();
 

@@ -9,7 +9,7 @@ final qpcFontServiceProvider = Provider<QpcFontService>((ref) {
   return QpcFontService();
 });
 
-/// Singleton QuranPageDataService - loads page JSON from bundled assets.
+/// Singleton QuranPageDataService - loads page data from v2 SQLite databases.
 final quranPageDataServiceProvider = Provider<QuranPageDataService>((ref) {
   return QuranPageDataService();
 });

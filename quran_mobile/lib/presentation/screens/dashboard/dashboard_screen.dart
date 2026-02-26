@@ -608,10 +608,15 @@ class DashboardScreen extends ConsumerWidget {
                                           spacing: 6,
                                           runSpacing: 4,
                                           children: classItem.assignments.map((a) {
-                                            final surahName = AppConstants.surahNames[a.startSurah] ?? '';
+                                            final portionLabel = AppConstants.formatPortionLabel(
+                                              startSurah: a.startSurah,
+                                              endSurah: a.endSurah,
+                                              startAyah: a.startAyah,
+                                              endAyah: a.endAyah,
+                                            );
                                             return SectionBadge(
                                               type: a.type,
-                                              text: surahName,
+                                              text: portionLabel,
                                               compact: true,
                                             );
                                           }).toList(),

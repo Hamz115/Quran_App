@@ -6,6 +6,8 @@ class AppConstants {
   // Database names
   static const String quranDbName = 'quran.db';
   static const String appDbName = 'app.db';
+  static const String qpcLayoutDbName = 'qpc-v2-15-lines.db';
+  static const String qpcWordsDbName = 'qpc-v2.db';
 
   // Sync settings
   static const int syncIntervalMinutes = 5;
@@ -63,4 +65,27 @@ class AppConstants {
     106: 'Quraysh', 107: 'Al-Maun', 108: 'Al-Kawthar', 109: 'Al-Kafirun', 110: 'An-Nasr',
     111: 'Al-Masad', 112: 'Al-Ikhlas', 113: 'Al-Falaq', 114: 'An-Nas',
   };
+
+  /// Format a portion label for display.
+  /// Handles same-surah ("At-Tawbah 93-100") and cross-surah ("At-Tawbah 93 - Yunus 5") cases.
+  static String formatPortionLabel({
+    required int startSurah,
+    required int endSurah,
+    int? startAyah,
+    int? endAyah,
+  }) {
+    final startName = surahNames[startSurah] ?? 'Surah $startSurah';
+    final endName = surahNames[endSurah] ?? 'Surah $endSurah';
+
+    if (startSurah == endSurah) {
+      if (startAyah == null) return startName;
+      if (endAyah == null || endAyah == startAyah) return '$startName $startAyah';
+      return '$startName $startAyah-$endAyah';
+    }
+
+    // Different surahs
+    final startPart = startAyah != null ? '$startName $startAyah' : startName;
+    final endPart = endAyah != null ? '$endName $endAyah' : endName;
+    return '$startPart - $endPart';
+  }
 }

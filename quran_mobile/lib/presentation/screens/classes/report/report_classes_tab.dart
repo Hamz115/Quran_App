@@ -307,10 +307,12 @@ class _ClassRow extends StatelessWidget {
       spacing: 4,
       runSpacing: 4,
       children: cls.assignments.map((a) {
-        final surahName = AppConstants.surahNames[a.startSurah] ?? 'Surah ${a.startSurah}';
-        final ayahRange = a.startAyah != null
-            ? ' ${a.startAyah}${a.endAyah != null && a.endAyah != a.startAyah ? '-${a.endAyah}' : ''}'
-            : '';
+        final portionLabel = AppConstants.formatPortionLabel(
+          startSurah: a.startSurah,
+          endSurah: a.endSurah,
+          startAyah: a.startAyah,
+          endAyah: a.endAyah,
+        );
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -320,7 +322,7 @@ class _ClassRow extends StatelessWidget {
             border: Border.all(color: portionTagBorderColor(a.type)),
           ),
           child: Text(
-            '${a.type.toUpperCase()} $surahName$ayahRange',
+            '${a.type.toUpperCase()} $portionLabel',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,

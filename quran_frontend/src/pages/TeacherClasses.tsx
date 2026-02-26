@@ -555,6 +555,8 @@ export default function TeacherClasses() {
     setSabqiConfig({ enabled: true, portions: [createDefaultPortion()] });
     setRevisionConfig({ enabled: true, portions: [createDefaultPortion()] });
     setPerStudentConfigs({});
+    // Clear cache so next modal open re-fetches fresh data
+    previousPortionsCache.current = {};
   };
 
   // Initialize per-student configs when switching to per-student mode

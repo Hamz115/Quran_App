@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getStats, getClasses, getMyTeachers } from '../api';
 import type { ClassData } from '../api';
-import { surahNames } from '../lib/quran-utils';
+import { surahNames, formatPortionLabel } from '../lib/quran-utils';
 
 interface Stats {
   total_classes: number;
@@ -383,8 +383,7 @@ export default function StudentDashboard() {
                       {classItem.assignments.map((a, i) => (
                         <span key={a.id} className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                           {i > 0 && ', '}
-                          {surahNames[a.start_surah] || `Surah ${a.start_surah}`}
-                          {a.start_ayah ? ` (${a.start_ayah}-${a.end_ayah})` : ''}
+                          {formatPortionLabel(a)}
                         </span>
                       ))}
                     </td>

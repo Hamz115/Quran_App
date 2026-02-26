@@ -246,6 +246,26 @@ Quran_App/
 - Every fix, feature, or bug encountered during the session must be logged
 - If a session is a continuation of previous work, reference the earlier log
 
+### Version History
+
+Every session bumps the version. Use this table to determine the next version number.
+
+| Version | Date | Description | Log |
+|---------|------|-------------|-----|
+| v1.0.0 | 2026-02-22 | Tauri desktop installer + landing page | `2026-02-22-002`, `2026-02-22-003` |
+| v1.1.0 | 2026-02-25 | Replace Smart Suggestions with auto pre-fill from previous class | `2026-02-25-001` |
+| v1.2.0 | 2026-02-26 | Web QPC v1 → v2 migration + classroom UI polish | `2026-02-26-001` |
+| v1.2.1 | 2026-02-26 | Flutter QPC v2 migration (mirrors web v1.2.0) | `2026-02-26-002` |
+| v1.2.2 | 2026-02-26 | Flutter classroom fixes: PageView reset, add portion, performance, notes | `2026-02-26-003` |
+| v1.2.3 | 2026-02-26 | Web pre-fill fix, delete class cascade, portion label cross-surah fix, delete button in report | `2026-02-26-004` |
+
+**Current version: v1.2.3**
+
+**Versioning rules:**
+- Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
+- Minor (v1.x.0): New features or significant enhancements
+- Major (vX.0.0): Breaking changes
+
 ### Git
 - **ALWAYS use `git add .`** before committing
 - Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)

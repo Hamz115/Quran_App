@@ -435,6 +435,39 @@ export async function createClass(classData: {
 }
 
 export async function deleteClass(classId: string): Promise<{ message: string }> {
+  // 1. Find all mistakes linked to this class via mistake_occurrences
+  const { data: occurrences } = await supabase
+    .from('mistake_occurrences')
+    .select('id, mistake_id')
+    .eq('class_id', classId);
+
+  if (occurrences && occurrences.length > 0) {
+    const mistakeIds = [...new Set(occurrences.map((o: any) => o.mistake_id))];
+
+    // 2. Delete the occurrences for this class
+    await supabase
+      .from('mistake_occurrences')
+      .delete()
+      .eq('class_id', classId);
+
+    // 3. For each affected mistake, check if it has remaining occurrences
+    for (const mistakeId of mistakeIds) {
+      const { count } = await supabase
+        .from('mistake_occurrences')
+        .select('id', { count: 'exact', head: true })
+        .eq('mistake_id', mistakeId);
+
+      if (count === 0) {
+        // No more occurrences — delete the mistake entirely
+        await supabase.from('mistakes').delete().eq('id', mistakeId);
+      } else {
+        // Update error_count to match remaining occurrences
+        await supabase.from('mistakes').update({ error_count: count }).eq('id', mistakeId);
+      }
+    }
+  }
+
+  // 4. Delete the class (cascades to assignments, class_students)
   const { error } = await supabase
     .from('classes' as any)
     .delete()
@@ -804,7 +837,7 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
     last_class: null,
   };
 
-  // Find student's most recent class with assignments
+  // Find student's classes with assignments
   const { data: classStudentsData, error: csError } = await supabase
     .from('class_students' as any)
     .select(`
@@ -818,23 +851,29 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
           start_surah,
           end_surah,
           start_ayah,
-          end_ayah,
-          student_id
+          end_ayah
         )
       )
     `)
     .eq('student_id', studentId)
-    .order('class_id', { ascending: false })
-    .limit(10);
+    .limit(20);
 
   if (csError) {
     console.error('getSuggestedPortions error:', csError);
     throw new Error(csError.message);
   }
 
-  const classStudents = classStudentsData as any[];
-  // Find the most recent class
-  const lastClassEntry = classStudents?.[0];
+  const classStudents = (classStudentsData as any[]) || [];
+
+  // Sort by class date descending to find the most recent class
+  // (can't order by UUID class_id — UUIDs are random, not chronological)
+  classStudents.sort((a, b) => {
+    const dateA = a.classes?.date || '';
+    const dateB = b.classes?.date || '';
+    return dateB.localeCompare(dateA);
+  });
+
+  const lastClassEntry = classStudents[0];
 
   if (!lastClassEntry || !lastClassEntry.classes) {
     // No previous class - return default starting point (Al-Mulk)
@@ -856,10 +895,8 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
     day: lastClass.day,
   };
 
-  // Get assignments from last class (both shared and student-specific)
-  const assignments = (lastClass.assignments || []).filter((a: any) =>
-    !a.student_id || a.student_id === studentId
-  );
+  // Get assignments from last class
+  const assignments = lastClass.assignments || [];
 
   // Parse assignments by type
   let lastHifz: any = null;

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getMyStudents, lookupStudent, addStudent, removeStudent, getClasses, type StudentListItem, type ClassData } from '../api';
-import { surahNames } from '../lib/quran-utils';
+import { surahNames, formatPortionLabel } from '../lib/quran-utils';
 
 interface StudentLookup {
   student_id: string;
@@ -426,7 +426,7 @@ export default function TeacherDashboard() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-blue-400">Hifz:</span>
                           <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                            {hifz.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
+                            {hifz.map(a => formatPortionLabel(a)).join(', ')}
                           </span>
                         </div>
                       )}
@@ -434,7 +434,7 @@ export default function TeacherDashboard() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-cyan-400">Sabqi:</span>
                           <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                            {sabqi.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
+                            {sabqi.map(a => formatPortionLabel(a)).join(', ')}
                           </span>
                         </div>
                       )}
@@ -442,7 +442,7 @@ export default function TeacherDashboard() {
                         <div className="flex items-center gap-2">
                           <span className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Revision:</span>
                           <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                            {revision.map(a => surahNames[a.start_surah] || `Surah ${a.start_surah}`).join(', ')}
+                            {revision.map(a => formatPortionLabel(a)).join(', ')}
                           </span>
                         </div>
                       )}

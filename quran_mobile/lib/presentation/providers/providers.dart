@@ -400,6 +400,41 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     await loadClasses();
   }
 
+  /// Add a new assignment to an existing class.
+  /// Dual-path: Supabase on web, local SQLite on mobile.
+  Future<void> addAssignment({
+    required String classId,
+    required String type,
+    required int startSurah,
+    required int endSurah,
+    int? startAyah,
+    int? endAyah,
+  }) async {
+    if (kIsWeb) {
+      final supabase = Supabase.instance.client;
+      await supabase.from('assignments').insert({
+        'class_id': classId,
+        'type': type,
+        'start_surah': startSurah,
+        'end_surah': endSurah,
+        'start_ayah': startAyah,
+        'end_ayah': endAyah,
+      });
+    } else {
+      final intId = int.tryParse(classId);
+      if (intId == null) throw Exception('Invalid class ID');
+      await _repository.addAssignment(
+        classId: intId,
+        type: type,
+        startSurah: startSurah,
+        endSurah: endSurah,
+        startAyah: startAyah,
+        endAyah: endAyah,
+      );
+    }
+    await loadClasses();
+  }
+
   /// Delete an assignment.
   /// Dual-path: hard delete on Supabase (web), soft delete on local SQLite (mobile).
   Future<void> deleteAssignment(String assignmentId) async {
@@ -423,10 +458,44 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     return classes.where((c) => c.id == id).firstOrNull?.supabaseId;
   }
 
+  /// Clean up mistakes linked to a class via Supabase before deleting.
+  Future<void> _cleanupMistakesForClass(String classId) async {
+    final supabase = Supabase.instance.client;
+
+    // 1. Find all mistake_occurrences for this class
+    final occResponse = await supabase
+        .from('mistake_occurrences')
+        .select('id, mistake_id')
+        .eq('class_id', classId);
+    final occurrences = occResponse as List;
+    if (occurrences.isEmpty) return;
+
+    final mistakeIds = occurrences.map((o) => o['mistake_id'].toString()).toSet().toList();
+
+    // 2. Delete the occurrences for this class
+    await supabase.from('mistake_occurrences').delete().eq('class_id', classId);
+
+    // 3. For each affected mistake, check remaining occurrences
+    for (final mistakeId in mistakeIds) {
+      final remaining = await supabase
+          .from('mistake_occurrences')
+          .select('id')
+          .eq('mistake_id', mistakeId);
+      final count = (remaining as List).length;
+
+      if (count == 0) {
+        await supabase.from('mistakes').delete().eq('id', mistakeId);
+      } else {
+        await supabase.from('mistakes').update({'error_count': count}).eq('id', mistakeId);
+      }
+    }
+  }
+
   Future<void> deleteClass(int id) async {
     if (kIsWeb) {
       final sbId = _findSupabaseId(id);
       if (sbId == null) return;
+      await _cleanupMistakesForClass(sbId);
       final supabase = Supabase.instance.client;
       await supabase.from('classes').delete().eq('id', sbId);
       await loadClasses();
@@ -439,6 +508,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
   /// Delete a class by its string ID (Supabase UUID or local int string).
   Future<void> deleteClassById(String classId) async {
     if (kIsWeb) {
+      await _cleanupMistakesForClass(classId);
       final supabase = Supabase.instance.client;
       await supabase.from('classes').delete().eq('id', classId);
       await loadClasses();
@@ -881,12 +951,11 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
         class_id,
         classes (
           id, date, day,
-          assignments (type, start_surah, end_surah, start_ayah, end_ayah, student_id)
+          assignments (type, start_surah, end_surah, start_ayah, end_ayah)
         )
       ''')
       .eq('student_id', studentId)
-      .order('class_id', ascending: false)
-      .limit(10);
+      .limit(20);
 
   final rows = response as List;
   if (rows.isEmpty) {
@@ -901,6 +970,13 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
     );
   }
 
+  // Sort by date descending (can't ORDER BY UUID — it's random v4)
+  rows.sort((a, b) {
+    final dateA = a['classes']?['date'] ?? '';
+    final dateB = b['classes']?['date'] ?? '';
+    return dateB.toString().compareTo(dateA.toString());
+  });
+
   final lastClassData = rows[0]['classes'];
   if (lastClassData == null) return const SuggestedPortions();
 
@@ -911,8 +987,7 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
   );
 
   // Parse assignments by type (same logic as web)
-  final assignments = (lastClassData['assignments'] as List? ?? [])
-      .where((a) => a['student_id'] == null || a['student_id'] == studentId);
+  final assignments = lastClassData['assignments'] as List? ?? [];
 
   for (final a in assignments) {
     final type = a['type'] as String?;

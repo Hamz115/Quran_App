@@ -9,8 +9,8 @@ import '../../data/models/mistake.dart';
 import 'surah_header_widget.dart';
 import 'bismillah_widget.dart';
 
-/// Renders a single Mushaf page with QPC glyphs.
-/// Displays lines distributed evenly across an aspect ratio matching the printed Mushaf.
+/// Renders a single Mushaf page with QPC v2 glyphs.
+/// Uses line-based structure with explicit line types (surah_name, ayah, basmallah).
 /// Supports character-level mistake rendering using textUthmani + Amiri font.
 class MushafPageWidget extends StatelessWidget {
   final int pageNumber;
@@ -59,30 +59,18 @@ class MushafPageWidget extends StatelessWidget {
   List<Widget> _buildLines() {
     final lines = <Widget>[];
 
-    for (final lineNum in pageData.lineNumbers) {
-      final words = pageData.wordsByLine[lineNum] ?? [];
-      if (words.isEmpty) continue;
-
-      // Check if a surah starts on this line
-      final surahStart = pageData.surahStarts
-          .where((s) => s.lineNumber == lineNum)
-          .firstOrNull;
-
-      if (surahStart != null) {
-        // Add surah header
+    for (final line in pageData.lines) {
+      if (line.lineType == 'surah_name') {
         lines.add(SurahHeaderWidget(
-          surahNum: surahStart.surahNum,
+          surahNum: line.surahNumber!,
           isDarkMode: isDarkMode,
         ));
-
-        // Add bismillah if applicable
-        if (BismillahWidget.shouldShow(surahStart.surahNum)) {
-          lines.add(BismillahWidget(isDarkMode: isDarkMode));
-        }
+      } else if (line.lineType == 'basmallah') {
+        lines.add(BismillahWidget(isDarkMode: isDarkMode));
+      } else {
+        // ayah line
+        lines.add(_buildLine(line.words));
       }
-
-      // Build the line of QPC glyph words
-      lines.add(_buildLine(words));
     }
 
     return lines;
@@ -103,14 +91,7 @@ class MushafPageWidget extends StatelessWidget {
   }
 
   Widget _buildWord(QuranPageWord word) {
-    // Determine font family: page 586 overflow glyphs use previous page's font
     String fontFamily = QpcFontService.fontFamily(pageNumber);
-    if (pageNumber == 586 && word.codeV1.isNotEmpty) {
-      final codeUnit = word.codeV1.codeUnitAt(0);
-      if (codeUnit >= 0xFC00) {
-        fontFamily = QpcFontService.fontFamily(585);
-      }
-    }
 
     // Check for mistakes on this word
     final wordMistakes = _getWordMistakes(word);
@@ -141,7 +122,7 @@ class MushafPageWidget extends StatelessWidget {
     final textColor = isEnd ? AppColors.cyan600 : AppColors.lightText;
 
     final textWidget = Text(
-      word.codeV1,
+      word.text,
       style: TextStyle(
         fontFamily: fontFamily,
         fontSize: 24,
@@ -193,7 +174,7 @@ class MushafPageWidget extends StatelessWidget {
   }
 
   /// Character-level mistake rendering: uses textUthmani with Amiri font,
-  /// coloring only the specific mistaken character(s).
+  /// coloring the whole letter+harakat group for mistaken characters.
   Widget _buildCharLevelWord(QuranPageWord word, List<Mistake> charMistakes) {
     // Build a map of charIndex → mistake severity
     final charMistakeMap = <int, int>{};
@@ -207,8 +188,10 @@ class MushafPageWidget extends StatelessWidget {
     final groups = groupArabicCharacters(word.textUthmani);
 
     final baseStyle = GoogleFonts.amiri(
-      fontSize: 20, // ~0.85 * 24 (QPC size)
+      fontSize: 23, // 0.95 * 24 (matches web's 0.95em)
+      fontWeight: FontWeight.w400,
       height: 1.8,
+      letterSpacing: 0.46, // matches web's 0.02em
       color: AppColors.lightText,
     );
 
@@ -221,36 +204,19 @@ class MushafPageWidget extends StatelessWidget {
       final harakatWithMistakes = group.harakat.where((h) => charMistakeMap.containsKey(h.index)).toList();
 
       if (harakatWithMistakes.isNotEmpty) {
-        // Haraka has a mistake — color only the mistaken harakat with glow
-        final children = <InlineSpan>[
-          TextSpan(text: group.base),
-        ];
-        for (final h in group.harakat) {
-          final level = charMistakeMap[h.index];
-          if (level != null) {
-            // Bright haraka color matching web's haraka-mistake-N
-            final color = _getHarakaBrightColor(level);
-            final darkerColor = AppColors.getMistakeColor(level);
-            children.add(TextSpan(
-              text: h.char,
-              style: TextStyle(
-                color: color,
-                fontSize: 26, // 1.3em matching web
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  const Shadow(color: Colors.white, blurRadius: 3),
-                  Shadow(color: color.withOpacity(0.8), blurRadius: 6),
-                  Shadow(color: color.withOpacity(0.6), blurRadius: 10),
-                  Shadow(color: darkerColor.withOpacity(0.5), blurRadius: 15),
-                  Shadow(color: darkerColor.withOpacity(0.4), blurRadius: 20),
-                ],
-              ),
-            ));
-          } else {
-            children.add(TextSpan(text: h.char));
-          }
+        // Haraka has a mistake — color the whole letter+harakat group
+        // Find the highest severity level among all harakat mistakes in this group
+        int highestLevel = 0;
+        for (final h in harakatWithMistakes) {
+          final level = charMistakeMap[h.index]!;
+          if (level > highestLevel) highestLevel = level;
         }
-        spans.add(TextSpan(children: children));
+        final color = AppColors.getMistakeColor(highestLevel);
+        final groupText = group.base + group.harakat.map((h) => h.char).join();
+        spans.add(TextSpan(
+          text: groupText,
+          style: TextStyle(color: color),
+        ));
       } else if (baseMistakeLevel != null) {
         // Only the base letter has a mistake — use TextSpan with backgroundColor
         // (NOT WidgetSpan — that breaks Arabic letter joining/shaping)
@@ -293,29 +259,16 @@ class MushafPageWidget extends StatelessWidget {
     return wordWidget;
   }
 
-  /// Bright haraka colors matching web's haraka-mistake-N CSS classes.
-  /// These are brighter than the standard mistake colors for visibility on the glow.
-  static Color _getHarakaBrightColor(int level) {
-    switch (level) {
-      case 1: return const Color(0xFFFBBF24); // amber-400
-      case 2: return const Color(0xFF60A5FA); // blue-400
-      case 3: return const Color(0xFFFB923C); // orange-400
-      case 4: return const Color(0xFFC084FC); // purple-400
-      case 5: return const Color(0xFFF87171); // red-400
-      default: return const Color(0xFFFBBF24);
-    }
-  }
-
   /// Get all mistakes for a specific word.
   List<Mistake> _getWordMistakes(QuranPageWord word) {
     if (mistakes.isEmpty) return [];
 
-    // word_index in mistakes is 0-based; wordPosition from QPC is 1-based
-    final wordIndex = word.wordPosition - 1;
+    // word_index in mistakes is 0-based; word position from QPC is 1-based
+    final wordIndex = word.word - 1;
 
     return mistakes.where((m) =>
-        m.surahNumber == word.surahNum &&
-        m.ayahNumber == word.ayahNum &&
+        m.surahNumber == word.surah &&
+        m.ayahNumber == word.ayah &&
         m.wordIndex == wordIndex).toList();
   }
 

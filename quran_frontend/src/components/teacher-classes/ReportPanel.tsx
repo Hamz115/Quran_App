@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getStudentReport } from '../../lib/supabase-api';
+import { getStudentReport, deleteClass } from '../../lib/supabase-api';
 import { applyReportFilters, computePerformanceStats } from './report-helpers';
 import ReportFilterBar from './ReportFilterBar';
 import ReportSummaryStrip from './ReportSummaryStrip';
@@ -59,6 +59,19 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
     if (!filteredReport) return null;
     return computePerformanceStats(filteredReport.classes);
   }, [filteredReport]);
+
+  // Delete a class and refresh report
+  const handleDeleteClass = useCallback(async (classId: string) => {
+    try {
+      await deleteClass(classId);
+      setExpandedClassId(null);
+      // Re-fetch the report
+      const data = await getStudentReport(studentId);
+      setReport(data);
+    } catch (err) {
+      console.error('Failed to delete class:', err);
+    }
+  }, [studentId]);
 
   // Theme variables
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
@@ -168,6 +181,7 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
             classes={filteredReport.classes}
             expandedClassId={expandedClassId}
             onToggleExpand={(id) => setExpandedClassId(expandedClassId === id ? null : id)}
+            onDeleteClass={handleDeleteClass}
             darkMode={darkMode}
             basePath={basePath}
           />

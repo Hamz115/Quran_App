@@ -188,9 +188,54 @@ class ClassRepository {
     await _logSyncOperation(db, 'assignment', id, 'delete');
   }
 
-  // Delete class (soft delete)
+  // Delete class (soft delete) — also cleans up associated mistakes
   Future<void> deleteClass(int id) async {
     final db = await _dbHelper.appDatabase;
+
+    // 1. Find all mistake_occurrences for this class
+    final occurrences = await db.query(
+      'mistake_occurrences',
+      columns: ['id', 'mistake_id'],
+      where: 'class_id = ? AND is_deleted = 0',
+      whereArgs: [id],
+    );
+
+    if (occurrences.isNotEmpty) {
+      // Collect unique mistake IDs
+      final mistakeIds = occurrences.map((o) => o['mistake_id'] as int).toSet();
+
+      // 2. Soft-delete the occurrences for this class
+      await db.update(
+        'mistake_occurrences',
+        {'is_deleted': 1, 'sync_status': 'pending'},
+        where: 'class_id = ? AND is_deleted = 0',
+        whereArgs: [id],
+      );
+
+      // 3. For each affected mistake, check remaining active occurrences
+      for (final mistakeId in mistakeIds) {
+        final remaining = await db.rawQuery(
+          'SELECT COUNT(*) as cnt FROM mistake_occurrences WHERE mistake_id = ? AND is_deleted = 0',
+          [mistakeId],
+        );
+        final count = (remaining.first['cnt'] as int?) ?? 0;
+
+        if (count == 0) {
+          // No remaining occurrences — delete the mistake
+          await db.delete('mistakes', where: 'id = ?', whereArgs: [mistakeId]);
+        } else {
+          // Update error_count to match remaining occurrences
+          await db.update(
+            'mistakes',
+            {'error_count': count, 'sync_status': 'pending'},
+            where: 'id = ?',
+            whereArgs: [mistakeId],
+          );
+        }
+      }
+    }
+
+    // 4. Soft-delete the class
     await db.update(
       'classes',
       {
