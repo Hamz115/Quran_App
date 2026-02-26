@@ -12,10 +12,10 @@ Set up demo accounts and data for recording demo videos to share with siblings a
 
 | Name | Email | Role | Password |
 |------|-------|------|----------|
-| Hamza Feroze | hamzaferoze115@gmail.com | Teacher | 12345678 |
-| Aathifa Feroze | hamzaferoze115+aathifa@gmail.com | Teacher | 12345678 |
-| Maryam Suhail | hamzaferoze115+maryam@gmail.com | Teacher | 12345678 |
-| Hamza Reyal | hamzaferoze115+reyal@gmail.com | Student | 12345678 |
+| Hamza Feroze | hamzaferoze115@gmail.com | Teacher | hamza1234 |
+| Aathifa Feroze | hamzaferoze115+aathifa@gmail.com | Teacher | aathifa1234 |
+| Maryam Suhail | hamzaferoze115+maryam@gmail.com | Teacher | maryam1234 |
+| Hamza Reyal | hamzaferoze115+reyal@gmail.com | Student | reyal1234 |
 
 ## Teaching Relationships
 
@@ -65,4 +65,4 @@ Aathifa Feroze (teacher) → Maryam Suhail (student)    [one way — mother list
 
 - Continues from: docs/Logs/2026-02-26-005-remove-demo-accounts-v1.2.4.md
 - All accounts use hamzaferoze115 Gmail with + suffixes (all go to same inbox)
-- All passwords: 12345678
+- Passwords: hamza1234, aathifa1234, maryam1234, reyal1234
