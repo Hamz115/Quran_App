@@ -35,6 +35,27 @@ jobs:
         with:
           workspaces: quran_frontend/src-tauri -> target
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # --- Download sidecar data files from S3 ---
+      - name: Download backend data from S3
+        run: |
+          aws s3 cp s3://qurantrack.hamzas.world/ci-data/quran.db quran_backend/quran.db
+          aws s3 cp s3://qurantrack.hamzas.world/ci-data/qpc-v2.db quran_backend/qpc-v2.db
+          aws s3 cp s3://qurantrack.hamzas.world/ci-data/qpc-v2-15-lines.db quran_backend/qpc-v2-15-lines.db
+
+      - name: Write backend .env
+        shell: bash
+        run: |
+          cat > quran_backend/.env << 'ENVEOF'
+          ${{ secrets.BACKEND_ENV }}
+          ENVEOF
+
       # --- Build Python sidecar ---
       - name: Install Python dependencies
         run: |
