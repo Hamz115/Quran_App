@@ -462,7 +462,7 @@ export async function deleteClass(classId: string): Promise<{ message: string }>
         await supabase.from('mistakes').delete().eq('id', mistakeId);
       } else {
         // Update error_count to match remaining occurrences
-        await supabase.from('mistakes').update({ error_count: count }).eq('id', mistakeId);
+        await (supabase.from('mistakes') as any).update({ error_count: count }).eq('id', mistakeId);
       }
     }
   }

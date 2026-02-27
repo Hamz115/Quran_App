@@ -35,6 +35,11 @@ dependencies:
   supabase_flutter: ^2.3.0
   flutter_dotenv: ^5.1.0
 
+  # Auto-update
+  ota_update: ^7.1.0
+  package_info_plus: ^8.0.0
+  version: ^3.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

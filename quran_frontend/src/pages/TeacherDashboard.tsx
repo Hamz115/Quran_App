@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getMyStudents, lookupStudent, addStudent, removeStudent, getClasses, type StudentListItem, type ClassData } from '../api';
-import { surahNames, formatPortionLabel } from '../lib/quran-utils';
+import { formatPortionLabel } from '../lib/quran-utils';
 
 interface StudentLookup {
   student_id: string;

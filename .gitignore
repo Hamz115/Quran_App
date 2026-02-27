@@ -62,3 +62,8 @@ quran_frontend/src-tauri/target/
 quran_frontend/src-tauri/binaries/*.exe
 quran_frontend/src-tauri/quran-backend-*.exe
 quran_frontend/src-tauri/gen/
+
+# Tauri signing keys (NEVER commit)
+quran_frontend/~/.tauri/
+*.key
+*.key.pub

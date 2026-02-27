@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { checkForAppUpdates, type UpdateStatus } from '../lib/updater';
 
 export default function Settings() {
   const { user, updateProfile, updatePassword } = useAuth();
@@ -21,6 +22,14 @@ export default function Settings() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
+
+  // Update state (Tauri only)
+  const isTauri = !!(window as any).__TAURI__;
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+
+  const handleCheckForUpdates = useCallback(() => {
+    checkForAppUpdates((status) => setUpdateStatus(status));
+  }, []);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -358,6 +367,73 @@ export default function Settings() {
           </div>
         </form>
       </div>
+
+      {/* App Info Section — only visible in Tauri desktop app */}
+      {isTauri && (
+        <div className={`card p-6 rounded-2xl ${darkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-white border border-slate-200'}`}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className={`p-3 rounded-xl ${darkMode ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
+              <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+                App Info
+              </h2>
+              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Version and updates
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className={`text-sm font-medium w-32 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Version
+              </span>
+              <span className={`font-mono font-medium ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+                v1.3.0
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className={`text-sm font-medium w-32 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Updates
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCheckForUpdates}
+                  disabled={updateStatus?.stage === 'checking' || updateStatus?.stage === 'downloading' || updateStatus?.stage === 'installing'}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/30"
+                >
+                  {updateStatus?.stage === 'checking' ? 'Checking...'
+                    : updateStatus?.stage === 'downloading' ? `Downloading (${(updateStatus as any).progress}%)...`
+                    : updateStatus?.stage === 'installing' ? 'Installing...'
+                    : updateStatus?.stage === 'restarting' ? 'Restarting...'
+                    : 'Check for Updates'}
+                </button>
+
+                {updateStatus?.stage === 'upToDate' && (
+                  <span className={`text-sm ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
+                    Up to date!
+                  </span>
+                )}
+                {updateStatus?.stage === 'error' && (
+                  <span className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                    Update check failed
+                  </span>
+                )}
+                {updateStatus?.stage === 'dismissed' && (
+                  <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Update skipped
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

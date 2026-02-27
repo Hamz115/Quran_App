@@ -1,19 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
 import '../../../core/network/connectivity_service.dart';
 import '../../../core/sync/sync_service.dart';
+import '../../../core/services/update_service.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/update_dialog.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  String _appVersion = '';
+  String _updateStatusText = '';
+  bool _isCheckingUpdate = false;
+  final UpdateService _updateService = UpdateService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() => _appVersion = info.version);
+    }
+  }
+
+  Future<void> _checkForUpdates() async {
+    setState(() {
+      _isCheckingUpdate = true;
+      _updateStatusText = 'Checking...';
+    });
+
+    try {
+      final updateInfo = await _updateService.checkForUpdate();
+
+      if (!mounted) return;
+
+      if (updateInfo.updateAvailable) {
+        setState(() {
+          _isCheckingUpdate = false;
+          _updateStatusText = '';
+        });
+        final isDarkMode = ref.read(themeProvider);
+        await UpdateDialog.show(
+          context,
+          updateInfo: updateInfo,
+          updateService: _updateService,
+          isDarkMode: isDarkMode,
+        );
+      } else {
+        setState(() {
+          _isCheckingUpdate = false;
+          _updateStatusText = 'Up to date!';
+        });
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) setState(() => _updateStatusText = '');
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+          _updateStatusText = 'Check failed';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final syncState = ref.watch(syncStateProvider);
     final connectivity = ref.watch(connectivityStreamProvider);
     final isDarkMode = ref.watch(themeProvider);
@@ -273,7 +341,7 @@ class SettingsScreen extends ConsumerWidget {
                         style: const TextStyle(color: AppTheme.slate500, fontSize: 12),
                       ),
                       trailing: IconButton(
-                        onPressed: () => _showServerUrlDialog(context, ref),
+                        onPressed: () => _showServerUrlDialog(context),
                         icon: const Icon(Icons.edit_rounded, color: AppTheme.slate400),
                       ),
                     ),
@@ -308,32 +376,89 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                         child: const Icon(Icons.menu_book_rounded, color: AppTheme.emerald400, size: 20),
                       ),
-                      title: const Text(
-                        'Quran Logbook',
-                        style: TextStyle(color: AppTheme.slate200),
+                      title: Text(
+                        'QuranTrack',
+                        style: TextStyle(color: AppColors.text(isDarkMode)),
                       ),
-                      subtitle: const Text(
-                        'Version 1.0.0',
-                        style: TextStyle(color: AppTheme.slate500),
+                      subtitle: Text(
+                        _appVersion.isNotEmpty ? 'Version $_appVersion' : 'Loading...',
+                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
                       ),
                     ),
-                    Divider(color: AppTheme.slate700.withOpacity(0.5), height: 1),
+                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
                     ListTile(
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.slate700,
+                          color: isDarkMode
+                              ? AppColors.cyan500.withOpacity(0.2)
+                              : AppColors.cyan100,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.storage_rounded, color: AppTheme.slate400, size: 20),
+                        child: _isCheckingUpdate
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.cyan500,
+                                ),
+                              )
+                            : Icon(
+                                Icons.system_update_rounded,
+                                color: AppColors.cyan500,
+                                size: 20,
+                              ),
                       ),
-                      title: const Text(
+                      title: Text(
+                        'Check for Updates',
+                        style: TextStyle(color: AppColors.text(isDarkMode)),
+                      ),
+                      subtitle: Text(
+                        _updateStatusText.isNotEmpty
+                            ? _updateStatusText
+                            : 'Tap to check for new versions',
+                        style: TextStyle(
+                          color: _updateStatusText == 'Up to date!'
+                              ? AppTheme.emerald400
+                              : _updateStatusText == 'Check failed'
+                                  ? AppColors.error
+                                  : AppColors.textSecondary(isDarkMode),
+                        ),
+                      ),
+                      trailing: SizedBox(
+                        width: 100,
+                        child: ElevatedButton(
+                          onPressed: _isCheckingUpdate ? null : _checkForUpdates,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.cyan500,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: Text(_isCheckingUpdate ? 'Checking' : 'Check'),
+                        ),
+                      ),
+                    ),
+                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? AppTheme.slate700 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.storage_rounded,
+                          color: AppColors.textMuted(isDarkMode),
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
                         'Database',
-                        style: TextStyle(color: AppTheme.slate200),
+                        style: TextStyle(color: AppColors.text(isDarkMode)),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'SQLite (Local + Sync)',
-                        style: TextStyle(color: AppTheme.slate500),
+                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
                       ),
                     ),
                   ],
@@ -421,7 +546,7 @@ class SettingsScreen extends ConsumerWidget {
                       trailing: SizedBox(
                         width: 100,
                         child: ElevatedButton(
-                          onPressed: () => _showSignOutDialog(context, ref),
+                          onPressed: () => _showSignOutDialog(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.error,
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -472,7 +597,7 @@ class SettingsScreen extends ConsumerWidget {
                       trailing: SizedBox(
                         width: 100,
                         child: ElevatedButton(
-                          onPressed: () => _showDeleteAllMistakesDialog(context, ref),
+                          onPressed: () => _showDeleteAllMistakesDialog(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.error,
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -493,7 +618,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showDeleteAllMistakesDialog(BuildContext context, WidgetRef ref) {
+  void _showDeleteAllMistakesDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -524,7 +649,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showServerUrlDialog(BuildContext context, WidgetRef ref) {
+  void _showServerUrlDialog(BuildContext context) {
     final currentUrl = ref.read(apiClientProvider).baseUrl;
     final controller = TextEditingController(text: currentUrl);
 
@@ -560,7 +685,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showSignOutDialog(BuildContext context, WidgetRef ref) {
+  void _showSignOutDialog(BuildContext context) {
     final isDarkMode = ref.read(themeProvider);
     showDialog(
       context: context,

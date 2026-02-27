@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { checkForAppUpdates } from './lib/updater';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -19,6 +21,11 @@ import QuranReader from './pages/QuranReader';
 
 
 function App() {
+  // Auto-check for updates on launch (Tauri desktop only, no-op in browser)
+  useEffect(() => {
+    checkForAppUpdates();
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
