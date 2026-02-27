@@ -30,11 +30,6 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: quran_frontend/src-tauri -> target
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -72,6 +67,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path quran_frontend\src-tauri\binaries
           Copy-Item quran_backend\dist\QuranTrackBackend.exe quran_frontend\src-tauri\binaries\quran-backend-x86_64-pc-windows-msvc.exe -Force
+          Write-Host "Sidecar binary copied. Verifying:"
+          Get-Item quran_frontend\src-tauri\binaries\quran-backend-x86_64-pc-windows-msvc.exe
 
       # --- Build Tauri ---
       - name: Install frontend dependencies
