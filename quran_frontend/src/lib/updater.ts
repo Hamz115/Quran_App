@@ -8,7 +8,7 @@ let isChecking = false;
 
 export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => void): Promise<void> {
   // Guard: only run inside Tauri desktop app
-  if (!(window as any).__TAURI__) return;
+  if (!(window as any).__TAURI_INTERNALS__) return;
   if (isChecking) return;
 
   isChecking = true;

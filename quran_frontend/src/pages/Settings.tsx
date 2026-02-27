@@ -24,7 +24,7 @@ export default function Settings() {
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Update state (Tauri only)
-  const isTauri = !!(window as any).__TAURI__;
+  const isTauri = !!(window as any).__TAURI_INTERNALS__;
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
 
   const handleCheckForUpdates = useCallback(() => {
@@ -393,7 +393,7 @@ export default function Settings() {
                 Version
               </span>
               <span className={`font-mono font-medium ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-                v1.3.0
+                v1.3.1
               </span>
             </div>
 

@@ -1,0 +1,111 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: quran_frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: quran_frontend/src-tauri -> target
+
+      # --- Build Python sidecar ---
+      - name: Install Python dependencies
+        run: |
+          cd quran_backend
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build sidecar exe
+        run: |
+          cd quran_backend
+          pyinstaller QuranTrackBackend.spec
+
+      - name: Copy sidecar to Tauri binaries
+        run: |
+          copy quran_backend\dist\QuranTrackBackend.exe quran_frontend\src-tauri\binaries\quran-backend-x86_64-pc-windows-msvc.exe
+
+      # --- Build Tauri ---
+      - name: Install frontend dependencies
+        run: |
+          cd quran_frontend
+          npm ci
+
+      - name: Build Tauri app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          cd quran_frontend
+          npm run tauri:build
+
+      # --- Prepare release artifacts ---
+      - name: Read signature
+        id: sig
+        shell: bash
+        run: |
+          SIG=$(cat quran_frontend/src-tauri/target/release/bundle/nsis/*.exe.sig)
+          echo "signature=$SIG" >> "$GITHUB_OUTPUT"
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate latest.json
+        shell: bash
+        run: |
+          cat > quran_frontend/src-tauri/target/release/bundle/nsis/latest.json << EOF
+          {
+            "version": "${{ steps.sig.outputs.version }}",
+            "notes": "Release ${{ steps.sig.outputs.tag }}",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${{ steps.sig.outputs.signature }}",
+                "url": "https://github.com/Hamz115/Quran_App/releases/download/${{ steps.sig.outputs.tag }}/QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe"
+              }
+            }
+          }
+          EOF
+
+      # --- Create GitHub Release ---
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.sig.outputs.tag }}"
+          body: |
+            ## QuranTrack ${{ steps.sig.outputs.tag }}
+
+            **Windows:** Download `QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe` below and run it.
+
+            Existing users on v1.3.0+ will be prompted to update automatically.
+          files: |
+            quran_frontend/src-tauri/target/release/bundle/nsis/QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe
+            quran_frontend/src-tauri/target/release/bundle/nsis/QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe.sig
+            quran_frontend/src-tauri/target/release/bundle/nsis/latest.json
