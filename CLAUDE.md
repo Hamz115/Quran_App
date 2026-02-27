@@ -273,6 +273,24 @@ Every session bumps the version. Use this table to determine the next version nu
 - **ALWAYS use `git add .`** before committing
 - Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)
 
+### Releasing a New Version
+After committing and pushing a version bump, **always tag and push the tag** to trigger the automated release:
+```bash
+git tag v<VERSION>
+git push origin v<VERSION>
+```
+This triggers `.github/workflows/release.yml` which automatically:
+1. Builds the Python sidecar (PyInstaller)
+2. Builds the Tauri Windows installer (signed)
+3. Generates `latest.json` for the auto-updater
+4. Creates a GitHub Release with all artifacts uploaded
+
+**Also update `website/index.html`** download link to point to the new version if it's a user-facing release.
+
+Required GitHub secrets (already configured):
+- `TAURI_SIGNING_PRIVATE_KEY` — Tauri update signing key
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — `Hamza_quran2026`
+
 ### Code Safety
 - Never modify `quran.db`
 - Never move QPC words between pages
