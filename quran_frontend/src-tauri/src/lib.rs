@@ -9,11 +9,22 @@ struct SidecarState {
 
 #[tauri::command]
 fn kill_sidecar(state: tauri::State<'_, SidecarState>) {
+    // 1. Try killing via the stored child handle
     let maybe_child = state.child.lock().unwrap().take();
     if let Some(child) = maybe_child {
         let _ = child.kill();
-        eprintln!("[backend] sidecar killed before update");
+        eprintln!("[backend] child.kill() called");
     }
+
+    // 2. Force-kill by process name (belt and suspenders)
+    let _ = std::process::Command::new("taskkill")
+        .args(["/F", "/IM", "quran-backend.exe"])
+        .output();
+    eprintln!("[backend] taskkill /F executed");
+
+    // 3. Wait for Windows to fully release file handles
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    eprintln!("[backend] sidecar kill complete");
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -72,8 +83,11 @@ pub fn run() {
                 let maybe_child = state.child.lock().unwrap().take();
                 if let Some(child) = maybe_child {
                     let _ = child.kill();
-                    eprintln!("[backend] sidecar killed on window close");
                 }
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/IM", "quran-backend.exe"])
+                    .output();
+                eprintln!("[backend] sidecar killed on window close");
             }
         })
         .run(tauri::generate_context!())
