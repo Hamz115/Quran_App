@@ -22,15 +22,23 @@ Found the root cause of the CI failure after 7+ failed runs. The `externalBin` c
 - The CI was copying to `src-tauri/binaries/` — the WRONG location
 - Locally it worked because the binary existed at the correct path (`src-tauri/quran-backend-x86_64-pc-windows-msvc.exe`)
 
-### 2. Workflow Fix
+### 2. Workflow Fix — Sidecar Path
 - Changed copy destination from `src-tauri/binaries/quran-backend-x86_64-pc-windows-msvc.exe` to `src-tauri/quran-backend-x86_64-pc-windows-msvc.exe`
 - Updated verify step to check the correct path
 - Cleaned up debug output (removed unnecessary directory creation logic)
 
+### 3. Workflow Fix — Missing Frontend Env Vars
+- v1.3.1 CI build produced a blank app (dark background, no React content)
+- Root cause: `supabase.ts` throws `Missing Supabase environment variables` if `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` are not set at Vite build time
+- The frontend `.env.local` is gitignored, so CI had no Supabase config during `npm run build`
+- Fix: Added a "Write frontend .env" step to the workflow that writes the Supabase URL and anon key before the build
+- These are public values (anon key is RLS-secured) — same values already committed in `quran_mobile/.env`
+
 ## Issues Encountered
 
-- **Wrong sidecar path in CI (ROOT CAUSE)**: The `externalBin: ["quran-backend"]` config means Tauri looks for the binary at `src-tauri/quran-backend-{triple}.exe`, NOT in `src-tauri/binaries/`. All 7+ CI failures were caused by copying the binary to the wrong directory.
+- **Wrong sidecar path in CI (ROOT CAUSE #1)**: The `externalBin: ["quran-backend"]` config means Tauri looks for the binary at `src-tauri/quran-backend-{triple}.exe`, NOT in `src-tauri/binaries/`. All 7+ CI failures were caused by copying the binary to the wrong directory.
 - **Misleading local setup**: The binary existed at both `src-tauri/quran-backend-*.exe` and `src-tauri/binaries/quran-backend-*.exe` locally, which masked the path issue.
+- **Missing Supabase env vars in CI (ROOT CAUSE #2)**: The frontend `.env.local` is gitignored, so CI builds had no `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY`. This caused `supabase.ts` to throw on startup, resulting in a blank app.
 
 ## Files Changed
 
@@ -41,9 +49,9 @@ Found the root cause of the CI failure after 7+ failed runs. The `externalBin` c
 
 ## Next Steps
 
-- [ ] Commit and push the fix
-- [ ] Delete and recreate v1.3.1 tag
-- [ ] Verify CI run passes
+- [x] Commit and push the fix
+- [x] Delete and recreate v1.3.1 tag
+- [x] Verify CI run passes — **v1.3.1 release created successfully!**
 - [ ] Test auto-update on VM (install v1.3.0, verify it detects v1.3.1)
 
 ## Notes
