@@ -7,12 +7,22 @@ struct SidecarState {
     child: Mutex<Option<CommandChild>>,
 }
 
+#[tauri::command]
+fn kill_sidecar(state: tauri::State<'_, SidecarState>) {
+    let maybe_child = state.child.lock().unwrap().take();
+    if let Some(child) = maybe_child {
+        let _ = child.kill();
+        eprintln!("[backend] sidecar killed before update");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .invoke_handler(tauri::generate_handler![kill_sidecar])
         .manage(SidecarState {
             child: Mutex::new(None),
         })

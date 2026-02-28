@@ -59,6 +59,14 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       }
     });
 
+    // Kill the backend sidecar before restarting so the installer can overwrite it
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('kill_sidecar');
+    } catch (err) {
+      console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
+    }
+
     onEvent?.({ stage: 'restarting' });
     await relaunch();
   } catch (err) {
