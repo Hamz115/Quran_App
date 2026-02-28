@@ -70,6 +70,8 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('kill_sidecar');
+      // Give Windows time to fully terminate the process and release file handles
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (err) {
       console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
     }

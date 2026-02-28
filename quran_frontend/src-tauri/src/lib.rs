@@ -16,15 +16,11 @@ fn kill_sidecar(state: tauri::State<'_, SidecarState>) {
         eprintln!("[backend] child.kill() called");
     }
 
-    // 2. Force-kill by process name (belt and suspenders)
+    // 2. Force-kill by process name (fire-and-forget, don't wait)
     let _ = std::process::Command::new("taskkill")
         .args(["/F", "/IM", "quran-backend.exe"])
-        .output();
-    eprintln!("[backend] taskkill /F executed");
-
-    // 3. Wait for Windows to fully release file handles
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    eprintln!("[backend] sidecar kill complete");
+        .spawn();
+    eprintln!("[backend] taskkill /F dispatched");
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
