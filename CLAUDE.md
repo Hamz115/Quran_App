@@ -267,8 +267,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.3.5 | 2026-02-28 | Force-kill sidecar with taskkill + 2s delay | `2026-02-28-006` |
 | v1.3.6 | 2026-02-28 | Test release for sidecar kill + overlay verification | `2026-02-28-006` |
 | v1.3.7 | 2026-02-28 | Kill sidecar BEFORE downloadAndInstall, not after | `2026-02-28-007` |
+| v1.3.8 | 2026-02-28 | Test release for end-to-end update verification | `2026-02-28-007` |
 
-**Current version: v1.3.7**
+**Current version: v1.3.8**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
