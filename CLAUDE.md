@@ -276,20 +276,43 @@ Every session bumps the version. Use this table to determine the next version nu
 - Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)
 
 ### Releasing a New Version
-After committing and pushing a version bump, **always tag and push the tag** to trigger the automated release:
+
+Every release requires **5 files** to be version-bumped, then a commit + tag to trigger the build.
+
+**Step 1 — Bump version in these 5 files:**
+
+| # | File | What to change |
+|---|------|----------------|
+| 1 | `quran_frontend/src-tauri/tauri.conf.json` | `"version": "X.Y.Z"` — the auto-updater compares this |
+| 2 | `quran_frontend/package.json` | `"version": "X.Y.Z"` — keeps npm in sync |
+| 3 | `quran_frontend/src/pages/Settings.tsx` | `vX.Y.Z` string in App Info section |
+| 4 | `website/index.html` | Download URL + version text (2 spots: href and display text) |
+| 5 | `CLAUDE.md` | Version history table + "Current version" line |
+
+**Step 2 — Commit and push:**
 ```bash
-git tag v<VERSION>
-git push origin v<VERSION>
+git add .
+git commit -m "feat: description here (vX.Y.Z)"
+git push
 ```
-This triggers `.github/workflows/release.yml` which automatically:
-1. Builds the Python sidecar (PyInstaller)
-2. Builds the Tauri Windows installer (signed)
+
+**Step 3 — Tag and push tag (this triggers the build):**
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+**What happens automatically after the tag push:**
+
+The tag triggers `.github/workflows/release.yml` which:
+1. Builds the Python sidecar (PyInstaller → `quran-backend.exe`)
+2. Builds the Tauri Windows installer (signed: `QuranTrack_X.Y.Z_x64-setup.exe`)
 3. Generates `latest.json` for the auto-updater
-4. Creates a GitHub Release with all artifacts uploaded
+4. Creates a GitHub Release with all 3 artifacts uploaded
 
-**Also update `website/index.html`** download link to point to the new version if it's a user-facing release.
+Existing installs detect the new version on next launch and prompt to update.
 
-Required GitHub secrets (already configured):
+**Required GitHub secrets (already configured):**
 - `TAURI_SIGNING_PRIVATE_KEY` — Tauri update signing key
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — `Hamza_quran2026`
 
