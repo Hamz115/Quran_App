@@ -98,7 +98,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: quran_frontend
-          tauriScript: npm run tauri:build --
           tagName: ${{ github.ref_name }}
           releaseName: '${{ github.ref_name }}'
           releaseBody: |
