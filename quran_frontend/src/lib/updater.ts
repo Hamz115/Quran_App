@@ -2,9 +2,26 @@
  * Tauri auto-updater integration.
  * Checks GitHub Releases for new versions and prompts the user to install.
  * No-op when running in a regular browser (non-Tauri context).
+ *
+ * Broadcasts update status globally so any component (e.g. UpdateOverlay)
+ * can subscribe via onUpdateStatus().
  */
 
 let isChecking = false;
+
+// Global listeners for update status (used by UpdateOverlay in App.tsx)
+type StatusListener = (status: UpdateStatus) => void;
+const listeners: Set<StatusListener> = new Set();
+
+/** Subscribe to update status changes. Returns unsubscribe function. */
+export function onUpdateStatus(fn: StatusListener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function broadcast(status: UpdateStatus) {
+  listeners.forEach(fn => fn(status));
+}
 
 export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => void): Promise<void> {
   // Guard: only run inside Tauri desktop app
@@ -13,17 +30,22 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
 
   isChecking = true;
 
+  const emit = (status: UpdateStatus) => {
+    onEvent?.(status);
+    broadcast(status);
+  };
+
   try {
     const { check } = await import('@tauri-apps/plugin-updater');
     const { ask } = await import('@tauri-apps/plugin-dialog');
     const { relaunch } = await import('@tauri-apps/plugin-process');
 
-    onEvent?.({ stage: 'checking' });
+    emit({ stage: 'checking' });
 
     const update = await check();
 
     if (!update) {
-      onEvent?.({ stage: 'upToDate' });
+      emit({ stage: 'upToDate' });
       return;
     }
 
@@ -38,11 +60,11 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
     );
 
     if (!userConfirmed) {
-      onEvent?.({ stage: 'dismissed' });
+      emit({ stage: 'dismissed' });
       return;
     }
 
-    onEvent?.({ stage: 'downloading', progress: 0 });
+    emit({ stage: 'downloading', progress: 0 });
 
     let totalLength = 0;
     let downloaded = 0;
@@ -53,9 +75,9 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       } else if (event.event === 'Progress') {
         downloaded += event.data.chunkLength;
         const pct = totalLength > 0 ? Math.round((downloaded / totalLength) * 100) : 0;
-        onEvent?.({ stage: 'downloading', progress: pct });
+        emit({ stage: 'downloading', progress: pct });
       } else if (event.event === 'Finished') {
-        onEvent?.({ stage: 'installing' });
+        emit({ stage: 'installing' });
       }
     });
 
@@ -67,11 +89,11 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
     }
 
-    onEvent?.({ stage: 'restarting' });
+    emit({ stage: 'restarting' });
     await relaunch();
   } catch (err) {
     console.error('[updater] Failed to check for updates:', err);
-    onEvent?.({ stage: 'error', error: String(err) });
+    emit({ stage: 'error', error: String(err) });
   } finally {
     isChecking = false;
   }
