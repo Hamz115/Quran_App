@@ -261,8 +261,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.2.4 | 2026-02-26 | Remove demo accounts from web and Flutter login pages | `2026-02-26-005` |
 | v1.3.0 | 2026-02-27 | Auto-update system for Tauri desktop + Flutter mobile | `2026-02-27-002` |
 | v1.3.1 | 2026-02-28 | Fix Tauri v2 detection + GitHub Actions release workflow | `2026-02-28-001` |
+| v1.3.2 | 2026-02-28 | Settings page redesign | `2026-02-28-003` |
 
-**Current version: v1.3.1**
+**Current version: v1.3.2**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
