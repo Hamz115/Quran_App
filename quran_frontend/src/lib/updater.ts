@@ -64,7 +64,15 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       return;
     }
 
+    // Kill the backend sidecar BEFORE downloadAndInstall —
+    // the install phase runs the NSIS installer which needs the file unlocked
     emit({ stage: 'downloading', progress: 0 });
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('kill_sidecar');
+    } catch (err) {
+      console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
+    }
 
     let totalLength = 0;
     let downloaded = 0;
@@ -80,14 +88,6 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
         emit({ stage: 'installing' });
       }
     });
-
-    // Kill the backend sidecar before restarting so the installer can overwrite it
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('kill_sidecar');
-    } catch (err) {
-      console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
-    }
 
     emit({ stage: 'restarting' });
     await relaunch();
