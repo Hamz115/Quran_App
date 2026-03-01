@@ -6,7 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  build-and-release:
+  # --- Tauri Desktop Build (Windows) ---
+  build-tauri:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -148,7 +149,7 @@ jobs:
           }
           EOF
 
-      - name: Create Release
+      - name: Upload Tauri artifacts
         uses: softprops/action-gh-release@v2
         with:
           name: "${{ steps.sig.outputs.tag }}"
@@ -156,9 +157,69 @@ jobs:
             ## QuranTrack ${{ steps.sig.outputs.tag }}
 
             **Windows:** Download `QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe` below and run it.
+            **Android:** Download `QuranTrack_${{ steps.sig.outputs.version }}.apk` below and install it.
 
             Existing users on v1.3.0+ will be prompted to update automatically.
           files: |
             quran_frontend/src-tauri/target/release/bundle/nsis/QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe
             quran_frontend/src-tauri/target/release/bundle/nsis/QuranTrack_${{ steps.sig.outputs.version }}_x64-setup.exe.sig
             quran_frontend/src-tauri/target/release/bundle/nsis/latest.json
+
+  # --- Flutter Android Build (Ubuntu) ---
+  build-flutter:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.4'
+          channel: 'stable'
+
+      - name: Write mobile .env
+        shell: bash
+        run: |
+          cat > quran_mobile/.env << 'ENVEOF'
+          SUPABASE_URL=https://qwfnbkkegbhwxxjvyhzl.supabase.co
+          SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3Zm5ia2tlZ2Jod3h4anZ5aHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTUyNTcsImV4cCI6MjA4NDM5MTI1N30.Cjl0l5IteO9mpTQ_GV8cfYsd_fEAYOgpSt0LJJQ1jfE
+          ENVEOF
+
+      - name: Get dependencies
+        run: |
+          cd quran_mobile
+          flutter pub get
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK
+        run: |
+          cd quran_mobile
+          flutter build apk --release
+
+      - name: Rename APK
+        run: |
+          mv quran_mobile/build/app/outputs/flutter-apk/app-release.apk quran_mobile/build/app/outputs/flutter-apk/QuranTrack_${{ steps.version.outputs.version }}.apk
+
+      - name: Upload Flutter APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            quran_mobile/build/app/outputs/flutter-apk/QuranTrack_${{ steps.version.outputs.version }}.apk
