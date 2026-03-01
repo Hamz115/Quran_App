@@ -272,8 +272,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.3.10 | 2026-02-28 | End-to-end update test: overlay + sidecar kill | `2026-02-28-008` |
 | v1.3.11 | 2026-02-28 | Clean release for update test (v1.3.10 release was broken by tag recreation) | `2026-02-28-008` |
 | v1.3.12 | 2026-03-01 | End-to-end update test: sidecar kill + overlay | `2026-02-28-009` |
+| v1.3.13 | 2026-03-02 | Flutter CI/CD pipeline test + Android download on website | `2026-03-02-001` |
 
-**Current version: v1.3.12**
+**Current version: v1.3.13**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
