@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { checkForAppUpdates, onUpdateStatus, type UpdateStatus } from './lib/updater';
+import { checkForAppUpdates, onUpdateStatus, cancelUpdate, type UpdateStatus } from './lib/updater';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -19,6 +19,13 @@ import StudentClasses from './pages/StudentClasses';
 import Classroom from './pages/Classroom';
 import QuranReader from './pages/QuranReader';
 
+/** Format bytes to human-readable string */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /** Fullscreen overlay shown during update download/install */
 function UpdateOverlay() {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
@@ -27,14 +34,41 @@ function UpdateOverlay() {
     return onUpdateStatus(setStatus);
   }, []);
 
-  // Only show overlay during active download/install/restart
+  // Only show overlay during active download/install/restart/error
   if (!status) return null;
-  if (status.stage !== 'downloading' && status.stage !== 'installing' && status.stage !== 'restarting') return null;
+  const showStages = ['downloading', 'installing', 'restarting', 'error'];
+  if (!showStages.includes(status.stage)) return null;
 
-  const progress = status.stage === 'downloading' ? status.progress : 100;
+  // Error state
+  if (status.stage === 'error') {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-6 px-8">
+          <svg className="w-16 h-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4m0 4h.01" />
+          </svg>
+          <p className="text-xl font-semibold text-white">Update Failed</p>
+          <p className="text-sm text-slate-400 text-center max-w-xs">{status.error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2.5 rounded-lg bg-cyan-500 text-white font-medium hover:bg-cyan-600 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isDownloading = status.stage === 'downloading';
+  const isIndeterminate = isDownloading && status.progress < 0;
+  const progress = isDownloading ? (isIndeterminate ? 0 : status.progress) : 100;
+  const downloadedBytes = isDownloading ? status.downloadedBytes : 0;
+
   const label =
     status.stage === 'downloading' ? 'Downloading update...' :
-    status.stage === 'installing' ? 'Installing update...' :
+    status.stage === 'installing' ? 'Installing update — do not close the app' :
     'Restarting...';
 
   return (
@@ -54,13 +88,19 @@ function UpdateOverlay() {
         {/* Progress bar */}
         <div className="w-72 sm:w-96">
           <div className="h-3 rounded-full bg-slate-700 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-teal-400 transition-all duration-300 ease-out"
-              style={{ width: `${progress}%` }}
-            />
+            {isIndeterminate ? (
+              <div className="h-full w-1/3 rounded-full bg-gradient-to-r from-cyan-500 to-teal-400 animate-[indeterminate_1.5s_ease-in-out_infinite]" />
+            ) : (
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-teal-400 transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            )}
           </div>
           <p className="mt-2 text-center text-sm font-mono text-slate-400">
-            {progress}%
+            {isIndeterminate
+              ? `${formatBytes(downloadedBytes)} downloaded`
+              : `${progress}%`}
           </p>
         </div>
 
@@ -68,8 +108,20 @@ function UpdateOverlay() {
         <p className="text-sm text-slate-500 text-center max-w-xs">
           {status.stage === 'restarting'
             ? 'The app will restart momentarily.'
+            : status.stage === 'installing'
+            ? 'Please wait — do not close the app.'
             : 'Please wait — the app will restart automatically.'}
         </p>
+
+        {/* Cancel button — only during download */}
+        {isDownloading && (
+          <button
+            onClick={cancelUpdate}
+            className="mt-2 px-5 py-2 rounded-lg border border-slate-600 text-slate-400 text-sm font-medium hover:bg-slate-800 hover:text-slate-300 transition-colors"
+          >
+            Cancel Update
+          </button>
+        )}
       </div>
     </div>
   );

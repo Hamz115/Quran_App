@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
-import '../../../core/network/connectivity_service.dart';
-import '../../../core/sync/sync_service.dart';
 import '../../../core/services/update_service.dart';
-import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
@@ -25,10 +21,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isCheckingUpdate = false;
   final UpdateService _updateService = UpdateService();
 
+  // Change password state
+  bool _showPasswordForm = false;
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _passwordLoading = false;
+  String? _passwordError;
+  bool _passwordSuccess = false;
+
   @override
   void initState() {
     super.initState();
     _loadVersion();
+  }
+
+  @override
+  void dispose() {
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadVersion() async {
@@ -80,10 +91,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _handlePasswordChange() async {
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+
+    setState(() {
+      _passwordError = null;
+      _passwordSuccess = false;
+    });
+
+    if (newPassword != confirmPassword) {
+      setState(() => _passwordError = 'Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setState(() => _passwordError = 'Password must be at least 8 characters');
+      return;
+    }
+
+    setState(() => _passwordLoading = true);
+
+    try {
+      await ref.read(authProvider.notifier).updatePassword(newPassword);
+      if (mounted) {
+        setState(() {
+          _passwordSuccess = true;
+          _newPasswordController.clear();
+          _confirmPasswordController.clear();
+        });
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _passwordSuccess = false;
+              _showPasswordForm = false;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _passwordError = e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _passwordLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final syncState = ref.watch(syncStateProvider);
-    final connectivity = ref.watch(connectivityStreamProvider);
     final isDarkMode = ref.watch(themeProvider);
 
     return Scaffold(
@@ -104,39 +161,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Manage sync and app settings',
+                'Manage your account and app settings',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary(isDarkMode)),
               ),
               const SizedBox(height: 32),
 
-              // Appearance Section
-              Text(
-                'APPEARANCE',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted(isDarkMode),
-                  letterSpacing: 1,
-                ),
-              ),
+              // ── Appearance Section ──
+              _sectionHeader('APPEARANCE', isDarkMode),
               const SizedBox(height: 12),
 
               GlassmorphicCard(
                 padding: const EdgeInsets.all(0),
                 child: ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? AppColors.cyan500.withOpacity(0.2)
-                          : AppColors.cyan100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                      color: AppColors.cyan500,
-                      size: 20,
-                    ),
+                  leading: _iconBox(
+                    isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    AppColors.cyan500,
+                    isDarkMode,
                   ),
                   title: Text(
                     'Theme',
@@ -157,166 +197,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
               const SizedBox(height: 32),
 
-              // Sync Section
-              Text(
-                'SYNC',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted(isDarkMode),
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: Column(
-                  children: [
-                    // Connection status
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: connectivity.when(
-                            data: (status) => status == NetworkStatus.online
-                                ? AppTheme.emerald500.withOpacity(0.2)
-                                : AppTheme.slate700,
-                            loading: () => AppTheme.slate700,
-                            error: (_, __) => AppTheme.error.withOpacity(0.2),
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          connectivity.when(
-                            data: (status) => status == NetworkStatus.online
-                                ? Icons.wifi_rounded
-                                : Icons.wifi_off_rounded,
-                            loading: () => Icons.wifi_rounded,
-                            error: (_, __) => Icons.error_outline_rounded,
-                          ),
-                          color: connectivity.when(
-                            data: (status) => status == NetworkStatus.online
-                                ? AppTheme.emerald400
-                                : AppTheme.slate400,
-                            loading: () => AppTheme.slate400,
-                            error: (_, __) => AppTheme.error,
-                          ),
-                          size: 20,
-                        ),
-                      ),
-                      title: const Text(
-                        'Connection Status',
-                        style: TextStyle(color: AppTheme.slate200),
-                      ),
-                      subtitle: Text(
-                        connectivity.when(
-                          data: (status) => status == NetworkStatus.online ? 'Online' : 'Offline',
-                          loading: () => 'Checking...',
-                          error: (_, __) => 'Error',
-                        ),
-                        style: TextStyle(
-                          color: connectivity.when(
-                            data: (status) => status == NetworkStatus.online
-                                ? AppTheme.emerald400
-                                : AppTheme.slate500,
-                            loading: () => AppTheme.slate500,
-                            error: (_, __) => AppTheme.error,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Divider(color: AppTheme.slate700.withOpacity(0.5), height: 1),
-
-                    // Sync status
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.slate700,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: syncState.when(
-                          data: (state) {
-                            if (state == SyncState.syncing) {
-                              return const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppTheme.emerald400,
-                                ),
-                              );
-                            }
-                            return Icon(
-                              state == SyncState.success
-                                  ? Icons.cloud_done_rounded
-                                  : state == SyncState.error
-                                      ? Icons.cloud_off_rounded
-                                      : Icons.cloud_sync_rounded,
-                              color: state == SyncState.success
-                                  ? AppTheme.emerald400
-                                  : state == SyncState.error
-                                      ? AppTheme.error
-                                      : AppTheme.slate400,
-                              size: 20,
-                            );
-                          },
-                          loading: () => const Icon(Icons.cloud_sync_rounded, color: AppTheme.slate400, size: 20),
-                          error: (_, __) => const Icon(Icons.cloud_off_rounded, color: AppTheme.error, size: 20),
-                        ),
-                      ),
-                      title: const Text(
-                        'Sync Status',
-                        style: TextStyle(color: AppTheme.slate200),
-                      ),
-                      subtitle: Text(
-                        syncState.when(
-                          data: (state) {
-                            switch (state) {
-                              case SyncState.syncing:
-                                return 'Syncing...';
-                              case SyncState.success:
-                                return 'All synced';
-                              case SyncState.error:
-                                return 'Sync failed';
-                              default:
-                                return 'Tap to sync';
-                            }
-                          },
-                          loading: () => 'Checking...',
-                          error: (_, __) => 'Error',
-                        ),
-                        style: const TextStyle(color: AppTheme.slate500),
-                      ),
-                      trailing: SizedBox(
-                        width: 100,
-                        child: ElevatedButton(
-                          onPressed: () => ref.read(syncServiceProvider).sync(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.emerald500,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: const Text('Sync Now'),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Server Section
-              const Text(
-                'SERVER',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.slate500,
-                  letterSpacing: 1,
-                ),
-              ),
+              // ── About Section ──
+              _sectionHeader('ABOUT', isDarkMode),
               const SizedBox(height: 12),
 
               GlassmorphicCard(
@@ -324,57 +206,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.slate700,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.dns_rounded, color: AppTheme.slate400, size: 20),
-                      ),
-                      title: const Text(
-                        'Server URL',
-                        style: TextStyle(color: AppTheme.slate200),
-                      ),
-                      subtitle: Text(
-                        ref.watch(apiClientProvider).baseUrl,
-                        style: const TextStyle(color: AppTheme.slate500, fontSize: 12),
-                      ),
-                      trailing: IconButton(
-                        onPressed: () => _showServerUrlDialog(context),
-                        icon: const Icon(Icons.edit_rounded, color: AppTheme.slate400),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // About Section
-              const Text(
-                'ABOUT',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.slate500,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.emerald500.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.menu_book_rounded, color: AppTheme.emerald400, size: 20),
+                      leading: _iconBox(
+                        Icons.menu_book_rounded,
+                        AppColors.teal500,
+                        isDarkMode,
                       ),
                       title: Text(
                         'QuranTrack',
@@ -387,29 +222,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
                     ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? AppColors.cyan500.withOpacity(0.2)
-                              : AppColors.cyan100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: _isCheckingUpdate
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.cyan500,
-                                ),
-                              )
-                            : Icon(
-                                Icons.system_update_rounded,
-                                color: AppColors.cyan500,
-                                size: 20,
-                              ),
-                      ),
+                      leading: _isCheckingUpdate
+                          ? _loadingIconBox(AppColors.cyan500, isDarkMode)
+                          : _iconBox(Icons.system_update_rounded, AppColors.cyan500, isDarkMode),
                       title: Text(
                         'Check for Updates',
                         style: TextStyle(color: AppColors.text(isDarkMode)),
@@ -420,7 +235,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             : 'Tap to check for new versions',
                         style: TextStyle(
                           color: _updateStatusText == 'Up to date!'
-                              ? AppTheme.emerald400
+                              ? AppColors.teal500
                               : _updateStatusText == 'Check failed'
                                   ? AppColors.error
                                   : AppColors.textSecondary(isDarkMode),
@@ -438,45 +253,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ),
                     ),
-                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isDarkMode ? AppTheme.slate700 : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.storage_rounded,
-                          color: AppColors.textMuted(isDarkMode),
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        'Database',
-                        style: TextStyle(color: AppColors.text(isDarkMode)),
-                      ),
-                      subtitle: Text(
-                        'SQLite (Local + Sync)',
-                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
-                      ),
-                    ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 32),
 
-              // Account Section
-              Text(
-                'ACCOUNT',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted(isDarkMode),
-                  letterSpacing: 1,
-                ),
-              ),
+              // ── Account Section ──
+              _sectionHeader('ACCOUNT', isDarkMode),
               const SizedBox(height: 12),
 
               GlassmorphicCard(
@@ -489,19 +273,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         final authState = ref.watch(authProvider);
                         final user = authState.user;
                         return ListTile(
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: isDarkMode
-                                  ? AppColors.cyan500.withOpacity(0.2)
-                                  : AppColors.cyan100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: AppColors.cyan500,
-                              size: 20,
-                            ),
+                          leading: _iconBox(
+                            Icons.person_rounded,
+                            AppColors.cyan500,
+                            isDarkMode,
                           ),
                           title: Text(
                             user?.email ?? 'Not signed in',
@@ -521,19 +296,170 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
-                    // Logout button
+
+                    // Change Password toggle
                     ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
+                      leading: _iconBox(
+                        Icons.lock_rounded,
+                        Colors.purple,
+                        isDarkMode,
+                      ),
+                      title: Text(
+                        'Change Password',
+                        style: TextStyle(color: AppColors.text(isDarkMode)),
+                      ),
+                      subtitle: Text(
+                        _showPasswordForm ? 'Enter your new password below' : 'Tap to change your password',
+                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                      ),
+                      trailing: Icon(
+                        _showPasswordForm ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textSecondary(isDarkMode),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          _showPasswordForm = !_showPasswordForm;
+                          if (!_showPasswordForm) {
+                            _newPasswordController.clear();
+                            _confirmPasswordController.clear();
+                            _passwordError = null;
+                            _passwordSuccess = false;
+                          }
+                        });
+                      },
+                    ),
+
+                    // Collapsible password form
+                    if (_showPasswordForm) ...[
+                      Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_passwordError != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  _passwordError!,
+                                  style: TextStyle(color: AppColors.error, fontSize: 13),
+                                ),
+                              ),
+                            if (_passwordSuccess)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.teal500.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.teal500.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  'Password changed successfully!',
+                                  style: TextStyle(color: AppColors.teal500, fontSize: 13),
+                                ),
+                              ),
+                            TextField(
+                              controller: _newPasswordController,
+                              obscureText: true,
+                              style: TextStyle(color: AppColors.text(isDarkMode)),
+                              decoration: InputDecoration(
+                                labelText: 'New Password',
+                                hintText: 'Enter new password (8+ characters)',
+                                labelStyle: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                                hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColors.border(isDarkMode)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColors.cyan500),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _confirmPasswordController,
+                              obscureText: true,
+                              style: TextStyle(color: AppColors.text(isDarkMode)),
+                              decoration: InputDecoration(
+                                labelText: 'Confirm New Password',
+                                hintText: 'Confirm new password',
+                                labelStyle: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                                hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColors.border(isDarkMode)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColors.cyan500),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _passwordLoading ? null : _handlePasswordChange,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.cyan500,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: _passwordLoading
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Text('Update Password'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showPasswordForm = false;
+                                      _newPasswordController.clear();
+                                      _confirmPasswordController.clear();
+                                      _passwordError = null;
+                                      _passwordSuccess = false;
+                                    });
+                                  },
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.logout_rounded,
-                          color: AppColors.error,
-                          size: 20,
-                        ),
+                      ),
+                    ],
+
+                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+
+                    // Sign out
+                    ListTile(
+                      leading: _iconBox(
+                        Icons.logout_rounded,
+                        AppColors.error,
+                        isDarkMode,
                       ),
                       title: Text(
                         'Sign Out',
@@ -559,57 +485,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
-
-              // Danger Zone Section
-              Text(
-                'DANGER ZONE',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.error,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.error.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.delete_forever_rounded, color: AppTheme.error, size: 20),
-                      ),
-                      title: const Text(
-                        'Delete All Mistakes',
-                        style: TextStyle(color: AppTheme.slate200),
-                      ),
-                      subtitle: const Text(
-                        'Remove all tracked mistakes',
-                        style: TextStyle(color: AppTheme.slate500),
-                      ),
-                      trailing: SizedBox(
-                        width: 100,
-                        child: ElevatedButton(
-                          onPressed: () => _showDeleteAllMistakesDialog(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.error,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: const Text('Delete All'),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 40),
             ],
           ),
@@ -618,69 +493,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showDeleteAllMistakesDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.slate800,
-        title: const Text('Delete All Mistakes?', style: TextStyle(color: AppTheme.error)),
-        content: const Text(
-          'This will permanently delete ALL tracked mistakes. This action cannot be undone.',
-          style: TextStyle(color: AppTheme.slate300),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(mistakesProvider.notifier).deleteAllMistakes();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All mistakes deleted')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            child: const Text('Delete All'),
-          ),
-        ],
+  // ── Helper widgets ──
+
+  Widget _sectionHeader(String title, bool isDarkMode) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted(isDarkMode),
+        letterSpacing: 1,
       ),
     );
   }
 
-  void _showServerUrlDialog(BuildContext context) {
-    final currentUrl = ref.read(apiClientProvider).baseUrl;
-    final controller = TextEditingController(text: currentUrl);
+  Widget _iconBox(IconData icon, Color color, bool isDarkMode) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDarkMode ? 0.2 : 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.slate800,
-        title: const Text('Server URL'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'http://192.168.x.x:8000/api',
-            labelText: 'URL',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref.read(apiClientProvider).setBaseUrl(controller.text);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Server URL updated to: ${controller.text}')),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
+  Widget _loadingIconBox(Color color, bool isDarkMode) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDarkMode ? 0.2 : 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2, color: color),
       ),
     );
   }

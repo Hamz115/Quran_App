@@ -8,6 +8,7 @@
  */
 
 let isChecking = false;
+let cancelRequested = false;
 
 // Global listeners for update status (used by UpdateOverlay in App.tsx)
 type StatusListener = (status: UpdateStatus) => void;
@@ -23,12 +24,19 @@ function broadcast(status: UpdateStatus) {
   listeners.forEach(fn => fn(status));
 }
 
+/** Called by the Cancel button in UpdateOverlay */
+export function cancelUpdate() {
+  cancelRequested = true;
+  broadcast({ stage: 'cancelled' });
+}
+
 export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => void): Promise<void> {
   // Guard: only run inside Tauri desktop app
   if (!(window as any).__TAURI_INTERNALS__) return;
   if (isChecking) return;
 
   isChecking = true;
+  cancelRequested = false;
 
   const emit = (status: UpdateStatus) => {
     onEvent?.(status);
@@ -64,48 +72,84 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       return;
     }
 
-    // Kill the backend sidecar BEFORE downloadAndInstall —
-    // the install phase runs the NSIS installer which needs the file unlocked
-    emit({ stage: 'downloading', progress: 0 });
+    // Show downloading overlay — sidecar is still running, app is functional
+    emit({ stage: 'downloading', progress: -1, downloadedBytes: 0 });
+
+    // Download timeout: 90 seconds with no progress = abort
+    let lastProgressTime = Date.now();
+    const TIMEOUT_MS = 90_000;
+
+    let totalLength = 0;
+    let downloaded = 0;
+
+    const timeoutCheck = setInterval(() => {
+      if (cancelRequested) {
+        clearInterval(timeoutCheck);
+        return;
+      }
+      if (Date.now() - lastProgressTime > TIMEOUT_MS) {
+        clearInterval(timeoutCheck);
+        emit({ stage: 'error', error: 'Download timed out. Please try again later.' });
+        isChecking = false;
+      }
+    }, 5000);
+
+    try {
+      await update.downloadAndInstall((event) => {
+        if (cancelRequested) return;
+
+        lastProgressTime = Date.now();
+
+        if (event.event === 'Started' && event.data.contentLength) {
+          totalLength = event.data.contentLength;
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          // If we know total length, show percentage; otherwise show -1 (indeterminate)
+          const pct = totalLength > 0 ? Math.round((downloaded / totalLength) * 100) : -1;
+          emit({ stage: 'downloading', progress: pct, downloadedBytes: downloaded });
+        } else if (event.event === 'Finished') {
+          clearInterval(timeoutCheck);
+          emit({ stage: 'installing' });
+        }
+      });
+    } finally {
+      clearInterval(timeoutCheck);
+    }
+
+    if (cancelRequested) {
+      return;
+    }
+
+    // Kill the backend sidecar NOW — right before install/relaunch
+    // The download is done, installer needs the file unlocked
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('kill_sidecar');
-      // Give Windows time to fully terminate the process and release file handles
+      // Give Windows time to fully release file handles
       await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (err) {
       console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
     }
 
-    let totalLength = 0;
-    let downloaded = 0;
-
-    await update.downloadAndInstall((event) => {
-      if (event.event === 'Started' && event.data.contentLength) {
-        totalLength = event.data.contentLength;
-      } else if (event.event === 'Progress') {
-        downloaded += event.data.chunkLength;
-        const pct = totalLength > 0 ? Math.round((downloaded / totalLength) * 100) : 0;
-        emit({ stage: 'downloading', progress: pct });
-      } else if (event.event === 'Finished') {
-        emit({ stage: 'installing' });
-      }
-    });
-
     emit({ stage: 'restarting' });
     await relaunch();
   } catch (err) {
-    console.error('[updater] Failed to check for updates:', err);
-    emit({ stage: 'error', error: String(err) });
+    if (!cancelRequested) {
+      console.error('[updater] Failed to check for updates:', err);
+      emit({ stage: 'error', error: String(err) });
+    }
   } finally {
     isChecking = false;
+    cancelRequested = false;
   }
 }
 
 export type UpdateStatus =
   | { stage: 'checking' }
   | { stage: 'upToDate' }
-  | { stage: 'downloading'; progress: number }
+  | { stage: 'downloading'; progress: number; downloadedBytes: number }
   | { stage: 'installing' }
   | { stage: 'restarting' }
   | { stage: 'dismissed' }
+  | { stage: 'cancelled' }
   | { stage: 'error'; error: string };

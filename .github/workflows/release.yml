@@ -187,6 +187,20 @@ jobs:
           flutter-version: '3.38.4'
           channel: 'stable'
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Download database files from S3
+        run: |
+          mkdir -p quran_mobile/assets/databases
+          aws s3 cp s3://qurantrack.hamzas.world/ci-data/quran.db quran_mobile/assets/databases/quran.db
+          aws s3 cp s3://qurantrack.hamzas.world/ci-data/qpc-v2.db quran_mobile/assets/databases/qpc-v2.db
+          aws s3 cp s3://qurantrack.hamzas.world/ci-data/qpc-v2-15-lines.db quran_mobile/assets/databases/qpc-v2-15-lines.db
+
       - name: Write mobile .env
         shell: bash
         run: |
