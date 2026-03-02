@@ -94,8 +94,9 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       }
     }, 5000);
 
+    // Step 1: DOWNLOAD only (does NOT install yet)
     try {
-      await update.downloadAndInstall((event) => {
+      await update.download((event) => {
         if (cancelRequested) return;
 
         lastProgressTime = Date.now();
@@ -109,7 +110,6 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
           emit({ stage: 'downloading', progress: pct, downloadedBytes: downloaded });
         } else if (event.event === 'Finished') {
           clearInterval(timeoutCheck);
-          emit({ stage: 'installing' });
         }
       });
     } finally {
@@ -120,8 +120,9 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
       return;
     }
 
-    // Kill the backend sidecar NOW — right before install/relaunch
-    // The download is done, installer needs the file unlocked
+    // Step 2: Kill the backend sidecar AFTER download, BEFORE install
+    // The NSIS installer needs the file unlocked to overwrite quran-backend.exe
+    emit({ stage: 'installing' });
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('kill_sidecar');
@@ -130,6 +131,10 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
     } catch (err) {
       console.warn('[updater] Failed to kill sidecar (non-blocking):', err);
     }
+
+    // Step 3: INSTALL — sidecar is dead, NSIS can overwrite the exe
+    // The NSIS hook (hooks.nsh) also runs taskkill as a safety net
+    await update.install();
 
     emit({ stage: 'restarting' });
     await relaunch();
