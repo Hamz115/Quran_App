@@ -209,6 +209,19 @@ jobs:
           SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3Zm5ia2tlZ2Jod3h4anZ5aHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTUyNTcsImV4cCI6MjA4NDM5MTI1N30.Cjl0l5IteO9mpTQ_GV8cfYsd_fEAYOgpSt0LJJQ1jfE
           ENVEOF
 
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > quran_mobile/android/app/upload-keystore.jks
+
+      - name: Write key.properties
+        run: |
+          cat > quran_mobile/android/key.properties << 'EOF'
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=upload
+          storeFile=app/upload-keystore.jks
+          EOF
+
       - name: Get dependencies
         run: |
           cd quran_mobile
