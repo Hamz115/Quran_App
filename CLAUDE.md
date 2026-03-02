@@ -294,17 +294,18 @@ Every session bumps the version. Use this table to determine the next version nu
 
 ### Releasing a New Version
 
-Every release requires **5 files** to be version-bumped, then a commit + tag to trigger the build.
+Every release requires **6 files** to be version-bumped, then a commit + tag to trigger the build.
 
-**Step 1 — Bump version in these 5 files:**
+**Step 1 — Bump version in these 6 files:**
 
 | # | File | What to change |
 |---|------|----------------|
 | 1 | `quran_frontend/src-tauri/tauri.conf.json` | `"version": "X.Y.Z"` — the auto-updater compares this |
 | 2 | `quran_frontend/package.json` | `"version": "X.Y.Z"` — keeps npm in sync |
 | 3 | `quran_frontend/src/pages/Settings.tsx` | `vX.Y.Z` string in App Info section |
-| 4 | `website/index.html` | Download URL + version text (2 spots: href and display text) |
-| 5 | `CLAUDE.md` | Version history table + "Current version" line |
+| 4 | `quran_mobile/pubspec.yaml` | `version: X.Y.Z+1` — Flutter version |
+| 5 | `website/index.html` | Download URL + version text (2 spots: href and display text) |
+| 6 | `CLAUDE.md` | Version history table + "Current version" line |
 
 **Step 2 — Commit and push:**
 ```bash
@@ -321,17 +322,30 @@ git push origin vX.Y.Z
 
 **What happens automatically after the tag push:**
 
-The tag triggers `.github/workflows/release.yml` which:
-1. Builds the Python sidecar (PyInstaller → `quran-backend.exe`)
-2. Builds the Tauri Windows installer (signed: `QuranTrack_X.Y.Z_x64-setup.exe`)
-3. Generates `latest.json` for the auto-updater
-4. Creates a GitHub Release with all 3 artifacts uploaded
+The tag triggers `.github/workflows/release.yml` which runs **two parallel jobs**:
+1. **Tauri (Windows):** Builds Python sidecar (PyInstaller) → Tauri installer (`QuranTrack_X.Y.Z_x64-setup.exe`) → `latest.json` for auto-updater
+2. **Flutter (Android):** Decodes release keystore from secrets → builds release APK (`QuranTrack_X.Y.Z.apk`)
+3. Both artifacts are uploaded to the same GitHub Release
 
-Existing installs detect the new version on next launch and prompt to update.
+Existing installs detect the new version on next launch and prompt to update (Tauri via `latest.json`, Flutter via GitHub Releases API).
 
 **Required GitHub secrets (already configured):**
 - `TAURI_SIGNING_PRIVATE_KEY` — Tauri update signing key
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — `Hamza_quran2026`
+- `ANDROID_KEYSTORE_BASE64` — Release keystore (base64-encoded `.jks`)
+- `ANDROID_KEYSTORE_PASSWORD` — Keystore store password
+- `ANDROID_KEY_PASSWORD` — Keystore key password
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — S3 access for database files
+
+### Android APK Signing (one-time setup, already done)
+
+Flutter APKs are signed with a **persistent release keystore** so OTA updates work. This was set up once and requires no maintenance:
+
+- **Keystore file:** `quran_mobile/android/app/upload-keystore.jks` (gitignored, 27-year validity)
+- **Local config:** `quran_mobile/android/key.properties` (gitignored, points to keystore)
+- **CI config:** `release.yml` decodes keystore from `ANDROID_KEYSTORE_BASE64` secret every build
+- **Gradle:** `build.gradle.kts` reads `key.properties` → uses release signing; falls back to debug if not found
+- **Nothing to do per-release** — the CI handles everything automatically
 
 ### Code Safety
 - Never modify `quran.db`

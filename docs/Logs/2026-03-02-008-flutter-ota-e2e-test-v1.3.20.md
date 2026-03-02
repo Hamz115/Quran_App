@@ -30,7 +30,15 @@ Version bump only — no code changes. v1.3.20 exists purely to test the Flutter
 | `CLAUDE.md` | Modified | Version table + current version |
 | `docs/Logs/2026-03-02-008-...` | Created | This session log |
 
+## Result
+
+**Flutter OTA: SUCCESS** — v1.3.19 → v1.3.20 updated cleanly on phone.
+
+Both update pipelines are now fully operational:
+- **Tauri auto-update**: DONE (confirmed v1.3.17 → v1.3.18 → v1.3.19)
+- **Flutter OTA**: DONE (confirmed v1.3.19 → v1.3.20)
+
 ## Next Steps
 
-- [ ] Test Flutter OTA on phone (v1.3.19 → v1.3.20)
-- [ ] If it works: both update pipelines (Tauri + Flutter) are DONE
+- [ ] Test Tauri update speed on real laptop (not VM)
+- [ ] Move on to Flutter app bug fixes and features
