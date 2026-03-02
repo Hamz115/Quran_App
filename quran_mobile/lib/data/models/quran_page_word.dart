@@ -18,14 +18,21 @@ class QuranPageWord {
     required this.isEnd,
   });
 
+  /// Safe int parse — SQLite can return int or String depending on column type.
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.parse(value);
+    return 0;
+  }
+
   factory QuranPageWord.fromDbRow(Map<String, dynamic> row, bool isEnd) {
     return QuranPageWord(
-      id: row['id'] as int,
-      surah: row['surah'] as int,
-      ayah: row['ayah'] as int,
-      word: row['word'] as int,
+      id: _toInt(row['id']),
+      surah: _toInt(row['surah']),
+      ayah: _toInt(row['ayah']),
+      word: _toInt(row['word']),
       text: row['text'] as String,
-      textUthmani: row['text_uthmani'] as String,
+      textUthmani: (row['text_uthmani'] ?? '') as String,
       isEnd: isEnd,
     );
   }

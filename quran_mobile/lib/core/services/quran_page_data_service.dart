@@ -7,6 +7,25 @@ import '../../data/models/quran_page_line.dart';
 import '../../data/models/quran_page_data.dart';
 import '../../data/quran_data.dart';
 
+/// Safely parse a dynamic SQLite value to int.
+/// SQLite can return int or String depending on how the data was inserted.
+int _toInt(dynamic value) {
+  if (value is int) return value;
+  if (value is String) return int.parse(value);
+  return 0;
+}
+
+/// Safely parse a dynamic SQLite value to int? (nullable).
+int? _toIntOrNull(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is String) {
+    final parsed = int.tryParse(value);
+    return parsed;
+  }
+  return null;
+}
+
 /// Loads Quran page data with platform-aware loading:
 /// - Mobile: bundled QPC v2 SQLite databases (fully offline)
 /// - Web: backend API at /api/quran/page/{pageNumber}
@@ -100,8 +119,8 @@ class QuranPageDataService {
     int? globalFirst;
     int? globalLast;
     for (final row in layoutRows) {
-      final firstId = row['first_word_id'] as int?;
-      final lastId = row['last_word_id'] as int?;
+      final firstId = _toIntOrNull(row['first_word_id']);
+      final lastId = _toIntOrNull(row['last_word_id']);
       if (firstId != null && lastId != null) {
         globalFirst = globalFirst == null ? firstId : min(globalFirst, firstId);
         globalLast = globalLast == null ? lastId : max(globalLast, lastId);
@@ -117,7 +136,7 @@ class QuranPageDataService {
         [globalFirst, globalLast],
       );
       for (final row in wordRows) {
-        wordsById[row['id'] as int] = row;
+        wordsById[_toInt(row['id'])] = row;
       }
     }
 
@@ -125,28 +144,28 @@ class QuranPageDataService {
     final maxWordPos = <String, int>{};
     for (final row in wordsById.values) {
       final key = '${row['surah']}:${row['ayah']}';
-      final wordPos = row['word'] as int;
+      final wordPos = _toInt(row['word']);
       maxWordPos[key] = max(maxWordPos[key] ?? 0, wordPos);
     }
 
     // 5. Build lines with words
     final lines = <QuranPageLine>[];
     for (final row in layoutRows) {
-      final lineNumber = row['line_number'] as int;
+      final lineNumber = _toInt(row['line_number']);
       final lineType = row['line_type'] as String;
-      final isCentered = (row['is_centered'] as int?) == 1;
-      final surahNumber = row['surah_number'] as int?;
+      final isCentered = _toIntOrNull(row['is_centered']) == 1;
+      final surahNumber = _toIntOrNull(row['surah_number']);
 
       List<QuranPageWord> lineWords = [];
       if (lineType == 'ayah') {
-        final firstId = row['first_word_id'] as int?;
-        final lastId = row['last_word_id'] as int?;
+        final firstId = _toIntOrNull(row['first_word_id']);
+        final lastId = _toIntOrNull(row['last_word_id']);
         if (firstId != null && lastId != null) {
           for (int id = firstId; id <= lastId; id++) {
             final wordRow = wordsById[id];
             if (wordRow != null) {
               final key = '${wordRow['surah']}:${wordRow['ayah']}';
-              final isEnd = (wordRow['word'] as int) == maxWordPos[key];
+              final isEnd = _toInt(wordRow['word']) == maxWordPos[key];
               lineWords.add(QuranPageWord.fromDbRow(wordRow, isEnd));
             }
           }

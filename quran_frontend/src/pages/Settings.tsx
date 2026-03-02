@@ -148,7 +148,7 @@ export default function Settings() {
                 Version
               </span>
               <span className={`font-mono font-medium ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-                v1.3.14
+                v1.3.15
               </span>
             </div>
 
