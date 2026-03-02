@@ -275,8 +275,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.3.13 | 2026-03-02 | Flutter CI/CD pipeline test + Android download on website | `2026-03-02-001` |
 | v1.3.14 | 2026-03-02 | Flutter settings cleanup + Tauri update fix + Flutter CI fix | `2026-03-02-002` |
 | v1.3.15 | 2026-03-02 | Fix Flutter Quran reader SQLite type cast crash | `2026-03-02-003` |
+| v1.3.16 | 2026-03-02 | Fix Flutter OTA install (FileProvider) + Tauri auto-update test | `2026-03-02-004` |
 
-**Current version: v1.3.15**
+**Current version: v1.3.16**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
