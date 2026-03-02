@@ -54,11 +54,14 @@ All 6 files bumped: tauri.conf.json, package.json, Settings.tsx, website/index.h
 
 ## Testing This Release
 
-### Tauri auto-update end-to-end test (VM) — THIS VERSION
-- v1.3.17 installed on VM (has the split download/install + NSIS hook fix)
-- Should detect v1.3.18 → download → kill sidecar → NSIS install
-- **This is THE test** for the sidecar fix from v1.3.17
-- If it works: Tauri auto-update pipeline is DONE
+### Tauri auto-update end-to-end test (VM) — PASSED
+- v1.3.17 → v1.3.18 auto-update: **SUCCESS**
+- Download overlay showed progress (19% → 100%)
+- Install stage: "Installing update — do not close the app"
+- NSIS hook fired `taskkill.exe` (visible as black CMD window) — killed sidecar
+- App reinstalled and relaunched successfully
+- **Sidecar issue is FIXED** after 8+ versions of attempts (v1.3.3 → v1.3.18)
+- Note: Total update took ~5 minutes — mostly download time (installer is ~80MB, VM internet is slow)
 
 ### Flutter (Phone) — setup for v1.3.19 test
 - **IMPORTANT**: User must UNINSTALL v1.3.16/v1.3.17 first (old debug-signed APK conflicts with new release-signed APK)
@@ -90,6 +93,11 @@ All 6 files bumped: tauri.conf.json, package.json, Settings.tsx, website/index.h
 - [ ] Test Tauri auto-update on VM (v1.3.17 → v1.3.18) — validates sidecar fix
 - [ ] User uninstalls old Flutter app, installs v1.3.18 fresh from website (baseline for OTA)
 - [ ] v1.3.19: Flutter OTA end-to-end test (v1.3.18 → v1.3.19)
+
+## Issues Encountered
+
+- **CI build failed: double `app/` path**: `storeFile=app/upload-keystore.jks` in `key.properties` resolved to `android/app/app/upload-keystore.jks` because `file()` in `build.gradle.kts` already resolves relative to the `app/` module directory. Fixed by changing to `storeFile=upload-keystore.jks` in both local `key.properties` and CI workflow. (Fix ships in v1.3.19)
+- **Tauri update took ~5 minutes**: The NSIS taskkill window appeared late. Removed 3s JS delay after kill_sidecar and 2s NSIS Sleep after taskkill. (Fix ships in v1.3.19)
 
 ## Notes
 

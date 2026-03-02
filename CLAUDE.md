@@ -278,8 +278,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.3.16 | 2026-03-02 | Fix Flutter OTA install (FileProvider) + Tauri auto-update test | `2026-03-02-004` |
 | v1.3.17 | 2026-03-02 | Tauri sidecar fix (split download/install + NSIS hook) + Flutter OTA end-to-end test | `2026-03-02-005` |
 | v1.3.18 | 2026-03-02 | Fix Flutter OTA signing key mismatch + Tauri auto-update end-to-end test | `2026-03-02-006` |
+| v1.3.19 | 2026-03-02 | Fix keystore path + remove update delays + Tauri/Flutter e2e test | `2026-03-02-007` |
 
-**Current version: v1.3.18**
+**Current version: v1.3.19**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
