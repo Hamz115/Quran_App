@@ -1,7 +1,7 @@
 name: quran_mobile
 description: "Quran Teaching Logbook - Track student mistakes during memorization"
 publish_to: 'none'
-version: 1.4.2+1
+version: 1.4.3+1
 
 environment:
   sdk: ^3.10.3

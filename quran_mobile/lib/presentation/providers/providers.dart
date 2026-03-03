@@ -162,9 +162,22 @@ class PreviousMistakeInfo {
   });
 }
 
-/// Fetches mistakes from classes dated BEFORE the given class, with class date info.
-/// Returns deduplicated list (one entry per unique word location, keeping most recent class).
-final previousClassMistakesProvider = FutureProvider.family<List<PreviousMistakeInfo>, String>((ref, classId) async {
+/// A group of mistakes from a single previous class.
+class PreviousClassMistakeGroup {
+  final String classDate;
+  final String classDay;
+  final List<PreviousMistakeInfo> mistakes;
+
+  const PreviousClassMistakeGroup({
+    required this.classDate,
+    required this.classDay,
+    required this.mistakes,
+  });
+}
+
+/// Fetches mistakes from classes dated BEFORE the given class, grouped by class.
+/// Returns list of groups sorted by date descending (most recent first).
+final previousClassMistakesProvider = FutureProvider.family<List<PreviousClassMistakeGroup>, String>((ref, classId) async {
   final supabase = Supabase.instance.client;
 
   // 1. Get current class date
@@ -204,48 +217,63 @@ final previousClassMistakesProvider = FutureProvider.family<List<PreviousMistake
   final occurrences = occRaw as List;
   if (occurrences.isEmpty) return [];
 
-  // Map mistake_id → most recent class_id (olderClasses already sorted desc)
-  final mistakeToClass = <String, String>{};
+  // Group occurrences by class_id → Set<mistake_id>
+  final classToMistakeIds = <String, Set<String>>{};
+  final allMistakeIds = <String>{};
   for (final occ in occurrences) {
+    final cId = occ['class_id'].toString();
     final mId = occ['mistake_id'].toString();
-    if (!mistakeToClass.containsKey(mId)) {
-      mistakeToClass[mId] = occ['class_id'].toString();
-    }
+    classToMistakeIds.putIfAbsent(cId, () => {}).add(mId);
+    allMistakeIds.add(mId);
   }
 
-  // 4. Fetch those mistakes
-  final mistakeIds = mistakeToClass.keys.toList();
+  // 4. Fetch all mistake details at once
   final mistakesRaw = await supabase
       .from('mistakes')
       .select('id, surah_number, ayah_number, word_index, word_text, error_count')
-      .inFilter('id', mistakeIds);
-  final mistakes = mistakesRaw as List;
-
-  // 5. Build result — deduplicate by location, keep highest error count + most recent date
-  final Map<String, PreviousMistakeInfo> deduped = {};
-  for (final m in mistakes) {
-    final mId = m['id'].toString();
-    final classId = mistakeToClass[mId];
-    final classInfo = classId != null ? classInfoMap[classId] : null;
-    final key = '${m['surah_number']}-${m['ayah_number']}-${m['word_index']}';
-
-    final info = PreviousMistakeInfo(
-      surahNumber: m['surah_number'] as int? ?? 0,
-      ayahNumber: m['ayah_number'] as int? ?? 0,
-      wordIndex: m['word_index'] as int? ?? 0,
-      wordText: (m['word_text'] as String?) ?? '',
-      errorCount: m['error_count'] as int? ?? 1,
-      classDate: (classInfo?['date'] as String?) ?? '',
-      classDay: (classInfo?['day'] as String?) ?? '',
-    );
-
-    if (!deduped.containsKey(key) || info.errorCount > deduped[key]!.errorCount) {
-      deduped[key] = info;
-    }
+      .inFilter('id', allMistakeIds.toList());
+  final mistakeMap = <String, Map<String, dynamic>>{};
+  for (final m in (mistakesRaw as List)) {
+    mistakeMap[m['id'].toString()] = m;
   }
 
-  return deduped.values.toList()
-    ..sort((a, b) => b.errorCount.compareTo(a.errorCount));
+  // 5. Build groups — one per class, sorted by date desc (olderClassIds already sorted)
+  final groups = <PreviousClassMistakeGroup>[];
+  for (final cId in olderClassIds) {
+    final mIds = classToMistakeIds[cId];
+    if (mIds == null || mIds.isEmpty) continue;
+    final classInfo = classInfoMap[cId]!;
+
+    // Deduplicate by location within this class, keep highest error count
+    final Map<String, PreviousMistakeInfo> deduped = {};
+    for (final mId in mIds) {
+      final m = mistakeMap[mId];
+      if (m == null) continue;
+      final key = '${m['surah_number']}-${m['ayah_number']}-${m['word_index']}';
+      final info = PreviousMistakeInfo(
+        surahNumber: m['surah_number'] as int? ?? 0,
+        ayahNumber: m['ayah_number'] as int? ?? 0,
+        wordIndex: m['word_index'] as int? ?? 0,
+        wordText: (m['word_text'] as String?) ?? '',
+        errorCount: m['error_count'] as int? ?? 1,
+        classDate: (classInfo['date'] as String?) ?? '',
+        classDay: (classInfo['day'] as String?) ?? '',
+      );
+      if (!deduped.containsKey(key) || info.errorCount > deduped[key]!.errorCount) {
+        deduped[key] = info;
+      }
+    }
+
+    final mistakes = deduped.values.toList()
+      ..sort((a, b) => b.errorCount.compareTo(a.errorCount));
+    groups.add(PreviousClassMistakeGroup(
+      classDate: (classInfo['date'] as String?) ?? '',
+      classDay: (classInfo['day'] as String?) ?? '',
+      mistakes: mistakes,
+    ));
+  }
+
+  return groups;
 });
 
 // Classes provider

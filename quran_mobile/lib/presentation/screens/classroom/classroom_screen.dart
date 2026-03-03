@@ -32,6 +32,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   int _currentPage = 0; // 0 = not yet initialized
   String? _selectedStudentId; // Supabase student UUID
   bool _studentInitialized = false;
+  bool _showPageOnly = false; // Toggle: true = show only this page's mistakes
 
   // Overlay state (like QuranReaderScreen)
   bool _showOverlay = false;
@@ -925,7 +926,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode, assignment),
               ),
               // Mistakes summary below (scroll down to see)
-              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref),
+              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref, _currentPage),
             ],
           ),
         );
@@ -1029,6 +1030,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     Assignment? assignment,
     bool isDarkMode,
     WidgetRef ref,
+    int currentPage,
   ) {
     if (assignment == null) return const SizedBox.shrink();
 
@@ -1040,22 +1042,35 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final classMistakeIds = classMistakeIdsAsync.valueOrNull ?? <String>{};
 
     // This class mistakes
-    final thisClassMistakes = <Mistake>[];
+    final allThisClassMistakes = <Mistake>[];
     for (final m in relevantMistakes) {
       final mistakeKey = m.supabaseId ?? '';
       if (classMistakeIds.contains(mistakeKey)) {
-        thisClassMistakes.add(m);
+        allThisClassMistakes.add(m);
       }
     }
 
-    // Previous class mistakes (only from classes dated BEFORE this one)
-    final prevMistakesAsync = ref.watch(previousClassMistakesProvider(widget.classId));
-    final allPrevMistakes = prevMistakesAsync.valueOrNull ?? [];
-    final prevMistakes = allPrevMistakes.where((m) {
-      return _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment);
-    }).toList();
+    // Filter by current page if toggle is on
+    final thisClassMistakes = _showPageOnly && currentPage > 0
+        ? allThisClassMistakes.where((m) => getPageNumber(m.surahNumber, m.ayahNumber) == currentPage).toList()
+        : allThisClassMistakes;
 
-    if (thisClassMistakes.isEmpty && prevMistakes.isEmpty) {
+    // Previous class mistake groups
+    final prevGroupsAsync = ref.watch(previousClassMistakesProvider(widget.classId));
+    final allPrevGroups = prevGroupsAsync.valueOrNull ?? [];
+    // Filter each group's mistakes to this assignment's range
+    final prevGroups = allPrevGroups
+        .map((g) => PreviousClassMistakeGroup(
+              classDate: g.classDate,
+              classDay: g.classDay,
+              mistakes: g.mistakes.where((m) => _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment)).toList(),
+            ))
+        .where((g) => g.mistakes.isNotEmpty)
+        .toList();
+
+    final hasPrevMistakes = prevGroups.any((g) => g.mistakes.isNotEmpty);
+
+    if (allThisClassMistakes.isEmpty && !hasPrevMistakes) {
       return const SizedBox.shrink();
     }
 
@@ -1070,20 +1085,43 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Mistakes in this class
-          Text(
-            'MISTAKES IN THIS CLASS (${thisClassMistakes.length})',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-              color: AppColors.textSecondary(isDarkMode),
-            ),
+          // Header row with toggle
+          Row(
+            children: [
+              Text(
+                'MISTAKES IN THIS CLASS (${thisClassMistakes.length})',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  color: AppColors.textSecondary(isDarkMode),
+                ),
+              ),
+              const Spacer(),
+              // Page / All toggle
+              Container(
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildToggleChip('All', !_showPageOnly, isDarkMode, () {
+                      setState(() => _showPageOnly = false);
+                    }),
+                    _buildToggleChip('Page', _showPageOnly, isDarkMode, () {
+                      setState(() => _showPageOnly = true);
+                    }),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           if (thisClassMistakes.isEmpty)
             Text(
-              'No mistakes in this class',
+              _showPageOnly ? 'No mistakes on this page' : 'No mistakes in this class',
               style: TextStyle(fontSize: 12, color: AppColors.textMuted(isDarkMode)),
             )
           else
@@ -1097,97 +1135,118 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               )).toList(),
             ),
 
-          // Previous class mistakes
-          if (prevMistakes.isNotEmpty) ...[
+          // Previous class mistakes — grouped by class
+          for (final group in prevGroups) ...[
             const SizedBox(height: 20),
-            Text(
-              'MISTAKES FROM PREVIOUS CLASSES (${prevMistakes.length})',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: AppColors.textSecondary(isDarkMode),
+            Container(
+              padding: const EdgeInsets.only(left: 10),
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(
+                  color: isDarkMode ? const Color(0x55F59E0B) : const Color(0xFFFDE68A),
+                  width: 2,
+                )),
               ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: prevMistakes.map((m) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? const Color(0x1AF59E0B)
-                      : const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDarkMode
-                        ? const Color(0x33F59E0B)
-                        : const Color(0xFFFDE68A),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${group.classDay.toUpperCase()} — ${_formatShortDate(group.classDate)} (${group.mistakes.length})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                      color: isDarkMode ? const Color(0xFFFCD34D).withOpacity(0.8) : const Color(0xFFD97706),
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: group.mistakes.map((m) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFBBF24).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${m.errorCount}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFBBF24),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      m.wordText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontFamily: 'Uthmanic',
-                        color: isDarkMode ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
-                      ),
-                      textDirection: TextDirection.rtl,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${m.ayahNumber}:${m.wordIndex + 1}',
-                      style: TextStyle(
-                        fontSize: 10,
                         color: isDarkMode
-                            ? const Color(0xFFFCD34D).withOpacity(0.7)
-                            : const Color(0xFFD97706).withOpacity(0.7),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? const Color(0x1AF59E0B) : const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _formatShortDate(m.classDate),
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w500,
+                            ? const Color(0x1AF59E0B)
+                            : const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
                           color: isDarkMode
-                              ? const Color(0xFFFCD34D).withOpacity(0.6)
-                              : const Color(0xFFB45309),
+                              ? const Color(0x33F59E0B)
+                              : const Color(0xFFFDE68A),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              )).toList(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFBBF24).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${m.errorCount}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFBBF24),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            m.wordText,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'Uthmanic',
+                              color: isDarkMode ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
+                            ),
+                            textDirection: TextDirection.rtl,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${m.ayahNumber}:${m.wordIndex + 1}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isDarkMode
+                                  ? const Color(0xFFFCD34D).withOpacity(0.7)
+                                  : const Color(0xFFD97706).withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )).toList(),
+                  ),
+                ],
+              ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildToggleChip(String label, bool isActive, bool isDarkMode, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive
+              ? (isDarkMode ? AppColors.cyan600.withOpacity(0.2) : AppColors.cyan600.withOpacity(0.1))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            color: isActive
+                ? AppColors.cyan600
+                : AppColors.textMuted(isDarkMode),
+          ),
+        ),
       ),
     );
   }
