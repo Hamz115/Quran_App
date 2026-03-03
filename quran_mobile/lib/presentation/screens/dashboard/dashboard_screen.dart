@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
 import '../classes/report/report_panel.dart';
+import '../classes/create_class_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -84,9 +85,7 @@ class DashboardScreen extends ConsumerWidget {
                           children: [
                             // Add Student button
                             OutlinedButton.icon(
-                              onPressed: () {
-                                // TODO: Add student functionality
-                              },
+                              onPressed: () => _showAddStudentSheet(context, ref, isDarkMode),
                               icon: const Icon(Icons.person_add_outlined, size: 18),
                               label: const Text('Add Student'),
                               style: OutlinedButton.styleFrom(
@@ -99,7 +98,12 @@ class DashboardScreen extends ConsumerWidget {
                             // Start New Class button
                             ElevatedButton.icon(
                               onPressed: () {
-                                // TODO: Start new class functionality
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => const CreateClassScreen(),
+                                );
                               },
                               icon: const Icon(Icons.add, size: 18),
                               label: const Text('Start New Class'),
@@ -701,6 +705,15 @@ class DashboardScreen extends ConsumerWidget {
     final month = int.tryParse(date.split('-')[1]) ?? 1;
     return months[month];
   }
+
+  void _showAddStudentSheet(BuildContext context, WidgetRef ref, bool isDarkMode) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AddStudentSheet(isDarkMode: isDarkMode),
+    );
+  }
 }
 
 /// Full-screen page showing a student's report (navigated from dashboard).
@@ -727,6 +740,168 @@ class _StudentReportPage extends ConsumerWidget {
       ),
       body: SingleChildScrollView(
         child: ReportPanel(studentId: studentId),
+      ),
+    );
+  }
+}
+
+class _AddStudentSheet extends ConsumerStatefulWidget {
+  final bool isDarkMode;
+
+  const _AddStudentSheet({required this.isDarkMode});
+
+  @override
+  ConsumerState<_AddStudentSheet> createState() => _AddStudentSheetState();
+}
+
+class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
+  final _emailController = TextEditingController();
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addStudent() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter an email address');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final name = await addStudentByEmail(ref, email);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name added successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: 20, right: 20, top: 20,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface(isDark),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted(isDark),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Add Student',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(isDark),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Enter the student\'s email address to add them to your halaqah.',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary(isDark)),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            style: TextStyle(fontSize: 15, color: AppColors.text(isDark)),
+            decoration: InputDecoration(
+              hintText: 'student@example.com',
+              hintStyle: TextStyle(color: AppColors.textMuted(isDark)),
+              prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary(isDark)),
+              filled: true,
+              fillColor: AppColors.background(isDark),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.border(isDark)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.border(isDark)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.cyan500, width: 2),
+              ),
+            ),
+            onSubmitted: (_) => _addStudent(),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: const TextStyle(fontSize: 13, color: AppColors.error),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: AppColors.textMuted(isDark)),
+                  ),
+                  child: Text('Cancel', style: TextStyle(color: AppColors.text(isDark))),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _addStudent,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: AppColors.cyan500,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Add Student'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

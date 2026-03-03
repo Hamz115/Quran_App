@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/theme.dart';
@@ -20,6 +19,7 @@ class CreateClassScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
+  String? _selectedStudentId;
   DateTime _selectedDate = DateTime.now();
   final Map<String, bool> _sectionEnabled = {
     'hifz': true,
@@ -48,14 +48,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   @override
   void initState() {
     super.initState();
-    _prefillFromPreviousClass();
+    _selectedStudentId = widget.studentId;
+    if (_selectedStudentId != null) {
+      _prefillFromPreviousClass();
+    }
   }
 
   /// Fetch previous class data and auto-fill portion fields.
   Future<void> _prefillFromPreviousClass() async {
-    if (widget.studentId == null) return;
+    if (_selectedStudentId == null) return;
     try {
-      final suggestions = await ref.read(suggestedPortionsProvider(widget.studentId!).future);
+      final suggestions = await ref.read(suggestedPortionsProvider(_selectedStudentId!).future);
       if (!mounted) return;
 
       setState(() {
@@ -102,6 +105,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   Widget build(BuildContext context) {
     final surahsAsync = ref.watch(surahListProvider);
     final isDarkMode = ref.watch(themeProvider);
+    final studentsAsync = ref.watch(teacherStudentsProvider);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -167,6 +171,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Student selector
+                    _buildStudentSelector(studentsAsync, isDarkMode),
+                    const SizedBox(height: 16),
+
                     // Date selector
                     _buildDateSelector(isDarkMode),
                     const SizedBox(height: 24),
@@ -238,6 +246,97 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStudentSelector(AsyncValue<List<({String id, String name})>> studentsAsync, bool isDarkMode) {
+    return studentsAsync.when(
+      data: (students) {
+        if (students.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.background(isDarkMode).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border(isDarkMode)),
+            ),
+            child: Text(
+              'No students yet. Add students from the dashboard first.',
+              style: TextStyle(fontSize: 14, color: AppColors.textMuted(isDarkMode)),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Student',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text(isDarkMode),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.background(isDarkMode),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedStudentId != null
+                      ? AppColors.cyan500.withOpacity(0.5)
+                      : AppColors.border(isDarkMode),
+                  width: _selectedStudentId != null ? 2 : 1,
+                ),
+              ),
+              child: DropdownButton<String>(
+                value: _selectedStudentId,
+                hint: Text('Select a student', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                isExpanded: true,
+                dropdownColor: AppColors.surface(isDarkMode),
+                underline: const SizedBox(),
+                style: TextStyle(fontSize: 15, color: AppColors.text(isDarkMode)),
+                items: students.map((s) => DropdownMenuItem(
+                  value: s.id,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.cyan500.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.cyan500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(s.name, overflow: TextOverflow.ellipsis)),
+                    ],
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedStudentId = value);
+                    _prefillFromPreviousClass();
+                  }
+                },
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Text('Error loading students: $e', style: const TextStyle(color: AppColors.error)),
     );
   }
 
@@ -729,16 +828,61 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
     for (final type in ['hifz', 'sabqi', 'revision']) {
       if (_sectionEnabled[type]!) {
-        for (final portion in _portions[type]!) {
+        for (int i = 0; i < _portions[type]!.length; i++) {
+          final portion = _portions[type]![i];
+          final mode = _getPortionMode(type, i);
+
+          int startSurah = portion.startSurah;
+          int endSurah = portion.endSurah;
+          int? startAyah = portion.startAyah;
+          int? endAyah = portion.endAyah;
+
+          // For "page" mode: convert page boundaries to exact surah:ayah
+          if (mode == 'page' && portion.startPage != null && portion.endPage != null) {
+            final sp = portion.startPage!;
+            final ep = portion.endPage!;
+
+            // Start: first ayah on startPage
+            startSurah = pageStarts[sp - 1][0];
+            startAyah = pageStarts[sp - 1][1];
+
+            // End: last ayah on endPage = one before first ayah on endPage+1
+            if (ep < totalPages) {
+              final nextPageSurah = pageStarts[ep][0]; // ep is 0-indexed for next page
+              final nextPageAyah = pageStarts[ep][1];
+              if (nextPageAyah > 1) {
+                // Same surah continues onto next page
+                endSurah = nextPageSurah;
+                endAyah = nextPageAyah - 1;
+              } else {
+                // Next page starts a new surah at ayah 1
+                // So end page's last ayah is the last ayah of the previous surah
+                endSurah = nextPageSurah - 1;
+                endAyah = null; // null = last ayah of surah (handled by getPageRange)
+              }
+            } else {
+              // Last page of the Quran
+              endSurah = 114;
+              endAyah = null;
+            }
+          }
+
           assignments.add({
             'type': type,
-            'start_surah': portion.startSurah,
-            'end_surah': portion.endSurah,
-            'start_ayah': portion.startAyah,
-            'end_ayah': portion.endAyah,
+            'start_surah': startSurah,
+            'end_surah': endSurah,
+            'start_ayah': startAyah,
+            'end_ayah': endAyah,
           });
         }
       }
+    }
+
+    if (_selectedStudentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a student')),
+      );
+      return;
     }
 
     if (assignments.isEmpty) {
@@ -758,7 +902,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         date: dateStr,
         day: dayName,
         assignments: assignments,
-        studentIds: widget.studentId != null ? [widget.studentId!] : [],
+        studentIds: [_selectedStudentId!],
       );
 
       // Refresh the report so the new class appears
@@ -766,9 +910,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
       if (mounted) {
         // Close the bottom sheet, then navigate into the new class
-        final classId = kIsWeb
-            ? (newClass.supabaseId ?? newClass.id.toString())
-            : newClass.id.toString();
+        final classId = newClass.supabaseId ?? newClass.id.toString();
         Navigator.pop(context);
         Navigator.push(
           context,

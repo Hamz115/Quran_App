@@ -3,6 +3,7 @@ import 'class_session.dart';
 
 class Assignment extends Equatable {
   final int? id;
+  final String? supabaseId;
   final int? serverId;
   final int classId;
   final int? serverClassId;
@@ -16,6 +17,7 @@ class Assignment extends Equatable {
 
   const Assignment({
     this.id,
+    this.supabaseId,
     this.serverId,
     required this.classId,
     this.serverClassId,
@@ -31,6 +33,7 @@ class Assignment extends Equatable {
   factory Assignment.fromMap(Map<String, dynamic> map) {
     return Assignment(
       id: map['id'] as int?,
+      supabaseId: map['supabase_id'] as String?,
       serverId: map['server_id'] as int?,
       classId: map['class_id'] as int,
       serverClassId: map['server_class_id'] as int?,
@@ -62,6 +65,7 @@ class Assignment extends Equatable {
 
   Assignment copyWith({
     int? id,
+    String? supabaseId,
     int? serverId,
     int? classId,
     int? serverClassId,
@@ -75,6 +79,7 @@ class Assignment extends Equatable {
   }) {
     return Assignment(
       id: id ?? this.id,
+      supabaseId: supabaseId ?? this.supabaseId,
       serverId: serverId ?? this.serverId,
       classId: classId ?? this.classId,
       serverClassId: serverClassId ?? this.serverClassId,
@@ -111,5 +116,5 @@ class Assignment extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, classId, type, startSurah, endSurah, startAyah, endAyah];
+  List<Object?> get props => [id, supabaseId, classId, type, startSurah, endSurah, startAyah, endAyah];
 }

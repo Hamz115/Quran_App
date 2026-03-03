@@ -280,8 +280,10 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.3.18 | 2026-03-02 | Fix Flutter OTA signing key mismatch + Tauri auto-update end-to-end test | `2026-03-02-006` |
 | v1.3.19 | 2026-03-02 | Fix keystore path + remove update delays + Tauri/Flutter e2e test | `2026-03-02-007` |
 | v1.3.20 | 2026-03-02 | Flutter OTA end-to-end test (v1.3.19 → v1.3.20) | `2026-03-02-008` |
+| v1.4.0 | 2026-03-03 | Flutter fixes (Add Student, Start Class, student selector) + classroom redesign (full-screen Quran) | `2026-03-03-001` |
+| v1.4.1 | 2026-03-03 | Flutter Supabase migration — remove kIsWeb branching, always use Supabase for data ops | `2026-03-03-003` |
 
-**Current version: v1.3.20**
+**Current version: v1.4.1**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
