@@ -177,12 +177,13 @@ final previousClassMistakesProvider = FutureProvider.family<List<PreviousMistake
   final currentDate = classData['date'] as String;
   final teacherId = classData['teacher_id'] as String;
 
-  // 2. Get all classes by this teacher dated BEFORE the current class
+  // 2. Get all classes by this teacher dated on or before the current class (excluding itself)
   final olderClassesRaw = await supabase
       .from('classes')
       .select('id, date, day')
       .eq('teacher_id', teacherId)
-      .lt('date', currentDate)
+      .neq('id', classId)
+      .lte('date', currentDate)
       .order('date', ascending: false);
   final olderClasses = olderClassesRaw as List;
   if (olderClasses.isEmpty) return [];
@@ -273,7 +274,8 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
           .from('classes')
           .select('*, assignments(*)')
           .eq('teacher_id', user.id)
-          .order('date', ascending: false);
+          .order('date', ascending: false)
+          .order('created_at', ascending: false);
 
       final classes = (response as List).map((row) {
         final rawId = row['id'];

@@ -19,6 +19,11 @@ class MushafPageWidget extends StatelessWidget {
   final List<Mistake> mistakes;
   final void Function(QuranPageWord word)? onWordTap;
   final void Function(QuranPageWord word)? onWordLongPress;
+  // Assignment range for dimming words outside the assigned portion
+  final int? startSurah;
+  final int? endSurah;
+  final int? startAyah;
+  final int? endAyah;
 
   const MushafPageWidget({
     super.key,
@@ -28,6 +33,10 @@ class MushafPageWidget extends StatelessWidget {
     this.mistakes = const [],
     this.onWordTap,
     this.onWordLongPress,
+    this.startSurah,
+    this.endSurah,
+    this.startAyah,
+    this.endAyah,
   });
 
   @override
@@ -93,6 +102,11 @@ class MushafPageWidget extends StatelessWidget {
   Widget _buildWord(QuranPageWord word) {
     String fontFamily = QpcFontService.fontFamily(pageNumber);
 
+    // If word is outside assigned portion, render dimmed with no interaction
+    if (!_isWordInPortion(word)) {
+      return _buildQpcWord(word, fontFamily, 0);
+    }
+
     // Check for mistakes on this word
     final wordMistakes = _getWordMistakes(word);
     final wholeWordMistake = wordMistakes.where((m) => !m.isCharacterLevel).firstOrNull;
@@ -114,12 +128,31 @@ class MushafPageWidget extends StatelessWidget {
     return _buildQpcWord(word, fontFamily, 0);
   }
 
+  /// Check if a word falls within the assigned portion range.
+  bool _isWordInPortion(QuranPageWord word) {
+    if (startSurah == null || endSurah == null) return true;
+
+    final surah = word.surah;
+    final ayah = word.ayah;
+    final sA = startAyah ?? 1;
+    final eA = endAyah ?? 286;
+
+    if (surah < startSurah!) return false;
+    if (surah == startSurah && ayah < sA) return false;
+    if (surah > endSurah!) return false;
+    if (surah == endSurah && ayah > eA) return false;
+
+    return true;
+  }
+
   /// Standard QPC glyph rendering (used for no-mistake and whole-word-mistake cases).
   Widget _buildQpcWord(QuranPageWord word, String fontFamily, int mistakeLevel) {
     // Ayah end markers get distinct color
     // Always use light-mode colors — the page background is always cream
     final isEnd = word.isAyahEnd;
-    final textColor = isEnd ? AppColors.cyan600 : AppColors.lightText;
+    final inPortion = _isWordInPortion(word);
+    final baseColor = isEnd ? AppColors.cyan600 : AppColors.lightText;
+    final textColor = inPortion ? baseColor : baseColor.withOpacity(0.2);
 
     final textWidget = Text(
       word.text,

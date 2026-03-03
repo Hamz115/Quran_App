@@ -42,11 +42,15 @@ class SectionBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: compact ? 11 : 13,
-              color: color.withOpacity(0.9),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: compact ? 11 : 13,
+                color: color.withOpacity(0.9),
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],

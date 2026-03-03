@@ -922,7 +922,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               // Mushaf page takes full available height
               SizedBox(
                 height: constraints.maxHeight,
-                child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode),
+                child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode, assignment),
               ),
               // Mistakes summary below (scroll down to see)
               _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref),
@@ -933,7 +933,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildMushafPage(int pageNum, AsyncValue<List<Mistake>> mistakesAsync, bool isDarkMode) {
+  Widget _buildMushafPage(int pageNum, AsyncValue<List<Mistake>> mistakesAsync, bool isDarkMode, [Assignment? assignment]) {
     final pageDataAsync = ref.watch(quranPageDataProvider(pageNum));
     final fontReadyAsync = ref.watch(fontReadyProvider(pageNum));
     final mistakes = mistakesAsync.value ?? [];
@@ -947,6 +947,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             pageData: pageData,
             isDarkMode: isDarkMode,
             mistakes: mistakes,
+            startSurah: assignment?.startSurah,
+            endSurah: assignment?.endSurah,
+            startAyah: assignment?.startAyah,
+            endAyah: assignment?.endAyah,
             onWordTap: (word) => _showWordPopup(context, word),
             onWordLongPress: (word) => _removeMistake(word, mistakes),
           ),
@@ -974,6 +978,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             pageData: pageData,
             isDarkMode: isDarkMode,
             mistakes: mistakes,
+            startSurah: assignment?.startSurah,
+            endSurah: assignment?.endSurah,
+            startAyah: assignment?.startAyah,
+            endAyah: assignment?.endAyah,
             onWordTap: (word) => _showWordPopup(context, word),
             onWordLongPress: (word) => _removeMistake(word, mistakes),
           ),
@@ -1480,124 +1488,43 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     int endSurah = 1;
     int? startAyah;
     int? endAyah;
+    String mode = 'surah'; // 'surah', 'page', 'juz'
+    int? startPage;
+    int? endPage;
+    int? selectedJuz;
 
-    showModalBottomSheet(
+    _showPortionSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          return Container(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-              left: 20, right: 20, top: 20,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface(isDarkMode),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.textMuted(isDarkMode),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Add Portion ($_activeSection)',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(isDarkMode),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSheetDropdown(
-                        'From Surah', startSurah, surahs, isDarkMode,
-                        (v) => setSheetState(() {
-                          startSurah = v;
-                          if (endSurah < v) endSurah = v;
-                        }),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSheetDropdown(
-                        'To Surah', endSurah, surahs, isDarkMode,
-                        (v) => setSheetState(() => endSurah = v),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSheetAyahInput(
-                        'From Ayah', startAyah, isDarkMode,
-                        (v) => setSheetState(() => startAyah = v),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSheetAyahInput(
-                        'To Ayah', endAyah, isDarkMode,
-                        (v) => setSheetState(() => endAyah = v),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: AppColors.textMuted(isDarkMode)),
-                        ),
-                        child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          await ref.read(classesProvider.notifier).addAssignment(
-                            classId: widget.classId,
-                            type: _activeSection,
-                            startSurah: startSurah,
-                            endSurah: endSurah,
-                            startAyah: startAyah,
-                            endAyah: endAyah,
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: AppColors.cyan500,
-                        ),
-                        child: const Text('Add Portion'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      title: 'Add Portion ($_activeSection)',
+      isDarkMode: isDarkMode,
+      surahs: surahs,
+      getStartSurah: () => startSurah,
+      getEndSurah: () => endSurah,
+      getStartAyah: () => startAyah,
+      getEndAyah: () => endAyah,
+      getMode: () => mode,
+      getStartPage: () => startPage,
+      getEndPage: () => endPage,
+      getSelectedJuz: () => selectedJuz,
+      setStartSurah: (v) => startSurah = v,
+      setEndSurah: (v) => endSurah = v,
+      setStartAyah: (v) => startAyah = v,
+      setEndAyah: (v) => endAyah = v,
+      setMode: (v) => mode = v,
+      setStartPage: (v) => startPage = v,
+      setEndPage: (v) => endPage = v,
+      setSelectedJuz: (v) => selectedJuz = v,
+      actionLabel: 'Add Portion',
+      onSubmit: () async {
+        await ref.read(classesProvider.notifier).addAssignment(
+          classId: widget.classId,
+          type: _activeSection,
+          startSurah: startSurah,
+          endSurah: endSurah,
+          startAyah: startAyah,
+          endAyah: endAyah,
+        );
+      },
     );
   }
 
@@ -1610,6 +1537,74 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     int endSurah = assignment.endSurah;
     int? startAyah = assignment.startAyah;
     int? endAyah = assignment.endAyah;
+    String mode = 'surah';
+    int? startPage;
+    int? endPage;
+    int? selectedJuz;
+
+    _showPortionSheet(
+      context: context,
+      title: 'Edit Portion',
+      isDarkMode: isDarkMode,
+      surahs: surahs,
+      getStartSurah: () => startSurah,
+      getEndSurah: () => endSurah,
+      getStartAyah: () => startAyah,
+      getEndAyah: () => endAyah,
+      getMode: () => mode,
+      getStartPage: () => startPage,
+      getEndPage: () => endPage,
+      getSelectedJuz: () => selectedJuz,
+      setStartSurah: (v) => startSurah = v,
+      setEndSurah: (v) => endSurah = v,
+      setStartAyah: (v) => startAyah = v,
+      setEndAyah: (v) => endAyah = v,
+      setMode: (v) => mode = v,
+      setStartPage: (v) => startPage = v,
+      setEndPage: (v) => endPage = v,
+      setSelectedJuz: (v) => selectedJuz = v,
+      actionLabel: 'Update',
+      onSubmit: () async {
+        final assignmentId = assignment.supabaseId ?? assignment.id.toString();
+        await ref.read(classesProvider.notifier).updateAssignment(
+          assignmentId: assignmentId,
+          data: {
+            'start_surah': startSurah,
+            'end_surah': endSurah,
+            'start_ayah': startAyah,
+            'end_ayah': endAyah,
+          },
+        );
+      },
+    );
+  }
+
+  /// Shared bottom sheet for Add/Edit portion with By Page / By Surah / By Juz modes.
+  void _showPortionSheet({
+    required BuildContext context,
+    required String title,
+    required bool isDarkMode,
+    required List surahs,
+    required int Function() getStartSurah,
+    required int Function() getEndSurah,
+    required int? Function() getStartAyah,
+    required int? Function() getEndAyah,
+    required String Function() getMode,
+    required int? Function() getStartPage,
+    required int? Function() getEndPage,
+    required int? Function() getSelectedJuz,
+    required void Function(int) setStartSurah,
+    required void Function(int) setEndSurah,
+    required void Function(int?) setStartAyah,
+    required void Function(int?) setEndAyah,
+    required void Function(String) setMode,
+    required void Function(int?) setStartPage,
+    required void Function(int?) setEndPage,
+    required void Function(int?) setSelectedJuz,
+    required String actionLabel,
+    required Future<void> Function() onSubmit,
+  }) {
+    final color = AppColors.getSectionColor(_activeSection);
 
     showModalBottomSheet(
       context: context,
@@ -1617,6 +1612,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
+          final mode = getMode();
+          final isPageMode = mode == 'page';
+          final isJuzMode = mode == 'juz';
+          final isSurahMode = mode == 'surah';
+
           return Container(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
@@ -1626,106 +1626,226 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               color: AppColors.surface(isDarkMode),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.textMuted(isDarkMode),
-                      borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textMuted(isDarkMode),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Edit Portion',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(isDarkMode),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(isDarkMode),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSheetDropdown(
-                        'From Surah', startSurah, surahs, isDarkMode,
-                        (v) => setSheetState(() {
-                          startSurah = v;
-                          if (endSurah < v) endSurah = v;
+                  const SizedBox(height: 12),
+
+                  // Mode selector: By Page / By Surah / By Juz
+                  Row(
+                    children: [
+                      _buildModeChip('By Page', isPageMode, color, isDarkMode,
+                        () => setSheetState(() {
+                          setMode('page');
+                          setStartPage(getPageForSurah(getStartSurah()));
+                          setEndPage(getLastPageForSurah(getEndSurah()));
+                          setStartAyah(null);
+                          setEndAyah(null);
                         }),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSheetDropdown(
-                        'To Surah', endSurah, surahs, isDarkMode,
-                        (v) => setSheetState(() => endSurah = v),
+                      const SizedBox(width: 8),
+                      _buildModeChip('By Surah', isSurahMode, color, isDarkMode,
+                        () => setSheetState(() => setMode('surah')),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSheetAyahInput(
-                        'From Ayah', startAyah, isDarkMode,
-                        (v) => setSheetState(() => startAyah = v),
+                      const SizedBox(width: 8),
+                      _buildModeChip('By Juz', isJuzMode, color, isDarkMode,
+                        () => setSheetState(() => setMode('juz')),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSheetAyahInput(
-                        'To Ayah', endAyah, isDarkMode,
-                        (v) => setSheetState(() => endAyah = v),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: AppColors.textMuted(isDarkMode)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Page inputs (shown when mode == 'page')
+                  if (isPageMode) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSheetAyahInput(
+                            'From Page', getStartPage(), isDarkMode,
+                            (v) => setSheetState(() {
+                              setStartPage(v);
+                              if (v != null && v >= 1 && v <= totalPages) {
+                                setStartSurah(pageStarts[v - 1][0]);
+                                if (getEndPage() != null && getEndPage()! < v) {
+                                  setEndPage(v);
+                                  setEndSurah(pageStarts[v - 1][0]);
+                                }
+                              }
+                            }),
+                          ),
                         ),
-                        child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildSheetAyahInput(
+                            'To Page', getEndPage(), isDarkMode,
+                            (v) => setSheetState(() {
+                              setEndPage(v);
+                              if (v != null && v >= 1 && v <= totalPages) {
+                                setEndSurah(pageStarts[v - 1][0]);
+                              }
+                            }),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final assignmentId = assignment.supabaseId ?? assignment.id.toString();
-                          await ref.read(classesProvider.notifier).updateAssignment(
-                            assignmentId: assignmentId,
-                            data: {
-                              'start_surah': startSurah,
-                              'end_surah': endSurah,
-                              'start_ayah': startAyah,
-                              'end_ayah': endAyah,
-                            },
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx);
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Juz dropdown (shown when mode == 'juz')
+                  if (isJuzMode) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.background(isDarkMode),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.textMuted(isDarkMode)),
+                      ),
+                      child: DropdownButton<int>(
+                        value: getSelectedJuz(),
+                        hint: Text('Select Juz', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                        isExpanded: true,
+                        dropdownColor: AppColors.surface(isDarkMode),
+                        underline: const SizedBox(),
+                        style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+                        items: List.generate(30, (i) => DropdownMenuItem(
+                          value: i + 1,
+                          child: Text('Juz ${i + 1}'),
+                        )),
+                        onChanged: (juz) {
+                          if (juz == null) return;
+                          final boundary = getJuzBoundary(juz);
+                          if (boundary != null) {
+                            setSheetState(() {
+                              setSelectedJuz(juz);
+                              setStartSurah(boundary.startSurah);
+                              setEndSurah(boundary.endSurah);
+                              setStartAyah(boundary.startAyah);
+                              setEndAyah(boundary.endAyah);
+                            });
+                          }
                         },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: AppColors.cyan500,
-                        ),
-                        child: const Text('Update'),
                       ),
                     ),
+                    const SizedBox(height: 8),
                   ],
-                ),
-              ],
+
+                  // Surah dropdowns (always visible, disabled in page/juz mode)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSheetDropdown(
+                          'From Surah', getStartSurah(), surahs, isDarkMode,
+                          isSurahMode ? (v) => setSheetState(() {
+                            setStartSurah(v);
+                            if (getEndSurah() < v) setEndSurah(v);
+                          }) : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildSheetDropdown(
+                          'To Surah', getEndSurah(), surahs, isDarkMode,
+                          isSurahMode ? (v) => setSheetState(() => setEndSurah(v)) : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Ayah inputs (disabled in page/juz mode)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSheetAyahInput(
+                          'From Ayah', getStartAyah(), isDarkMode,
+                          isSurahMode ? (v) => setSheetState(() => setStartAyah(v)) : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildSheetAyahInput(
+                          'To Ayah', getEndAyah(), isDarkMode,
+                          isSurahMode ? (v) => setSheetState(() => setEndAyah(v)) : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: AppColors.textMuted(isDarkMode)),
+                          ),
+                          child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            // If page mode, compute surah/ayah from page range
+                            if (isPageMode) {
+                              final sp = getStartPage();
+                              final ep = getEndPage();
+                              if (sp != null && ep != null && sp >= 1 && ep >= 1 && sp <= totalPages && ep <= totalPages) {
+                                setStartSurah(pageStarts[sp - 1][0]);
+                                setStartAyah(pageStarts[sp - 1][1]);
+                                if (ep < totalPages) {
+                                  final nextSurah = pageStarts[ep][0];
+                                  final nextAyah = pageStarts[ep][1];
+                                  if (nextAyah > 1) {
+                                    setEndSurah(nextSurah);
+                                    setEndAyah(nextAyah - 1);
+                                  } else {
+                                    setEndSurah(pageStarts[ep - 1][0]);
+                                    setEndAyah(null);
+                                  }
+                                } else {
+                                  setEndSurah(114);
+                                  setEndAyah(6);
+                                }
+                              }
+                            }
+                            await onSubmit();
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: AppColors.cyan500,
+                          ),
+                          child: Text(actionLabel),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -1733,7 +1853,31 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildSheetDropdown(String label, int value, List surahs, bool isDarkMode, Function(int) onChanged) {
+  Widget _buildModeChip(String label, bool isActive, Color color, bool isDarkMode, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? color.withOpacity(0.2) : AppColors.background(isDarkMode),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isActive ? color : AppColors.textSecondary(isDarkMode),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSheetDropdown(String label, int value, List surahs, bool isDarkMode, Function(int)? onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1758,14 +1902,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 child: Text('${s.number}. ${s.englishName}', overflow: TextOverflow.ellipsis),
               );
             }).toList(),
-            onChanged: (v) => onChanged(v!),
+            onChanged: onChanged != null ? (v) => onChanged(v!) : null,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSheetAyahInput(String label, int? value, bool isDarkMode, Function(int?) onChanged) {
+  Widget _buildSheetAyahInput(String label, int? value, bool isDarkMode, Function(int?)? onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1790,7 +1934,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
             ),
           ),
-          onChanged: (v) => onChanged(int.tryParse(v)),
+          enabled: onChanged != null,
+          onChanged: onChanged != null ? (v) => onChanged(int.tryParse(v)) : null,
         ),
       ],
     );

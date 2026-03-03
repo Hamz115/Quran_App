@@ -282,8 +282,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.3.20 | 2026-03-02 | Flutter OTA end-to-end test (v1.3.19 → v1.3.20) | `2026-03-02-008` |
 | v1.4.0 | 2026-03-03 | Flutter fixes (Add Student, Start Class, student selector) + classroom redesign (full-screen Quran) | `2026-03-03-001` |
 | v1.4.1 | 2026-03-03 | Flutter Supabase migration — remove kIsWeb branching, always use Supabase for data ops | `2026-03-03-003` |
+| v1.4.2 | 2026-03-03 | Flutter bug fixes: overflow, navigation, gray overlay, portion modes | `2026-03-03-004` |
 
-**Current version: v1.4.1**
+**Current version: v1.4.2**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
