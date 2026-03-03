@@ -1283,7 +1283,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       final month = int.parse(parts[1]);
       final day = int.parse(parts[2]);
       const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${months[month]} $day';
+      final year = parts[0];
+      return '${months[month]} $day, $year';
     } catch (_) {
       return dateStr;
     }
