@@ -9,7 +9,7 @@ Port the web's grouped previous class mistakes display to Flutter, and add a pag
 
 ## Summary
 
-Changed the Flutter classroom mistakes panel to group previous class mistakes by class (with date headers) instead of one flat list. Added an "All / Page" toggle that filters current class mistakes to only those on the currently viewed Quran page.
+Changed the Flutter classroom mistakes panel to group previous class mistakes by class (with date headers) instead of one flat list. Added an "All / Page" toggle that filters both current AND previous class mistakes to only those on the currently viewed Quran page.
 
 ## Work Completed
 
@@ -17,14 +17,15 @@ Changed the Flutter classroom mistakes panel to group previous class mistakes by
 - Modified `previousClassMistakesProvider` to return `List<PreviousClassMistakeGroup>` instead of flat `List<PreviousMistakeInfo>`
 - Each group has a class date, day, and its own list of deduplicated mistakes
 - Groups sorted by date descending (most recent first)
-- UI renders each group with a left amber border and header like "SATURDAY — 01/03 (3)"
+- UI renders each group with a left amber border and header like "SATURDAY — 01/03"
+- Removed confusing count from group headers (only error counts in badges remain)
 - Removed individual date badges from each mistake (now shown in group header)
 
-### Add "All / Page" Toggle for Current Class Mistakes
+### Add "All / Page" Toggle for All Mistakes
 - Added `_showPageOnly` state variable to `_ClassroomScreenState`
 - Added `_buildToggleChip` widget for the toggle pills
-- "All" (default): shows all mistakes in this class across all pages
-- "Page": filters to only mistakes on the currently viewed Quran page using `getPageNumber()`
+- "All" (default): shows all mistakes across all pages
+- "Page": filters both current class AND previous class mistakes to only those on the currently viewed Quran page using `getPageNumber()`
 - Empty state text changes based on toggle: "No mistakes in this class" vs "No mistakes on this page"
 
 ### New Data Model
@@ -32,7 +33,8 @@ Changed the Flutter classroom mistakes panel to group previous class mistakes by
 
 ## Issues Encountered
 
-- None
+- Page/All toggle initially only filtered current class mistakes, not previous — fixed to filter both
+- Group header showed "(15)" count which was confused with per-badge error counts — removed from header
 
 ## Files Changed
 

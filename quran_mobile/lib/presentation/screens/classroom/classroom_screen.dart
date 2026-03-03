@@ -1058,13 +1058,19 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     // Previous class mistake groups
     final prevGroupsAsync = ref.watch(previousClassMistakesProvider(widget.classId));
     final allPrevGroups = prevGroupsAsync.valueOrNull ?? [];
-    // Filter each group's mistakes to this assignment's range
+    // Filter each group's mistakes to this assignment's range + page filter
     final prevGroups = allPrevGroups
-        .map((g) => PreviousClassMistakeGroup(
-              classDate: g.classDate,
-              classDay: g.classDay,
-              mistakes: g.mistakes.where((m) => _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment)).toList(),
-            ))
+        .map((g) {
+          var filtered = g.mistakes.where((m) => _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment));
+          if (_showPageOnly && currentPage > 0) {
+            filtered = filtered.where((m) => getPageNumber(m.surahNumber, m.ayahNumber) == currentPage);
+          }
+          return PreviousClassMistakeGroup(
+            classDate: g.classDate,
+            classDay: g.classDay,
+            mistakes: filtered.toList(),
+          );
+        })
         .where((g) => g.mistakes.isNotEmpty)
         .toList();
 
@@ -1150,7 +1156,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${group.classDay.toUpperCase()} — ${_formatShortDate(group.classDate)} (${group.mistakes.length})',
+                    '${group.classDay.toUpperCase()} — ${_formatShortDate(group.classDate)}',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
