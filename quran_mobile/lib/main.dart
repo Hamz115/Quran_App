@@ -200,7 +200,6 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     final authState = ref.watch(authProvider);
     final viewMode = ref.watch(viewModeProvider);
     final isTeacher = viewMode == UserRole.teacher;
-    final isActualTeacher = authState.user?.role == UserRole.teacher;
 
     // Role-based screens
     final screens = [
@@ -228,8 +227,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     return Scaffold(
       body: Column(
         children: [
-          // Role banner (tappable for teachers to switch views)
-          _buildRoleBanner(isDarkMode, isTeacher, isActualTeacher, authState.user?.displayName ?? 'User'),
+          // Role banner (visual indicator of current view mode)
+          _buildRoleBanner(isDarkMode, isTeacher, authState.user?.displayName ?? 'User'),
           // Main content
           Expanded(
             child: IndexedStack(
@@ -270,7 +269,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     );
   }
 
-  Widget _buildRoleBanner(bool isDarkMode, bool isTeacher, bool isActualTeacher, String userName) {
+  Widget _buildRoleBanner(bool isDarkMode, bool isTeacher, String userName) {
     final Color bgColor;
     final Color textColor;
     final Color borderColor;
@@ -299,7 +298,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       icon = Icons.person_rounded;
     }
 
-    final banner = Container(
+    return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 8,
@@ -334,30 +333,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
               color: textColor.withOpacity(0.7),
             ),
           ),
-          if (isActualTeacher) ...[
-            const SizedBox(width: 8),
-            Icon(Icons.swap_horiz_rounded, size: 16, color: textColor.withOpacity(0.7)),
-          ],
         ],
       ),
-    );
-
-    // Only teachers can toggle the view
-    if (!isActualTeacher) return banner;
-
-    return GestureDetector(
-      onTap: () {
-        final current = ref.read(viewModeProvider);
-        final newMode = current == UserRole.teacher ? UserRole.student : UserRole.teacher;
-        ref.read(viewModeProvider.notifier).state = newMode;
-
-        // Reset mistakes provider to load own mistakes when switching to student view
-        ref.read(mistakesProvider.notifier).setStudentId(null);
-
-        // Reset nav index to Dashboard to avoid showing wrong screen
-        setState(() => _currentIndex = 0);
-      },
-      child: banner,
     );
   }
 

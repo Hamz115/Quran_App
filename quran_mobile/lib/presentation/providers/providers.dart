@@ -854,6 +854,58 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
   }
 }
 
+// ============ ENROLLED CLASSES (for Student View — classes where user is a student) ============
+
+final enrolledClassesProvider = FutureProvider<List<ClassSession>>((ref) async {
+  final user = ref.read(authProvider).user;
+  if (user == null) return [];
+
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('class_students')
+      .select('''
+        class_id,
+        classes (
+          id, date, day, notes, performance, created_at,
+          assignments (id, type, start_surah, end_surah, start_ayah, end_ayah)
+        )
+      ''')
+      .eq('student_id', user.id);
+
+  final rows = response as List;
+  final classes = <ClassSession>[];
+
+  for (final row in rows) {
+    final cls = row['classes'];
+    if (cls == null) continue;
+
+    final assignmentsRaw = (cls['assignments'] as List?) ?? [];
+    final assignments = assignmentsRaw.map<Assignment>((a) => Assignment(
+      supabaseId: a['id']?.toString(),
+      classId: 0,
+      type: (a['type'] as String?) ?? '',
+      startSurah: a['start_surah'] as int? ?? 0,
+      endSurah: a['end_surah'] as int? ?? 0,
+      startAyah: a['start_ayah'] as int?,
+      endAyah: a['end_ayah'] as int?,
+    )).toList();
+
+    classes.add(ClassSession(
+      supabaseId: cls['id']?.toString(),
+      date: (cls['date'] as String?) ?? '',
+      day: (cls['day'] as String?) ?? '',
+      notes: cls['notes'] as String?,
+      performance: cls['performance'] as String?,
+      createdAt: (cls['created_at'] as String?) ?? '',
+      assignments: assignments,
+    ));
+  }
+
+  // Sort by date descending
+  classes.sort((a, b) => b.date.compareTo(a.date));
+  return classes;
+});
+
 // ============ LOCAL-FIRST: MISTAKES FOR SURAH ============
 
 final mistakesForSurahProvider = FutureProvider.family<List<Mistake>, int>((ref, surahNumber) async {

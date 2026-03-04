@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../../config/app_colors.dart';
 import '../../../core/services/update_service.dart';
+import '../../../data/models/app_user.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/providers.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/update_dialog.dart';
 
@@ -193,6 +195,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     activeTrackColor: AppColors.cyan500.withOpacity(0.5),
                   ),
                 ),
+              ),
+
+              // ── View Mode Section (teachers only) ──
+              Consumer(
+                builder: (context, ref, child) {
+                  final authState = ref.watch(authProvider);
+                  final isActualTeacher = authState.user?.role == UserRole.teacher;
+                  if (!isActualTeacher) return const SizedBox.shrink();
+
+                  final viewMode = ref.watch(viewModeProvider);
+                  final isStudentView = viewMode == UserRole.student;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 32),
+                      _sectionHeader('VIEW MODE', isDarkMode),
+                      const SizedBox(height: 12),
+                      GlassmorphicCard(
+                        padding: const EdgeInsets.all(0),
+                        child: ListTile(
+                          leading: _iconBox(
+                            isStudentView ? Icons.person_rounded : Icons.school_rounded,
+                            isStudentView ? AppColors.teal500 : AppColors.cyan500,
+                            isDarkMode,
+                          ),
+                          title: Text(
+                            isStudentView ? 'Student View' : 'Teacher View',
+                            style: TextStyle(color: AppColors.text(isDarkMode)),
+                          ),
+                          subtitle: Text(
+                            isStudentView
+                                ? 'Viewing as a student — see your own classes and progress'
+                                : 'Viewing as a teacher — manage your halaqah',
+                            style: TextStyle(
+                              color: AppColors.textSecondary(isDarkMode),
+                              fontSize: 12,
+                            ),
+                          ),
+                          trailing: Switch(
+                            value: isStudentView,
+                            onChanged: (_) {
+                              final newMode = isStudentView ? UserRole.teacher : UserRole.student;
+                              ref.read(viewModeProvider.notifier).state = newMode;
+                              // Reset mistakes to load own data
+                              ref.read(mistakesProvider.notifier).setStudentId(null);
+                            },
+                            activeColor: AppColors.teal500,
+                            activeTrackColor: AppColors.teal500.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 32),

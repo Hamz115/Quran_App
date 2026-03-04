@@ -30,6 +30,10 @@ class DashboardScreen extends ConsumerWidget {
     final user = authState.user;
     final viewMode = ref.watch(viewModeProvider);
     final isTeacher = viewMode == UserRole.teacher;
+
+    // In Student View, use enrolled classes (classes user attends as a student)
+    final enrolledAsync = isTeacher ? null : ref.watch(enrolledClassesProvider);
+    final displayClassesAsync = isTeacher ? classesAsync : enrolledAsync!;
     final userName = user?.firstName ?? 'User';
     final userInitials = '${user?.firstName?.isNotEmpty == true ? user!.firstName[0] : ''}${user?.lastName?.isNotEmpty == true ? user!.lastName[0] : ''}'.toUpperCase();
 
@@ -42,6 +46,7 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(topMistakesProvider);
             ref.invalidate(mistakeCountsBySurahProvider);
             ref.read(classesProvider.notifier).loadClasses();
+            ref.invalidate(enrolledClassesProvider);
           },
           child: CustomScrollView(
             slivers: [
@@ -127,7 +132,7 @@ class DashboardScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: statsAsync.when(
                   data: (stats) {
-                    final classes = classesAsync.value ?? [];
+                    final classes = displayClassesAsync.value ?? [];
 
                     // Calculate classes this week
                     final now = DateTime.now();
@@ -230,7 +235,7 @@ class DashboardScreen extends ConsumerWidget {
                             Expanded(
                               child: StatCard(
                                 label: 'Classes',
-                                value: '${stats['totalClasses']}',
+                                value: '${classes.length}',
                                 icon: Icons.calendar_today_rounded,
                                 color: AppTheme.emerald400,
                               ),
@@ -516,9 +521,9 @@ class DashboardScreen extends ConsumerWidget {
 
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-              // Recent Classes
+              // Recent Classes (uses enrolled classes in Student View)
               SliverToBoxAdapter(
-                child: classesAsync.when(
+                child: displayClassesAsync.when(
                   data: (classes) {
                     final recentClasses = classes.take(5).toList();
                     if (recentClasses.isEmpty) {
