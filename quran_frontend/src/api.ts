@@ -53,7 +53,6 @@ import {
   getLocalMistakes,
   getLocalMistakesWithOccurrences,
   removeLocalMistake,
-  triggerSync,
 } from './lib/local-api';
 
 // Re-export local API utilities for direct access
