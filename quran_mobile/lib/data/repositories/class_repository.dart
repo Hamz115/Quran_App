@@ -57,6 +57,7 @@ class ClassRepository {
     required String date,
     required String day,
     String? notes,
+    String? teacherId,
     required List<Map<String, dynamic>> assignments,
   }) async {
     final db = await _dbHelper.appDatabase;
@@ -68,6 +69,7 @@ class ClassRepository {
       'date': date,
       'day': day,
       'notes': notes,
+      'teacher_id': teacherId,
       'created_at': now,
       'updated_at': now,
       'sync_status': 'pending',
@@ -311,7 +313,7 @@ class ClassRepository {
     );
   }
 
-  // Get class by server ID
+  // Get class by server ID (int)
   Future<ClassSession?> getClassByServerId(int serverId) async {
     final db = await _dbHelper.appDatabase;
     final results = await db.query(
@@ -324,7 +326,66 @@ class ClassRepository {
     return ClassSession.fromMap(results.first, assignments: assignments);
   }
 
-  // Create class from server data
+  // Get class by Supabase UUID
+  Future<ClassSession?> getClassBySupabaseId(String supabaseId) async {
+    final db = await _dbHelper.appDatabase;
+    final results = await db.query(
+      'classes',
+      where: 'supabase_id = ?',
+      whereArgs: [supabaseId],
+    );
+    if (results.isEmpty) return null;
+    final assignments = await getAssignmentsForClass(results.first['id'] as int);
+    return ClassSession.fromMap(results.first, assignments: assignments);
+  }
+
+  // Mark class as synced with Supabase UUID
+  Future<void> markClassSyncedWithSupabaseId(int localId, String supabaseId) async {
+    final db = await _dbHelper.appDatabase;
+    await db.update(
+      'classes',
+      {
+        'supabase_id': supabaseId,
+        'sync_status': 'synced',
+      },
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  // Mark assignment as synced with Supabase UUID
+  Future<void> markAssignmentSyncedWithSupabaseId(int localId, String supabaseId) async {
+    final db = await _dbHelper.appDatabase;
+    await db.update(
+      'assignments',
+      {
+        'supabase_id': supabaseId,
+        'sync_status': 'synced',
+      },
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  // Get all classes for a specific teacher
+  Future<List<ClassSession>> getClassesByTeacherId(String teacherId) async {
+    final db = await _dbHelper.appDatabase;
+    final results = await db.query(
+      'classes',
+      where: 'teacher_id = ? AND is_deleted = 0',
+      whereArgs: [teacherId],
+      orderBy: 'date DESC',
+    );
+
+    final classes = <ClassSession>[];
+    for (final row in results) {
+      final assignments = await getAssignmentsForClass(row['id'] as int);
+      classes.add(ClassSession.fromMap(row, assignments: assignments));
+    }
+    return classes;
+  }
+
+  // Create class from server data (int server_id)
   Future<ClassSession> createClassFromServer({
     required int serverId,
     required String date,
@@ -362,6 +423,78 @@ class ClassRepository {
     }
 
     return (await getClass(classId))!;
+  }
+
+  // Create or update class from Supabase data (string UUID)
+  Future<ClassSession> upsertFromSupabase({
+    required String supabaseId,
+    required String teacherId,
+    required String date,
+    required String day,
+    String? notes,
+    String? performance,
+    String? createdAt,
+    required List<dynamic> assignments,
+  }) async {
+    final db = await _dbHelper.appDatabase;
+    final now = DateTime.now().toIso8601String();
+
+    // Check if class already exists by supabase_id
+    final existing = await db.query('classes', where: 'supabase_id = ?', whereArgs: [supabaseId]);
+
+    int classId;
+    if (existing.isNotEmpty) {
+      classId = existing.first['id'] as int;
+      await db.update('classes', {
+        'date': date,
+        'day': day,
+        'notes': notes,
+        'performance': performance,
+        'teacher_id': teacherId,
+        'updated_at': now,
+        'sync_status': 'synced',
+      }, where: 'id = ?', whereArgs: [classId]);
+
+      // Delete old assignments and re-insert
+      await db.delete('assignments', where: 'class_id = ?', whereArgs: [classId]);
+    } else {
+      classId = await db.insert('classes', {
+        'supabase_id': supabaseId,
+        'teacher_id': teacherId,
+        'date': date,
+        'day': day,
+        'notes': notes,
+        'performance': performance,
+        'created_at': createdAt ?? now,
+        'updated_at': now,
+        'sync_status': 'synced',
+        'is_deleted': 0,
+      });
+    }
+
+    // Insert assignments
+    for (final assignment in assignments) {
+      await db.insert('assignments', {
+        'class_id': classId,
+        'supabase_id': assignment['id']?.toString(),
+        'type': assignment['type'],
+        'start_surah': assignment['start_surah'],
+        'end_surah': assignment['end_surah'],
+        'start_ayah': assignment['start_ayah'],
+        'end_ayah': assignment['end_ayah'],
+        'sync_status': 'synced',
+        'is_deleted': 0,
+      });
+    }
+
+    return (await getClass(classId))!;
+  }
+
+  // Clear all local class data (for logout/cleanup)
+  Future<void> clearAllLocal() async {
+    final db = await _dbHelper.appDatabase;
+    await db.delete('assignments');
+    await db.delete('classes');
   }
 
   Future<void> _logSyncOperation(dynamic db, String entityType, int entityId, String operation) async {

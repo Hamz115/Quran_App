@@ -34,6 +34,7 @@ class Mistake extends Equatable {
     return Mistake(
       id: map['id'] as int?,
       serverId: map['server_id'] as int?,
+      supabaseId: map['supabase_id'] as String?,
       surahNumber: map['surah_number'] as int,
       ayahNumber: map['ayah_number'] as int,
       wordIndex: map['word_index'] as int,
@@ -50,6 +51,7 @@ class Mistake extends Equatable {
     return {
       if (id != null) 'id': id,
       if (serverId != null) 'server_id': serverId,
+      if (supabaseId != null) 'supabase_id': supabaseId,
       'surah_number': surahNumber,
       'ayah_number': ayahNumber,
       'word_index': wordIndex,

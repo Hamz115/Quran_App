@@ -284,8 +284,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.4.1 | 2026-03-03 | Flutter Supabase migration — remove kIsWeb branching, always use Supabase for data ops | `2026-03-03-003` |
 | v1.4.2 | 2026-03-03 | Flutter bug fixes: overflow, navigation, gray overlay, portion modes | `2026-03-03-004` |
 | v1.4.3 | 2026-03-03 | Classroom mistakes: group by class + page/all toggle | `2026-03-03-005` |
+| v1.5.0 | 2026-03-04 | Local-first architecture: write to local SQLite first (instant), sync to Supabase in background | `2026-03-04-001` |
 
-**Current version: v1.4.3**
+**Current version: v1.5.0**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform

@@ -4,17 +4,58 @@
  * Calls FastAPI backend which writes to local app.db first (instant),
  * then syncs to Supabase in background.
  *
+ * All functions return data in the SAME SHAPE as supabase-api.ts,
+ * so the UI can't tell which source is being used.
+ *
  * Flow:
- * 1. Frontend → FastAPI → app.db (instant response)
- * 2. FastAPI → Supabase (background sync)
+ * 1. Frontend -> FastAPI -> app.db (instant response)
+ * 2. FastAPI -> Supabase (background sync)
  */
 
 import { supabase } from './supabase';
+import type { ClassData, MistakeData, MistakeWithOccurrences } from './supabase-api';
 
 // FastAPI backend URL
 const API_BASE = 'http://localhost:8000';
 
-// Get Supabase JWT token for auth
+// ============ HEALTH CHECK (with caching) ============
+
+let _localApiAvailable: boolean | null = null;
+let _lastCheck = 0;
+const CHECK_INTERVAL_MS = 30_000; // Re-check every 30 seconds
+
+/**
+ * Check if local FastAPI sidecar is available.
+ * Result is cached for 30 seconds to avoid checking on every call.
+ */
+export async function isLocalApiAvailable(): Promise<boolean> {
+  const now = Date.now();
+  if (_localApiAvailable !== null && now - _lastCheck < CHECK_INTERVAL_MS) {
+    return _localApiAvailable;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/surahs`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(1500),
+    });
+    _localApiAvailable = response.ok;
+  } catch {
+    _localApiAvailable = false;
+  }
+
+  _lastCheck = now;
+  return _localApiAvailable;
+}
+
+/** Force re-check on next call (e.g., after an error) */
+export function invalidateLocalApiCheck(): void {
+  _localApiAvailable = null;
+  _lastCheck = 0;
+}
+
+// ============ INTERNAL HELPERS ============
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
@@ -26,7 +67,6 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   };
 }
 
-// Helper for API calls
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -66,22 +106,17 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   return apiCall('/api/sync/status');
 }
 
-export async function pushToCloud(): Promise<{ message: string; results: unknown }> {
-  return apiCall('/api/sync/push', { method: 'POST' });
-}
-
-export async function pullFromCloud(since?: string): Promise<{ message: string; results: unknown }> {
-  const params = since ? `?since=${encodeURIComponent(since)}` : '';
-  return apiCall(`/api/sync/pull${params}`, { method: 'POST' });
-}
-
 // ============ CLASSES (Local-First) ============
 
-export interface LocalClassCreate {
+/**
+ * Create class via local FastAPI sidecar.
+ * Returns same shape as Supabase createClass: { id: string; message: string }
+ */
+export async function createLocalClass(classData: {
   date: string;
   day: string;
   notes?: string;
-  student_ids?: string[];
+  student_ids: string[];
   assignments: {
     type: string;
     start_surah: number;
@@ -90,129 +125,95 @@ export interface LocalClassCreate {
     end_ayah?: number;
     student_id?: string;
   }[];
-}
-
-export interface LocalClass {
-  id: number;
-  date: string;
-  day: string;
-  notes?: string;
-  performance?: string;
-  is_published: boolean;
-  supabase_id?: string;
-  sync_status: 'pending' | 'synced' | 'error';
-  assignments: {
-    id: number;
-    type: string;
-    start_surah: number;
-    end_surah: number;
-    start_ayah?: number;
-    end_ayah?: number;
-    student_id?: number;
-    sync_status: string;
-  }[];
-}
-
-export async function createLocalClass(
-  classData: LocalClassCreate
-): Promise<{ id: number; message: string; sync_status: string }> {
+}): Promise<{ id: string; message: string }> {
   return apiCall('/api/local/classes', {
     method: 'POST',
     body: JSON.stringify(classData),
   });
 }
 
-export async function getLocalClasses(role?: 'teacher' | 'student'): Promise<{ data: LocalClass[] }> {
+/**
+ * Get classes from local FastAPI sidecar.
+ * Returns same shape as Supabase getClasses: ClassData[]
+ */
+export async function getLocalClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
   const params = role ? `?role=${role}` : '';
   return apiCall(`/api/local/classes${params}`);
 }
 
+/**
+ * Update class notes via local FastAPI sidecar.
+ * Returns same shape as Supabase updateClassNotes.
+ */
+export async function updateLocalClassNotes(classId: string, notes: string | null): Promise<{ message: string }> {
+  return apiCall(`/api/local/classes/${classId}/notes`, {
+    method: 'PUT',
+    body: JSON.stringify({ notes }),
+  });
+}
+
+/**
+ * Update class performance via local FastAPI sidecar.
+ * Returns same shape as Supabase updateClassPerformance.
+ */
+export async function updateLocalClassPerformance(classId: string, performance: string): Promise<{ message: string }> {
+  return apiCall(`/api/local/classes/${classId}/performance`, {
+    method: 'PUT',
+    body: JSON.stringify({ performance }),
+  });
+}
+
 // ============ MISTAKES (Local-First) ============
 
-export interface LocalMistakeCreate {
+/**
+ * Add mistake via local FastAPI sidecar.
+ * Returns same shape as Supabase addMistake: { id: string; error_count: number }
+ */
+export async function addLocalMistake(mistake: {
+  student_id?: string;
   surah_number: number;
   ayah_number: number;
   word_index: number;
   word_text: string;
   char_index?: number;
-  class_id?: number;
-}
-
-export interface LocalMistake {
-  id: number;
-  surah_number: number;
-  ayah_number: number;
-  word_index: number;
-  word_text: string;
-  char_index?: number;
-  error_count: number;
-  supabase_id?: string;
-  sync_status: 'pending' | 'synced' | 'error';
-}
-
-export async function addLocalMistake(
-  mistake: LocalMistakeCreate
-): Promise<{ id: number; error_count: number; sync_status: string }> {
+  class_id?: string;
+}): Promise<{ id: string; error_count: number }> {
   return apiCall('/api/local/mistakes', {
     method: 'POST',
     body: JSON.stringify(mistake),
   });
 }
 
-export async function getLocalMistakes(surahNumber?: number): Promise<{ data: LocalMistake[] }> {
-  const params = surahNumber ? `?surah_number=${surahNumber}` : '';
-  return apiCall(`/api/local/mistakes${params}`);
-}
-
-// ============ HYBRID API ============
-
 /**
- * Get classes - tries local first, falls back to Supabase
+ * Get mistakes from local FastAPI sidecar.
+ * Returns same shape as Supabase getMistakes: MistakeData[]
  */
-export async function getClassesHybrid(role?: 'teacher' | 'student'): Promise<LocalClass[]> {
-  try {
-    // Try local API first (instant)
-    const local = await getLocalClasses(role);
-    return local.data;
-  } catch (err) {
-    console.warn('Local API failed, falling back to Supabase cache:', err);
-    // Fall back to Supabase via cached API
-    const { getClasses } = await import('./supabase-api');
-    const supabaseClasses = await getClasses(role);
-    // Map to local format
-    return supabaseClasses.map(c => ({
-      id: parseInt(c.id) || 0,
-      date: c.date,
-      day: c.day,
-      notes: c.notes,
-      performance: c.performance,
-      is_published: c.is_published,
-      supabase_id: c.id,
-      sync_status: 'synced' as const,
-      assignments: c.assignments.map(a => ({
-        id: parseInt(a.id) || 0,
-        type: a.type,
-        start_surah: a.start_surah,
-        end_surah: a.end_surah,
-        start_ayah: a.start_ayah,
-        end_ayah: a.end_ayah,
-        sync_status: 'synced',
-      })),
-    }));
-  }
+export async function getLocalMistakes(surahNumber?: number, studentId?: string): Promise<MistakeData[]> {
+  const params = new URLSearchParams();
+  if (surahNumber) params.set('surah_number', String(surahNumber));
+  if (studentId) params.set('student_id', studentId);
+  const qs = params.toString();
+  return apiCall(`/api/local/mistakes${qs ? '?' + qs : ''}`);
 }
 
 /**
- * Check if local API is available
+ * Get mistakes with occurrences from local FastAPI sidecar.
+ * Returns same shape as Supabase getMistakesWithOccurrences: MistakeWithOccurrences[]
  */
-export async function isLocalApiAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/api/surahs`, {
-      method: 'HEAD',
-      signal: AbortSignal.timeout(2000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+export async function getLocalMistakesWithOccurrences(surahNumber?: number, studentId?: string): Promise<MistakeWithOccurrences[]> {
+  const params = new URLSearchParams();
+  if (surahNumber) params.set('surah_number', String(surahNumber));
+  if (studentId) params.set('student_id', studentId);
+  const qs = params.toString();
+  return apiCall(`/api/local/mistakes/with-occurrences${qs ? '?' + qs : ''}`);
+}
+
+/**
+ * Remove mistake via local FastAPI sidecar.
+ * Returns same shape as Supabase removeMistake: { message: string }
+ */
+export async function removeLocalMistake(mistakeId: string): Promise<{ message: string }> {
+  return apiCall(`/api/local/mistakes/${mistakeId}`, {
+    method: 'DELETE',
+  });
 }

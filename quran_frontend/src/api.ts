@@ -1,46 +1,261 @@
-// API Facade for QuranTrack
-// Re-exports from Supabase and local Quran API modules
-// Some functions still use FastAPI (tests, backup) until migrated
+/**
+ * API Facade for QuranTrack — Local-First Architecture
+ *
+ * Routes data operations through local FastAPI sidecar when available (Tauri desktop),
+ * falls back to Supabase for pure web (no sidecar).
+ *
+ * Local path:  Frontend -> FastAPI -> app.db (instant) -> Supabase (background sync)
+ * Web path:    Frontend -> Supabase (direct, 200-400ms)
+ *
+ * Cross-device operations (students, auth) always go through Supabase.
+ */
 
 // Re-export types
 export type { StudentListItem, TeacherListItem, StudentLookup, User } from './types';
 
-// Re-export Supabase API functions
+// Re-export types from supabase-api (needed by consumers)
+export type {
+  ClassData,
+  ClassStudent,
+  ClassAssignment,
+  MistakeData,
+  MistakeWithOccurrences,
+  SuggestedPortions,
+  SuggestedPortion,
+} from './lib/supabase-api';
+
+// Import Supabase functions (used as fallback and for cross-device ops)
+import {
+  getClasses as getSupabaseClasses,
+  getClass as getSupabaseClass,
+  createClass as createSupabaseClass,
+  deleteClass as deleteSupabaseClass,
+  updateClassNotes as updateSupabaseClassNotes,
+  updateClassPerformance as updateSupabaseClassPerformance,
+  updateClassPublish as updateSupabaseClassPublish,
+  updateStudentPerformance as updateSupabaseStudentPerformance,
+  addClassStudents as addSupabaseClassStudents,
+  removeClassStudent as removeSupabaseClassStudent,
+  getMistakes as getSupabaseMistakes,
+  getMistakesWithOccurrences as getSupabaseMistakesWithOccurrences,
+  addMistake as addSupabaseMistake,
+  removeMistake as removeSupabaseMistake,
+} from './lib/supabase-api';
+
+// Import local API functions
+import {
+  isLocalApiAvailable,
+  createLocalClass,
+  getLocalClasses,
+  updateLocalClassNotes,
+  updateLocalClassPerformance,
+  addLocalMistake,
+  getLocalMistakes,
+  getLocalMistakesWithOccurrences,
+  removeLocalMistake,
+  triggerSync,
+} from './lib/local-api';
+
+// Re-export local API utilities for direct access
+export { isLocalApiAvailable, triggerSync } from './lib/local-api';
+export type { SyncStatus } from './lib/local-api';
+
+// ============ CROSS-DEVICE OPS (always Supabase) ============
+
 export {
   getMyStudents,
   lookupStudent,
   addStudent,
   removeStudent,
   getMyTeachers,
-  getClasses,
-  getClass,
-  createClass,
-  deleteClass,
-  updateClassNotes,
-  updateClassPerformance,
-  updateClassPublish,
-  updateStudentPerformance,
-  addClassStudents,
-  removeClassStudent,
-  getMistakes,
-  getMistakesWithOccurrences,
-  addMistake,
-  removeMistake,
   getStats,
   getSuggestedPortions,
   getStudentReport,
 } from './lib/supabase-api';
 
-export type {
-  ClassData,
-  ClassStudent,
-  ClassAssignment,
-  MistakeData,
-  SuggestedPortions,
-  SuggestedPortion,
-} from './lib/supabase-api';
+// ============ ROUTED OPERATIONS (local-first when sidecar available) ============
 
-// Re-export Quran API functions (local FastAPI)
+/**
+ * Get classes — local sidecar first, Supabase fallback
+ */
+export async function getClasses(role?: 'teacher' | 'student') {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await getLocalClasses(role);
+    } catch (err) {
+      console.warn('[local-first] getClasses local failed, falling back to Supabase:', err);
+    }
+  }
+  return getSupabaseClasses(role);
+}
+
+/**
+ * Get single class — always Supabase for now (needs full join data)
+ * The local endpoint doesn't support single-class fetch with full student details yet.
+ */
+export async function getClass(classId: string) {
+  return getSupabaseClass(classId);
+}
+
+/**
+ * Create class — local sidecar first, Supabase fallback
+ */
+export async function createClass(classData: {
+  date: string;
+  day: string;
+  notes?: string;
+  student_ids: string[];
+  assignments: {
+    type: string;
+    start_surah: number;
+    end_surah: number;
+    start_ayah?: number;
+    end_ayah?: number;
+    student_id?: string;
+  }[];
+}) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await createLocalClass(classData);
+    } catch (err) {
+      console.warn('[local-first] createClass local failed, falling back to Supabase:', err);
+    }
+  }
+  return createSupabaseClass(classData);
+}
+
+/**
+ * Delete class — always Supabase (needs cascade logic across tables)
+ */
+export async function deleteClass(classId: string) {
+  return deleteSupabaseClass(classId);
+}
+
+/**
+ * Update class notes — local sidecar first, Supabase fallback
+ */
+export async function updateClassNotes(classId: string, notes: string | null) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await updateLocalClassNotes(classId, notes);
+    } catch (err) {
+      console.warn('[local-first] updateClassNotes local failed, falling back to Supabase:', err);
+    }
+  }
+  return updateSupabaseClassNotes(classId, notes);
+}
+
+/**
+ * Update class performance — local sidecar first, Supabase fallback
+ */
+export async function updateClassPerformance(classId: string, performance: string) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await updateLocalClassPerformance(classId, performance);
+    } catch (err) {
+      console.warn('[local-first] updateClassPerformance local failed, falling back to Supabase:', err);
+    }
+  }
+  return updateSupabaseClassPerformance(classId, performance);
+}
+
+/**
+ * Update class publish status — always Supabase (affects student visibility cross-device)
+ */
+export async function updateClassPublish(classId: string, isPublished: boolean) {
+  return updateSupabaseClassPublish(classId, isPublished);
+}
+
+/**
+ * Update student performance — always Supabase
+ */
+export async function updateStudentPerformance(classId: string, studentId: string, performance: string) {
+  return updateSupabaseStudentPerformance(classId, studentId, performance);
+}
+
+/**
+ * Add students to class — always Supabase (cross-device)
+ */
+export async function addClassStudents(classId: string, studentIds: string[]) {
+  return addSupabaseClassStudents(classId, studentIds);
+}
+
+/**
+ * Remove student from class — always Supabase (cross-device)
+ */
+export async function removeClassStudent(classId: string, studentId: string) {
+  return removeSupabaseClassStudent(classId, studentId);
+}
+
+/**
+ * Get mistakes — local sidecar first, Supabase fallback
+ */
+export async function getMistakes(surahNumber?: number, studentId?: string) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await getLocalMistakes(surahNumber, studentId);
+    } catch (err) {
+      console.warn('[local-first] getMistakes local failed, falling back to Supabase:', err);
+    }
+  }
+  return getSupabaseMistakes(surahNumber, studentId);
+}
+
+/**
+ * Get mistakes with occurrences — local sidecar first, Supabase fallback
+ */
+export async function getMistakesWithOccurrences(surahNumber?: number, studentId?: string) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await getLocalMistakesWithOccurrences(surahNumber, studentId);
+    } catch (err) {
+      console.warn('[local-first] getMistakesWithOccurrences local failed, falling back to Supabase:', err);
+    }
+  }
+  return getSupabaseMistakesWithOccurrences(surahNumber, studentId);
+}
+
+/**
+ * Add mistake — local sidecar first (INSTANT), Supabase fallback
+ * This is the most critical operation for latency — marking mistakes during live recitation.
+ */
+export async function addMistake(mistake: {
+  student_id?: string;
+  surah_number: number;
+  ayah_number: number;
+  word_index: number;
+  word_text: string;
+  char_index?: number;
+  class_id?: string;
+}) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await addLocalMistake(mistake);
+    } catch (err) {
+      console.warn('[local-first] addMistake local failed, falling back to Supabase:', err);
+    }
+  }
+  return addSupabaseMistake(mistake);
+}
+
+/**
+ * Remove mistake — local sidecar first, Supabase fallback
+ */
+export async function removeMistake(mistakeId: string) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await removeLocalMistake(mistakeId);
+    } catch (err) {
+      console.warn('[local-first] removeMistake local failed, falling back to Supabase:', err);
+    }
+  }
+  return removeSupabaseMistake(mistakeId);
+}
+
+// ============ ASSIGNMENTS (always Supabase for now) ============
+export { updateAssignment, addClassAssignments, deleteAssignment } from './lib/supabase-api';
+
+// Re-export Quran API functions (local FastAPI for Quran data)
 export {
   getSurahs,
   getSurah,
@@ -49,12 +264,11 @@ export {
 
 export type { QuranPageWord, QuranPageLine, QuranPageData, Surah } from './lib/quran-api';
 
-// ============ LEGACY FastAPI functions (to be migrated) ============
+// ============ LEGACY FastAPI functions (backward compatibility) ============
 
 const API_BASE = 'http://localhost:8000/api';
 
 // Token management is no longer needed (Supabase handles it)
-// These are kept for backward compatibility but are no-ops
 export function setTokens(_access: string, _refresh: string) {
   console.warn('setTokens is deprecated - Supabase handles token management');
 }
@@ -68,8 +282,6 @@ export function getAccessToken() {
   return null;
 }
 
-// Auth functions are now in AuthContext using Supabase
-// These are kept for backward compatibility
 export async function signup(_data: any) {
   throw new Error('Use AuthContext.signup() instead');
 }
@@ -100,10 +312,6 @@ export async function verifyEmail(_token: string) {
   console.warn('verifyEmail not yet implemented with Supabase');
   return { message: 'Not implemented' };
 }
-
-// ============ ASSIGNMENTS (Supabase) ============
-export { updateAssignment, addClassAssignments, deleteAssignment } from './lib/supabase-api';
-
 
 // ============ BACKUP (still FastAPI) ============
 

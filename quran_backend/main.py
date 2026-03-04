@@ -324,6 +324,28 @@ def init_app_db():
         );
         CREATE INDEX IF NOT EXISTS idx_sync_log_status ON sync_log(status);
         CREATE INDEX IF NOT EXISTS idx_sync_log_table ON sync_log(table_name);
+
+        -- Profiles table (synced from Supabase, used for local name lookups)
+        CREATE TABLE IF NOT EXISTS profiles (
+            id TEXT PRIMARY KEY,
+            email TEXT,
+            name TEXT,
+            role TEXT DEFAULT 'student',
+            student_id TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            last_synced_at TEXT
+        );
+
+        -- Teacher-student relationships (synced from Supabase, TEXT UUIDs)
+        CREATE TABLE IF NOT EXISTS teacher_students (
+            id TEXT PRIMARY KEY,
+            teacher_id TEXT NOT NULL,
+            student_id TEXT NOT NULL,
+            created_at TEXT,
+            last_synced_at TEXT,
+            UNIQUE(teacher_id, student_id)
+        );
     """)
     conn.commit()
 
@@ -424,6 +446,35 @@ class MistakeCreate(BaseModel):
 
 class ClassNotesUpdate(BaseModel):
     notes: Optional[str] = None
+
+
+# Local-first models (accept string UUIDs from Supabase-authenticated frontend)
+class LocalAssignmentCreate(BaseModel):
+    type: str
+    start_surah: int
+    end_surah: int
+    start_ayah: Optional[int] = None
+    end_ayah: Optional[int] = None
+    student_id: Optional[str] = None  # Supabase UUID string
+
+
+class LocalClassCreate(BaseModel):
+    date: str
+    day: str
+    notes: Optional[str] = None
+    student_ids: List[str] = []  # Supabase UUID strings
+    assignments: list[LocalAssignmentCreate] = []
+    class_type: str = "regular"
+
+
+class LocalMistakeCreate(BaseModel):
+    student_id: Optional[str] = None  # Supabase UUID string
+    surah_number: int
+    ayah_number: int
+    word_index: int
+    word_text: str
+    char_index: Optional[int] = None
+    class_id: Optional[str] = None  # Supabase UUID string or local ID string
 
 
 # ============ QURAN ENDPOINTS ============
@@ -2151,31 +2202,35 @@ def get_sync_status(user: dict = Depends(require_supabase_user)):
 
 
 # ============ LOCAL-FIRST CLASS ENDPOINTS ============
+# These endpoints write to local app.db first (instant) then sync to Supabase in background.
+# Return shapes MUST match Supabase API responses so the UI can't tell the difference.
 
 @app.post("/api/local/classes")
 def create_local_class(
-    class_data: ClassCreate,
+    class_data: LocalClassCreate,
     background_tasks: BackgroundTasks,
     user: dict = Depends(require_supabase_user)
 ):
     """
     Create class in local app.db first (instant response).
     Syncs to Supabase in background.
+    Returns same shape as Supabase createClass: { id, message }
     """
     conn = get_app_db()
     supabase_user_id = user["id"]
+    now = datetime.utcnow().isoformat()
 
-    # Insert class
+    # Insert class (is_published=1 to match Supabase auto-publish behavior)
     cursor = conn.execute("""
-        INSERT INTO classes (date, day, notes, class_type, supabase_teacher_id, sync_status, created_at)
-        VALUES (?, ?, ?, ?, ?, 'pending', ?)
+        INSERT INTO classes (date, day, notes, class_type, supabase_teacher_id, is_published, sync_status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, 'pending', ?, ?)
     """, (
         class_data.date,
         class_data.day,
         class_data.notes,
         class_data.class_type,
         supabase_user_id,
-        datetime.utcnow().isoformat()
+        now, now
     ))
     class_id = cursor.lastrowid
 
@@ -2194,13 +2249,21 @@ def create_local_class(
             assignment.student_id
         ))
 
+    # Add students to class (student_ids are Supabase UUIDs stored as strings)
+    for student_id_str in class_data.student_ids:
+        conn.execute("""
+            INSERT OR IGNORE INTO class_students (class_id, student_id)
+            VALUES (?, ?)
+        """, (class_id, student_id_str))
+
     conn.commit()
     conn.close()
 
     # Trigger sync in background
     background_tasks.add_task(push_pending_classes, supabase_user_id)
 
-    return {"id": class_id, "message": "Class created locally", "sync_status": "pending"}
+    # Return same shape as Supabase: { id: string, message: string }
+    return {"id": str(class_id), "message": "Class created successfully"}
 
 
 @app.get("/api/local/classes")
@@ -2210,7 +2273,7 @@ def get_local_classes(
 ):
     """
     Get classes from local app.db (instant response).
-    Returns both synced and pending classes.
+    Returns same shape as Supabase getClasses: ClassData[]
     """
     conn = get_app_db()
     supabase_user_id = user["id"]
@@ -2223,8 +2286,6 @@ def get_local_classes(
             ORDER BY date DESC
         """, (supabase_user_id,))
     else:
-        # For students, need to check class_students
-        # For now, return published classes
         cursor = conn.execute("""
             SELECT c.* FROM classes c
             WHERE c.is_published = 1
@@ -2234,41 +2295,174 @@ def get_local_classes(
     classes = []
     for row in cursor.fetchall():
         class_dict = dict(row)
+        local_class_id = class_dict["id"]
+        # Use supabase_id if synced, otherwise local id as string
+        class_id_str = class_dict.get("supabase_id") or str(local_class_id)
 
         # Get assignments
         assign_cursor = conn.execute("""
-            SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id, sync_status
+            SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id, supabase_id
             FROM assignments WHERE class_id = ?
-        """, (class_dict["id"],))
-        class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
+        """, (local_class_id,))
+        assignments = []
+        for a in assign_cursor.fetchall():
+            a_dict = dict(a)
+            assignments.append({
+                "id": a_dict.get("supabase_id") or str(a_dict["id"]),
+                "type": a_dict["type"],
+                "start_surah": a_dict["start_surah"],
+                "end_surah": a_dict["end_surah"],
+                "start_ayah": a_dict.get("start_ayah"),
+                "end_ayah": a_dict.get("end_ayah"),
+                "student_id": a_dict.get("student_id"),
+            })
 
-        classes.append(class_dict)
+        # Build ClassData-shaped response
+        result = {
+            "id": class_id_str,
+            "date": class_dict["date"],
+            "day": class_dict.get("day", ""),
+            "notes": class_dict.get("notes"),
+            "performance": class_dict.get("performance"),
+            "teacher_id": supabase_user_id,
+            "is_published": bool(class_dict.get("is_published", 0)),
+            "assignments": assignments,
+        }
+
+        # For teachers, include students with performance
+        if user_role == "teacher":
+            students_cursor = conn.execute("""
+                SELECT cs.student_id, cs.performance
+                FROM class_students cs
+                WHERE cs.class_id = ?
+            """, (local_class_id,))
+            students_list = []
+            for s in students_cursor.fetchall():
+                s_dict = dict(s)
+                sid = str(s_dict["student_id"])
+                # Try to get student name from local profiles table
+                name_cursor = conn.execute("""
+                    SELECT name, student_id as sid FROM profiles WHERE id = ?
+                """, (sid,))
+                name_row = name_cursor.fetchone()
+                if name_row:
+                    name_parts = (name_row["name"] or "").split(" ", 1)
+                    first_name = name_parts[0] if name_parts else ""
+                    last_name = name_parts[1] if len(name_parts) > 1 else ""
+                    student_sid = name_row["sid"] or ""
+                else:
+                    first_name, last_name, student_sid = "Unknown", "", ""
+
+                students_list.append({
+                    "id": sid,
+                    "student_id": student_sid,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "performance": s_dict.get("performance") or class_dict.get("performance"),
+                })
+            result["students"] = students_list
+
+        classes.append(result)
 
     conn.close()
-    return {"data": classes}
+    return classes
 
+
+@app.put("/api/local/classes/{class_id}/notes")
+def update_local_class_notes(
+    class_id: str,
+    data: ClassNotesUpdate,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """Update class notes in local app.db, sync in background."""
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Find local class by supabase_id or local id
+    row = conn.execute(
+        "SELECT id FROM classes WHERE supabase_id = ? OR (id = ? AND supabase_teacher_id = ?)",
+        (class_id, class_id, supabase_user_id)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    local_id = row["id"]
+    conn.execute(
+        "UPDATE classes SET notes = ?, sync_status = 'pending', updated_at = ? WHERE id = ?",
+        (data.notes, datetime.utcnow().isoformat(), local_id)
+    )
+    conn.commit()
+    conn.close()
+
+    background_tasks.add_task(push_pending_classes, supabase_user_id)
+
+    return {"message": "Notes updated successfully"}
+
+
+@app.put("/api/local/classes/{class_id}/performance")
+def update_local_class_performance(
+    class_id: str,
+    data: PerformanceUpdate,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """Update class performance in local app.db, sync in background."""
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Find local class by supabase_id or local id
+    row = conn.execute(
+        "SELECT id FROM classes WHERE supabase_id = ? OR (id = ? AND supabase_teacher_id = ?)",
+        (class_id, class_id, supabase_user_id)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    local_id = row["id"]
+    conn.execute(
+        "UPDATE classes SET performance = ?, sync_status = 'pending', updated_at = ? WHERE id = ?",
+        (data.performance, datetime.utcnow().isoformat(), local_id)
+    )
+    conn.commit()
+    conn.close()
+
+    background_tasks.add_task(push_pending_classes, supabase_user_id)
+
+    return {"message": "Performance updated successfully"}
+
+
+# ============ LOCAL-FIRST MISTAKE ENDPOINTS ============
 
 @app.post("/api/local/mistakes")
 def add_local_mistake(
-    mistake: MistakeCreate,
+    mistake: LocalMistakeCreate,
     background_tasks: BackgroundTasks,
     user: dict = Depends(require_supabase_user)
 ):
     """
     Add mistake to local app.db first (instant response).
+    Creates occurrence record if class_id is provided.
     Syncs to Supabase in background.
+    Returns same shape as Supabase addMistake: { id: string, error_count: number }
     """
     conn = get_app_db()
     supabase_user_id = user["id"]
+    # student_id for the mistake: use provided one or fall back to the current user
+    target_student_id = mistake.student_id or supabase_user_id
 
     # Check if mistake already exists
     cursor = conn.execute("""
-        SELECT id, error_count FROM mistakes
+        SELECT id, error_count, supabase_id FROM mistakes
         WHERE supabase_student_id = ?
         AND surah_number = ? AND ayah_number = ? AND word_index = ?
         AND (char_index = ? OR (char_index IS NULL AND ? IS NULL))
     """, (
-        supabase_user_id,
+        target_student_id,
         mistake.surah_number,
         mistake.ayah_number,
         mistake.word_index,
@@ -2286,6 +2480,7 @@ def add_local_mistake(
             WHERE id = ?
         """, (new_count, datetime.utcnow().isoformat(), existing["id"]))
         mistake_id = existing["id"]
+        mistake_supabase_id = existing.get("supabase_id")
     else:
         # Create new mistake
         cursor = conn.execute("""
@@ -2299,47 +2494,208 @@ def add_local_mistake(
             mistake.word_index,
             mistake.word_text,
             mistake.char_index,
-            supabase_user_id,
+            target_student_id,
             datetime.utcnow().isoformat()
         ))
         mistake_id = cursor.lastrowid
+        mistake_supabase_id = None
         new_count = 1
+
+    # Create occurrence record if class_id is provided
+    if mistake.class_id:
+        # class_id might be a Supabase UUID string or local integer
+        # Try to find the local class_id
+        class_row = conn.execute(
+            "SELECT id FROM classes WHERE supabase_id = ? OR id = ?",
+            (str(mistake.class_id), str(mistake.class_id))
+        ).fetchone()
+        local_class_id = class_row["id"] if class_row else mistake.class_id
+
+        conn.execute("""
+            INSERT INTO mistake_occurrences (mistake_id, class_id, occurred_at)
+            VALUES (?, ?, ?)
+        """, (mistake_id, local_class_id, datetime.utcnow().isoformat()))
 
     conn.commit()
     conn.close()
 
     # Trigger sync in background
-    background_tasks.add_task(push_pending_mistakes, supabase_user_id)
+    background_tasks.add_task(push_pending_mistakes, target_student_id)
 
-    return {"id": mistake_id, "error_count": new_count, "sync_status": "pending"}
+    # Return same shape as Supabase addMistake: { id: string, error_count: number }
+    return {
+        "id": mistake_supabase_id or str(mistake_id),
+        "error_count": new_count,
+    }
 
 
 @app.get("/api/local/mistakes")
 def get_local_mistakes(
     surah_number: Optional[int] = None,
+    student_id: Optional[str] = None,
     user: dict = Depends(require_supabase_user)
 ):
-    """Get mistakes from local app.db (instant response)"""
+    """
+    Get mistakes from local app.db (instant response).
+    Returns same shape as Supabase getMistakes: MistakeData[]
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+    target_student_id = student_id or supabase_user_id
+
+    params = [target_student_id]
+    query = """
+        SELECT id, supabase_id, supabase_student_id, surah_number, ayah_number,
+               word_index, word_text, char_index, error_count
+        FROM mistakes
+        WHERE supabase_student_id = ?
+    """
+
+    if surah_number:
+        query += " AND surah_number = ?"
+        params.append(surah_number)
+
+    query += " ORDER BY error_count DESC"
+
+    cursor = conn.execute(query, params)
+    mistakes = []
+    for row in cursor.fetchall():
+        r = dict(row)
+        mistakes.append({
+            "id": r.get("supabase_id") or str(r["id"]),
+            "student_id": r.get("supabase_student_id") or target_student_id,
+            "surah_number": r["surah_number"],
+            "ayah_number": r["ayah_number"],
+            "word_index": r["word_index"],
+            "word_text": r["word_text"],
+            "char_index": r.get("char_index"),
+            "error_count": r.get("error_count", 1),
+        })
+
+    conn.close()
+    return mistakes
+
+
+@app.get("/api/local/mistakes/with-occurrences")
+def get_local_mistakes_with_occurrences(
+    surah_number: Optional[int] = None,
+    student_id: Optional[str] = None,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Get mistakes with class occurrence info from local app.db.
+    Returns same shape as Supabase getMistakesWithOccurrences: MistakeWithOccurrences[]
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+    target_student_id = student_id or supabase_user_id
+
+    params = [target_student_id]
+    query = """
+        SELECT id, supabase_id, supabase_student_id, surah_number, ayah_number,
+               word_index, word_text, char_index, error_count
+        FROM mistakes
+        WHERE supabase_student_id = ?
+    """
+
+    if surah_number:
+        query += " AND surah_number = ?"
+        params.append(surah_number)
+
+    query += " ORDER BY error_count DESC"
+
+    cursor = conn.execute(query, params)
+    mistakes = []
+
+    for row in cursor.fetchall():
+        r = dict(row)
+        local_mistake_id = r["id"]
+        mistake_id_str = r.get("supabase_id") or str(local_mistake_id)
+
+        # Get occurrences for this mistake
+        occ_cursor = conn.execute("""
+            SELECT mo.class_id, c.date as class_date, c.supabase_id as class_supabase_id
+            FROM mistake_occurrences mo
+            LEFT JOIN classes c ON mo.class_id = c.id
+            WHERE mo.mistake_id = ?
+            ORDER BY mo.occurred_at DESC
+        """, (local_mistake_id,))
+
+        occurrences = []
+        for occ in occ_cursor.fetchall():
+            o = dict(occ)
+            occurrences.append({
+                "class_id": o.get("class_supabase_id") or str(o["class_id"]),
+                "class_date": o.get("class_date", ""),
+            })
+
+        mistakes.append({
+            "id": mistake_id_str,
+            "student_id": r.get("supabase_student_id") or target_student_id,
+            "surah_number": r["surah_number"],
+            "ayah_number": r["ayah_number"],
+            "word_index": r["word_index"],
+            "word_text": r["word_text"],
+            "char_index": r.get("char_index"),
+            "error_count": r.get("error_count", 1),
+            "occurrences": occurrences,
+        })
+
+    conn.close()
+    return mistakes
+
+
+@app.delete("/api/local/mistakes/{mistake_id}")
+def delete_local_mistake(
+    mistake_id: str,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Delete a mistake from local app.db (decrement count or full delete).
+    Syncs to Supabase in background.
+    Returns same shape as Supabase removeMistake: { message: string }
+    """
     conn = get_app_db()
     supabase_user_id = user["id"]
 
-    if surah_number:
-        cursor = conn.execute("""
-            SELECT * FROM mistakes
-            WHERE supabase_student_id = ? AND surah_number = ?
-            ORDER BY error_count DESC
-        """, (supabase_user_id, surah_number))
-    else:
-        cursor = conn.execute("""
-            SELECT * FROM mistakes
-            WHERE supabase_student_id = ?
-            ORDER BY error_count DESC
-        """, (supabase_user_id,))
+    # Find mistake by supabase_id or local id
+    row = conn.execute(
+        "SELECT id, error_count, supabase_id FROM mistakes WHERE supabase_id = ? OR id = ?",
+        (mistake_id, mistake_id)
+    ).fetchone()
 
-    mistakes = [dict(row) for row in cursor.fetchall()]
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Mistake not found")
+
+    local_id = row["id"]
+
+    # Delete the most recent occurrence
+    conn.execute("""
+        DELETE FROM mistake_occurrences WHERE id = (
+            SELECT id FROM mistake_occurrences WHERE mistake_id = ?
+            ORDER BY occurred_at DESC LIMIT 1
+        )
+    """, (local_id,))
+
+    if row["error_count"] <= 1:
+        # Delete entirely
+        conn.execute("DELETE FROM mistake_occurrences WHERE mistake_id = ?", (local_id,))
+        conn.execute("DELETE FROM mistakes WHERE id = ?", (local_id,))
+    else:
+        # Decrement
+        conn.execute(
+            "UPDATE mistakes SET error_count = error_count - 1, sync_status = 'pending', updated_at = ? WHERE id = ?",
+            (datetime.utcnow().isoformat(), local_id)
+        )
+
+    conn.commit()
     conn.close()
 
-    return {"data": mistakes}
+    background_tasks.add_task(push_pending_mistakes, supabase_user_id)
+
+    return {"message": "Mistake removed successfully"}
 
 
 # ============ PDF EXPORT ENDPOINT ============

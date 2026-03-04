@@ -38,6 +38,7 @@ class ClassSession extends Equatable {
     return ClassSession(
       id: map['id'] as int?,
       serverId: map['server_id'] as int?,
+      supabaseId: map['supabase_id'] as String?,
       date: map['date'] as String,
       day: map['day'] as String,
       notes: map['notes'] as String?,
@@ -55,6 +56,7 @@ class ClassSession extends Equatable {
     return {
       if (id != null) 'id': id,
       if (serverId != null) 'server_id': serverId,
+      if (supabaseId != null) 'supabase_id': supabaseId,
       'date': date,
       'day': day,
       'notes': notes,

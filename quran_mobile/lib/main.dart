@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'config/theme.dart';
 import 'config/app_colors.dart';
 import 'core/auth/supabase_config.dart';
+import 'core/database/database_helper.dart';
 import 'core/services/update_service.dart';
+import 'core/sync/supabase_sync_helper.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/providers.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/classes/classes_screen.dart';
@@ -120,12 +124,55 @@ class MainNavigation extends ConsumerStatefulWidget {
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
   int _currentIndex = 0;
+  SupabaseSyncHelper? _syncHelper;
+  bool _initialSyncDone = false;
 
   @override
   void initState() {
     super.initState();
     // Auto-check for updates after a short delay to let the UI settle
     Future.delayed(const Duration(seconds: 2), _checkForUpdates);
+    // Initialize local database and perform initial sync
+    _initLocalFirst();
+  }
+
+  @override
+  void dispose() {
+    _syncHelper?.dispose();
+    super.dispose();
+  }
+
+  /// Initialize local SQLite database and perform first sync from Supabase.
+  Future<void> _initLocalFirst() async {
+    if (kIsWeb) return; // Only on mobile
+    try {
+      // Ensure local app database is initialized (triggers migrations)
+      await DatabaseHelper.instance.appDatabase;
+
+      // Get current user
+      final authState = ref.read(authProvider);
+      final user = authState.user;
+      if (user == null) return;
+
+      // Create sync helper
+      _syncHelper = ref.read(supabaseSyncHelperProvider);
+
+      // Pull all remote data to local SQLite (first load populates local DB)
+      if (!_initialSyncDone) {
+        _initialSyncDone = true;
+        await _syncHelper!.pullAll(user.id, user.role.name);
+
+        // Reload providers from local data after sync
+        ref.invalidate(classesProvider);
+        ref.invalidate(mistakesProvider);
+      }
+
+      // Start periodic sync (every 30 seconds)
+      _syncHelper!.startPeriodicSync(user.id, user.role.name);
+    } catch (e) {
+      debugPrint('[MainNavigation] _initLocalFirst error: $e');
+      // Don't block app usage — local data is still available
+    }
   }
 
   Future<void> _checkForUpdates() async {

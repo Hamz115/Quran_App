@@ -80,7 +80,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createAppDatabase,
       onUpgrade: _upgradeAppDatabase,
     );
@@ -92,6 +92,8 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS classes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         server_id INTEGER,
+        supabase_id TEXT,
+        teacher_id TEXT,
         date TEXT NOT NULL,
         day TEXT NOT NULL,
         notes TEXT,
@@ -109,6 +111,7 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         server_id INTEGER,
+        supabase_id TEXT,
         class_id INTEGER NOT NULL,
         server_class_id INTEGER,
         type TEXT NOT NULL CHECK(type IN ('hifz', 'sabqi', 'revision')),
@@ -127,6 +130,8 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS mistakes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         server_id INTEGER,
+        supabase_id TEXT,
+        student_id TEXT,
         surah_number INTEGER NOT NULL,
         ayah_number INTEGER NOT NULL,
         word_index INTEGER NOT NULL,
@@ -135,7 +140,7 @@ class DatabaseHelper {
         error_count INTEGER DEFAULT 1,
         last_synced_count INTEGER DEFAULT 0,
         sync_status TEXT DEFAULT 'pending',
-        UNIQUE(surah_number, ayah_number, word_index, char_index)
+        UNIQUE(student_id, surah_number, ayah_number, word_index, char_index)
       )
     ''');
 
@@ -144,10 +149,13 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS mistake_occurrences (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         server_id INTEGER,
+        supabase_id TEXT,
         mistake_id INTEGER NOT NULL,
         server_mistake_id INTEGER,
+        supabase_mistake_id TEXT,
         class_id INTEGER NOT NULL,
         server_class_id INTEGER,
+        supabase_class_id TEXT,
         occurred_at TEXT DEFAULT CURRENT_TIMESTAMP,
         sync_status TEXT DEFAULT 'pending',
         is_deleted INTEGER DEFAULT 0,
@@ -182,11 +190,17 @@ class DatabaseHelper {
     // Create indexes
     await db.execute('CREATE INDEX IF NOT EXISTS idx_classes_sync ON classes(sync_status)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_classes_date ON classes(date DESC)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_classes_supabase_id ON classes(supabase_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_assignments_class ON assignments(class_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_assignments_supabase_id ON assignments(supabase_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_surah ON mistakes(surah_number)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_sync ON mistakes(sync_status)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_supabase_id ON mistakes(supabase_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_student_id ON mistakes(student_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_mistake ON mistake_occurrences(mistake_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_class ON mistake_occurrences(class_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_supabase_class ON mistake_occurrences(supabase_class_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_log_status ON sync_log(sync_status)');
   }
 
@@ -195,6 +209,60 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE classes ADD COLUMN performance TEXT');
     }
+    // Version 3: Add supabase_id, teacher_id, student_id columns for local-first sync
+    if (oldVersion < 3) {
+      await _migrateToVersion3(db);
+    }
+  }
+
+  Future<void> _migrateToVersion3(Database db) async {
+    // Add supabase_id and teacher_id to classes
+    final classColumns = await db.rawQuery("PRAGMA table_info('classes')");
+    final classColNames = classColumns.map((c) => c['name'] as String).toSet();
+    if (!classColNames.contains('supabase_id')) {
+      await db.execute('ALTER TABLE classes ADD COLUMN supabase_id TEXT');
+    }
+    if (!classColNames.contains('teacher_id')) {
+      await db.execute('ALTER TABLE classes ADD COLUMN teacher_id TEXT');
+    }
+
+    // Add supabase_id to assignments
+    final assignmentColumns = await db.rawQuery("PRAGMA table_info('assignments')");
+    final assignmentColNames = assignmentColumns.map((c) => c['name'] as String).toSet();
+    if (!assignmentColNames.contains('supabase_id')) {
+      await db.execute('ALTER TABLE assignments ADD COLUMN supabase_id TEXT');
+    }
+
+    // Add supabase_id and student_id to mistakes
+    final mistakeColumns = await db.rawQuery("PRAGMA table_info('mistakes')");
+    final mistakeColNames = mistakeColumns.map((c) => c['name'] as String).toSet();
+    if (!mistakeColNames.contains('supabase_id')) {
+      await db.execute('ALTER TABLE mistakes ADD COLUMN supabase_id TEXT');
+    }
+    if (!mistakeColNames.contains('student_id')) {
+      await db.execute('ALTER TABLE mistakes ADD COLUMN student_id TEXT');
+    }
+
+    // Add supabase_id and string class/mistake IDs to mistake_occurrences
+    final occColumns = await db.rawQuery("PRAGMA table_info('mistake_occurrences')");
+    final occColNames = occColumns.map((c) => c['name'] as String).toSet();
+    if (!occColNames.contains('supabase_id')) {
+      await db.execute('ALTER TABLE mistake_occurrences ADD COLUMN supabase_id TEXT');
+    }
+    if (!occColNames.contains('supabase_mistake_id')) {
+      await db.execute('ALTER TABLE mistake_occurrences ADD COLUMN supabase_mistake_id TEXT');
+    }
+    if (!occColNames.contains('supabase_class_id')) {
+      await db.execute('ALTER TABLE mistake_occurrences ADD COLUMN supabase_class_id TEXT');
+    }
+
+    // Create indexes for new columns
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_classes_supabase_id ON classes(supabase_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_supabase_id ON mistakes(supabase_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_student_id ON mistakes(student_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_assignments_supabase_id ON assignments(supabase_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_supabase_class ON mistake_occurrences(supabase_class_id)');
   }
 
   // Close databases
