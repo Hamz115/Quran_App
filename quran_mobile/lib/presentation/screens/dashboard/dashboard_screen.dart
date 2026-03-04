@@ -7,6 +7,7 @@ import '../../../core/sync/sync_service.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../../data/models/app_user.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
 import '../classes/report/report_panel.dart';
@@ -25,9 +26,10 @@ class DashboardScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final teacherStudentsAsync = ref.watch(teacherStudentsProvider);
 
-    // User info from auth
+    // User info from auth — use viewModeProvider for UI decisions
     final user = authState.user;
-    final isTeacher = user?.role.name == 'teacher';
+    final viewMode = ref.watch(viewModeProvider);
+    final isTeacher = viewMode == UserRole.teacher;
     final userName = user?.firstName ?? 'User';
     final userInitials = '${user?.firstName?.isNotEmpty == true ? user!.firstName[0] : ''}${user?.lastName?.isNotEmpty == true ? user!.lastName[0] : ''}'.toUpperCase();
 

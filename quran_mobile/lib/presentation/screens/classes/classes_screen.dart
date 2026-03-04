@@ -5,6 +5,7 @@ import '../../../config/app_colors.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../../data/models/app_user.dart';
 import '../../providers/report_provider.dart';
 import '../classroom/classroom_screen.dart';
 import 'create_class_screen.dart';
@@ -26,7 +27,8 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
     final authState = ref.watch(authProvider);
-    final isTeacher = authState.isTeacher;
+    final viewMode = ref.watch(viewModeProvider);
+    final isTeacher = viewMode == UserRole.teacher;
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),

@@ -7,7 +7,7 @@ import '../../../data/quran_data.dart';
 import '../../../data/models/mistake.dart';
 import '../../../data/models/quran_page_data.dart';
 import '../../providers/providers.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/models/app_user.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/quran_page_provider.dart';
 import '../../widgets/mushaf_page_widget.dart';
@@ -64,8 +64,9 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    final isTeacher = ref.watch(authProvider).isTeacher;
-    // Only show mistakes for students — teachers should see a clean Quran
+    final viewMode = ref.watch(viewModeProvider);
+    final isTeacher = viewMode == UserRole.teacher;
+    // Only show mistakes in Student View — Teacher View shows a clean Quran
     final mistakes = isTeacher ? <Mistake>[] : (ref.watch(mistakesProvider).value ?? []);
 
     return Scaffold(

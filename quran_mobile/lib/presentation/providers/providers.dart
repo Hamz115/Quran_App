@@ -15,7 +15,14 @@ import '../../data/models/class_session.dart';
 import '../../data/models/mistake.dart';
 import '../../data/models/assignment.dart';
 import '../../data/models/suggested_portions.dart';
+import '../../data/models/app_user.dart';
 import 'auth_provider.dart';
+
+// View mode provider — lets teachers switch between Teacher/Student view
+final viewModeProvider = StateProvider<UserRole>((ref) {
+  final auth = ref.watch(authProvider);
+  return auth.user?.role ?? UserRole.student;
+});
 
 // Core providers
 final databaseHelperProvider = Provider((ref) => DatabaseHelper.instance);
