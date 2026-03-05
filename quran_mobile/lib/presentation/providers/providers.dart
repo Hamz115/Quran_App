@@ -496,21 +496,15 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     await classRepo.deleteClass(id);
     await loadClasses();
 
-    // Then delete on Supabase (background)
+    // Then delete on Supabase in background (non-blocking)
     if (sbId != null) {
-      try {
-        await _cleanupMistakesForClass(sbId);
-        final supabase = Supabase.instance.client;
-        await supabase.from('classes').delete().eq('id', sbId);
-      } catch (e) {
-        debugPrint('[ClassesNotifier] background delete class failed: $e');
-      }
+      _backgroundDeleteClassOnSupabase(sbId);
     }
   }
 
   /// Delete a class by its string ID (Supabase UUID).
   Future<void> deleteClassById(String classId) async {
-    // Delete locally
+    // Delete locally first (instant)
     final db = await DatabaseHelper.instance.appDatabase;
     final localClass = await db.query('classes',
       where: 'supabase_id = ?', whereArgs: [classId]);
@@ -520,13 +514,18 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     }
     await loadClasses();
 
-    // Delete on Supabase (background)
+    // Delete on Supabase in background (non-blocking)
+    _backgroundDeleteClassOnSupabase(classId);
+  }
+
+  /// Background helper: clean up mistakes + delete class on Supabase.
+  Future<void> _backgroundDeleteClassOnSupabase(String classId) async {
     try {
       await _cleanupMistakesForClass(classId);
       final supabase = Supabase.instance.client;
       await supabase.from('classes').delete().eq('id', classId);
     } catch (e) {
-      debugPrint('[ClassesNotifier] background deleteClassById failed: $e');
+      debugPrint('[ClassesNotifier] background delete class failed: $e');
     }
   }
 

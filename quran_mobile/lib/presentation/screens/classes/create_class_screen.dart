@@ -617,6 +617,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             (isJuzMode || isPageMode) ? null : (v) => setState(() {
                               portion.startSurah = v;
                               portion.endSurah = v;
+                              portion.startAyah = null;
+                              portion.endAyah = null;
                             }),
                             isDarkMode,
                           ),
@@ -627,7 +629,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'To Surah',
                             portion.endSurah,
                             surahs,
-                            (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.endSurah = v),
+                            (isJuzMode || isPageMode) ? null : (v) => setState(() {
+                              portion.endSurah = v;
+                              portion.endAyah = null;
+                            }),
                             isDarkMode,
                           ),
                         ),
@@ -642,6 +647,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             portion.startAyah,
                             (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.startAyah = v),
                             isDarkMode,
+                            fieldKey: ValueKey('${type}_${index}_startAyah_${portion.startSurah}'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -651,6 +657,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             portion.endAyah,
                             (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.endAyah = v),
                             isDarkMode,
+                            fieldKey: ValueKey('${type}_${index}_endAyah_${portion.endSurah}'),
                           ),
                         ),
                       ],
@@ -720,7 +727,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildAyahInput(String label, int? value, Function(int?)? onChanged, bool isDarkMode) {
+  Widget _buildAyahInput(String label, int? value, Function(int?)? onChanged, bool isDarkMode, {Key? fieldKey}) {
     final isReadOnly = onChanged == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,6 +735,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
         const SizedBox(height: 4),
         TextFormField(
+          key: fieldKey,
           initialValue: value?.toString() ?? '',
           keyboardType: TextInputType.number,
           readOnly: isReadOnly,
