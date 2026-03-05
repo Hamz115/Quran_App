@@ -488,24 +488,64 @@ export default function Classroom() {
     if (!wordPopup) return;
     if (isTeacher && !selectedStudentId) return;
 
+    const wordIndex = wordPopup.word.word - 1; // Convert to 0-based
+    const surahNumber = wordPopup.word.surah;
+    const ayahNumber = wordPopup.word.ayah;
+
+    // Optimistic UI: update state immediately before awaiting network
+    setMistakes(prev => {
+      const existing = prev.find(
+        m => m.surah_number === surahNumber &&
+             m.ayah_number === ayahNumber &&
+             m.word_index === wordIndex
+      );
+      if (existing) {
+        return prev.map(m =>
+          m.id === existing.id
+            ? { ...m, error_count: m.error_count + 1 }
+            : m
+        );
+      }
+      // New mistake — add with temporary id
+      return [...prev, {
+        id: `temp-${Date.now()}`,
+        student_id: isTeacher ? selectedStudentId || '' : '',
+        surah_number: surahNumber,
+        ayah_number: ayahNumber,
+        word_index: wordIndex,
+        word_text: mistakeText,
+        char_index: charIndex,
+        error_count: 1,
+      }];
+    });
+    setWordPopup(null);
+
+    // Fire the actual API call in background (non-blocking for UI)
     try {
-      await addMistake({
+      const result = await addMistake({
         student_id: isTeacher ? selectedStudentId || undefined : undefined,
-        surah_number: wordPopup.word.surah,
-        ayah_number: wordPopup.word.ayah,
-        word_index: wordPopup.word.word - 1, // Convert to 0-based
+        surah_number: surahNumber,
+        ayah_number: ayahNumber,
+        word_index: wordIndex,
         word_text: mistakeText,
         char_index: charIndex,
         class_id: id || undefined,
       });
 
-      const updatedMistakes = await getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined);
-      setMistakes(updatedMistakes || []);
+      // Update temp id with real id and correct error_count
+      if (result?.id) {
+        setMistakes(prev => prev.map(m =>
+          (m.id.startsWith('temp-') && m.surah_number === surahNumber && m.ayah_number === ayahNumber && m.word_index === wordIndex)
+            ? { ...m, id: result.id, error_count: result.error_count ?? m.error_count }
+            : m
+        ));
+      }
     } catch (err) {
       console.error('Failed to add mistake:', err);
+      // Revert optimistic update on failure
+      const updatedMistakes = await getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined);
+      setMistakes(updatedMistakes || []);
     }
-
-    setWordPopup(null);
   };
 
   const handleWordRightClick = async (e: React.MouseEvent, word: QuranPageWord) => {
@@ -522,12 +562,24 @@ export default function Classroom() {
 
     if (!existingMistake) return;
 
+    // Optimistic UI: remove from state immediately
+    const mistakeId = existingMistake.id;
+    if (existingMistake.error_count > 1) {
+      setMistakes(prev => prev.map(m =>
+        m.id === mistakeId ? { ...m, error_count: m.error_count - 1 } : m
+      ));
+    } else {
+      setMistakes(prev => prev.filter(m => m.id !== mistakeId));
+    }
+
+    // Fire the actual API call in background
     try {
-      await removeMistake(existingMistake.id);
-      const updatedMistakes = await getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined);
-      setMistakes(updatedMistakes || []);
+      await removeMistake(mistakeId);
     } catch (err) {
       console.error('Failed to remove mistake:', err);
+      // Revert on failure
+      const updatedMistakes = await getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined);
+      setMistakes(updatedMistakes || []);
     }
   };
 

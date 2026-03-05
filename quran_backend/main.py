@@ -2368,6 +2368,96 @@ def get_local_classes(
     return classes
 
 
+@app.get("/api/local/classes/{class_id}")
+def get_local_class(
+    class_id: str,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Get single class from local app.db (instant response).
+    Returns same shape as Supabase getClass: ClassData with students + assignments.
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Find class by supabase_id or local id
+    row = conn.execute(
+        "SELECT * FROM classes WHERE supabase_id = ? OR id = ?",
+        (class_id, class_id)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    class_dict = dict(row)
+    local_class_id = class_dict["id"]
+    class_id_str = class_dict.get("supabase_id") or str(local_class_id)
+
+    # Get assignments
+    assign_cursor = conn.execute("""
+        SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id, supabase_id
+        FROM assignments WHERE class_id = ?
+    """, (local_class_id,))
+    assignments = []
+    for a in assign_cursor.fetchall():
+        a_dict = dict(a)
+        assignments.append({
+            "id": a_dict.get("supabase_id") or str(a_dict["id"]),
+            "type": a_dict["type"],
+            "start_surah": a_dict["start_surah"],
+            "end_surah": a_dict["end_surah"],
+            "start_ayah": a_dict.get("start_ayah"),
+            "end_ayah": a_dict.get("end_ayah"),
+            "student_id": a_dict.get("student_id"),
+        })
+
+    # Get students with profile info
+    students_cursor = conn.execute("""
+        SELECT cs.student_id, cs.performance
+        FROM class_students cs
+        WHERE cs.class_id = ?
+    """, (local_class_id,))
+    students_list = []
+    for s in students_cursor.fetchall():
+        s_dict = dict(s)
+        sid = str(s_dict["student_id"])
+        name_cursor = conn.execute("""
+            SELECT name, student_id as sid FROM profiles WHERE id = ?
+        """, (sid,))
+        name_row = name_cursor.fetchone()
+        if name_row:
+            name_parts = (name_row["name"] or "").split(" ", 1)
+            first_name = name_parts[0] if name_parts else ""
+            last_name = name_parts[1] if len(name_parts) > 1 else ""
+            student_sid = name_row["sid"] or ""
+        else:
+            first_name, last_name, student_sid = "Unknown", "", ""
+
+        students_list.append({
+            "id": sid,
+            "student_id": student_sid,
+            "first_name": first_name,
+            "last_name": last_name,
+            "performance": s_dict.get("performance") or class_dict.get("performance"),
+        })
+
+    result = {
+        "id": class_id_str,
+        "date": class_dict["date"],
+        "day": class_dict.get("day", ""),
+        "notes": class_dict.get("notes"),
+        "performance": class_dict.get("performance"),
+        "teacher_id": supabase_user_id,
+        "is_published": bool(class_dict.get("is_published", 0)),
+        "assignments": assignments,
+        "students": students_list,
+    }
+
+    conn.close()
+    return result
+
+
 @app.put("/api/local/classes/{class_id}/notes")
 def update_local_class_notes(
     class_id: str,
@@ -2465,6 +2555,24 @@ def delete_local_class(
     supabase_class_id = row["supabase_id"] or class_id
 
     # Cascade delete locally (instant)
+    # 1. Find mistake_occurrences for this class and clean up orphaned mistakes
+    occ_cursor = conn.execute(
+        "SELECT DISTINCT mistake_id FROM mistake_occurrences WHERE class_id = ?", (local_id,)
+    )
+    mistake_ids = [r["mistake_id"] for r in occ_cursor.fetchall()]
+
+    conn.execute("DELETE FROM mistake_occurrences WHERE class_id = ?", (local_id,))
+
+    for mid in mistake_ids:
+        remaining = conn.execute(
+            "SELECT COUNT(*) as count FROM mistake_occurrences WHERE mistake_id = ?", (mid,)
+        ).fetchone()["count"]
+        if remaining == 0:
+            conn.execute("DELETE FROM mistakes WHERE id = ?", (mid,))
+        else:
+            conn.execute("UPDATE mistakes SET error_count = ? WHERE id = ?", (remaining, mid))
+
+    # 2. Delete class_students, assignments, and the class itself
     conn.execute("DELETE FROM class_students WHERE class_id = ?", (local_id,))
     conn.execute("DELETE FROM assignments WHERE class_id = ?", (local_id,))
     conn.execute("DELETE FROM classes WHERE id = ?", (local_id,))

@@ -47,6 +47,7 @@ import {
   isLocalApiAvailable,
   createLocalClass,
   getLocalClasses,
+  getLocalClass,
   deleteLocalClass,
   updateLocalClassNotes,
   updateLocalClassPerformance,
@@ -90,10 +91,16 @@ export async function getClasses(role?: 'teacher' | 'student') {
 }
 
 /**
- * Get single class — always Supabase for now (needs full join data)
- * The local endpoint doesn't support single-class fetch with full student details yet.
+ * Get single class — local sidecar first, Supabase fallback
  */
 export async function getClass(classId: string) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await getLocalClass(classId);
+    } catch (err) {
+      console.warn('[local-first] getClass local failed, falling back to Supabase:', err);
+    }
+  }
   return getSupabaseClass(classId);
 }
 

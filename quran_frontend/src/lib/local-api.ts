@@ -35,9 +35,9 @@ export async function isLocalApiAvailable(): Promise<boolean> {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/api/surahs`, {
-      method: 'HEAD',
-      signal: AbortSignal.timeout(1500),
+    const response = await fetch(`${API_BASE}/api/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(1000),
     });
     _localApiAvailable = response.ok;
   } catch {
@@ -139,6 +139,14 @@ export async function createLocalClass(classData: {
 export async function getLocalClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
   const params = role ? `?role=${role}` : '';
   return apiCall(`/api/local/classes${params}`);
+}
+
+/**
+ * Get single class from local FastAPI sidecar.
+ * Returns same shape as Supabase getClass: ClassData with students + assignments.
+ */
+export async function getLocalClass(classId: string): Promise<ClassData> {
+  return apiCall(`/api/local/classes/${classId}`);
 }
 
 /**

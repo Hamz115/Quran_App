@@ -174,26 +174,35 @@ def pull_teacher_students(teacher_id: str) -> Dict[str, int]:
 # ============ PUSH: Local → Supabase ============
 
 def push_pending_classes(supabase_user_id: str) -> Dict[str, int]:
-    """Push pending classes from app.db to Supabase"""
-    conn = get_app_db()
-    supabase = get_supabase()
+    """Push pending classes from app.db to Supabase.
 
+    IMPORTANT: Reads all pending data first, closes the connection,
+    then does network calls. This prevents SQLite lock contention
+    that blocks foreground reads while background sync runs.
+    """
+    supabase = get_supabase()
     results = {"created": 0, "updated": 0, "errors": 0}
 
-    # Get pending classes for this user
+    # Step 1: Read pending data and release the connection immediately
+    conn = get_app_db()
     cursor = conn.execute("""
         SELECT * FROM classes
         WHERE sync_status = 'pending'
         AND (supabase_teacher_id = ? OR teacher_id IS NOT NULL)
     """, (supabase_user_id,))
+    pending_rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
 
-    for row in cursor.fetchall():
-        class_data = dict(row)
+    if not pending_rows:
+        return results
+
+    # Step 2: Do all network calls WITHOUT holding the SQLite lock
+    sync_results = []  # (local_id, supabase_id, success, assignments_to_push)
+    for class_data in pending_rows:
         local_id = class_data["id"]
         supabase_id = class_data.get("supabase_id")
 
         try:
-            # Prepare data for Supabase
             remote_data = {
                 "teacher_id": supabase_user_id,
                 "date": class_data["date"],
@@ -205,16 +214,24 @@ def push_pending_classes(supabase_user_id: str) -> Dict[str, int]:
             }
 
             if supabase_id:
-                # Update existing
                 supabase.table("classes").update(remote_data).eq("id", supabase_id).execute()
                 results["updated"] += 1
             else:
-                # Create new
                 response = supabase.table("classes").insert(remote_data).execute()
                 supabase_id = response.data[0]["id"]
                 results["created"] += 1
 
-            # Mark as synced
+            sync_results.append((local_id, supabase_id, True))
+
+        except Exception as e:
+            print(f"Error syncing class {local_id}: {e}")
+            sync_results.append((local_id, None, False))
+            results["errors"] += 1
+
+    # Step 3: Reopen connection briefly to update sync statuses
+    conn = get_app_db()
+    for local_id, supabase_id, success in sync_results:
+        if success:
             conn.execute("""
                 UPDATE classes
                 SET sync_status = 'synced',
@@ -223,19 +240,11 @@ def push_pending_classes(supabase_user_id: str) -> Dict[str, int]:
                     last_synced_at = ?
                 WHERE id = ?
             """, (supabase_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
-            conn.commit()
-
             # Sync assignments for this class
             push_class_assignments(conn, supabase, local_id, supabase_id)
-
-        except Exception as e:
-            print(f"Error syncing class {local_id}: {e}")
-            conn.execute("""
-                UPDATE classes SET sync_status = 'error' WHERE id = ?
-            """, (local_id,))
-            conn.commit()
-            results["errors"] += 1
-
+        else:
+            conn.execute("UPDATE classes SET sync_status = 'error' WHERE id = ?", (local_id,))
+    conn.commit()
     conn.close()
     return results
 
@@ -279,20 +288,31 @@ def push_class_assignments(conn, supabase: Client, local_class_id: int, supabase
 
 
 def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
-    """Push pending mistakes from app.db to Supabase"""
-    conn = get_app_db()
-    supabase = get_supabase()
+    """Push pending mistakes from app.db to Supabase.
 
+    IMPORTANT: Reads all pending data first, closes the connection,
+    then does network calls. This prevents SQLite lock contention
+    that blocks foreground reads while background sync runs.
+    """
+    supabase = get_supabase()
     results = {"created": 0, "updated": 0, "errors": 0}
 
+    # Step 1: Read pending data and release the connection immediately
+    conn = get_app_db()
     cursor = conn.execute("""
         SELECT * FROM mistakes
         WHERE sync_status = 'pending'
         AND supabase_student_id = ?
     """, (supabase_user_id,))
+    pending_rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
 
-    for row in cursor.fetchall():
-        mistake = dict(row)
+    if not pending_rows:
+        return results
+
+    # Step 2: Do all network calls WITHOUT holding the SQLite lock
+    sync_results = []  # (local_id, supabase_id, success)
+    for mistake in pending_rows:
         local_id = mistake["id"]
         supabase_id = mistake.get("supabase_id")
 
@@ -315,6 +335,17 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
                 supabase_id = response.data[0]["id"]
                 results["created"] += 1
 
+            sync_results.append((local_id, supabase_id, True))
+
+        except Exception as e:
+            print(f"Error syncing mistake {local_id}: {e}")
+            sync_results.append((local_id, None, False))
+            results["errors"] += 1
+
+    # Step 3: Reopen connection briefly to update sync statuses
+    conn = get_app_db()
+    for local_id, supabase_id, success in sync_results:
+        if success:
             conn.execute("""
                 UPDATE mistakes
                 SET sync_status = 'synced',
@@ -323,14 +354,9 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
                     last_synced_at = ?
                 WHERE id = ?
             """, (supabase_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
-            conn.commit()
-
-        except Exception as e:
-            print(f"Error syncing mistake {local_id}: {e}")
+        else:
             conn.execute("UPDATE mistakes SET sync_status = 'error' WHERE id = ?", (local_id,))
-            conn.commit()
-            results["errors"] += 1
-
+    conn.commit()
     conn.close()
     return results
 

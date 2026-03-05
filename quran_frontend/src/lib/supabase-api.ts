@@ -47,6 +47,7 @@ async function fetchStudentsFromSupabase(): Promise<StudentListItem[]> {
       student_id: student.student_id || '',
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
+      email: student.email || '',
       added_at: row.created_at,
     };
   });
