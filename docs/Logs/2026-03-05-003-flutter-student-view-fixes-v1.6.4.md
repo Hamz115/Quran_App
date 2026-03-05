@@ -32,7 +32,12 @@ Fixed three dashboard providers to return empty data when a teacher is in Studen
 - **Web**: Changed "Found student:" to "Found user:" (teachers can be added too)
 - **Web**: Updated helper text: "Enter an email address to search for a user"
 - **Flutter**: Updated helper text: "Enter an email address to search and add a user to your halaqah"
-- Both platforms already search ALL profiles by email (no role filter), so teachers ARE findable
+- Both platforms search `profiles` by email with no role filter in the query itself
+
+### 4. Fix RLS Policy Blocking Teacher Lookup
+- Root cause: Supabase RLS policy `"Teachers can lookup any student profile"` had `role = 'student'` filter — teachers could only find student profiles, NOT other teachers
+- Fix: Dropped old policy, created `"Teachers can lookup any profile"` with `public.is_teacher()` only (no role filter)
+- Now teachers can search for ANY user by email (teachers or students)
 
 ## Files Changed
 
@@ -42,11 +47,11 @@ Fixed three dashboard providers to return empty data when a teacher is in Studen
 | `quran_mobile/lib/presentation/screens/settings/settings_screen.dart` | Modified | Replace toggle with two tappable view options |
 | `quran_frontend/src/pages/TeacherDashboard.tsx` | Modified | Rename Lookup→Search, add "already in list" check, update helper text |
 | `quran_mobile/lib/presentation/screens/dashboard/dashboard_screen.dart` | Modified | Update Add Student helper text |
+| Supabase (remote) | Migration | Drop+recreate profiles RLS policy (teachers can find any user) |
 | Version files (6 total) | Modified | Bumped to v1.6.4 |
 
 ## Next Steps
 
-- [ ] Test Student View: verify all sections empty (stats, surahs, mistakes, classes)
-- [ ] Test switching back to Teacher View: verify data reappears
-- [ ] Test Add Student: search for a teacher email, verify it finds them
+- [ ] Test Add Student: search for a teacher email (e.g. aathifa), verify it finds them now
 - [ ] Test Add Student: search for already-added student, verify error message
+- [ ] Test Student View: verify all sections empty (stats, surahs, mistakes, classes)
