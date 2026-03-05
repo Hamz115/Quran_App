@@ -99,10 +99,10 @@ export async function addStudent(email: string): Promise<{ message: string }> {
     .select('id')
     .eq('teacher_id', user.id)
     .eq('student_id', student.id)
-    .single() as { data: { id: string } | null; error: any };
+    .maybeSingle() as { data: { id: string } | null; error: any };
 
   if (existing) {
-    throw new Error('Student already added to your list');
+    throw new Error('This user is already in your list');
   }
 
   // Add relationship
@@ -111,6 +111,9 @@ export async function addStudent(email: string): Promise<{ message: string }> {
     .insert({ teacher_id: user.id, student_id: student.id } as any);
 
   if (error) {
+    if (error.code === '23505') {
+      throw new Error('This user is already in your list');
+    }
     throw new Error(error.message);
   }
 

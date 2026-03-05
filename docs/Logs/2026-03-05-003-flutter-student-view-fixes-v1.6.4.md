@@ -34,7 +34,12 @@ Fixed three dashboard providers to return empty data when a teacher is in Studen
 - **Flutter**: Updated helper text: "Enter an email address to search and add a user to your halaqah"
 - Both platforms search `profiles` by email with no role filter in the query itself
 
-### 4. Fix RLS Policy Blocking Teacher Lookup
+### 4. Fix Duplicate Add Student Constraint Error
+- `addStudent` in `supabase-api.ts` used `.single()` for duplicate check — fails silently when RLS blocks the read
+- Changed to `.maybeSingle()` (no error on 0 rows, more reliable)
+- Added catch for Postgres unique constraint error (code `23505`) with friendly message: "This user is already in your list"
+
+### 5. Fix RLS Policy Blocking Teacher Lookup
 - Root cause: Supabase RLS policy `"Teachers can lookup any student profile"` had `role = 'student'` filter — teachers could only find student profiles, NOT other teachers
 - Fix: Dropped old policy, created `"Teachers can lookup any profile"` with `public.is_teacher()` only (no role filter)
 - Now teachers can search for ANY user by email (teachers or students)
@@ -47,6 +52,7 @@ Fixed three dashboard providers to return empty data when a teacher is in Studen
 | `quran_mobile/lib/presentation/screens/settings/settings_screen.dart` | Modified | Replace toggle with two tappable view options |
 | `quran_frontend/src/pages/TeacherDashboard.tsx` | Modified | Rename Lookup→Search, add "already in list" check, update helper text |
 | `quran_mobile/lib/presentation/screens/dashboard/dashboard_screen.dart` | Modified | Update Add Student helper text |
+| `quran_frontend/src/lib/supabase-api.ts` | Modified | Fix addStudent: maybeSingle + catch unique constraint error |
 | Supabase (remote) | Migration | Drop+recreate profiles RLS policy (teachers can find any user) |
 | Version files (6 total) | Modified | Bumped to v1.6.4 |
 
