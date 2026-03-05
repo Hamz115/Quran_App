@@ -564,7 +564,7 @@ export async function updateClassPublish(classId: string, isPublished: boolean):
 
 export async function updateStudentPerformance(classId: string, studentId: string, performance: string): Promise<{ message: string }> {
   // Update per-student performance on class_students
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('class_students')
     .update({ performance })
     .eq('class_id', classId)
