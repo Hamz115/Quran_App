@@ -40,8 +40,8 @@ export default function TeacherDashboard() {
           getClasses()
         ]);
         if (isMounted) {
-          setStudents(studentsData);
-          setClasses(classesData);
+          setStudents(Array.isArray(studentsData) ? studentsData : []);
+          setClasses(Array.isArray(classesData) ? classesData : []);
           setLoading(false);
         }
       } catch (err) {
