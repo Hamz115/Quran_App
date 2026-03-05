@@ -923,6 +923,13 @@ final statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
     return {'totalClasses': 0, 'totalMistakes': 0, 'repeatedMistakes': 0};
   }
 
+  // In Student View, teacher has no own mistakes — return empty stats
+  final viewMode = ref.watch(viewModeProvider);
+  final isActualTeacher = user.role == UserRole.teacher;
+  if (isActualTeacher && viewMode == UserRole.student) {
+    return {'totalClasses': 0, 'totalMistakes': 0, 'repeatedMistakes': 0};
+  }
+
   final mistakeRepo = ref.watch(mistakeRepositoryProvider);
   return mistakeRepo.getStats();
 });
@@ -933,6 +940,11 @@ final topMistakesProvider = FutureProvider<List<Mistake>>((ref) async {
   final user = ref.read(authProvider).user;
   if (user == null) return [];
 
+  // In Student View, teacher has no own mistakes
+  final viewMode = ref.watch(viewModeProvider);
+  final isActualTeacher = user.role == UserRole.teacher;
+  if (isActualTeacher && viewMode == UserRole.student) return [];
+
   final mistakeRepo = ref.watch(mistakeRepositoryProvider);
   return mistakeRepo.getTopRepeatedMistakes(limit: 10);
 });
@@ -942,6 +954,11 @@ final topMistakesProvider = FutureProvider<List<Mistake>>((ref) async {
 final mistakeCountsBySurahProvider = FutureProvider<Map<int, int>>((ref) async {
   final user = ref.read(authProvider).user;
   if (user == null) return {};
+
+  // In Student View, teacher has no own mistakes
+  final viewMode = ref.watch(viewModeProvider);
+  final isActualTeacher = user.role == UserRole.teacher;
+  if (isActualTeacher && viewMode == UserRole.student) return {};
 
   final mistakeRepo = ref.watch(mistakeRepositoryProvider);
   return mistakeRepo.getMistakeCountsBySurah();

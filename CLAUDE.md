@@ -289,8 +289,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.6.1 | 2026-03-04 | Move view toggle to Settings + fix Student View data (enrolled classes, not teaching data) | `2026-03-04-002` |
 | v1.6.2 | 2026-03-05 | Fix ayah range sticking on surah change + local-first delete class (instant) | `2026-03-05-001` |
 | v1.6.3 | 2026-03-05 | Add performance column to Supabase class_students + fix per-student performance | `2026-03-05-002` |
+| v1.6.4 | 2026-03-05 | Flutter Student View fixes (empty data) + Settings view switcher UI | `2026-03-05-003` |
 
-**Current version: v1.6.3**
+**Current version: v1.6.4**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform

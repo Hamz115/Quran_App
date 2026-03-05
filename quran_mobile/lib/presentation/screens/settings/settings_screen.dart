@@ -205,46 +205,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   if (!isActualTeacher) return const SizedBox.shrink();
 
                   final viewMode = ref.watch(viewModeProvider);
-                  final isStudentView = viewMode == UserRole.student;
+
+                  void switchView(UserRole mode) {
+                    if (viewMode == mode) return;
+                    ref.read(viewModeProvider.notifier).state = mode;
+                    ref.read(mistakesProvider.notifier).setStudentId(null);
+                  }
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 32),
-                      _sectionHeader('VIEW MODE', isDarkMode),
+                      _sectionHeader('SWITCH VIEW', isDarkMode),
                       const SizedBox(height: 12),
                       GlassmorphicCard(
                         padding: const EdgeInsets.all(0),
-                        child: ListTile(
-                          leading: _iconBox(
-                            isStudentView ? Icons.person_rounded : Icons.school_rounded,
-                            isStudentView ? AppColors.teal500 : AppColors.cyan500,
-                            isDarkMode,
-                          ),
-                          title: Text(
-                            isStudentView ? 'Student View' : 'Teacher View',
-                            style: TextStyle(color: AppColors.text(isDarkMode)),
-                          ),
-                          subtitle: Text(
-                            isStudentView
-                                ? 'Viewing as a student — see your own classes and progress'
-                                : 'Viewing as a teacher — manage your halaqah',
-                            style: TextStyle(
-                              color: AppColors.textSecondary(isDarkMode),
-                              fontSize: 12,
+                        child: Column(
+                          children: [
+                            // Teacher View option
+                            ListTile(
+                              leading: _iconBox(Icons.school_rounded, AppColors.cyan500, isDarkMode),
+                              title: Text(
+                                'Teacher View',
+                                style: TextStyle(
+                                  color: viewMode == UserRole.teacher
+                                      ? AppColors.cyan500
+                                      : AppColors.text(isDarkMode),
+                                  fontWeight: viewMode == UserRole.teacher ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Manage your halaqah',
+                                style: TextStyle(color: AppColors.textSecondary(isDarkMode), fontSize: 12),
+                              ),
+                              trailing: viewMode == UserRole.teacher
+                                  ? Icon(Icons.check_circle_rounded, color: AppColors.cyan500)
+                                  : null,
+                              onTap: () => switchView(UserRole.teacher),
+                              tileColor: viewMode == UserRole.teacher
+                                  ? AppColors.cyan500.withOpacity(isDarkMode ? 0.1 : 0.05)
+                                  : null,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                              ),
                             ),
-                          ),
-                          trailing: Switch(
-                            value: isStudentView,
-                            onChanged: (_) {
-                              final newMode = isStudentView ? UserRole.teacher : UserRole.student;
-                              ref.read(viewModeProvider.notifier).state = newMode;
-                              // Reset mistakes to load own data
-                              ref.read(mistakesProvider.notifier).setStudentId(null);
-                            },
-                            activeColor: AppColors.teal500,
-                            activeTrackColor: AppColors.teal500.withOpacity(0.5),
-                          ),
+                            Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                            // Student View option
+                            ListTile(
+                              leading: _iconBox(Icons.person_rounded, AppColors.teal500, isDarkMode),
+                              title: Text(
+                                'Student View',
+                                style: TextStyle(
+                                  color: viewMode == UserRole.student
+                                      ? AppColors.teal500
+                                      : AppColors.text(isDarkMode),
+                                  fontWeight: viewMode == UserRole.student ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'See your own classes and progress',
+                                style: TextStyle(color: AppColors.textSecondary(isDarkMode), fontSize: 12),
+                              ),
+                              trailing: viewMode == UserRole.student
+                                  ? Icon(Icons.check_circle_rounded, color: AppColors.teal500)
+                                  : null,
+                              onTap: () => switchView(UserRole.student),
+                              tileColor: viewMode == UserRole.student
+                                  ? AppColors.teal500.withOpacity(isDarkMode ? 0.1 : 0.05)
+                                  : null,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
