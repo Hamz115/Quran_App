@@ -839,7 +839,7 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Enter the student\'s email address to add them to your halaqah.',
+            'Enter an email address to search and add a user to your halaqah.',
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary(isDark)),
           ),
           const SizedBox(height: 16),

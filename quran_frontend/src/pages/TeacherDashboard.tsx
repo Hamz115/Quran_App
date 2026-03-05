@@ -83,7 +83,13 @@ export default function TeacherDashboard() {
 
     try {
       const result = await lookupStudent(emailInput.trim().toLowerCase());
-      setLookupResult(result);
+      // Check if already in student list
+      const alreadyAdded = students.some(s => s.email?.toLowerCase() === emailInput.trim().toLowerCase());
+      if (alreadyAdded) {
+        setLookupError('This student is already in your list');
+      } else {
+        setLookupResult(result);
+      }
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : 'No user found with that email');
     } finally {
@@ -508,10 +514,10 @@ export default function TeacherDashboard() {
                         : 'bg-slate-200 hover:bg-slate-300 disabled:bg-slate-100 text-slate-700'
                     }`}
                   >
-                    {isLookingUp ? 'Looking...' : 'Lookup'}
+                    {isLookingUp ? 'Searching...' : 'Search'}
                   </button>
                 </div>
-                <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Enter the student's email address to find them</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Enter an email address to search for a user</p>
               </div>
 
               {lookupError && (
@@ -522,7 +528,7 @@ export default function TeacherDashboard() {
 
               {lookupResult && (
                 <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
-                  <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Found student:</p>
+                  <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Found user:</p>
                   <p className={`text-lg font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{lookupResult.first_name} {lookupResult.last_name}</p>
                   <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{lookupResult.email}</p>
                 </div>
