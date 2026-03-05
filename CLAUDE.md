@@ -288,8 +288,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.6.0 | 2026-03-04 | Flutter Teacher/Student view toggle — teachers can switch views to see own progress, classes, and mistakes | `2026-03-04-002` |
 | v1.6.1 | 2026-03-04 | Move view toggle to Settings + fix Student View data (enrolled classes, not teaching data) | `2026-03-04-002` |
 | v1.6.2 | 2026-03-05 | Fix ayah range sticking on surah change + local-first delete class (instant) | `2026-03-05-001` |
+| v1.6.3 | 2026-03-05 | Add performance column to Supabase class_students + fix per-student performance | `2026-03-05-002` |
 
-**Current version: v1.6.2**
+**Current version: v1.6.3**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform

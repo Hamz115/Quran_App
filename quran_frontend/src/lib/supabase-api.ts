@@ -234,6 +234,7 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
         assignments (*),
         class_students (
           student_id,
+          performance,
           student:profiles!student_id (id, student_id, name)
         )
       `)
@@ -322,6 +323,7 @@ export async function getClass(classId: string): Promise<ClassData> {
       assignments (*),
       class_students (
         student_id,
+        performance,
         student:profiles!student_id (id, student_id, name)
       )
     `)
@@ -560,11 +562,18 @@ export async function updateClassPublish(classId: string, isPublished: boolean):
   return { message: isPublished ? 'Class published' : 'Class unpublished' };
 }
 
-export async function updateStudentPerformance(classId: string, _studentId: string, performance: string): Promise<{ message: string }> {
-  // Note: class_students table doesn't have a performance column yet in Supabase.
-  // For now, store performance at the class level instead.
-  const { error } = await (supabase as any).from('classes').update({ performance }).eq('id', classId);
+export async function updateStudentPerformance(classId: string, studentId: string, performance: string): Promise<{ message: string }> {
+  // Update per-student performance on class_students
+  const { error } = await supabase
+    .from('class_students')
+    .update({ performance })
+    .eq('class_id', classId)
+    .eq('student_id', studentId);
   if (error) throw new Error(error.message);
+
+  // Also update class-level performance for backward compatibility
+  await (supabase as any).from('classes').update({ performance }).eq('id', classId);
+
   return { message: 'Student performance updated' };
 }
 
