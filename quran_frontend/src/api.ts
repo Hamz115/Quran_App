@@ -77,12 +77,18 @@ export {
 // ============ ROUTED OPERATIONS (local-first when sidecar available) ============
 
 /**
- * Get classes — local sidecar first, Supabase fallback
+ * Get classes — local sidecar first, Supabase fallback.
+ * Falls back to Supabase if local returns empty (DB may not be synced yet).
  */
 export async function getClasses(role?: 'teacher' | 'student') {
   if (await isLocalApiAvailable()) {
     try {
-      return await getLocalClasses(role);
+      const localResult = await getLocalClasses(role);
+      if (Array.isArray(localResult) && localResult.length > 0) {
+        return localResult;
+      }
+      // Local DB empty — fall through to Supabase (might not be synced yet)
+      console.log('[local-first] getClasses local returned empty, trying Supabase');
     } catch (err) {
       console.warn('[local-first] getClasses local failed, falling back to Supabase:', err);
     }
@@ -202,12 +208,17 @@ export async function removeClassStudent(classId: string, studentId: string) {
 }
 
 /**
- * Get mistakes — local sidecar first, Supabase fallback
+ * Get mistakes — local sidecar first, Supabase fallback.
+ * Falls back to Supabase if local returns empty (DB may not be synced yet).
  */
 export async function getMistakes(surahNumber?: number, studentId?: string) {
   if (await isLocalApiAvailable()) {
     try {
-      return await getLocalMistakes(surahNumber, studentId);
+      const localResult = await getLocalMistakes(surahNumber, studentId);
+      if (Array.isArray(localResult) && localResult.length > 0) {
+        return localResult;
+      }
+      console.log('[local-first] getMistakes local returned empty, trying Supabase');
     } catch (err) {
       console.warn('[local-first] getMistakes local failed, falling back to Supabase:', err);
     }
@@ -216,12 +227,17 @@ export async function getMistakes(surahNumber?: number, studentId?: string) {
 }
 
 /**
- * Get mistakes with occurrences — local sidecar first, Supabase fallback
+ * Get mistakes with occurrences — local sidecar first, Supabase fallback.
+ * Falls back to Supabase if local returns empty (DB may not be synced yet).
  */
 export async function getMistakesWithOccurrences(surahNumber?: number, studentId?: string) {
   if (await isLocalApiAvailable()) {
     try {
-      return await getLocalMistakesWithOccurrences(surahNumber, studentId);
+      const localResult = await getLocalMistakesWithOccurrences(surahNumber, studentId);
+      if (Array.isArray(localResult) && localResult.length > 0) {
+        return localResult;
+      }
+      console.log('[local-first] getMistakesWithOccurrences local returned empty, trying Supabase');
     } catch (err) {
       console.warn('[local-first] getMistakesWithOccurrences local failed, falling back to Supabase:', err);
     }
