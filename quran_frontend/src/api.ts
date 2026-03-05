@@ -47,6 +47,7 @@ import {
   isLocalApiAvailable,
   createLocalClass,
   getLocalClasses,
+  deleteLocalClass,
   updateLocalClassNotes,
   updateLocalClassPerformance,
   addLocalMistake,
@@ -124,9 +125,16 @@ export async function createClass(classData: {
 }
 
 /**
- * Delete class — always Supabase (needs cascade logic across tables)
+ * Delete class — local sidecar first (instant), Supabase fallback
  */
 export async function deleteClass(classId: string) {
+  if (await isLocalApiAvailable()) {
+    try {
+      return await deleteLocalClass(classId);
+    } catch (err) {
+      console.warn('[local-first] deleteClass local failed, falling back to Supabase:', err);
+    }
+  }
   return deleteSupabaseClass(classId);
 }
 

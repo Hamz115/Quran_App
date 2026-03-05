@@ -31,7 +31,7 @@ from auth.dependencies import get_current_user, get_current_verified_user
 # Import sync service
 from sync_service import (
     full_sync, push_pending_classes, push_pending_mistakes,
-    pull_classes, pull_mistakes, mark_for_sync
+    pull_classes, pull_mistakes, mark_for_sync, get_supabase
 )
 
 # Supabase JWT settings
@@ -2434,6 +2434,78 @@ def update_local_class_performance(
     background_tasks.add_task(push_pending_classes, supabase_user_id)
 
     return {"message": "Performance updated successfully"}
+
+
+@app.delete("/api/local/classes/{class_id}")
+def delete_local_class(
+    class_id: str,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_supabase_user)
+):
+    """
+    Delete class from local app.db first (instant response).
+    Cascade-deletes assignments, class_students, and mistake_occurrences locally.
+    Fires Supabase cascade cleanup in background.
+    Returns same shape as Supabase deleteClass: { message: string }
+    """
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+
+    # Find local class by supabase_id or local id
+    row = conn.execute(
+        "SELECT id, supabase_id FROM classes WHERE supabase_id = ? OR (id = ? AND supabase_teacher_id = ?)",
+        (class_id, class_id, supabase_user_id)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    local_id = row["id"]
+    supabase_class_id = row["supabase_id"] or class_id
+
+    # Cascade delete locally (instant)
+    conn.execute("DELETE FROM class_students WHERE class_id = ?", (local_id,))
+    conn.execute("DELETE FROM assignments WHERE class_id = ?", (local_id,))
+    conn.execute("DELETE FROM classes WHERE id = ?", (local_id,))
+    conn.commit()
+    conn.close()
+
+    # Fire Supabase cascade cleanup in background (non-blocking)
+    background_tasks.add_task(_background_delete_class_on_supabase, supabase_class_id)
+
+    return {"message": "Class deleted"}
+
+
+def _background_delete_class_on_supabase(class_id: str):
+    """Background task: cascade-delete class on Supabase (mirrors supabase-api.ts deleteClass)."""
+    try:
+        sb = get_supabase()
+
+        # 1. Find mistake_occurrences linked to this class
+        occ_resp = sb.table("mistake_occurrences").select("id, mistake_id").eq("class_id", class_id).execute()
+        occurrences = occ_resp.data or []
+
+        if occurrences:
+            mistake_ids = list(set(o["mistake_id"] for o in occurrences))
+
+            # 2. Delete occurrences for this class
+            sb.table("mistake_occurrences").delete().eq("class_id", class_id).execute()
+
+            # 3. Clean up orphaned mistakes
+            for mid in mistake_ids:
+                count_resp = sb.table("mistake_occurrences").select("id", count="exact").eq("mistake_id", mid).execute()
+                remaining = count_resp.count if count_resp.count is not None else len(count_resp.data or [])
+                if remaining == 0:
+                    sb.table("mistakes").delete().eq("id", mid).execute()
+                else:
+                    sb.table("mistakes").update({"error_count": remaining}).eq("id", mid).execute()
+
+        # 4. Delete the class (cascades to assignments, class_students via RLS/triggers)
+        sb.table("classes").delete().eq("id", class_id).execute()
+
+    except Exception as e:
+        print(f"[background] delete class on Supabase failed: {e}")
 
 
 # ============ LOCAL-FIRST MISTAKE ENDPOINTS ============

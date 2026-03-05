@@ -163,6 +163,16 @@ export async function updateLocalClassPerformance(classId: string, performance: 
   });
 }
 
+/**
+ * Delete class via local FastAPI sidecar.
+ * Returns same shape as Supabase deleteClass: { message: string }
+ */
+export async function deleteLocalClass(classId: string): Promise<{ message: string }> {
+  return apiCall(`/api/local/classes/${classId}`, {
+    method: 'DELETE',
+  });
+}
+
 // ============ MISTAKES (Local-First) ============
 
 /**
