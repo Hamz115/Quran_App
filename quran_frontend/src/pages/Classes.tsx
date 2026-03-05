@@ -212,16 +212,14 @@ export default function Classes() {
     }
   };
 
-  const handleDeleteClass = async (e: React.MouseEvent, classId: string) => {
+  const handleDeleteClass = (e: React.MouseEvent, classId: string) => {
     e.stopPropagation();
     if (!confirm('Are you sure you want to delete this class?')) return;
 
-    try {
-      await deleteClass(classId);
-      setClasses(classes.filter(c => c.id !== classId));
-    } catch (err) {
-      console.error('Failed to delete class:', err);
-    }
+    // Optimistically remove from UI (instant)
+    setClasses(classes.filter(c => c.id !== classId));
+    // Fire Supabase delete in background (non-blocking)
+    deleteClass(classId).catch(err => console.error('Failed to delete class:', err));
   };
 
   const handlePerformanceUpdate = async (classId: string, performance: string) => {

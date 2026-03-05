@@ -531,16 +531,14 @@ export default function Classroom() {
     }
   };
 
-  const handleDeleteClass = async () => {
+  const handleDeleteClass = () => {
     if (!classData) return;
     if (!confirm('Are you sure you want to delete this class?')) return;
 
-    try {
-      await deleteClass(classData.id);
-      navigate(getBackRoute());
-    } catch (err) {
-      console.error('Failed to delete class:', err);
-    }
+    // Navigate immediately (instant)
+    navigate(getBackRoute());
+    // Fire Supabase delete in background (non-blocking)
+    deleteClass(classData.id).catch(err => console.error('Failed to delete class:', err));
   };
 
   const handleSaveNotes = async () => {

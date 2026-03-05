@@ -60,18 +60,19 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
     return computePerformanceStats(filteredReport.classes);
   }, [filteredReport]);
 
-  // Delete a class and refresh report
-  const handleDeleteClass = useCallback(async (classId: string) => {
-    try {
-      await deleteClass(classId);
-      setExpandedClassId(null);
-      // Re-fetch the report
-      const data = await getStudentReport(studentId);
-      setReport(data);
-    } catch (err) {
-      console.error('Failed to delete class:', err);
+  // Delete a class — optimistic UI update, Supabase cleanup in background
+  const handleDeleteClass = useCallback((classId: string) => {
+    // Optimistically remove from UI (instant)
+    setExpandedClassId(null);
+    if (report) {
+      setReport({
+        ...report,
+        classes: report.classes.filter((c: any) => c.id !== classId),
+      });
     }
-  }, [studentId]);
+    // Fire Supabase delete in background (non-blocking)
+    deleteClass(classId).catch(err => console.error('Failed to delete class:', err));
+  }, [report]);
 
   // Theme variables
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
