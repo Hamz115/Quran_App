@@ -278,6 +278,7 @@ class SupabaseSyncHelper {
   }
 
   /// Pull classes from Supabase for a teacher.
+  /// Also reconciles: deletes local synced classes that no longer exist on Supabase.
   Future<void> _pullClasses(String teacherId) async {
     try {
       final response = await _supabase
@@ -286,8 +287,11 @@ class SupabaseSyncHelper {
           .eq('teacher_id', teacherId)
           .order('date', ascending: false);
 
+      final remoteIds = <String>{};
+
       for (final row in (response as List)) {
         final supabaseId = row['id'].toString();
+        remoteIds.add(supabaseId);
         final assignmentsRaw = (row['assignments'] as List?) ?? [];
 
         await _classRepo.upsertFromSupabase(
@@ -301,6 +305,9 @@ class SupabaseSyncHelper {
           assignments: assignmentsRaw,
         );
       }
+
+      // Reconcile: remove local synced classes that no longer exist on Supabase
+      await _classRepo.removeStaleClasses(teacherId, remoteIds);
     } catch (e) {
       debugPrint('[SupabaseSyncHelper] _pullClasses error: $e');
     }

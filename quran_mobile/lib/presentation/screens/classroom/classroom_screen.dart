@@ -456,6 +456,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
     final isTeacher = ref.read(authProvider).isTeacher;
     final studentsAsync = isTeacher ? ref.read(teacherStudentsProvider) : null;
+    final classStudentsAsync = isTeacher ? ref.watch(classStudentsProvider(widget.classId)) : null;
 
     showModalBottomSheet(
       context: context,
@@ -510,9 +511,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Student selector (teacher only)
+                  // Student selector (teacher only) — use class students if available
                   if (isTeacher && studentsAsync != null) ...[
-                    _buildStudentSelectorInSheet(studentsAsync, isDarkMode, setSheetState),
+                    _buildStudentSelectorInSheet(
+                      classStudentsAsync ?? studentsAsync,
+                      studentsAsync,
+                      isDarkMode,
+                      setSheetState,
+                    ),
                     const SizedBox(height: 16),
                   ],
 
@@ -572,47 +578,78 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   }
 
   Widget _buildStudentSelectorInSheet(
-    AsyncValue<List<({String id, String name})>> studentsAsync,
+    AsyncValue<List<({String id, String name})>> classStudentsAsync,
+    AsyncValue<List<({String id, String name})>> allStudentsAsync,
     bool isDarkMode,
     StateSetter setSheetState,
   ) {
-    return studentsAsync.when(
-      data: (students) {
-        if (students.isEmpty) return const SizedBox.shrink();
-
-        return Row(
-          children: [
-            Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary(isDarkMode).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primary(isDarkMode).withOpacity(0.3)),
-                ),
-                child: DropdownButton<String>(
-                  value: _selectedStudentId,
-                  isExpanded: true,
-                  isDense: true,
-                  underline: const SizedBox.shrink(),
-                  dropdownColor: AppColors.surface(isDarkMode),
-                  style: TextStyle(fontSize: 13, color: AppColors.primary(isDarkMode)),
-                  items: students.map((s) => DropdownMenuItem(
-                    value: s.id,
-                    child: Text(s.name, style: TextStyle(color: AppColors.text(isDarkMode))),
-                  )).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedStudentId = value);
-                      setSheetState(() {});
-                      ref.read(mistakesProvider.notifier).setStudentId(value);
-                    }
-                  },
+    return classStudentsAsync.when(
+      data: (classStudents) {
+        // If class has exactly 1 enrolled student, show static label (no dropdown)
+        if (classStudents.length == 1) {
+          return Row(
+            children: [
+              Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary(isDarkMode).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary(isDarkMode).withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    classStudents.first.name,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary(isDarkMode)),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          );
+        }
+
+        // Multiple enrolled students or none — show dropdown with all teacher's students
+        return allStudentsAsync.when(
+          data: (students) {
+            if (students.isEmpty) return const SizedBox.shrink();
+
+            return Row(
+              children: [
+                Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary(isDarkMode).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primary(isDarkMode).withOpacity(0.3)),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedStudentId,
+                      isExpanded: true,
+                      isDense: true,
+                      underline: const SizedBox.shrink(),
+                      dropdownColor: AppColors.surface(isDarkMode),
+                      style: TextStyle(fontSize: 13, color: AppColors.primary(isDarkMode)),
+                      items: students.map((s) => DropdownMenuItem(
+                        value: s.id,
+                        child: Text(s.name, style: TextStyle(color: AppColors.text(isDarkMode))),
+                      )).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedStudentId = value);
+                          setSheetState(() {});
+                          ref.read(mistakesProvider.notifier).setStudentId(value);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
         );
       },
       loading: () => const SizedBox.shrink(),

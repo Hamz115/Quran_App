@@ -490,6 +490,29 @@ class ClassRepository {
     return (await getClass(classId))!;
   }
 
+  /// Remove local synced classes that no longer exist on Supabase.
+  /// Only removes classes with a supabase_id that is NOT in [remoteIds].
+  /// Leaves pending (unsynced) classes untouched.
+  Future<void> removeStaleClasses(String teacherId, Set<String> remoteIds) async {
+    final db = await _dbHelper.appDatabase;
+
+    // Find local classes with supabase_id set (already synced) for this teacher
+    final localSynced = await db.query('classes',
+      where: 'teacher_id = ? AND supabase_id IS NOT NULL AND is_deleted = 0',
+      whereArgs: [teacherId],
+    );
+
+    for (final row in localSynced) {
+      final sbId = row['supabase_id'] as String?;
+      if (sbId != null && !remoteIds.contains(sbId)) {
+        final localId = row['id'] as int;
+        // Delete assignments first, then the class
+        await db.delete('assignments', where: 'class_id = ?', whereArgs: [localId]);
+        await db.delete('classes', where: 'id = ?', whereArgs: [localId]);
+      }
+    }
+  }
+
   // Clear all local class data (for logout/cleanup)
   Future<void> clearAllLocal() async {
     final db = await _dbHelper.appDatabase;
