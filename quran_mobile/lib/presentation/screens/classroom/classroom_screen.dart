@@ -71,12 +71,27 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final mistakesAsync = ref.watch(mistakesProvider);
     final isDarkMode = ref.watch(themeProvider);
 
-    // Fetch teacher's students for the student selector
+    // Fetch teacher's students for the student selector dropdown
     final isTeacher = ref.read(authProvider).isTeacher;
     final studentsAsync = isTeacher ? ref.watch(teacherStudentsProvider) : null;
 
-    // Auto-select first student if not yet initialized
-    if (!_studentInitialized && studentsAsync != null) {
+    // Fetch CLASS-SPECIFIC students to auto-select the correct one
+    final classStudentsAsync = isTeacher ? ref.watch(classStudentsProvider(widget.classId)) : null;
+
+    // Auto-select from class-enrolled students (not all teacher's students)
+    if (!_studentInitialized && classStudentsAsync != null) {
+      classStudentsAsync.whenData((classStudents) {
+        if (classStudents.isNotEmpty && _selectedStudentId == null) {
+          _selectedStudentId = classStudents.first.id;
+          _studentInitialized = true;
+          Future.microtask(() {
+            ref.read(mistakesProvider.notifier).setStudentId(_selectedStudentId);
+          });
+        }
+      });
+    }
+    // Fallback: if class has no enrolled students yet, use all teacher's students
+    if (!_studentInitialized && studentsAsync != null && classStudentsAsync?.value?.isEmpty == true) {
       studentsAsync.whenData((students) {
         if (students.isNotEmpty && _selectedStudentId == null) {
           _selectedStudentId = students.first.id;

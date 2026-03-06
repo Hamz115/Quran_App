@@ -143,6 +143,24 @@ Future<String> addStudentByEmail(WidgetRef ref, String email) async {
   return studentName;
 }
 
+// ============ CLASS STUDENTS PROVIDER (fetches students enrolled in a specific class) ============
+
+final classStudentsProvider = FutureProvider.family<List<({String id, String name})>, String>((ref, classId) async {
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('class_students')
+      .select('student_id, student:profiles!student_id(id, name)')
+      .eq('class_id', classId);
+
+  return (response as List).map((row) {
+    final student = row['student'] as Map<String, dynamic>?;
+    return (
+      id: (student?['id'] ?? row['student_id']).toString(),
+      name: (student?['name'] ?? 'Student').toString(),
+    );
+  }).toList();
+});
+
 // ============ LOCAL-FIRST: MISTAKE IDS FOR CLASS ============
 
 // Mistake IDs belonging to a specific class — LOCAL FIRST
