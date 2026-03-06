@@ -291,8 +291,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.6.3 | 2026-03-05 | Add performance column to Supabase class_students + fix per-student performance | `2026-03-05-002` |
 | v1.6.4 | 2026-03-05 | Flutter Student View fixes (empty data) + Settings view switcher UI | `2026-03-05-003` |
 | v1.6.5 | 2026-03-05 | Tauri local-first: fix sync lock, optimistic mistakes, getClass endpoint, orphan cleanup | `2026-03-05-004` |
+| v1.6.6 | 2026-03-06 | Flutter classroom student selector defaults to class-enrolled student | `2026-03-06-001` |
 
-**Current version: v1.6.5**
+**Current version: v1.6.6**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform
