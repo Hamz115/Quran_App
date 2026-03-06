@@ -42,6 +42,13 @@ class DashboardScreen extends ConsumerWidget {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            // Pull fresh data from Supabase first
+            final user = ref.read(authProvider).user;
+            if (user != null) {
+              final syncHelper = ref.read(supabaseSyncHelperProvider);
+              await syncHelper.pullAll(user.id, user.role.name);
+            }
+            // Then reload providers from fresh local data
             ref.invalidate(statsProvider);
             ref.invalidate(topMistakesProvider);
             ref.invalidate(mistakeCountsBySurahProvider);

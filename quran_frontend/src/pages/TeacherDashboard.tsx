@@ -30,33 +30,23 @@ export default function TeacherDashboard() {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  const [refreshing, setRefreshing] = useState(false);
 
-    async function loadInitialData() {
-      try {
-        const [studentsData, classesData] = await Promise.all([
-          getMyStudents(),
-          getClasses()
-        ]);
-        if (isMounted) {
-          setStudents(Array.isArray(studentsData) ? studentsData : []);
-          setClasses(Array.isArray(classesData) ? classesData : []);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load data:', err);
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
+  async function loadData() {
+    try {
+      const [studentsData, classesData] = await Promise.all([
+        getMyStudents(),
+        getClasses()
+      ]);
+      setStudents(Array.isArray(studentsData) ? studentsData : []);
+      setClasses(Array.isArray(classesData) ? classesData : []);
+    } catch (err) {
+      console.error('Failed to load data:', err);
     }
+  }
 
-    loadInitialData();
-
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    loadData().finally(() => setLoading(false));
   }, []);
 
   async function loadStudents() {
@@ -164,6 +154,24 @@ export default function TeacherDashboard() {
           <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Welcome back, {user?.first_name}! Manage your Halaqah and track student progress.</p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              await loadData();
+              setRefreshing(false);
+            }}
+            disabled={refreshing}
+            className={`p-2.5 rounded-xl font-medium transition-colors ${
+              darkMode
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+            } ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh data"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
           <button
             onClick={() => setShowAddStudentModal(true)}
             className={`px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 ${

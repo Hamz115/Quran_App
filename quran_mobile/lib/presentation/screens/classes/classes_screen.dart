@@ -116,13 +116,17 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             // Report panel for selected student
             Expanded(
               child: _selectedStudentId != null
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: ReportPanel(
-                        key: ValueKey(_selectedStudentId),
-                        studentId: _selectedStudentId!,
-                        onTapClass: (classId) => _navigateToClass(context, classId),
-                        onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
+                  ? RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: ReportPanel(
+                          key: ValueKey(_selectedStudentId),
+                          studentId: _selectedStudentId!,
+                          onTapClass: (classId) => _navigateToClass(context, classId),
+                          onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
+                        ),
                       ),
                     )
                   : students.isEmpty
@@ -250,12 +254,16 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
         ),
         // Report panel for current student
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: ReportPanel(
-              studentId: userId,
-              onTapClass: (classId) => _navigateToClass(context, classId),
-              onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 24),
+              child: ReportPanel(
+                studentId: userId,
+                onTapClass: (classId) => _navigateToClass(context, classId),
+                onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
+              ),
             ),
           ),
         ),
@@ -307,6 +315,20 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
         ),
       ),
     );
+  }
+
+  // ============ REFRESH ============
+
+  Future<void> _onRefresh() async {
+    final user = ref.read(authProvider).user;
+    if (user != null) {
+      final syncHelper = ref.read(supabaseSyncHelperProvider);
+      await syncHelper.pullAll(user.id, user.role.name);
+    }
+    ref.read(classesProvider.notifier).loadClasses();
+    ref.invalidate(teacherStudentsProvider);
+    ref.invalidate(enrolledClassesProvider);
+    ref.invalidate(studentReportProvider);
   }
 
   // ============ HELPERS ============
