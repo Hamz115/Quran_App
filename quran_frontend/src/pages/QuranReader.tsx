@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getQuranPage, getMistakes, type QuranPageData, type QuranPageWord, type MistakeData } from '../api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getQuranPage, getMistakesWithOccurrences, type QuranPageData, type QuranPageWord, type MistakeWithOccurrences } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getPageNumber } from '../data/quranPages';
@@ -43,6 +43,19 @@ const getMistakeLevel = (errorCount: number): number => {
   return 1;
 };
 
+// Strip Quranic pause marks that don't render properly in most fonts
+const stripQuranMarks = (text: string): string => {
+  return text.replace(/[\u06D6-\u06ED]/g, '').trim();
+};
+
+const getMistakeColor = (errorCount: number, darkMode: boolean) => {
+  if (errorCount >= 5) return darkMode ? 'bg-red-500/20 text-red-400 border-red-600/50' : 'bg-red-100 text-red-700 border-red-300';
+  if (errorCount >= 4) return darkMode ? 'bg-purple-500/20 text-purple-400 border-purple-600/50' : 'bg-purple-100 text-purple-700 border-purple-300';
+  if (errorCount >= 3) return darkMode ? 'bg-orange-500/20 text-orange-400 border-orange-600/50' : 'bg-orange-100 text-orange-700 border-orange-300';
+  if (errorCount >= 2) return darkMode ? 'bg-cyan-500/20 text-cyan-400 border-cyan-600/50' : 'bg-cyan-100 text-cyan-700 border-cyan-300';
+  return darkMode ? 'bg-amber-500/20 text-amber-400 border-amber-600/50' : 'bg-amber-100 text-amber-700 border-amber-300';
+};
+
 export default function QuranReader() {
   const { user } = useAuth();
   const { darkMode } = useTheme();
@@ -54,9 +67,20 @@ export default function QuranReader() {
   const [showJumpModal, setShowJumpModal] = useState(false);
 
   // Mistakes state (read-only viewing)
-  const [mistakes, setMistakes] = useState<MistakeData[]>([]);
+  const [mistakes, setMistakes] = useState<MistakeWithOccurrences[]>([]);
   const [mistakesLoading, setMistakesLoading] = useState(false);
   const [surahs, setSurahs] = useState<number[]>([]);
+
+  // Highlight state for click-to-flash
+  const [highlightedWordKey, setHighlightedWordKey] = useState<string | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashWord = (surah: number, ayah: number, wordIndex: number) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    const key = `${surah}-${ayah}-${wordIndex}`;
+    setHighlightedWordKey(key);
+    flashTimerRef.current = setTimeout(() => setHighlightedWordKey(null), 1500);
+  };
 
   // Get highest mistake level for a word
   // Note: word position in v2 is 1-based, word_index in mistakes is 0-based
@@ -148,9 +172,9 @@ export default function QuranReader() {
     const loadMistakes = async () => {
       setMistakesLoading(true);
       try {
-        const allMistakes: MistakeData[] = [];
+        const allMistakes: MistakeWithOccurrences[] = [];
         for (const surahNum of surahs) {
-          const surahMistakes = await getMistakes(surahNum);
+          const surahMistakes = await getMistakesWithOccurrences(surahNum);
           allMistakes.push(...surahMistakes);
         }
         if (isMounted) setMistakes(allMistakes);
@@ -332,7 +356,7 @@ export default function QuranReader() {
           </div>
           <div className="flex items-center gap-1.5 ml-auto">
             <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-              {mistakes.length} mistakes on this page
+              {mistakes.filter(m => getPageNumber(m.surah_number, m.ayah_number) === currentPage).length} mistakes on this page
             </span>
           </div>
         </div>
@@ -440,6 +464,8 @@ export default function QuranReader() {
                     <FittedLine className="text-slate-800">
                       {line.words.map((word) => {
                         const wordStyle = getWordStyle(word);
+                        const wordKey = `${word.surah}-${word.ayah}-${word.word - 1}`;
+                        const isFlashing = highlightedWordKey === wordKey;
 
                         return (
                           <span
@@ -448,7 +474,7 @@ export default function QuranReader() {
                               !word.is_end
                                 ? wordStyle.className
                                 : 'text-cyan-700'
-                            }`}
+                            } ${isFlashing ? 'reader-flash-highlight' : ''}`}
                             title={!word.is_end
                               ? `${word.text_uthmani || ''} (${word.surah}:${word.ayah}:${word.word})${wordStyle.errorCount > 0 ? ` - ${wordStyle.errorCount}x mistakes` : ''}`
                               : `Ayah ${word.ayah} end`
@@ -542,6 +568,116 @@ export default function QuranReader() {
           </svg>
         </button>
       </div>
+
+      {/* Mistakes by Class Section */}
+      {(() => {
+        // Filter mistakes for the current page
+        const pageMistakes = mistakes.filter(m => {
+          const mistakePage = getPageNumber(m.surah_number, m.ayah_number);
+          return mistakePage === currentPage;
+        });
+
+        if (pageMistakes.length === 0) return null;
+
+        // Group by class using occurrences
+        const classBuckets: Record<string, { day: string; date: string; mistakes: MistakeWithOccurrences[] }> = {};
+        const noClassMistakes: MistakeWithOccurrences[] = [];
+
+        for (const m of pageMistakes) {
+          if (!m.occurrences || m.occurrences.length === 0) {
+            noClassMistakes.push(m);
+            continue;
+          }
+          for (const occ of m.occurrences) {
+            const key = `${occ.class_day}-${occ.class_date}-${occ.class_id}`;
+            if (!classBuckets[key]) {
+              classBuckets[key] = { day: occ.class_day || '', date: occ.class_date || '', mistakes: [] };
+            }
+            if (!classBuckets[key].mistakes.find(em => em.id === m.id)) {
+              classBuckets[key].mistakes.push(m);
+            }
+          }
+        }
+
+        const sortedKeys = Object.keys(classBuckets).sort((a, b) => {
+          const dateA = classBuckets[a].date;
+          const dateB = classBuckets[b].date;
+          return dateB.localeCompare(dateA);
+        });
+
+        return (
+          <div>
+            <div className={`card p-4 lg:p-6 ${darkMode ? 'border-slate-600/50' : 'bg-white border-slate-200'}`}>
+              <h3 className={`font-semibold mb-4 flex items-center gap-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                Mistakes on this page ({pageMistakes.length})
+              </h3>
+
+              <div className="space-y-4">
+                {sortedKeys.map(key => {
+                  const { day, date, mistakes: classMistakes } = classBuckets[key];
+                  return (
+                    <div key={key} className={`border-l-2 pl-4 ${darkMode ? 'border-cyan-600' : 'border-cyan-400'}`}>
+                      <h4 className={`text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {day || 'Class'} <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>({date})</span>
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {classMistakes.map(m => (
+                          <button
+                            key={m.id}
+                            onClick={() => flashWord(m.surah_number, m.ayah_number, m.word_index)}
+                            className={`px-3 py-2 rounded-xl text-sm flex items-center gap-2 border cursor-pointer transition-transform hover:scale-105 ${getMistakeColor(m.error_count, darkMode)}`}
+                          >
+                            <span className="font-amiri text-lg">{stripQuranMarks(m.word_text)}</span>
+                            <span className="text-xs opacity-75">{m.surah_number}:{m.ayah_number}:{m.word_index + 1}</span>
+                            {m.error_count > 1 && <span className="text-xs px-1.5 py-0.5 rounded bg-white/10">{m.error_count}x</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {noClassMistakes.length > 0 && (
+                  <div className={`border-l-2 pl-4 ${darkMode ? 'border-slate-600' : 'border-slate-300'}`}>
+                    <h4 className={`text-sm font-medium mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Unlinked mistakes
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {noClassMistakes.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => flashWord(m.surah_number, m.ayah_number, m.word_index)}
+                          className={`px-3 py-2 rounded-xl text-sm flex items-center gap-2 border cursor-pointer transition-transform hover:scale-105 ${getMistakeColor(m.error_count, darkMode)}`}
+                        >
+                          <span className="font-amiri text-lg">{stripQuranMarks(m.word_text)}</span>
+                          <span className="text-xs opacity-75">{m.surah_number}:{m.ayah_number}:{m.word_index + 1}</span>
+                          {m.error_count > 1 && <span className="text-xs px-1.5 py-0.5 rounded bg-white/10">{m.error_count}x</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Flash highlight animation */}
+      <style>{`
+        @keyframes reader-flash {
+          0% { transform: scale(1); background-color: rgba(6, 182, 212, 0.5); }
+          50% { transform: scale(1.15); background-color: rgba(6, 182, 212, 0.7); }
+          100% { transform: scale(1); background-color: transparent; }
+        }
+        .reader-flash-highlight {
+          animation: reader-flash 1.5s ease-in-out;
+          border-radius: 4px;
+        }
+      `}</style>
 
       {/* Jump Modal */}
       {showJumpModal && (

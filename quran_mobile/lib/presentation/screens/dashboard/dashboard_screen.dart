@@ -25,6 +25,8 @@ class DashboardScreen extends ConsumerWidget {
     final isDarkMode = ref.watch(themeProvider);
     final authState = ref.watch(authProvider);
     final teacherStudentsAsync = ref.watch(teacherStudentsProvider);
+    final teacherClassDatesAsync = ref.watch(teacherClassDatesProvider);
+    final classStudentNamesAsync = ref.watch(classStudentNamesProvider);
 
     // User info from auth — use viewModeProvider for UI decisions
     final user = authState.user;
@@ -54,6 +56,8 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(mistakeCountsBySurahProvider);
             ref.read(classesProvider.notifier).loadClasses();
             ref.invalidate(enrolledClassesProvider);
+            ref.invalidate(teacherClassDatesProvider);
+            ref.invalidate(classStudentNamesProvider);
           },
           child: CustomScrollView(
             slivers: [
@@ -141,13 +145,16 @@ class DashboardScreen extends ConsumerWidget {
                   data: (stats) {
                     final classes = displayClassesAsync.value ?? [];
 
-                    // Calculate classes this week
                     final now = DateTime.now();
                     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
                     final endOfWeek = startOfWeek.add(const Duration(days: 6));
-                    final classesThisWeek = classes.where((c) {
+
+                    // Teacher stats from Supabase-direct provider (instant)
+                    final classDates = teacherClassDatesAsync.valueOrNull ?? [];
+                    final teacherTotalClasses = classDates.length;
+                    final teacherClassesThisWeek = classDates.where((dateStr) {
                       try {
-                        final date = DateTime.parse(c.date);
+                        final date = DateTime.parse(dateStr);
                         return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
                                date.isBefore(endOfWeek.add(const Duration(days: 1)));
                       } catch (_) {
@@ -162,6 +169,7 @@ class DashboardScreen extends ConsumerWidget {
 
                     if (isTeacher) {
                       // Teacher stats: Total Students, Classes This Week, Total Classes, Today's Date
+                      // All from Supabase-direct providers (instant, no SQLite round-trip)
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Column(
@@ -181,7 +189,7 @@ class DashboardScreen extends ConsumerWidget {
                                 Expanded(
                                   child: StatCard(
                                     label: 'Classes This Week',
-                                    value: '$classesThisWeek',
+                                    value: '$teacherClassesThisWeek',
                                     icon: Icons.check_circle_outline,
                                     color: AppTheme.emerald400,
                                   ),
@@ -194,7 +202,7 @@ class DashboardScreen extends ConsumerWidget {
                                 Expanded(
                                   child: StatCard(
                                     label: 'Total Classes',
-                                    value: '${stats['totalClasses']}',
+                                    value: '$teacherTotalClasses',
                                     icon: Icons.calendar_today_rounded,
                                     color: AppColors.amber500,
                                   ),
@@ -532,7 +540,8 @@ class DashboardScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: displayClassesAsync.when(
                   data: (classes) {
-                    final recentClasses = classes.take(5).toList();
+                    final recentClasses = classes.take(3).toList();
+                    final studentNamesMap = classStudentNamesAsync.valueOrNull ?? {};
                     if (recentClasses.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -591,7 +600,7 @@ class DashboardScreen extends ConsumerWidget {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          classItem.date.split('-').last,
+                                          classItem.date.contains('-') ? classItem.date.split('-').last : '?',
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -613,13 +622,30 @@ class DashboardScreen extends ConsumerWidget {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          classItem.day,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.text(isDarkMode),
-                                          ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              classItem.day,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.text(isDarkMode),
+                                              ),
+                                            ),
+                                            if (isTeacher && studentNamesMap[classItem.supabaseId] != null) ...[
+                                              const SizedBox(width: 8),
+                                              Flexible(
+                                                child: Text(
+                                                  studentNamesMap[classItem.supabaseId]!.join(', '),
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: AppColors.textSecondary(isDarkMode),
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                         const SizedBox(height: 4),
                                         Wrap(
@@ -716,7 +742,9 @@ class DashboardScreen extends ConsumerWidget {
 
   String _getMonthAbbr(String date) {
     final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final month = int.tryParse(date.split('-')[1]) ?? 1;
+    final parts = date.split('-');
+    if (parts.length < 2) return '';
+    final month = (int.tryParse(parts[1]) ?? 1).clamp(0, 12);
     return months[month];
   }
 

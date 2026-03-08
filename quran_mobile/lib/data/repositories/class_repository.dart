@@ -417,6 +417,7 @@ class ClassRepository {
         'end_surah': assignment['end_surah'],
         'start_ayah': assignment['start_ayah'],
         'end_ayah': assignment['end_ayah'],
+        if (assignment['student_id'] != null) 'student_id': assignment['student_id'],
         'sync_status': 'synced',
         'is_deleted': 0,
       });
@@ -482,6 +483,7 @@ class ClassRepository {
         'end_surah': assignment['end_surah'],
         'start_ayah': assignment['start_ayah'],
         'end_ayah': assignment['end_ayah'],
+        if (assignment['student_id'] != null) 'student_id': assignment['student_id'],
         'sync_status': 'synced',
         'is_deleted': 0,
       });

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, clearSupabaseStorage, resetSupabaseAndReload } from '../lib/supabase';
 import { triggerSync, isLocalApiAvailable } from '../lib/local-api';
+import { clearAllCache } from '../lib/cache';
 import type { User } from '../types';
 import type { Profile } from '../lib/database.types';
 
@@ -374,6 +375,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     console.log('AuthContext: Logging out');
+
+    // Clear cached data from previous user
+    clearAllCache();
 
     // Clear state immediately (optimistic)
     setUser(null);

@@ -30,8 +30,8 @@ export function perfBadgeClasses(perf: string): string {
 }
 
 export function mistakeCountClasses(count: number): string {
-  if (count <= 2) return 'bg-green-500/15 text-green-400';
-  if (count <= 5) return 'bg-amber-500/15 text-amber-400';
+  if (count <= 10) return 'bg-green-500/15 text-green-400';
+  if (count <= 20) return 'bg-amber-500/15 text-amber-400';
   return 'bg-red-500/15 text-red-400';
 }
 

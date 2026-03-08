@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthApiException;
 import '../../../config/app_colors.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -19,6 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _error;
 
   @override
@@ -44,7 +46,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Navigation happens automatically via auth state
     } catch (e) {
       setState(() {
-        _error = e.toString().replaceAll('Exception: ', '');
+        if (e is AuthApiException) {
+          _error = e.message;
+        } else {
+          _error = e.toString().replaceAll('Exception: ', '');
+        }
       });
     } finally {
       if (mounted) {
@@ -436,8 +442,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             controller: _passwordController,
             label: 'Password',
             icon: Icons.lock_outline_rounded,
-            obscureText: true,
+            obscureText: _obscurePassword,
             isDarkMode: isDarkMode,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                color: AppColors.textMuted(isDarkMode),
+                size: 20,
+              ),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            ),
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please enter your password';
@@ -562,6 +576,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     bool obscureText = false,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
@@ -582,6 +597,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           color: AppColors.cyan500,
           size: 22,
         ),
+        suffixIcon: suffixIcon,
         filled: true,
         fillColor: isDarkMode
             ? const Color(0xFF252D3D)

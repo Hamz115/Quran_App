@@ -38,6 +38,7 @@ export interface ClassAssignment {
   end_surah: number;
   start_ayah?: number;
   end_ayah?: number;
+  student_id?: string | null;
 }
 
 export interface ClassMistake {

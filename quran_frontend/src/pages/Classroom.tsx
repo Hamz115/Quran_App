@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import FittedLine from '../components/FittedLine';
 import { getClass, getSurahs, getQuranPage, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, deleteAssignment, type QuranPageWord, type QuranPageData } from '../api';
@@ -181,6 +181,31 @@ export default function Classroom() {
   const [newPortionStartAyah, setNewPortionStartAyah] = useState<number | undefined>(undefined);
   const [newPortionEndAyah, setNewPortionEndAyah] = useState<number | undefined>(undefined);
   const [newPortionStudentId, setNewPortionStudentId] = useState<string | null>(null);
+
+  // Mistakes filter: "all" (entire assignment) vs "page" (current page only)
+  const [mistakeFilter, setMistakeFilter] = useState<'page' | 'all'>('page');
+
+  // Click-to-flash highlight state
+  const [highlightedWordKey, setHighlightedWordKey] = useState<string | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashWord = (surah: number, ayah: number, wordIndex: number) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    const key = `${surah}-${ayah}-${wordIndex}`;
+    // Navigate to the correct page if the mistake is on a different page
+    const targetPage = getPageNumber(surah, ayah);
+    if (targetPage !== currentPage) {
+      setCurrentPage(targetPage);
+      // Delay flash slightly so the new page renders first
+      setTimeout(() => {
+        setHighlightedWordKey(key);
+        flashTimerRef.current = setTimeout(() => setHighlightedWordKey(null), 1500);
+      }, 100);
+    } else {
+      setHighlightedWordKey(key);
+      flashTimerRef.current = setTimeout(() => setHighlightedWordKey(null), 1500);
+    }
+  };
 
   // Edit portion modal state
   const [showEditPortionModal, setShowEditPortionModal] = useState(false);
@@ -500,13 +525,18 @@ export default function Classroom() {
              m.word_index === wordIndex
       );
       if (existing) {
-        return prev.map(m =>
-          m.id === existing.id
-            ? { ...m, error_count: m.error_count + 1 }
-            : m
-        );
+        return prev.map(m => {
+          if (m.id !== existing.id) return m;
+          // Add occurrence for this class if not already present
+          const hasThisClass = m.occurrences?.some(o => o.class_id === id);
+          const updatedOccurrences = hasThisClass ? m.occurrences : [
+            ...(m.occurrences || []),
+            ...(id ? [{ class_id: id, class_date: classData?.date || '', class_day: classData?.day || '' }] : []),
+          ];
+          return { ...m, error_count: m.error_count + 1, occurrences: updatedOccurrences };
+        });
       }
-      // New mistake — add with temporary id
+      // New mistake — add with temporary id + occurrence for this class
       return [...prev, {
         id: `temp-${Date.now()}`,
         student_id: isTeacher ? selectedStudentId || '' : '',
@@ -516,6 +546,7 @@ export default function Classroom() {
         word_text: mistakeText,
         char_index: charIndex,
         error_count: 1,
+        occurrences: id ? [{ class_id: id, class_date: classData?.date || '', class_day: classData?.day || '' }] : [],
       }];
     });
     setWordPopup(null);
@@ -711,13 +742,19 @@ export default function Classroom() {
     return `${startName} to ${endName}`;
   };
 
-  // Filter mistakes to current page
+  // Filter mistakes to current page (for word highlighting on page)
   const surahsOnPage = getSurahsOnPage(currentPage);
   const currentMistakes = mistakes.filter(m => {
     if (!surahsOnPage.includes(m.surah_number)) return false;
     const mistakePage = getPageNumber(m.surah_number, m.ayah_number);
     return mistakePage === currentPage;
   });
+
+  // All mistakes in the assignment range (for "All" filter in summary)
+  const allAssignmentMistakes = mistakes;
+
+  // Mistakes to show in the summary section (page-only or all)
+  const summaryMistakes = mistakeFilter === 'page' ? currentMistakes : allAssignmentMistakes;
 
   const totalErrors = currentMistakes.length;
 
@@ -741,19 +778,32 @@ export default function Classroom() {
         <div className="flex-1">
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class - {classData.day}, {classData.date}</h1>
           {isTeacher && classData.students && classData.students.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Marking mistakes for:</span>
-              <select
-                value={selectedStudentId || ''}
-                onChange={(e) => setSelectedStudentId(e.target.value)}
-                className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm font-medium"
-              >
-                {classData.students.map(s => (
-                  <option key={s.id} value={s.id} className="bg-slate-800 text-slate-100">
-                    {s.first_name} {s.last_name}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Student:</span>
+              {classData.students.length === 1 ? (
+                <span className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                  {classData.students[0].first_name} {classData.students[0].last_name}
+                </span>
+              ) : (
+                classData.students.map(s => {
+                  const isActive = selectedStudentId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedStudentId(s.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-blue-500 text-white'
+                          : darkMode
+                            ? 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-300'
+                            : 'bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-700'
+                      }`}
+                    >
+                      {s.first_name}
+                    </button>
+                  );
+                })
+              )}
             </div>
           )}
         </div>
@@ -770,19 +820,19 @@ export default function Classroom() {
                 <select
                   value={studentPerf || ''}
                   onChange={async (e) => {
-                    setPerformanceSaving(true);
+                    const newPerf = e.target.value || undefined;
+                    // Optimistic: update UI immediately
+                    setClassData({
+                      ...classData,
+                      students: classData.students?.map(s =>
+                        s.id === selectedStudentId ? { ...s, performance: newPerf } : s
+                      )
+                    });
+                    // Save in background
                     try {
                       await updateStudentPerformance(classData.id, selectedStudentId, e.target.value);
-                      setClassData({
-                        ...classData,
-                        students: classData.students?.map(s =>
-                          s.id === selectedStudentId ? { ...s, performance: e.target.value || undefined } : s
-                        )
-                      });
                     } catch (err) {
                       console.error('Failed to update performance:', err);
-                    } finally {
-                      setPerformanceSaving(false);
                     }
                   }}
                   disabled={performanceSaving}
@@ -875,7 +925,13 @@ export default function Classroom() {
       <div className="flex items-center gap-3">
         {availableSections.map((type) => {
           const config = SECTION_LABELS[type];
-          const typeAssignments = classData.assignments.filter(a => a.type === type);
+          const typeAssignments = classData.assignments.filter(a => {
+            if (a.type !== type) return false;
+            if (!a.student_id) return true;
+            if (isTeacher && selectedStudentId) return a.student_id === selectedStudentId;
+            if (!isTeacher && user?.id) return a.student_id === user.id;
+            return false;
+          });
           const isActive = activeSection === type;
 
           return (
@@ -1082,6 +1138,8 @@ export default function Classroom() {
                             const hasCharMistakes = charMistakes.length > 0;
                             const inPortion = isWordInPortion(word);
                             const dimStyle = !inPortion ? { opacity: 0.25, filter: 'blur(0.5px)' } : {};
+                            const wordKey = `${word.surah}-${word.ayah}-${word.word - 1}`;
+                            const isFlashing = highlightedWordKey === wordKey;
 
                             // Character-level mistakes: render with textUthmani (smaller), highlight char
                             if (hasCharMistakes && !word.is_end) {
@@ -1092,7 +1150,7 @@ export default function Classroom() {
                                   onContextMenu={(e) => inPortion && handleWordRightClick(e, word)}
                                   className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block ${
                                     inPortion && wholeWordLevel > 0 ? `mistake-${wholeWordLevel} rounded` : isTeacher && inPortion ? 'hover:bg-cyan-200 rounded' : ''
-                                  }`}
+                                  } ${isFlashing ? 'reader-flash-highlight' : ''}`}
                                   style={{ fontSize: '0.95em', fontWeight: 400, letterSpacing: '0.02em', lineHeight: 1, position: 'relative', top: '-0.15em', WebkitTextStroke: '0', color: 'rgba(30,41,59,0.92)', ...dimStyle }}
                                   title={inPortion ? `${word.text_uthmani || ''} (${word.surah}:${word.ayah}:${word.word})${totalMistakes > 0 ? ` - ${totalMistakes}x mistakes` : ''}` : 'Outside assigned portion'}
                                 >
@@ -1116,7 +1174,7 @@ export default function Classroom() {
                                       ? `mistake-${wholeWordLevel}`
                                       : isTeacher && inPortion ? 'hover:bg-cyan-200' : ''
                                     : inPortion ? 'text-cyan-700' : ''
-                                }`}
+                                } ${isFlashing ? 'reader-flash-highlight' : ''}`}
                                 style={dimStyle}
                                 title={!word.is_end
                                   ? inPortion
@@ -1153,14 +1211,14 @@ export default function Classroom() {
           </div>
 
           {/* Mistakes Summary */}
-          {currentMistakes.length > 0 && (() => {
+          {(summaryMistakes.length > 0 || allAssignmentMistakes.length > 0) && (() => {
             const currentClassId = classData?.id;
 
-            const mistakesInThisClass = currentMistakes.filter(m =>
+            const mistakesInThisClass = summaryMistakes.filter(m =>
               m.occurrences?.some(o => o.class_id === currentClassId)
             );
 
-            const mistakesFromPrevious = currentMistakes.filter(m =>
+            const mistakesFromPrevious = summaryMistakes.filter(m =>
               m.occurrences?.some(o => o.class_id !== currentClassId)
             );
 
@@ -1173,7 +1231,11 @@ export default function Classroom() {
             };
 
             const renderMistake = (m: Mistake) => (
-              <div key={m.id} className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 border ${getMistakeColor(m.error_count)}`}>
+              <div
+                key={m.id}
+                className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 border cursor-pointer hover:opacity-80 transition-opacity ${getMistakeColor(m.error_count)}`}
+                onClick={() => flashWord(m.surah_number, m.ayah_number, m.word_index)}
+              >
                 <span className="font-amiri text-lg">{stripQuranMarks(m.word_text)}</span>
                 <span className="text-xs opacity-75">{m.surah_number}:{m.ayah_number}:{m.word_index + 1}</span>
                 {m.error_count > 1 && <span className="text-xs px-1.5 py-0.5 rounded bg-white/10">{m.error_count}x</span>}
@@ -1182,6 +1244,30 @@ export default function Classroom() {
 
             return (
               <div className="space-y-4">
+                {/* All / Page toggle */}
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    onClick={() => setMistakeFilter('all')}
+                    className={`px-4 py-1.5 rounded-l-lg text-sm font-medium transition-colors ${
+                      mistakeFilter === 'all'
+                        ? 'bg-cyan-600 text-white'
+                        : darkMode ? 'bg-slate-700 text-slate-400 hover:bg-slate-600' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                    }`}
+                  >
+                    All ({allAssignmentMistakes.filter(m => m.occurrences?.some(o => o.class_id === currentClassId)).length})
+                  </button>
+                  <button
+                    onClick={() => setMistakeFilter('page')}
+                    className={`px-4 py-1.5 rounded-r-lg text-sm font-medium transition-colors ${
+                      mistakeFilter === 'page'
+                        ? 'bg-cyan-600 text-white'
+                        : darkMode ? 'bg-slate-700 text-slate-400 hover:bg-slate-600' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                    }`}
+                  >
+                    Page ({currentMistakes.filter(m => m.occurrences?.some(o => o.class_id === currentClassId)).length})
+                  </button>
+                </div>
+
                 {/* Mistakes in this class */}
                 {mistakesInThisClass.length > 0 && (
                   <div className="card p-6 border-2 border-cyan-600/30">
@@ -1491,6 +1577,19 @@ export default function Classroom() {
           </div>
         </div>
       )}
+
+      {/* Flash highlight animation (shared with QuranReader) */}
+      <style>{`
+        @keyframes reader-flash {
+          0% { transform: scale(1); background-color: rgba(6, 182, 212, 0.5); }
+          50% { transform: scale(1.15); background-color: rgba(6, 182, 212, 0.7); }
+          100% { transform: scale(1); background-color: transparent; }
+        }
+        .reader-flash-highlight {
+          animation: reader-flash 1.5s ease-in-out;
+          border-radius: 4px;
+        }
+      `}</style>
     </div>
   );
 }

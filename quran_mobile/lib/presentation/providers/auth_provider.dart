@@ -75,7 +75,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     required String email,
     required String password,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(clearError: true);
 
     try {
       final user = await _authService.signIn(
@@ -100,7 +100,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     required String lastName,
     required UserRole role,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(clearError: true);
 
     try {
       final user = await _authService.signUp(

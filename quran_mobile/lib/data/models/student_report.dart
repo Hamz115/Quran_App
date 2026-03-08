@@ -151,6 +151,7 @@ class ClassAssignment {
   final int endSurah;
   final int? startAyah;
   final int? endAyah;
+  final String? studentId;
 
   const ClassAssignment({
     required this.type,
@@ -158,6 +159,7 @@ class ClassAssignment {
     required this.endSurah,
     this.startAyah,
     this.endAyah,
+    this.studentId,
   });
 
   ClassAssignment copyWith({
@@ -166,6 +168,7 @@ class ClassAssignment {
     int? endSurah,
     int? startAyah,
     int? endAyah,
+    String? studentId,
   }) {
     return ClassAssignment(
       type: type ?? this.type,
@@ -173,6 +176,7 @@ class ClassAssignment {
       endSurah: endSurah ?? this.endSurah,
       startAyah: startAyah ?? this.startAyah,
       endAyah: endAyah ?? this.endAyah,
+      studentId: studentId ?? this.studentId,
     );
   }
 }

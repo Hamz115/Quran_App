@@ -246,6 +246,13 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
       .order('date', { ascending: false });
 
     if (error) throw new Error(error.message);
+
+    // One-time fix: publish any unpublished classes (background, non-blocking)
+    supabase.from('classes').update({ is_published: true } as any)
+      .eq('teacher_id', user.id)
+      .or('is_published.is.null,is_published.eq.false')
+      .then(() => {});
+
     return mapClassData(data ?? [], true);
   } else {
     // Students see published classes they're enrolled in
@@ -357,6 +364,7 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
         end_surah: a.end_surah,
         start_ayah: a.start_ayah,
         end_ayah: a.end_ayah,
+        student_id: a.student_id || null,
       })),
     };
 
@@ -425,6 +433,7 @@ export async function createClass(classData: {
       end_surah: a.end_surah,
       start_ayah: a.start_ayah,
       end_ayah: a.end_ayah,
+      student_id: a.student_id || null,
     }));
 
     const { error: assignmentsError } = await supabase
@@ -645,6 +654,7 @@ export interface MistakeWithOccurrences extends MistakeData {
   occurrences?: {
     class_id: string;
     class_date: string;
+    class_day: string;
   }[];
 }
 
@@ -659,7 +669,7 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
       *,
       mistake_occurrences (
         class_id,
-        classes (date)
+        classes (date, day)
       )
     `);
 
@@ -692,6 +702,7 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
     occurrences: (mistake.mistake_occurrences ?? []).map((occ: any) => ({
       class_id: occ.class_id,
       class_date: occ.classes?.date || '',
+      class_day: occ.classes?.day || '',
     })),
   }));
 }
@@ -1049,13 +1060,16 @@ export async function getStudentReport(studentId: string): Promise<any> {
       day: cs.classes?.day || '',
       notes: cs.classes?.notes || '',
       performance: cs.classes?.performance || '',
-      assignments: (cs.classes?.assignments || []).map((a: any) => ({
-        type: a.type,
-        start_surah: a.start_surah,
-        end_surah: a.end_surah,
-        start_ayah: a.start_ayah,
-        end_ayah: a.end_ayah
-      })),
+      assignments: (cs.classes?.assignments || [])
+        .filter((a: any) => !a.student_id || a.student_id === studentId)
+        .map((a: any) => ({
+          type: a.type,
+          start_surah: a.start_surah,
+          end_surah: a.end_surah,
+          start_ayah: a.start_ayah,
+          end_ayah: a.end_ayah,
+          student_id: a.student_id || null,
+        })),
       mistakes: classMistakes,
       mistake_count: classMistakes.length
     };

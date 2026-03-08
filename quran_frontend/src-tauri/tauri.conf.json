@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "QuranTrack",
-  "version": "1.6.7",
+  "version": "1.9.0",
   "identifier": "com.qurantrack.desktop",
 
   "build": {

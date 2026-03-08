@@ -24,6 +24,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   UserRole? _selectedRole;
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String? _error;
 
   @override
@@ -518,8 +520,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 child: _buildTextField(
                   controller: _passwordController,
                   label: 'Password',
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   isDarkMode: isDarkMode,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                      size: 18,
+                      color: isDarkMode ? AppColors.slate400 : AppColors.slate500,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                   validator: (v) {
                     if (v?.isEmpty ?? true) return 'Required';
                     if (v!.length < 8) return '8+ chars';
@@ -532,8 +542,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 child: _buildTextField(
                   controller: _confirmPasswordController,
                   label: 'Confirm',
-                  obscureText: true,
+                  obscureText: _obscureConfirmPassword,
                   isDarkMode: isDarkMode,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                      size: 18,
+                      color: isDarkMode ? AppColors.slate400 : AppColors.slate500,
+                    ),
+                    onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                  ),
                   validator: (v) {
                     if (v != _passwordController.text) return 'Must match';
                     return null;
@@ -696,6 +714,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     bool obscureText = false,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    Widget? suffixIcon,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,6 +739,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           decoration: InputDecoration(
             isDense: true,
+            suffixIcon: suffixIcon,
             filled: true,
             fillColor: isDarkMode
                 ? const Color(0xFF252D3D)

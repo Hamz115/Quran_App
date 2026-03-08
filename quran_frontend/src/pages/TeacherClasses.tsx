@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
@@ -402,7 +403,9 @@ function PortionSelector({
 
 export default function TeacherClasses() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { darkMode } = useTheme();
+  const { user } = useAuth();
   const [, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
@@ -412,6 +415,10 @@ export default function TeacherClasses() {
   const [showNewClassModal, setShowNewClassModal] = useState(false);
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [classDate, setClassDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   const [creating, setCreating] = useState(false);
 
   // Notes modal state
@@ -434,11 +441,11 @@ export default function TeacherClasses() {
     if (searchParams.get('new') === '1') {
       setShowNewClassModal(true);
 
-      // Pre-select student if provided in URL and skip to step 2
-      const studentId = searchParams.get('student');
-      if (studentId) {
-        setSelectedStudents([studentId]);
-        setModalStep(2); // Skip to portion selection since student is already selected
+      // Pre-select students if provided in URL and skip to step 2
+      const studentIds = searchParams.getAll('student');
+      if (studentIds.length > 0) {
+        setSelectedStudents(studentIds);
+        setModalStep(2); // Skip to portion selection since students are already selected
       }
 
       // Remove the query params from URL
@@ -520,7 +527,7 @@ export default function TeacherClasses() {
 
   useEffect(() => {
     refreshData().finally(() => setLoading(false));
-  }, []);
+  }, [user?.id]);
 
   // Auto-select first student when students load (if none selected)
   useEffect(() => {
@@ -546,6 +553,9 @@ export default function TeacherClasses() {
     setSabqiConfig({ enabled: true, portions: [createDefaultPortion()] });
     setRevisionConfig({ enabled: true, portions: [createDefaultPortion()] });
     setPerStudentConfigs({});
+    // Reset date to today (local time)
+    const now = new Date();
+    setClassDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
     // Clear cache so next modal open re-fetches fresh data
     previousPortionsCache.current = {};
   };
@@ -639,8 +649,11 @@ export default function TeacherClasses() {
   const handleCreateClass = async () => {
     setCreating(true);
     try {
-      const today = new Date();
+      // Use the selected date (local time) for both date and day
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      // Parse classDate as local (not UTC) by splitting YYYY-MM-DD
+      const [y, m, d] = classDate.split('-').map(Number);
+      const selectedDate = new Date(y, m - 1, d);
 
       // Build assignments array from enabled portions
       const assignments: Array<{
@@ -682,15 +695,15 @@ export default function TeacherClasses() {
       }
 
       const result = await createClass({
-        date: today.toISOString().split('T')[0],
-        day: days[today.getDay()],
+        date: classDate,
+        day: days[selectedDate.getDay()],
         student_ids: selectedStudents,
         assignments
       });
 
       if (result.id) {
         resetModal();
-        window.location.href = `/teacher/classes/${result.id}`;
+        navigate(`/teacher/classes/${result.id}`);
       } else if ('detail' in result) {
         alert('Error: ' + (result as { detail: string }).detail);
       }
@@ -814,7 +827,28 @@ export default function TeacherClasses() {
               {modalStep === 1 ? (
                 /* Step 1: Select Students */
                 <div className="space-y-4">
-                  {/* Class Type Toggle */}
+                  {/* Date Picker */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                      Class Date
+                    </label>
+                    <input
+                      type="date"
+                      value={classDate}
+                      onChange={(e) => setClassDate(e.target.value)}
+                      className={`w-full px-3 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${darkMode ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-300 bg-white text-slate-700'}`}
+                    />
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {(() => {
+                        const [y, m, d] = classDate.split('-').map(Number);
+                        const dateObj = new Date(y, m - 1, d);
+                        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        return dayNames[dateObj.getDay()];
+                      })()}
+                    </p>
+                  </div>
+
+                  {/* Student Selection */}
                   <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     Select students for this class
                   </label>

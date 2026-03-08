@@ -81,13 +81,16 @@ final studentReportProvider = FutureProvider.family<StudentReport, String>((ref,
       day: (classData?['day'] as String?) ?? '',
       notes: classData?['notes'] as String?,
       performance: classData?['performance'] as String?,
-      assignments: assignmentsRaw.map<ClassAssignment>((a) => ClassAssignment(
-        type: (a['type'] as String?) ?? '',
-        startSurah: a['start_surah'] as int? ?? 0,
-        endSurah: a['end_surah'] as int? ?? 0,
-        startAyah: a['start_ayah'] as int?,
-        endAyah: a['end_ayah'] as int?,
-      )).toList(),
+      assignments: assignmentsRaw
+        .where((a) => a['student_id'] == null || a['student_id'].toString() == studentId)
+        .map<ClassAssignment>((a) => ClassAssignment(
+          type: (a['type'] as String?) ?? '',
+          startSurah: a['start_surah'] as int? ?? 0,
+          endSurah: a['end_surah'] as int? ?? 0,
+          startAyah: a['start_ayah'] as int?,
+          endAyah: a['end_ayah'] as int?,
+          studentId: a['student_id'] as String?,
+        )).toList(),
       mistakes: classMistakes,
       mistakeCount: classMistakes.length,
     );

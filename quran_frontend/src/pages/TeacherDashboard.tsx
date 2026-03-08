@@ -47,7 +47,7 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     loadData().finally(() => setLoading(false));
-  }, []);
+  }, [user?.id]);
 
   async function loadStudents() {
     try {
@@ -273,7 +273,11 @@ export default function TeacherDashboard() {
           </div>
           {selectedStudents.length > 0 && (
             <button
-              onClick={() => navigate('/teacher/classes?new=1')}
+              onClick={() => {
+                const params = new URLSearchParams({ new: '1' });
+                selectedStudents.forEach(id => params.append('student', id));
+                navigate(`/teacher/classes?${params.toString()}`);
+              }}
               className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -12,6 +12,7 @@ class Assignment extends Equatable {
   final int endSurah;
   final int? startAyah;
   final int? endAyah;
+  final String? studentId;
   final SyncStatus syncStatus;
   final bool isDeleted;
 
@@ -26,6 +27,7 @@ class Assignment extends Equatable {
     required this.endSurah,
     this.startAyah,
     this.endAyah,
+    this.studentId,
     this.syncStatus = SyncStatus.pending,
     this.isDeleted = false,
   });
@@ -42,6 +44,7 @@ class Assignment extends Equatable {
       endSurah: map['end_surah'] as int,
       startAyah: map['start_ayah'] as int?,
       endAyah: map['end_ayah'] as int?,
+      studentId: map['student_id'] as String?,
       syncStatus: _parseSyncStatus(map['sync_status'] as String?),
       isDeleted: (map['is_deleted'] as int?) == 1,
     );
@@ -58,6 +61,7 @@ class Assignment extends Equatable {
       'end_surah': endSurah,
       'start_ayah': startAyah,
       'end_ayah': endAyah,
+      if (studentId != null) 'student_id': studentId,
       'sync_status': syncStatus.name,
       'is_deleted': isDeleted ? 1 : 0,
     };
@@ -74,6 +78,7 @@ class Assignment extends Equatable {
     int? endSurah,
     int? startAyah,
     int? endAyah,
+    String? studentId,
     SyncStatus? syncStatus,
     bool? isDeleted,
   }) {
@@ -88,6 +93,7 @@ class Assignment extends Equatable {
       endSurah: endSurah ?? this.endSurah,
       startAyah: startAyah ?? this.startAyah,
       endAyah: endAyah ?? this.endAyah,
+      studentId: studentId ?? this.studentId,
       syncStatus: syncStatus ?? this.syncStatus,
       isDeleted: isDeleted ?? this.isDeleted,
     );
@@ -116,5 +122,5 @@ class Assignment extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, supabaseId, classId, type, startSurah, endSurah, startAyah, endAyah];
+  List<Object?> get props => [id, supabaseId, classId, type, startSurah, endSurah, startAyah, endAyah, studentId];
 }

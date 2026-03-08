@@ -293,8 +293,12 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.6.5 | 2026-03-05 | Tauri local-first: fix sync lock, optimistic mistakes, getClass endpoint, orphan cleanup | `2026-03-05-004` |
 | v1.6.6 | 2026-03-06 | Flutter classroom student selector defaults to class-enrolled student | `2026-03-06-001` |
 | v1.6.7 | 2026-03-06 | Pull-to-refresh (Flutter) + refresh button (Tauri) — sync from Supabase | `2026-03-06-002` |
+| v1.7.0 | 2026-03-07 | Major bug fix round: 11 fixes (stale data, auth, navigation, stats), Supabase-direct dashboard stats, Recent Classes with student names | `2026-03-07-001` |
+| v1.8.0 | 2026-03-07 | Quran Reader: mistakes-by-class section with click-to-highlight (Tauri + Flutter) | `2026-03-07-002` |
+| v1.8.1 | 2026-03-08 | Classroom polish: portion editing, performance dropdown, UI fixes | `2026-03-08-001` |
+| v1.9.0 | 2026-03-08 | Multi-student portion filtering: fix student_id in createClass, pill selectors, per-student assignment filtering (Tauri + Flutter) | `2026-03-08-002` |
 
-**Current version: v1.6.7**
+**Current version: v1.9.0**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform

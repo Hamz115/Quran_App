@@ -55,7 +55,7 @@ class QuranLogbookApp extends ConsumerWidget {
       home: authState.isLoading
           ? _SplashScreen(isDarkMode: isDarkMode)
           : authState.isAuthenticated
-              ? const MainNavigation()
+              ? MainNavigation(key: ValueKey(authState.user?.id))
               : const LoginScreen(),
     );
   }
@@ -150,6 +150,23 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       // Ensure local app database is initialized (triggers migrations)
       await DatabaseHelper.instance.appDatabase;
 
+      // Clear local SQLite data from previous user to prevent data leakage
+      final classRepo = ref.read(classRepositoryProvider);
+      final mistakeRepo = ref.read(mistakeRepositoryProvider);
+      await classRepo.clearAllLocal();
+      await mistakeRepo.clearAllLocal();
+
+      // Invalidate all data providers to clear stale data from previous user
+      ref.invalidate(classesProvider);
+      ref.invalidate(enrolledClassesProvider);
+      ref.invalidate(statsProvider);
+      ref.invalidate(topMistakesProvider);
+      ref.invalidate(mistakeCountsBySurahProvider);
+      ref.invalidate(teacherStudentsProvider);
+      ref.invalidate(teacherClassDatesProvider);
+      ref.invalidate(classStudentNamesProvider);
+      ref.invalidate(mistakesProvider);
+
       // Get current user
       final authState = ref.read(authProvider);
       final user = authState.user;
@@ -163,9 +180,15 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         _initialSyncDone = true;
         await _syncHelper!.pullAll(user.id, user.role.name);
 
-        // Reload providers from local data after sync
+        // Reload ALL providers from fresh local data after sync
         ref.invalidate(classesProvider);
         ref.invalidate(mistakesProvider);
+        ref.invalidate(statsProvider);
+        ref.invalidate(topMistakesProvider);
+        ref.invalidate(mistakeCountsBySurahProvider);
+        ref.invalidate(enrolledClassesProvider);
+        ref.invalidate(teacherClassDatesProvider);
+        ref.invalidate(classStudentNamesProvider);
       }
 
       // Start periodic sync (every 30 seconds)

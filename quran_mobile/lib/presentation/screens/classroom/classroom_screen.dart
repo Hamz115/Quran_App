@@ -32,12 +32,16 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   int _currentPage = 0; // 0 = not yet initialized
   String? _selectedStudentId; // Supabase student UUID
   bool _studentInitialized = false;
-  bool _showPageOnly = false; // Toggle: true = show only this page's mistakes
+  bool _showPageOnly = true; // Toggle: true = show only this page's mistakes (default: Page)
 
   // Overlay state (like QuranReaderScreen)
   bool _showOverlay = false;
   Timer? _overlayTimer;
   final TextEditingController _jumpController = TextEditingController();
+
+  // Flash highlight state for mistake badge tap
+  String? _highlightedWordKey;
+  Timer? _flashTimer;
 
   PageController? _pageController;
 
@@ -45,6 +49,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   void dispose() {
     _pageController?.dispose();
     _overlayTimer?.cancel();
+    _flashTimer?.cancel();
     _jumpController.dispose();
     super.dispose();
   }
@@ -61,6 +66,35 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     if (_showOverlay) {
       _overlayTimer = Timer(const Duration(seconds: 4), () {
         if (mounted) setState(() => _showOverlay = false);
+      });
+    }
+  }
+
+  void _flashWord(int surah, int ayah, int wordIndex, {int? firstPage}) {
+    _flashTimer?.cancel();
+    final key = '$surah-$ayah-$wordIndex';
+    // Navigate to the correct page if the mistake is on a different page
+    final targetPage = getPageNumber(surah, ayah);
+    if (targetPage != _currentPage && firstPage != null) {
+      setState(() => _currentPage = targetPage);
+      _pageController?.animateToPage(
+        targetPage - firstPage,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      // Delay flash so the new page renders first
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          setState(() => _highlightedWordKey = key);
+          _flashTimer = Timer(const Duration(milliseconds: 1500), () {
+            if (mounted) setState(() => _highlightedWordKey = null);
+          });
+        }
+      });
+    } else {
+      setState(() => _highlightedWordKey = key);
+      _flashTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (mounted) setState(() => _highlightedWordKey = null);
       });
     }
   }
@@ -122,8 +156,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             _activeSection = availableSections.first;
           }
 
-          // Get assignments for current section
-          final sectionAssignments = classData.assignments.where((a) => a.type == _activeSection).toList();
+          // Get assignments for current section (filtered by student)
+          final sectionAssignments = classData.assignments.where((a) {
+            if (a.type != _activeSection) return false;
+            if (a.studentId == null) return true; // Class-wide
+            if (isTeacher && _selectedStudentId != null) return a.studentId == _selectedStudentId;
+            return false;
+          }).toList();
           final currentAssignment = sectionAssignments.isNotEmpty && _selectedPortionIndex < sectionAssignments.length
               ? sectionAssignments[_selectedPortionIndex]
               : null;
@@ -158,29 +197,16 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 // Solid top bar (NOT overlaying the Quran)
                 _buildTopBar(classData, availableSections.toList(), relevantMistakes.length, isDarkMode),
 
-                // Quran + bottom page nav overlay
+                // Quran page (fills all space)
                 Expanded(
-                  child: Stack(
-                    children: [
-                      // PageView with Quran (fills all space)
-                      GestureDetector(
-                        onTap: _toggleOverlay,
-                        behavior: HitTestBehavior.translucent,
-                        child: currentAssignment != null
-                            ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode, ref)
-                            : Center(
-                                child: Text(
-                                  'No portion selected',
-                                  style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
-                                ),
-                              ),
-                      ),
-
-                      // Bottom page nav overlay (toggled on tap, auto-hide 4s)
-                      if (_showOverlay && currentAssignment != null)
-                        _buildBottomOverlay(firstPage, lastPage, isDarkMode),
-                    ],
-                  ),
+                  child: currentAssignment != null
+                      ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode, ref)
+                      : Center(
+                          child: Text(
+                            'No portion selected',
+                            style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -608,48 +634,62 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           );
         }
 
-        // Multiple enrolled students or none — show dropdown with all teacher's students
-        return allStudentsAsync.when(
-          data: (students) {
-            if (students.isEmpty) return const SizedBox.shrink();
+        // Multiple enrolled students — show pill buttons
+        final students = classStudents.isNotEmpty
+            ? classStudents
+            : (allStudentsAsync.valueOrNull ?? <({String id, String name})>[]);
+        if (students.isEmpty) return const SizedBox.shrink();
 
-            return Row(
-              children: [
-                Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary(isDarkMode).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.primary(isDarkMode).withOpacity(0.3)),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _selectedStudentId,
-                      isExpanded: true,
-                      isDense: true,
-                      underline: const SizedBox.shrink(),
-                      dropdownColor: AppColors.surface(isDarkMode),
-                      style: TextStyle(fontSize: 13, color: AppColors.primary(isDarkMode)),
-                      items: students.map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(s.name, style: TextStyle(color: AppColors.text(isDarkMode))),
-                      )).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedStudentId = value);
+        return Row(
+          children: [
+            Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: students.map((s) {
+                    final isActive = _selectedStudentId == s.id;
+                    final firstName = s.name.trim().split(' ').first;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedStudentId = s.id);
                           setSheetState(() {});
-                          ref.read(mistakesProvider.notifier).setStudentId(value);
-                        }
-                      },
-                    ),
-                  ),
+                          ref.read(mistakesProvider.notifier).setStudentId(s.id);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? const Color(0xFF3B82F6)
+                                : isDarkMode
+                                    ? AppColors.slate700
+                                    : AppColors.slate200,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            firstName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: isActive
+                                  ? Colors.white
+                                  : isDarkMode
+                                      ? AppColors.slate300
+                                      : AppColors.slate700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              ],
-            );
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
+              ),
+            ),
+          ],
         );
       },
       loading: () => const SizedBox.shrink(),
@@ -953,7 +993,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       },
       itemBuilder: (context, index) {
         final pageNum = firstPage + index;
-        return _buildScrollablePage(pageNum, mistakesAsync, assignment, isDarkMode, ref);
+        return _buildScrollablePage(pageNum, mistakesAsync, assignment, isDarkMode, ref, firstPage: firstPage);
       },
     );
   }
@@ -965,8 +1005,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     AsyncValue<List<Mistake>> mistakesAsync,
     Assignment? assignment,
     bool isDarkMode,
-    WidgetRef ref,
-  ) {
+    WidgetRef ref, {
+    int? firstPage,
+  }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -978,7 +1019,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode, assignment),
               ),
               // Mistakes summary below (scroll down to see)
-              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref, _currentPage),
+              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref, _currentPage, firstPage: firstPage),
             ],
           ),
         );
@@ -1004,6 +1045,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             endSurah: assignment?.endSurah,
             startAyah: assignment?.startAyah,
             endAyah: assignment?.endAyah,
+            highlightedWordKey: _highlightedWordKey,
             onWordTap: (word) => _showWordPopup(context, word),
             onWordLongPress: (word) => _removeMistake(word, mistakes),
           ),
@@ -1035,6 +1077,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             endSurah: assignment?.endSurah,
             startAyah: assignment?.startAyah,
             endAyah: assignment?.endAyah,
+            highlightedWordKey: _highlightedWordKey,
             onWordTap: (word) => _showWordPopup(context, word),
             onWordLongPress: (word) => _removeMistake(word, mistakes),
           ),
@@ -1082,8 +1125,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     Assignment? assignment,
     bool isDarkMode,
     WidgetRef ref,
-    int currentPage,
-  ) {
+    int currentPage, {
+    int? firstPage,
+  }) {
     if (assignment == null) return const SizedBox.shrink();
 
     final mistakes = mistakesAsync.value ?? [];
@@ -1190,6 +1234,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 errorCount: m.errorCount,
                 wordText: m.wordText,
                 location: '${m.ayahNumber}:${m.wordIndex + 1}',
+                onTap: () => _flashWord(m.surahNumber, m.ayahNumber, m.wordIndex, firstPage: firstPage),
               )).toList(),
             ),
 
@@ -2105,18 +2150,22 @@ class _MistakeBadgeWidget extends StatelessWidget {
   final int errorCount;
   final String wordText;
   final String location;
+  final VoidCallback? onTap;
 
   const _MistakeBadgeWidget({
     required this.errorCount,
     required this.wordText,
     required this.location,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = AppColors.getMistakeColor(errorCount);
 
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
@@ -2161,6 +2210,7 @@ class _MistakeBadgeWidget extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

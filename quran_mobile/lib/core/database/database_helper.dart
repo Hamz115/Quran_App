@@ -80,7 +80,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createAppDatabase,
       onUpgrade: _upgradeAppDatabase,
     );
@@ -119,6 +119,7 @@ class DatabaseHelper {
         end_surah INTEGER NOT NULL,
         start_ayah INTEGER,
         end_ayah INTEGER,
+        student_id TEXT,
         sync_status TEXT DEFAULT 'pending',
         is_deleted INTEGER DEFAULT 0,
         FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
@@ -212,6 +213,14 @@ class DatabaseHelper {
     // Version 3: Add supabase_id, teacher_id, student_id columns for local-first sync
     if (oldVersion < 3) {
       await _migrateToVersion3(db);
+    }
+    // Version 4: Add student_id column to assignments for per-student portions
+    if (oldVersion < 4) {
+      final cols = await db.rawQuery("PRAGMA table_info('assignments')");
+      final colNames = cols.map((c) => c['name'] as String).toSet();
+      if (!colNames.contains('student_id')) {
+        await db.execute('ALTER TABLE assignments ADD COLUMN student_id TEXT');
+      }
     }
   }
 

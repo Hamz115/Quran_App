@@ -241,6 +241,7 @@ class SupabaseSyncHelper {
                   'end_surah': assignment.endSurah,
                   'start_ayah': assignment.startAyah,
                   'end_ayah': assignment.endAyah,
+                  if (assignment.studentId != null) 'student_id': assignment.studentId,
                 }).select('id').single();
 
                 if (assignment.id != null) {

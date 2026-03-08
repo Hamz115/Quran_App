@@ -24,6 +24,8 @@ class MushafPageWidget extends StatelessWidget {
   final int? endSurah;
   final int? startAyah;
   final int? endAyah;
+  // Highlight a specific word (flash animation from reader badge tap)
+  final String? highlightedWordKey;
 
   const MushafPageWidget({
     super.key,
@@ -37,6 +39,7 @@ class MushafPageWidget extends StatelessWidget {
     this.endSurah,
     this.startAyah,
     this.endAyah,
+    this.highlightedWordKey,
   });
 
   @override
@@ -112,20 +115,32 @@ class MushafPageWidget extends StatelessWidget {
     final wholeWordMistake = wordMistakes.where((m) => !m.isCharacterLevel).firstOrNull;
     final charMistakes = wordMistakes.where((m) => m.isCharacterLevel).toList();
 
+    Widget result;
+
     // If there's a whole-word mistake, use the standard QPC glyph rendering with full highlight
     // (whole-word takes precedence over character-level)
     if (wholeWordMistake != null) {
-      return _buildQpcWord(word, fontFamily, wholeWordMistake.severityLevel);
+      result = _buildQpcWord(word, fontFamily, wholeWordMistake.severityLevel);
     }
-
     // If there are ONLY character-level mistakes, render with textUthmani (Amiri font)
     // and color individual characters
-    if (charMistakes.isNotEmpty) {
-      return _buildCharLevelWord(word, charMistakes);
+    else if (charMistakes.isNotEmpty) {
+      result = _buildCharLevelWord(word, charMistakes);
+    }
+    // No mistakes — standard QPC rendering
+    else {
+      result = _buildQpcWord(word, fontFamily, 0);
     }
 
-    // No mistakes — standard QPC rendering
-    return _buildQpcWord(word, fontFamily, 0);
+    // Wrap with flash animation if this word is highlighted
+    if (highlightedWordKey != null) {
+      final wordKey = '${word.surah}-${word.ayah}-${word.word - 1}';
+      if (wordKey == highlightedWordKey) {
+        result = _FlashingWordWrapper(child: result);
+      }
+    }
+
+    return result;
   }
 
   /// Check if a word falls within the assigned portion range.
@@ -305,4 +320,71 @@ class MushafPageWidget extends StatelessWidget {
         m.wordIndex == wordIndex).toList();
   }
 
+}
+
+/// Wraps a word widget with a scale + glow flash animation.
+/// Auto-plays once on mount, auto-disposes.
+class _FlashingWordWrapper extends StatefulWidget {
+  final Widget child;
+  const _FlashingWordWrapper({required this.child});
+
+  @override
+  State<_FlashingWordWrapper> createState() => _FlashingWordWrapperState();
+}
+
+class _FlashingWordWrapperState extends State<_FlashingWordWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _glow;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 50),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _glow = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.7), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.7, end: 0.0), weight: 50),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scale.value,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.cyan600.withOpacity(_glow.value),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: widget.child,
+    );
+  }
 }

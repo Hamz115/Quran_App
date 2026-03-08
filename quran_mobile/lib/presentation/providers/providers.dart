@@ -143,6 +143,46 @@ Future<String> addStudentByEmail(WidgetRef ref, String email) async {
   return studentName;
 }
 
+// Teacher's class dates provider (SUPABASE DIRECT — fast dashboard stats)
+final teacherClassDatesProvider = FutureProvider<List<String>>((ref) async {
+  final user = ref.read(authProvider).user;
+  if (user == null) return [];
+
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('classes')
+      .select('date')
+      .eq('teacher_id', user.id)
+      .order('date', ascending: false);
+
+  return (response as List).map((row) => (row['date'] as String?) ?? '').toList();
+});
+
+// Teacher's class → student names map (SUPABASE DIRECT — for dashboard Recent Classes)
+final classStudentNamesProvider = FutureProvider<Map<String, List<String>>>((ref) async {
+  final user = ref.read(authProvider).user;
+  if (user == null) return {};
+
+  final supabase = Supabase.instance.client;
+
+  // Get all class_students for this teacher's classes, with student name
+  final response = await supabase
+      .from('class_students')
+      .select('class_id, student:profiles!student_id(name)')
+      .inFilter('class_id', (await supabase
+          .from('classes')
+          .select('id')
+          .eq('teacher_id', user.id)).map((r) => r['id'].toString()).toList());
+
+  final map = <String, List<String>>{};
+  for (final row in (response as List)) {
+    final classId = row['class_id'].toString();
+    final studentName = (row['student'] as Map<String, dynamic>?)?['name'] as String? ?? 'Student';
+    map.putIfAbsent(classId, () => []).add(studentName);
+  }
+  return map;
+});
+
 // ============ CLASS STUDENTS PROVIDER (fetches students enrolled in a specific class) ============
 
 final classStudentsProvider = FutureProvider.family<List<({String id, String name})>, String>((ref, classId) async {
@@ -204,6 +244,58 @@ class PreviousClassMistakeGroup {
     required this.mistakes,
   });
 }
+
+// ============ READER MISTAKES WITH OCCURRENCES (Supabase direct) ============
+
+/// Fetches all mistakes WITH class occurrences (date/day) for the Quran Reader
+/// mistake list. Queries Supabase directly to get class date/day via JOIN,
+/// since local SQLite may not have synced occurrence data.
+final readerMistakeOccurrencesProvider = FutureProvider<List<Mistake>>((ref) async {
+  // Re-fetch when mistakes change
+  ref.watch(mistakesProvider);
+
+  final supabase = Supabase.instance.client;
+  final user = supabase.auth.currentUser;
+  if (user == null) return [];
+
+  final response = await supabase
+      .from('mistakes')
+      .select('''
+        *,
+        mistake_occurrences (
+          class_id,
+          classes (date, day)
+        )
+      ''')
+      .eq('student_id', user.id)
+      .order('error_count', ascending: false);
+
+  final data = response as List<dynamic>;
+
+  return data.map((row) {
+    final occurrences = (row['mistake_occurrences'] as List<dynamic>? ?? []).map((occ) {
+      final cls = occ['classes'] as Map<String, dynamic>?;
+      return MistakeOccurrence(
+        mistakeId: 0, // Not needed for display
+        classId: 0,
+        occurredAt: '',
+        classDate: cls?['date'] as String? ?? '',
+        classDay: cls?['day'] as String? ?? '',
+      );
+    }).toList();
+
+    return Mistake(
+      supabaseId: row['id'] as String?,
+      surahNumber: row['surah_number'] as int,
+      ayahNumber: row['ayah_number'] as int,
+      wordIndex: row['word_index'] as int,
+      wordText: row['word_text'] as String? ?? '',
+      charIndex: row['char_index'] as int?,
+      errorCount: row['error_count'] as int? ?? 1,
+      occurrences: occurrences,
+    );
+  }).toList();
+});
 
 // ============ LOCAL-FIRST: PREVIOUS CLASS MISTAKES ============
 
@@ -290,8 +382,25 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
       }).toList();
 
       state = AsyncValue.data(classes);
+
+      // One-time fix: publish any unpublished classes on Supabase (background)
+      _fixUnpublishedClasses(user.id);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+    }
+  }
+
+  /// Background fix: set is_published=true for any classes missing it.
+  Future<void> _fixUnpublishedClasses(String teacherId) async {
+    try {
+      final supabase = Supabase.instance.client;
+      await supabase
+          .from('classes')
+          .update({'is_published': true})
+          .eq('teacher_id', teacherId)
+          .or('is_published.is.null,is_published.eq.false');
+    } catch (e) {
+      debugPrint('[ClassesNotifier] _fixUnpublishedClasses: $e');
     }
   }
 
@@ -343,6 +452,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
         'date': localClass.date,
         'day': localClass.day,
         'notes': localClass.notes,
+        'is_published': true,
       }).select().single();
 
       final supabaseClassId = classResponse['id'].toString();
@@ -631,6 +741,7 @@ final classFromStringIdProvider = FutureProvider.family<ClassSession?, String>((
     endSurah: a['end_surah'] as int? ?? 0,
     startAyah: a['start_ayah'] as int?,
     endAyah: a['end_ayah'] as int?,
+    studentId: a['student_id'] as String?,
   )).toList();
 
   return ClassSession(
