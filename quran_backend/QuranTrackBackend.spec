@@ -22,6 +22,7 @@ hiddenimports += collect_submodules('postgrest')
 hiddenimports += collect_submodules('storage3')
 hiddenimports += collect_submodules('realtime')
 hiddenimports += collect_submodules('httpx')
+hiddenimports += collect_submodules('playwright')
 hiddenimports += [
     'bcrypt',
     'multipart',
@@ -49,7 +50,7 @@ datas = [
 # --- Exclude unnecessary packages to reduce size ---
 excludes = [
     'tkinter', 'matplotlib', 'numpy', 'scipy', 'pandas',
-    'PIL', 'cv2', 'test', 'playwright',
+    'PIL', 'cv2', 'test',
 ]
 
 a = Analysis(
