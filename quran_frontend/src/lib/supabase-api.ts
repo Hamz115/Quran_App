@@ -248,10 +248,8 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
     if (error) throw new Error(error.message);
 
     // One-time fix: publish any unpublished classes (background, non-blocking)
-    supabase.from('classes').update({ is_published: true } as any)
-      .eq('teacher_id', user.id)
-      .or('is_published.is.null,is_published.eq.false')
-      .then(() => {});
+    // @ts-ignore - Supabase type mismatch for dynamic table update
+    supabase.from('classes').update({ is_published: true }).eq('teacher_id', user.id).or('is_published.is.null,is_published.eq.false').then(() => {});
 
     return mapClassData(data ?? [], true);
   } else {

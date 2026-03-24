@@ -170,7 +170,7 @@ export default function Classroom() {
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
-  const [performanceSaving, setPerformanceSaving] = useState(false);
+  const [performanceSaving, _setPerformanceSaving] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // Add portion modal state
