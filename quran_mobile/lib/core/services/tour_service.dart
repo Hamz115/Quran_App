@@ -168,9 +168,11 @@ class TourService {
       );
 
       // Store ID for cleanup
+      final id = classSession.id;
+      if (id == null) return null;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_demoClassIdKey, classSession.id);
-      return classSession.id;
+      await prefs.setInt(_demoClassIdKey, id);
+      return id;
     } catch (e) {
       debugPrint('[TourService] Failed to create demo class: $e');
       return null;
