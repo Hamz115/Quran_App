@@ -11,6 +11,7 @@ import '../../../data/models/app_user.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/quran_page_provider.dart';
 import '../../widgets/mushaf_page_widget.dart';
+import '../../../core/services/tour_service.dart';
 
 class QuranReaderScreen extends ConsumerStatefulWidget {
   const QuranReaderScreen({super.key});
@@ -74,6 +75,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
         : (ref.watch(readerMistakeOccurrencesProvider).value ?? []);
 
     return Scaffold(
+      key: TourService.readerPageKey,
       backgroundColor: isDarkMode ? Colors.black : const Color(0xFFFEF9E7),
       body: GestureDetector(
         onTap: _toggleOverlay,

@@ -15,6 +15,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/quran_page_provider.dart';
 import '../../widgets/mushaf_page_widget.dart';
 import '../../widgets/section_badge.dart';
+import '../../../core/services/tour_service.dart';
 import 'word_popup.dart';
 
 class ClassroomScreen extends ConsumerStatefulWidget {
@@ -199,6 +200,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
                 // Quran page (fills all space)
                 Expanded(
+                  key: TourService.quranPageKey,
                   child: currentAssignment != null
                       ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode, ref)
                       : Center(
@@ -229,6 +231,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final sectionLabel = AppConstants.sectionLabels[_activeSection] ?? _activeSection;
 
     return Container(
+      key: TourService.sectionTabsKey,
       padding: const EdgeInsets.only(left: 4, right: 8, top: 4, bottom: 6),
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1A1A2E) : AppColors.surface(false),
@@ -1019,7 +1022,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode, assignment),
               ),
               // Mistakes summary below (scroll down to see)
-              _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref, _currentPage, firstPage: firstPage),
+              Container(
+                key: TourService.mistakesAreaKey,
+                child: _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref, _currentPage, firstPage: firstPage),
+              ),
             ],
           ),
         );

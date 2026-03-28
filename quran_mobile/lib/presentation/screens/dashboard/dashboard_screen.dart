@@ -12,6 +12,7 @@ import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
 import '../classes/report/report_panel.dart';
 import '../classes/create_class_screen.dart';
+import '../../../core/services/tour_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -103,6 +104,7 @@ class DashboardScreen extends ConsumerWidget {
                           children: [
                             // Add Student button
                             OutlinedButton.icon(
+                              key: TourService.addStudentKey,
                               onPressed: () => _showAddStudentSheet(context, ref, isDarkMode),
                               icon: const Icon(Icons.person_add_outlined, size: 18),
                               label: const Text('Add Student'),
@@ -115,6 +117,7 @@ class DashboardScreen extends ConsumerWidget {
                             const SizedBox(width: 12),
                             // Start New Class button
                             ElevatedButton.icon(
+                              key: TourService.startClassKey,
                               onPressed: () {
                                 showModalBottomSheet(
                                   context: context,

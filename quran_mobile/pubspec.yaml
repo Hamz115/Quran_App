@@ -35,6 +35,9 @@ dependencies:
   supabase_flutter: ^2.3.0
   flutter_dotenv: ^5.1.0
 
+  # Tour / Onboarding
+  tutorial_coach_mark: ^1.2.11
+
   # Auto-update
   ota_update: ^7.1.0
   package_info_plus: ^8.0.0

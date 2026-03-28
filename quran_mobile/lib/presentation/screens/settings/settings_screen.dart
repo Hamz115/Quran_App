@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/providers.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/update_dialog.dart';
+import '../../../core/services/tour_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -169,7 +170,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 32),
 
               // ── Appearance Section ──
-              _sectionHeader('APPEARANCE', isDarkMode),
+              Container(key: TourService.settingsSectionKey, child: _sectionHeader('APPEARANCE', isDarkMode)),
               const SizedBox(height: 12),
 
               GlassmorphicCard(
@@ -344,6 +345,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // ── Help & Tutorial Section ──
+              _sectionHeader('HELP & TUTORIAL', isDarkMode),
+              const SizedBox(height: 12),
+
+              GlassmorphicCard(
+                padding: const EdgeInsets.all(0),
+                child: ListTile(
+                  leading: _iconBox(
+                    Icons.help_rounded,
+                    AppColors.cyan500,
+                    isDarkMode,
+                  ),
+                  title: Text(
+                    'Show Tutorial',
+                    style: TextStyle(color: AppColors.text(isDarkMode)),
+                  ),
+                  subtitle: Text(
+                    'Learn how to use QuranTrack',
+                    style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                  ),
+                  trailing: SizedBox(
+                    width: 80,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await TourService.resetTourCompleted();
+                        TourService.onStartTour?.call();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.cyan500,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      child: const Text('Start'),
+                    ),
+                  ),
                 ),
               ),
 
