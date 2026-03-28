@@ -260,7 +260,7 @@ export default function QuranReader() {
   const ayahLines = pageData ? pageData.lines.filter(l => l.line_type === 'ayah') : [];
 
   return (
-    <div className="space-y-2 lg:space-y-4 -mx-3 -mt-4 -mb-20 lg:mx-0 lg:mt-0 lg:mb-0">
+    <div data-tour="reader-page" className="space-y-2 lg:space-y-4 -mx-3 -mt-4 -mb-20 lg:mx-0 lg:mt-0 lg:mb-0">
       {/* Header - only on desktop (lg+) */}
       <div className="hidden lg:flex items-center justify-between flex-wrap gap-4">
         <div>

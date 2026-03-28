@@ -1,7 +1,7 @@
 {
   "name": "quran_frontend",
   "private": true,
-  "version": "1.9.0",
+  "version": "1.10.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-updater": "^2.10.0",
     "docx": "^8.5.0",
+    "driver.js": "^1.4.0",
     "file-saver": "^2.0.5",
     "html2pdf.js": "^0.14.0",
     "jspdf": "^2.5.1",

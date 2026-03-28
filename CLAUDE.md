@@ -297,8 +297,9 @@ Every session bumps the version. Use this table to determine the next version nu
 | v1.8.0 | 2026-03-07 | Quran Reader: mistakes-by-class section with click-to-highlight (Tauri + Flutter) | `2026-03-07-002` |
 | v1.8.1 | 2026-03-08 | Classroom polish: portion editing, performance dropdown, UI fixes | `2026-03-08-001` |
 | v1.9.0 | 2026-03-08 | Multi-student portion filtering: fix student_id in createClass, pill selectors, per-student assignment filtering (Tauri + Flutter) | `2026-03-08-002` |
+| v1.10.0 | 2026-03-25 | First-launch tutorial walkthrough: 7-slide carousel on first open + "Show Tutorial" in Settings (Tauri + Flutter) | `2026-03-25-001` |
 
-**Current version: v1.9.0**
+**Current version: v1.10.0**
 
 **Versioning rules:**
 - Patch (v1.2.x): Bug fixes, small additions, porting features to another platform

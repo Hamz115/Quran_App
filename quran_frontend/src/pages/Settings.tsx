@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { checkForAppUpdates, type UpdateStatus } from '../lib/updater';
+import { useTour } from '../contexts/TourContext';
+import { resetTourCompleted } from '../lib/tour';
 
 export default function Settings() {
   const { user, updateProfile, updatePassword, logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
+  const { startTour } = useTour();
 
   // Profile form state
   const [firstName, setFirstName] = useState(user?.first_name || '');
@@ -123,6 +126,8 @@ export default function Settings() {
         </p>
       </div>
 
+      <div data-tour="settings-section" />
+
       {/* 1. App Info Section — only visible in Tauri desktop app */}
       {isTauri && (
         <div className={`card p-6 rounded-2xl ${darkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-white border border-slate-200'}`}>
@@ -148,7 +153,7 @@ export default function Settings() {
                 Version
               </span>
               <span className={`font-mono font-medium ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-                v1.9.0
+                v1.10.0
               </span>
             </div>
 
@@ -549,7 +554,35 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* 5. Sign Out Section */}
+      {/* 5. Help & Tutorial Section */}
+      <div className={`card p-6 rounded-2xl ${darkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-white border border-slate-200'}`}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`p-3 rounded-xl ${darkMode ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+            <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+              Help & Tutorial
+            </h2>
+            <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Learn how to use QuranTrack with an interactive guided tour
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            resetTourCompleted();
+            startTour();
+          }}
+          className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-cyan-500/30"
+        >
+          Show Tutorial
+        </button>
+      </div>
+
+      {/* 6. Sign Out Section */}
       <div className={`card p-6 rounded-2xl ${darkMode ? 'bg-slate-800/50 border border-red-900/30' : 'bg-white border border-red-200/50'}`}>
         <div className="flex items-center gap-3 mb-4">
           <div className={`p-3 rounded-xl ${darkMode ? 'bg-red-500/20' : 'bg-red-100'}`}>

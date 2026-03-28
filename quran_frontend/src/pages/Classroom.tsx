@@ -922,7 +922,7 @@ export default function Classroom() {
       )}
 
       {/* Section Tabs */}
-      <div className="flex items-center gap-3">
+      <div data-tour="section-tabs" className="flex items-center gap-3">
         {availableSections.map((type) => {
           const config = SECTION_LABELS[type];
           const typeAssignments = classData.assignments.filter(a => {
@@ -1077,7 +1077,7 @@ export default function Classroom() {
             </button>
 
             {/* Mushaf Page */}
-            <div className="rounded-lg mushaf-page relative" style={{ width: pageDims.width, height: pageDims.height, backgroundColor: '#FEF9E7' }}>
+            <div data-tour="quran-page" className="rounded-lg mushaf-page relative" style={{ width: pageDims.width, height: pageDims.height, backgroundColor: '#FEF9E7' }}>
               {/* Page Content */}
               <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 1, padding: '4% 6%' }}>
 
@@ -1243,7 +1243,7 @@ export default function Classroom() {
             );
 
             return (
-              <div className="space-y-4">
+              <div data-tour="mistakes-area" className="space-y-4">
                 {/* All / Page toggle */}
                 <div className="flex items-center justify-center gap-1">
                   <button

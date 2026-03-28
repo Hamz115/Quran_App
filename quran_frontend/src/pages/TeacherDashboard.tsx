@@ -173,6 +173,7 @@ export default function TeacherDashboard() {
             </svg>
           </button>
           <button
+            data-tour="add-student-btn"
             onClick={() => setShowAddStudentModal(true)}
             className={`px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 ${
               darkMode
@@ -186,6 +187,7 @@ export default function TeacherDashboard() {
             Add Student
           </button>
           <button
+            data-tour="start-class-btn"
             onClick={() => navigate('/teacher/classes?new=1')}
             className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-cyan-500/25"
           >

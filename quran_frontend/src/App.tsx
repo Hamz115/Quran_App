@@ -18,6 +18,7 @@ import TeacherClasses from './pages/TeacherClasses';
 import StudentClasses from './pages/StudentClasses';
 import Classroom from './pages/Classroom';
 import QuranReader from './pages/QuranReader';
+import { TourProvider } from './contexts/TourContext';
 
 /** Format bytes to human-readable string */
 function formatBytes(bytes: number): string {
@@ -137,6 +138,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+        <TourProvider>
         <UpdateOverlay />
         <Routes>
           {/* Public routes */}
@@ -177,6 +179,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
+        </TourProvider>
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
