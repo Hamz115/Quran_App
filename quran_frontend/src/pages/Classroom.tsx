@@ -818,6 +818,7 @@ export default function Classroom() {
               <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Performance:</span>
               <div className="relative">
                 <select
+                  data-tour="performance-dropdown"
                   value={studentPerf || ''}
                   onChange={async (e) => {
                     const newPerf = e.target.value || undefined;
@@ -860,6 +861,7 @@ export default function Classroom() {
 
         {(isTeacher || classData.notes) && (
           <button
+            data-tour="notes-btn"
             onClick={() => setShowNotesEditor(!showNotesEditor)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors ${
               classData.notes
@@ -875,7 +877,7 @@ export default function Classroom() {
         )}
 
         {isTeacher && (
-          <button onClick={handleDeleteClass} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/20">
+          <button data-tour="delete-btn" onClick={handleDeleteClass} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/20">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -898,6 +900,7 @@ export default function Classroom() {
           {isTeacher ? (
             <>
               <textarea
+                data-tour="notes-textarea"
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
                 placeholder="Add notes..."
@@ -908,7 +911,7 @@ export default function Classroom() {
                 <button onClick={() => { setNotesText(classData.notes || ''); setShowNotesEditor(false); }} className="px-4 py-2 rounded-lg text-slate-400">
                   Cancel
                 </button>
-                <button onClick={handleSaveNotes} disabled={notesSaving} className="px-5 py-2 rounded-lg bg-amber-500 text-white font-medium disabled:opacity-50">
+                <button data-tour="save-notes-btn" onClick={handleSaveNotes} disabled={notesSaving} className="px-5 py-2 rounded-lg bg-amber-500 text-white font-medium disabled:opacity-50">
                   {notesSaving ? 'Saving...' : 'Save Notes'}
                 </button>
               </div>
@@ -1245,7 +1248,7 @@ export default function Classroom() {
             return (
               <div data-tour="mistakes-area" className="space-y-4">
                 {/* All / Page toggle */}
-                <div className="flex items-center justify-center gap-1">
+                <div data-tour="page-all-toggle" className="flex items-center justify-center gap-1">
                   <button
                     onClick={() => setMistakeFilter('all')}
                     className={`px-4 py-1.5 rounded-l-lg text-sm font-medium transition-colors ${
@@ -1355,6 +1358,7 @@ export default function Classroom() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setWordPopup(null)} />
           <div
+            data-tour="word-popup"
             className="fixed z-50 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-3 w-[260px] max-h-[70vh] overflow-y-auto"
             style={{
               left: `${Math.min(Math.max(wordPopup.position.x, 140), window.innerWidth - 140)}px`,
@@ -1373,6 +1377,7 @@ export default function Classroom() {
             </div>
 
             <button
+              data-tour="whole-word-btn"
               onClick={() => handleAddMistake(wordPopup.word.text_uthmani || '', undefined)}
               className="w-full mb-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium"
             >
@@ -1383,7 +1388,7 @@ export default function Classroom() {
               const { letters, harakat } = splitArabicWord(wordPopup.word.text_uthmani || '');
               return (
                 <>
-                  <div className="mb-2">
+                  <div data-tour="letter-mistakes" className="mb-2">
                     <p className="text-xs text-slate-400 mb-1">Letters:</p>
                     <div className="flex flex-row-reverse flex-wrap gap-1.5 justify-center">
                       {letters.map((l) => (
@@ -1399,7 +1404,7 @@ export default function Classroom() {
                   </div>
 
                   {harakat.length > 0 && (
-                    <div className="mb-2">
+                    <div data-tour="haraka-mistakes" className="mb-2">
                       <p className="text-xs text-slate-400 mb-1">Harakat:</p>
                       <div className="flex flex-row-reverse flex-wrap gap-1.5 justify-center">
                         {harakat.map((h) => (

@@ -127,8 +127,14 @@ function PortionSelector({
     });
   };
 
+  // Determine data-tour attribute based on label
+  const tourAttr = label.startsWith('Hifz') ? 'hifz-section'
+    : label.startsWith('Sabqi') ? 'sabqi-toggle'
+    : label.startsWith('Revision') ? 'manzil-toggle'
+    : undefined;
+
   return (
-    <div className={`p-4 rounded-xl border-2 transition-all ${
+    <div data-tour={tourAttr} className={`p-4 rounded-xl border-2 transition-all ${
       config.enabled ? borderColor : (darkMode ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50')
     }`}>
       <div className="flex items-start justify-between mb-1">
@@ -168,7 +174,7 @@ function PortionSelector({
                 )}
 
                 {/* Mode Toggle */}
-                <div className="flex gap-2 mb-2">
+                <div data-tour="portion-mode" className="flex gap-2 mb-2">
                   <button
                     type="button"
                     onClick={() => updatePortion(portion.id, { mode: 'page' })}
@@ -257,7 +263,7 @@ function PortionSelector({
 
                 {portion.mode === 'surah' && (
                   <>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div data-tour="surah-selector" className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Surah</label>
                         <select
@@ -296,7 +302,7 @@ function PortionSelector({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div data-tour="ayah-range" className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Ayah (optional)</label>
                         <input
@@ -828,7 +834,7 @@ export default function TeacherClasses() {
                 /* Step 1: Select Students */
                 <div className="space-y-4">
                   {/* Date Picker */}
-                  <div>
+                  <div data-tour="class-date">
                     <label className={`block text-sm font-medium mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                       Class Date
                     </label>
@@ -849,6 +855,7 @@ export default function TeacherClasses() {
                   </div>
 
                   {/* Student Selection */}
+                  <div data-tour="student-selector">
                   <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     Select students for this class
                   </label>
@@ -892,6 +899,7 @@ export default function TeacherClasses() {
                       })}
                     </div>
                   )}
+                  </div>
                 </div>
               ) : (
                 /* Step 2: Configure Portions */
@@ -1070,6 +1078,7 @@ export default function TeacherClasses() {
                     Cancel
                   </button>
                   <button
+                    data-tour="next-portions-btn"
                     disabled={selectedStudents.length === 0}
                     onClick={() => setModalStep(2)}
                     className={`flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
@@ -1086,6 +1095,7 @@ export default function TeacherClasses() {
                     Back
                   </button>
                   <button
+                    data-tour="create-class-btn"
                     onClick={handleCreateClass}
                     disabled={creating}
                     className={`flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
