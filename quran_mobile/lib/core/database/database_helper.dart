@@ -80,7 +80,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createAppDatabase,
       onUpgrade: _upgradeAppDatabase,
     );
@@ -94,6 +94,7 @@ class DatabaseHelper {
         server_id INTEGER,
         supabase_id TEXT,
         teacher_id TEXT,
+        listener_id TEXT,
         date TEXT NOT NULL,
         day TEXT NOT NULL,
         notes TEXT,
@@ -220,6 +221,15 @@ class DatabaseHelper {
       final colNames = cols.map((c) => c['name'] as String).toSet();
       if (!colNames.contains('student_id')) {
         await db.execute('ALTER TABLE assignments ADD COLUMN student_id TEXT');
+      }
+    }
+    // Version 5: Add listener_id column for unified role model (v2.0.0)
+    if (oldVersion < 5) {
+      final cols = await db.rawQuery("PRAGMA table_info('classes')");
+      final colNames = cols.map((c) => c['name'] as String).toSet();
+      if (!colNames.contains('listener_id')) {
+        await db.execute('ALTER TABLE classes ADD COLUMN listener_id TEXT');
+        await db.execute('UPDATE classes SET listener_id = teacher_id WHERE listener_id IS NULL');
       }
     }
   }

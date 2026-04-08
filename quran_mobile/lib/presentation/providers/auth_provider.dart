@@ -17,9 +17,9 @@ class AppAuthState {
   });
 
   bool get isAuthenticated => user != null;
-  bool get isVerified => user?.isVerified ?? false;
-  bool get isTeacher => user?.role == UserRole.teacher;
-  bool get isStudent => user?.role == UserRole.student;
+  bool get isVerified => true; // v2.0.0: always verified
+  bool get isTeacher => true; // v2.0.0: everyone can listen/create sessions
+  bool get isStudent => true; // v2.0.0: everyone can recite
 
   AppAuthState copyWith({
     AppUser? user,
@@ -92,13 +92,13 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     }
   }
 
-  /// Sign up with email and password
+  /// Sign up with email and password (no role in v2.0.0)
   Future<void> signUp({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
-    required UserRole role,
+    UserRole? role, // Legacy param, ignored
   }) async {
     state = state.copyWith(clearError: true);
 
@@ -108,7 +108,6 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
         password: password,
         firstName: firstName,
         lastName: lastName,
-        role: role,
       );
       state = AppAuthState(user: user, isLoading: false);
     } on supabase.AuthException catch (e) {

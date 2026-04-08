@@ -10,7 +10,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=30, pattern=r'^[a-zA-Z0-9_]+$')
     password: str = Field(..., min_length=8)
-    role: str = Field(..., pattern=r'^(teacher|student)$')  # "teacher" or "student"
+    # role removed — no teacher/student distinction
 
 
 class LoginRequest(BaseModel):
@@ -26,7 +26,7 @@ class VerifyEmailRequest(BaseModel):
     token: str
 
 
-class AddStudentRequest(BaseModel):
+class AddContactRequest(BaseModel):
     email: EmailStr
 
 
@@ -43,7 +43,7 @@ class UserResponse(BaseModel):
     email: str
     first_name: str
     last_name: str
-    is_verified: bool
+    is_verified: bool = True  # Legacy field, always True now
     created_at: str
 
     class Config:
@@ -63,7 +63,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class StudentLookupResponse(BaseModel):
+class ContactLookupResponse(BaseModel):
     student_id: str
     email: str
     first_name: str
@@ -71,16 +71,9 @@ class StudentLookupResponse(BaseModel):
     display_name: str  # "Ahmed H." for privacy
 
 
-class StudentListItem(BaseModel):
+class ContactListItem(BaseModel):
     id: int
     student_id: str
-    first_name: str
-    last_name: str
-    added_at: str
-
-
-class TeacherListItem(BaseModel):
-    id: int
     first_name: str
     last_name: str
     added_at: str

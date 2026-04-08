@@ -12,7 +12,7 @@ export default function ReportSummaryStrip({ summary, darkMode }: ReportSummaryS
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
 
   const stats = [
-    { label: 'Classes', value: summary.total_classes, color: 'text-cyan-400' },
+    { label: 'Sessions', value: summary.total_classes, color: 'text-cyan-400' },
     { label: 'Total Mistakes', value: summary.total_mistakes, color: '' },
     { label: 'Unique', value: summary.unique_mistakes, color: '' },
     { label: 'Repeated', value: summary.repeated_mistakes, color: 'text-red-400' },

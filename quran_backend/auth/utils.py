@@ -97,5 +97,5 @@ def create_user_token_data(user: Dict[str, Any]) -> Dict[str, Any]:
         "email": user["email"],
         "first_name": user["first_name"],
         "last_name": user["last_name"],
-        "is_verified": bool(user["is_verified"])
+        "is_verified": True  # Legacy field, always True now (no role distinction)
     }

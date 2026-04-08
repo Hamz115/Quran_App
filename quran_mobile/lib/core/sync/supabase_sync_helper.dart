@@ -25,18 +25,17 @@ class SupabaseSyncHelper {
         _supabase = supabaseClient ?? Supabase.instance.client;
 
   /// Full sync: push local pending changes first, then pull remote data.
-  Future<void> sync(String userId, String role) async {
+  /// v2.0.0: role parameter kept for backward compat but ignored — always syncs everything.
+  Future<void> sync(String userId, [String? role]) async {
     if (_isSyncing) return;
     _isSyncing = true;
     try {
       // Push first so we don't lose local changes
-      if (role == 'teacher') {
-        await pushPendingClasses(userId);
-      }
+      await pushPendingClasses(userId);
       await pushPendingMistakes(userId);
 
-      // Then pull remote data
-      await pullAll(userId, role);
+      // Then pull remote data (both listener + reciter views)
+      await pullAll(userId);
     } catch (e) {
       debugPrint('[SupabaseSyncHelper] sync error: $e');
     } finally {
@@ -45,10 +44,10 @@ class SupabaseSyncHelper {
   }
 
   /// Start periodic sync (every 30 seconds).
-  void startPeriodicSync(String userId, String role) {
+  void startPeriodicSync(String userId, [String? role]) {
     _periodicTimer?.cancel();
     _periodicTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      sync(userId, role);
+      sync(userId);
     });
   }
 
@@ -215,9 +214,10 @@ class SupabaseSyncHelper {
               );
             }
           } else {
-            // Create new on Supabase
+            // Create new on Supabase (dual-write teacher_id + listener_id)
             final response = await _supabase.from('classes').insert({
               'teacher_id': teacherId,
+              'listener_id': teacherId,
               'date': cls.date,
               'day': cls.day,
               'notes': cls.notes,
@@ -264,15 +264,15 @@ class SupabaseSyncHelper {
   }
 
   /// Pull all remote data to local SQLite.
-  Future<void> pullAll(String userId, String role) async {
+  /// v2.0.0: always pulls both listener classes + reciter classes + all mistakes.
+  Future<void> pullAll(String userId, [String? role]) async {
     try {
-      if (role == 'teacher') {
-        await _pullClasses(userId);
-        await _pullMistakesForTeacher(userId);
-      } else {
-        await _pullMistakesForStudent(userId);
-        await _pullClassesForStudent(userId);
-      }
+      // Pull classes I created (as listener)
+      await _pullClasses(userId);
+      // Pull classes I'm enrolled in (as reciter)
+      await _pullClassesForStudent(userId);
+      // Pull mistakes for my contacts + own mistakes
+      await _pullMistakesForTeacher(userId);
     } catch (e) {
       debugPrint('[SupabaseSyncHelper] pullAll error: $e');
     }
@@ -285,7 +285,7 @@ class SupabaseSyncHelper {
       final response = await _supabase
           .from('classes')
           .select('*, assignments(*)')
-          .eq('teacher_id', teacherId)
+          .or('teacher_id.eq.$teacherId,listener_id.eq.$teacherId')
           .order('date', ascending: false);
 
       final remoteIds = <String>{};
@@ -403,11 +403,11 @@ class SupabaseSyncHelper {
     try {
       final db = await DatabaseHelper.instance.appDatabase;
 
-      // Get all local classes for this teacher that have supabase_id
+      // Get all local classes for this listener that have supabase_id
       final localClasses = await db.query('classes',
         columns: ['id', 'supabase_id'],
-        where: 'teacher_id = ? AND supabase_id IS NOT NULL AND is_deleted = 0',
-        whereArgs: [teacherId],
+        where: '(teacher_id = ? OR listener_id = ?) AND supabase_id IS NOT NULL AND is_deleted = 0',
+        whereArgs: [teacherId, teacherId],
       );
 
       for (final cls in localClasses) {

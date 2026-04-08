@@ -3,10 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
-type Role = 'teacher' | 'student';
-
 export default function Signup() {
-  const [role, setRole] = useState<Role | null>(null);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -33,11 +30,6 @@ export default function Signup() {
     e.preventDefault();
     setError('');
 
-    if (!role) {
-      setError('Please select Teacher or Student');
-      return;
-    }
-
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -62,9 +54,8 @@ export default function Signup() {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-        role: role,
       });
-      navigate(role === 'teacher' ? '/teacher' : '/student');
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
@@ -183,49 +174,6 @@ export default function Signup() {
                   {error}
                 </div>
               )}
-
-              {/* Role Selection */}
-              <div>
-                <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${
-                  darkMode ? 'text-slate-300' : 'text-slate-700'
-                }`}>
-                  I am a...
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('teacher')}
-                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center ${
-                      role === 'teacher'
-                        ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
-                        : darkMode
-                          ? 'border-cyan-900/50 bg-[rgb(37,45,61)] text-slate-400 hover:border-cyan-700'
-                          : 'border-cyan-200 bg-cyan-50/50 text-slate-500 hover:border-cyan-300'
-                    }`}
-                  >
-                    <svg className="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
-                    </svg>
-                    <span className="font-medium text-sm">Teacher</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('student')}
-                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center ${
-                      role === 'student'
-                        ? 'border-teal-500 bg-teal-50 text-teal-700'
-                        : darkMode
-                          ? 'border-cyan-900/50 bg-[rgb(37,45,61)] text-slate-400 hover:border-cyan-700'
-                          : 'border-cyan-200 bg-cyan-50/50 text-slate-500 hover:border-cyan-300'
-                    }`}
-                  >
-                    <svg className="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                    </svg>
-                    <span className="font-medium text-sm">Student</span>
-                  </button>
-                </div>
-              </div>
 
               {/* Name Fields */}
               <div className="grid grid-cols-2 gap-3">
@@ -346,14 +294,8 @@ export default function Signup() {
 
               <button
                 type="submit"
-                disabled={isLoading || !role}
-                className={`w-full py-3 font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-                  role === 'teacher'
-                    ? 'bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white shadow-cyan-500/30'
-                    : role === 'student'
-                    ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-teal-500/30'
-                    : 'bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-slate-400/30'
-                }`}
+                disabled={isLoading}
+                className="w-full py-3 font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white shadow-cyan-500/30"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">

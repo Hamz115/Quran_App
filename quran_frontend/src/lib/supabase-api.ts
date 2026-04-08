@@ -1,25 +1,35 @@
 // Supabase API functions for QuranTrack
-// Handles: Students, Classes, Mistakes
+// Handles: Contacts, Sessions, Mistakes
 // Uses Supabase client with RLS for security
 // Uses local-first caching for instant loading
 
 import { supabase } from './supabase';
 import { cacheFirst, invalidateCache, saveToCache, getFromCache } from './cache';
 import { surahNames } from './quran-utils';
-import type { StudentListItem, StudentLookup, TeacherListItem } from '../types';
+import type { ContactListItem, ContactLookup, ContactListItem as ListenerListItem } from '../types';
+
+// Legacy type aliases for backward compatibility
+type StudentListItem = ContactListItem;
+type StudentLookup = ContactLookup;
+type TeacherListItem = ContactListItem;
 
 // Cache keys
 const CACHE_KEYS = {
-  STUDENTS: 'students',
-  TEACHERS: 'teachers',
-  CLASSES_TEACHER: 'classes:teacher',
-  CLASSES_STUDENT: 'classes:student',
+  CONTACTS: 'contacts',
+  LISTENERS: 'listeners',
+  CLASSES_LISTENER: 'classes:listener',
+  CLASSES_RECITER: 'classes:reciter',
+  // Legacy aliases
+  STUDENTS: 'contacts',
+  TEACHERS: 'listeners',
+  CLASSES_TEACHER: 'classes:listener',
+  CLASSES_STUDENT: 'classes:reciter',
 } as const;
 
-// ============ STUDENTS (Teacher functions) ============
+// ============ CONTACTS (was Students) ============
 
 // Internal fetcher (no cache)
-async function fetchStudentsFromSupabase(): Promise<StudentListItem[]> {
+async function fetchContactsFromSupabase(): Promise<ContactListItem[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -54,11 +64,14 @@ async function fetchStudentsFromSupabase(): Promise<StudentListItem[]> {
 }
 
 // Cached version - returns instantly if cached, refreshes in background
-export async function getMyStudents(): Promise<StudentListItem[]> {
-  return cacheFirst(CACHE_KEYS.STUDENTS, fetchStudentsFromSupabase);
+export async function getMyContacts(): Promise<ContactListItem[]> {
+  return cacheFirst(CACHE_KEYS.CONTACTS, fetchContactsFromSupabase);
 }
 
-export async function lookupStudent(email: string): Promise<StudentLookup> {
+// Legacy alias
+export const getMyStudents = getMyContacts;
+
+export async function lookupContact(email: string): Promise<ContactLookup> {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, student_id, name, email')
@@ -79,7 +92,10 @@ export async function lookupStudent(email: string): Promise<StudentLookup> {
   };
 }
 
-export async function addStudent(email: string): Promise<{ message: string }> {
+// Legacy alias
+export const lookupStudent = lookupContact;
+
+export async function addContact(email: string): Promise<{ message: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -119,12 +135,15 @@ export async function addStudent(email: string): Promise<{ message: string }> {
   }
 
   // Invalidate cache so next fetch gets fresh data
-  invalidateCache(CACHE_KEYS.STUDENTS);
+  invalidateCache(CACHE_KEYS.CONTACTS);
 
-  return { message: 'Student added successfully' };
+  return { message: 'Contact added successfully' };
 }
 
-export async function removeStudent(studentId: string): Promise<{ message: string }> {
+// Legacy alias
+export const addStudent = addContact;
+
+export async function removeContact(contactId: string): Promise<{ message: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -132,22 +151,25 @@ export async function removeStudent(studentId: string): Promise<{ message: strin
     .from('teacher_students')
     .delete()
     .eq('teacher_id', user.id)
-    .eq('student_id', studentId);
+    .eq('student_id', contactId);
 
   if (error) {
     throw new Error(error.message);
   }
 
   // Invalidate cache
-  invalidateCache(CACHE_KEYS.STUDENTS);
+  invalidateCache(CACHE_KEYS.CONTACTS);
 
-  return { message: 'Student removed successfully' };
+  return { message: 'Contact removed successfully' };
 }
 
-// ============ TEACHERS (Student functions) ============
+// Legacy alias
+export const removeStudent = removeContact;
+
+// ============ LISTENERS (was Teachers) ============
 
 // Internal fetcher (no cache)
-async function fetchTeachersFromSupabase(): Promise<TeacherListItem[]> {
+async function fetchListenersFromSupabase(): Promise<ContactListItem[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -178,9 +200,12 @@ async function fetchTeachersFromSupabase(): Promise<TeacherListItem[]> {
 }
 
 // Cached version
-export async function getMyTeachers(): Promise<TeacherListItem[]> {
-  return cacheFirst(CACHE_KEYS.TEACHERS, fetchTeachersFromSupabase);
+export async function getMyListeners(): Promise<ContactListItem[]> {
+  return cacheFirst(CACHE_KEYS.LISTENERS, fetchListenersFromSupabase);
 }
+
+// Legacy alias
+export const getMyTeachers = getMyListeners;
 
 // ============ CLASSES ============
 
@@ -214,6 +239,8 @@ export interface ClassData {
   notes?: string;
   performance?: string;
   teacher_id: string;
+  listener_id?: string;
+  listener_name?: string;
   is_published: boolean;
   assignments: ClassAssignment[];
   students?: ClassStudent[];
@@ -225,12 +252,13 @@ export interface ClassData {
 }
 
 // Internal fetcher for classes (no cache)
-async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<ClassData[]> {
+// view: 'listener' = sessions I created (I'm listening), 'reciter' = sessions I'm enrolled in (I'm reciting)
+async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<ClassData[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  if (role === 'teacher') {
-    // Teachers see their own classes
+  if (view === 'listener') {
+    // Listener view: sessions I created (check both listener_id and teacher_id for backward compat)
     const { data, error } = await supabase
       .from('classes' as any)
       .select(`
@@ -242,31 +270,31 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
           student:profiles!student_id (id, student_id, name)
         )
       `)
-      .eq('teacher_id', user.id)
+      .or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`)
       .order('date', { ascending: false });
 
     if (error) throw new Error(error.message);
 
     // One-time fix: publish any unpublished classes (background, non-blocking)
     // @ts-ignore - Supabase type mismatch for dynamic table update
-    supabase.from('classes').update({ is_published: true }).eq('teacher_id', user.id).or('is_published.is.null,is_published.eq.false').then(() => {});
+    supabase.from('classes').update({ is_published: true }).or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`).or('is_published.is.null,is_published.eq.false').then(() => {});
 
     return mapClassData(data ?? [], true);
   } else {
-    // Students see published classes they're enrolled in
+    // Reciter view: sessions I'm enrolled in as a reciter
     const { data, error } = await supabase
       .from('classes' as any)
       .select(`
         *,
         assignments (*),
-        class_students!inner (student_id)
+        class_students!inner (student_id),
+        listener:profiles!teacher_id (name)
       `)
       .eq('class_students.student_id', user.id)
       .eq('is_published', true)
       .order('date', { ascending: false });
 
     if (error) throw new Error(error.message);
-    // For students, use class-level performance
     return ((data ?? []) as any[]).map(row => {
       return {
         id: row.id,
@@ -275,6 +303,8 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
         notes: row.notes,
         performance: row.performance,
         teacher_id: row.teacher_id,
+        listener_id: row.listener_id,
+        listener_name: row.listener?.name,
         is_published: row.is_published,
         assignments: (row.assignments ?? []).map((a: any) => ({
           id: a.id,
@@ -290,35 +320,18 @@ async function fetchClassesFromSupabase(role: 'teacher' | 'student'): Promise<Cl
 }
 
 // Cached version - instant loading from cache, background refresh
-export async function getClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
-  // Get role from cache or profile if not specified
-  let userRole = role;
-  if (!userRole) {
-    // Try to get from cached profile first
-    const cachedProfile = getFromCache<{ role: string }>('profile');
-    if (cachedProfile) {
-      userRole = cachedProfile.role as 'teacher' | 'student';
-    } else {
-      // Fallback to fetching from Supabase
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single() as { data: { role: string } | null; error: any };
-      userRole = profile?.role as 'teacher' | 'student';
-
-      // Cache the profile role
-      if (profile) {
-        saveToCache('profile', { role: profile.role });
-      }
-    }
+// view: 'listener' (sessions I created), 'reciter' (sessions I'm enrolled in), defaults to 'listener'
+export async function getClasses(view?: 'listener' | 'reciter' | 'teacher' | 'student'): Promise<ClassData[]> {
+  // Map legacy role params to new view params
+  let resolvedView: 'listener' | 'reciter' = 'listener';
+  if (view === 'reciter' || view === 'student') {
+    resolvedView = 'reciter';
+  } else if (view === 'listener' || view === 'teacher') {
+    resolvedView = 'listener';
   }
 
-  const cacheKey = userRole === 'teacher' ? CACHE_KEYS.CLASSES_TEACHER : CACHE_KEYS.CLASSES_STUDENT;
-  return cacheFirst(cacheKey, () => fetchClassesFromSupabase(userRole!));
+  const cacheKey = resolvedView === 'listener' ? CACHE_KEYS.CLASSES_LISTENER : CACHE_KEYS.CLASSES_RECITER;
+  return cacheFirst(cacheKey, () => fetchClassesFromSupabase(resolvedView));
 }
 
 export async function getClass(classId: string): Promise<ClassData> {
@@ -354,6 +367,7 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
       notes: row.notes,
       performance: row.performance,
       teacher_id: row.teacher_id,
+      listener_id: row.listener_id || row.teacher_id,
       is_published: row.is_published,
       assignments: (row.assignments ?? []).map((a: any) => ({
         id: a.id,
@@ -401,10 +415,10 @@ export async function createClass(classData: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Create the class (auto-publish so students can see it immediately)
+  // Create the session (dual-write teacher_id + listener_id for backward compat)
   const { data: newClass, error: classError } = await supabase
     .from('classes' as any)
-    .insert({ teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, is_published: true } as any).select().single() as { data: { id: string } | null; error: any };
+    .insert({ teacher_id: user.id, listener_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, is_published: true } as any).select().single() as { data: { id: string } | null; error: any };
 
   if (classError || !newClass) throw new Error(classError?.message || "Failed to create class");
 
@@ -780,23 +794,27 @@ export async function removeMistake(mistakeId: string): Promise<{ message: strin
 
 // ============ STATS ============
 
-export async function getStats(role?: 'teacher' | 'student') {
+// Unified stats — returns both listener and reciter stats for the current user
+export async function getStats(view?: 'listener' | 'reciter' | 'teacher' | 'student') {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  if (role === 'teacher') {
-    // Get teacher stats
-    const [studentsResult, classesResult] = await Promise.all([
+  // Map legacy params
+  const resolvedView = (view === 'teacher') ? 'listener' : (view === 'student') ? 'reciter' : (view || 'listener');
+
+  if (resolvedView === 'listener') {
+    // Listener stats: contacts + sessions I created
+    const [contactsResult, classesResult] = await Promise.all([
       supabase.from('teacher_students').select('id', { count: 'exact' }).eq('teacher_id', user.id),
-      supabase.from('classes').select('id', { count: 'exact' }).eq('teacher_id', user.id),
+      supabase.from('classes').select('id', { count: 'exact' }).or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`),
     ]);
 
     return {
-      total_students: studentsResult.count ?? 0,
+      total_students: contactsResult.count ?? 0,
       total_classes: classesResult.count ?? 0,
     };
   } else {
-    // Get student stats
+    // Reciter stats: sessions I'm enrolled in + my mistakes
     const [classesResult, mistakesResult, repeatedResult, allMistakesResult, topRepeatedResult] = await Promise.all([
       supabase.from('class_students').select('id', { count: 'exact' }).eq('student_id', user.id),
       supabase.from('mistakes').select('id', { count: 'exact' }).eq('student_id', user.id),
@@ -805,7 +823,6 @@ export async function getStats(role?: 'teacher' | 'student') {
       supabase.from('mistakes').select('id, surah_number, ayah_number, word_text, error_count').eq('student_id', user.id).gt('error_count', 1).order('error_count', { ascending: false }).limit(5),
     ]);
 
-    // Group mistakes by surah in JS (Supabase doesn't support GROUP BY)
     const surahCounts = new Map<number, number>();
     for (const row of (allMistakesResult.data ?? []) as { surah_number: number }[]) {
       surahCounts.set(row.surah_number, (surahCounts.get(row.surah_number) || 0) + 1);

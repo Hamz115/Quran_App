@@ -7,9 +7,9 @@ from datetime import datetime
 
 from .models import (
     SignupRequest, LoginRequest, RefreshTokenRequest, VerifyEmailRequest,
-    AddStudentRequest, UpdateProfileRequest,
+    AddContactRequest, UpdateProfileRequest,
     UserResponse, AuthResponse, TokenResponse, MessageResponse,
-    StudentLookupResponse, StudentListItem, TeacherListItem
+    ContactLookupResponse, ContactListItem
 )
 from .utils import (
     hash_password, verify_password, generate_student_id,
@@ -19,8 +19,9 @@ from .utils import (
 from .dependencies import get_current_user, get_current_verified_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
-students_router = APIRouter(prefix="/api/students", tags=["Student Management"])
-teachers_router = APIRouter(prefix="/api/teachers", tags=["Teacher Management"])
+contacts_router = APIRouter(prefix="/api/contacts", tags=["Contact Management"])
+# Legacy aliases for backward compatibility
+students_router = APIRouter(prefix="/api/students", tags=["Contact Management (Legacy)"])
 
 # Database path — read-write, lives next to exe when frozen
 if getattr(sys, 'frozen', False):
@@ -39,7 +40,7 @@ def get_db():
 
 @router.post("/signup", response_model=AuthResponse)
 async def signup(data: SignupRequest):
-    """Create a new user account - Teacher (verified) or Student (basic)"""
+    """Create a new user account"""
     conn = get_db()
 
     # Check if email already exists
@@ -68,17 +69,14 @@ async def signup(data: SignupRequest):
             break
         student_id = generate_student_id()
 
-    # Hash password and create user
+    # Hash password and create user — all users are verified (no role distinction)
     password_hash = hash_password(data.password)
-
-    # Teacher = verified (is_verified = 1), Student = basic (is_verified = 0)
-    is_verified = 1 if data.role == "teacher" else 0
 
     cursor = conn.execute(
         """INSERT INTO users (student_id, username, email, password_hash, first_name, last_name, is_verified)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
         (student_id, data.username.lower(), data.email.lower(), password_hash,
-         data.first_name, data.last_name, is_verified)
+         data.first_name, data.last_name, 1)
     )
     user_id = cursor.lastrowid
     conn.commit()
@@ -384,14 +382,14 @@ async def verify_email(data: VerifyEmailRequest):
     )
 
 
-# ============ STUDENT MANAGEMENT ENDPOINTS ============
+# ============ CONTACT MANAGEMENT ENDPOINTS ============
 
-@students_router.get("/lookup", response_model=StudentLookupResponse)
-async def lookup_student(
+@contacts_router.get("/lookup", response_model=ContactLookupResponse)
+async def lookup_contact(
     email: str,
-    current_user: dict = Depends(get_current_verified_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    """Look up a student by their email (Teacher only)"""
+    """Look up a user by their email to add as a contact"""
     conn = get_db()
 
     cursor = conn.execute(
@@ -412,7 +410,7 @@ async def lookup_student(
     # Create privacy-friendly display name (first name + last initial)
     display_name = f"{student['first_name']} {student['last_name'][0]}."
 
-    return StudentLookupResponse(
+    return ContactLookupResponse(
         student_id=student["student_id"],
         email=student["email"],
         first_name=student["first_name"],
@@ -421,13 +419,13 @@ async def lookup_student(
     )
 
 
-@students_router.post("/add", response_model=MessageResponse)
-async def add_student(
-    data: AddStudentRequest,
-    current_user: dict = Depends(get_current_verified_user)
+@contacts_router.post("/add", response_model=MessageResponse)
+async def add_contact(
+    data: AddContactRequest,
+    current_user: dict = Depends(get_current_user)
 ):
-    """Add a student to teacher's roster (Teacher only)"""
-    teacher_id = int(current_user["sub"])
+    """Add a user as a contact (reciter)"""
+    teacher_id = int(current_user["sub"])  # "teacher_id" in DB = the person adding
     conn = get_db()
 
     # Find the student by email
@@ -441,7 +439,7 @@ async def add_student(
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
+            detail="User not found"
         )
 
     student = dict(student)
@@ -452,7 +450,7 @@ async def add_student(
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot add yourself as a student"
+            detail="Cannot add yourself as a contact"
         )
 
     # Check if relationship already exists
@@ -464,7 +462,7 @@ async def add_student(
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Student is already in your roster"
+            detail="User is already in your contacts"
         )
 
     # Create relationship
@@ -476,14 +474,14 @@ async def add_student(
     conn.close()
 
     return MessageResponse(
-        message=f"Student {student['first_name']} {student['last_name']} added successfully"
+        message=f"{student['first_name']} {student['last_name']} added to contacts"
     )
 
 
-@students_router.get("", response_model=List[StudentListItem])
-async def get_my_students(current_user: dict = Depends(get_current_verified_user)):
-    """Get all students for current teacher (Teacher only)"""
-    teacher_id = int(current_user["sub"])
+@contacts_router.get("", response_model=List[ContactListItem])
+async def get_my_contacts(current_user: dict = Depends(get_current_user)):
+    """Get all contacts (reciters) for current user"""
+    teacher_id = int(current_user["sub"])  # "teacher_id" in DB = the person who added
     conn = get_db()
 
     cursor = conn.execute(
@@ -500,12 +498,12 @@ async def get_my_students(current_user: dict = Depends(get_current_verified_user
     return students
 
 
-@students_router.delete("/remove/{student_id}", response_model=MessageResponse)
-async def remove_student(
+@contacts_router.delete("/remove/{student_id}", response_model=MessageResponse)
+async def remove_contact(
     student_id: str,
-    current_user: dict = Depends(get_current_verified_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    """Remove a student from teacher's roster (Teacher only)"""
+    """Remove a contact from your list"""
     teacher_id = int(current_user["sub"])
     conn = get_db()
 
@@ -535,32 +533,32 @@ async def remove_student(
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student is not in your roster"
+            detail="User is not in your contacts"
         )
 
     conn.commit()
     conn.close()
 
-    return MessageResponse(message="Student removed from roster")
+    return MessageResponse(message="Contact removed")
 
 
-# ============ TEACHER ENDPOINTS (for students) ============
+# ============ LISTENERS ENDPOINT (who has added me) ============
 
-@teachers_router.get("", response_model=List[TeacherListItem])
-async def get_my_teachers(current_user: dict = Depends(get_current_user)):
-    """Get all teachers who have added the current user as a student"""
-    student_id = int(current_user["sub"])
+@contacts_router.get("/listeners", response_model=List[ContactListItem])
+async def get_my_listeners(current_user: dict = Depends(get_current_user)):
+    """Get all users who have added the current user as a contact"""
+    user_id = int(current_user["sub"])
     conn = get_db()
 
     cursor = conn.execute(
-        """SELECT u.id, u.first_name, u.last_name, tsr.added_at
+        """SELECT u.id, u.student_id, u.first_name, u.last_name, tsr.added_at
            FROM users u
            JOIN teacher_student_relationships tsr ON u.id = tsr.teacher_id
            WHERE tsr.student_id = ?
            ORDER BY tsr.added_at DESC""",
-        (student_id,)
+        (user_id,)
     )
-    teachers = [dict(row) for row in cursor.fetchall()]
+    listeners = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
-    return teachers
+    return listeners

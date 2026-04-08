@@ -5,7 +5,6 @@ import '../../../config/app_colors.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../../data/models/app_user.dart';
 import '../../providers/report_provider.dart';
 import '../classroom/classroom_screen.dart';
 import 'create_class_screen.dart';
@@ -22,27 +21,156 @@ class ClassesScreen extends ConsumerStatefulWidget {
 
 class _ClassesScreenState extends ConsumerState<ClassesScreen> {
   String? _selectedStudentId;
+  int _activeTab = 0; // 0 = Listening, 1 = Reciting
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    final authState = ref.watch(authProvider);
-    final viewMode = ref.watch(viewModeProvider);
-    final isTeacher = viewMode == UserRole.teacher;
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
       body: SafeArea(
-        child: isTeacher
-            ? _buildTeacherView(isDarkMode)
-            : _buildStudentView(isDarkMode, authState),
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Sessions ',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text(isDarkMode),
+                            ),
+                          ),
+                          TextSpan(
+                            text: '(جلسات)',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.textSecondary(isDarkMode),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_activeTab == 0)
+                    GestureDetector(
+                      onTap: () => _showCreateClassSheet(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.cyan500,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                            SizedBox(width: 6),
+                            Text(
+                              'New Session',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // Listening / Reciting Tabs
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? AppColors.slate800 : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _activeTab = 0),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _activeTab == 0 ? AppColors.cyan500 : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Listening (مستمع)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _activeTab == 0
+                                  ? Colors.white
+                                  : isDarkMode ? AppColors.slate300 : AppColors.slate600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _activeTab = 1),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _activeTab == 1 ? AppColors.amber500 : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Reciting (قارئ)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _activeTab == 1
+                                  ? Colors.white
+                                  : isDarkMode ? AppColors.slate300 : AppColors.slate600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Tab content
+            Expanded(
+              child: _activeTab == 0
+                  ? _buildListeningContent(isDarkMode)
+                  : _buildRecitingContent(isDarkMode),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ============ TEACHER VIEW ============
+  // ============ LISTENING TAB ============
 
-  Widget _buildTeacherView(bool isDarkMode) {
+  Widget _buildListeningContent(bool isDarkMode) {
     final studentsAsync = ref.watch(teacherStudentsProvider);
 
     return studentsAsync.when(
@@ -65,50 +193,6 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header + New Class button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Classes',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text(isDarkMode),
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => _showCreateClassSheet(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.cyan500,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add_rounded, size: 18, color: Colors.white),
-                          SizedBox(width: 6),
-                          Text(
-                            'New Class',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // Student pills
             _buildStudentPills(students, isDarkMode),
             const SizedBox(height: 8),
@@ -139,6 +223,33 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
+  // ============ RECITING TAB ============
+
+  Widget _buildRecitingContent(bool isDarkMode) {
+    final userId = ref.watch(authProvider).user?.id;
+    if (userId == null) {
+      return Center(
+        child: Text(
+          'Not authenticated',
+          style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        child: ReportPanel(
+          key: ValueKey('reciter-$userId'),
+          studentId: userId,
+          onTapClass: (classId) => _navigateToClass(context, classId),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStudentPills(
     List<({String id, String name})> students,
     bool isDarkMode,
@@ -162,7 +273,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
       child: Row(
         children: [
           Text(
-            'Student',
+            'Contact',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -224,53 +335,6 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
-  // ============ STUDENT VIEW ============
-
-  Widget _buildStudentView(bool isDarkMode, AppAuthState authState) {
-    final userId = authState.user?.id;
-    if (userId == null) {
-      return Center(
-        child: Text(
-          'Not authenticated',
-          style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Text(
-            'My Classes',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text(isDarkMode),
-            ),
-          ),
-        ),
-        // Report panel for current student
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 24),
-              child: ReportPanel(
-                studentId: userId,
-                onTapClass: (classId) => _navigateToClass(context, classId),
-                onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // ============ EMPTY STATES ============
 
   Widget _buildNoStudentsState(bool isDarkMode) {
@@ -323,7 +387,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     final user = ref.read(authProvider).user;
     if (user != null) {
       final syncHelper = ref.read(supabaseSyncHelperProvider);
-      await syncHelper.pullAll(user.id, user.role.name);
+      await syncHelper.pullAll(user.id);
     }
     ref.read(classesProvider.notifier).loadClasses();
     ref.invalidate(teacherStudentsProvider);
@@ -364,11 +428,11 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface(isDarkMode),
         title: Text(
-          'Delete Class',
+          'Delete Session',
           style: TextStyle(color: AppColors.text(isDarkMode)),
         ),
         content: Text(
-          'Are you sure you want to delete this class? This action cannot be undone.',
+          'Are you sure you want to delete this session? This action cannot be undone.',
           style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
         ),
         actions: [

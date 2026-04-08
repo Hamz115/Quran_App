@@ -1,25 +1,675 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { getMyContacts, lookupContact, addContact, removeContact, getClasses, type ContactListItem, type ClassData } from '../api';
+import { formatPortionLabel } from '../lib/quran-utils';
+
+interface ContactLookupResult {
+  student_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
+  const { darkMode } = useTheme();
+  const [contacts, setContacts] = useState<ContactListItem[]>([]);
+  const [listeningClasses, setListeningClasses] = useState<ClassData[]>([]);
+  const [recitingClasses, setRecitingClasses] = useState<ClassData[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Add contact modal state
+  const [emailInput, setEmailInput] = useState('');
+  const [lookupResult, setLookupResult] = useState<ContactLookupResult | null>(null);
+  const [lookupError, setLookupError] = useState('');
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function loadData() {
+    const [contactsResult, listenerResult, reciterResult] = await Promise.allSettled([
+      getMyContacts(),
+      getClasses('listener'),
+      getClasses('reciter'),
+    ]);
+    if (contactsResult.status === 'fulfilled') setContacts(Array.isArray(contactsResult.value) ? contactsResult.value : []);
+    else console.error('Failed to load contacts:', contactsResult.reason);
+
+    if (listenerResult.status === 'fulfilled') setListeningClasses(Array.isArray(listenerResult.value) ? listenerResult.value : []);
+    else console.error('Failed to load listener classes:', listenerResult.reason);
+
+    if (reciterResult.status === 'fulfilled') setRecitingClasses(Array.isArray(reciterResult.value) ? reciterResult.value : []);
+    else console.error('Failed to load reciter classes:', reciterResult.reason);
+  }
 
   useEffect(() => {
-    if (!isLoading && user) {
-      // Redirect based on user role
-      if (user.role === 'teacher') {
-        navigate('/teacher', { replace: true });
-      } else {
-        navigate('/student', { replace: true });
-      }
+    loadData().finally(() => setLoading(false));
+  }, [user?.id]);
+
+  async function loadContacts() {
+    try {
+      const data = await getMyContacts();
+      setContacts(data);
+    } catch (err) {
+      console.error('Failed to load contacts:', err);
     }
-  }, [user, isLoading, navigate]);
+  }
+
+  const toggleContactSelection = (id: string) => {
+    setSelectedContacts(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
+
+  const handleLookupContact = async () => {
+    if (!emailInput.trim()) return;
+
+    setIsLookingUp(true);
+    setLookupError('');
+    setLookupResult(null);
+
+    try {
+      const result = await lookupContact(emailInput.trim().toLowerCase());
+      const alreadyAdded = contacts.some(s => s.email?.toLowerCase() === emailInput.trim().toLowerCase());
+      if (alreadyAdded) {
+        setLookupError('This user is already in your contacts');
+      } else {
+        setLookupResult(result);
+      }
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : 'No user found with that email');
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleAddContact = async () => {
+    if (!lookupResult) return;
+
+    setIsAdding(true);
+    try {
+      await addContact(lookupResult.email);
+      await loadContacts();
+      setShowAddContactModal(false);
+      setEmailInput('');
+      setLookupResult(null);
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : 'Failed to add contact');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleRemoveContact = async (contactId: string) => {
+    if (!confirm('Are you sure you want to remove this contact?')) return;
+
+    try {
+      await removeContact(contactId);
+      await loadContacts();
+    } catch (err) {
+      console.error('Failed to remove contact:', err);
+    }
+  };
+
+  const totalContacts = contacts.length;
+  const totalListening = listeningClasses.length;
+  const totalReciting = recitingClasses.length;
+
+  // Calculate sessions this week
+  const getSessionsThisWeek = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    return listeningClasses.filter(cls => {
+      const classDate = new Date(cls.date);
+      return classDate >= startOfWeek && classDate <= endOfWeek;
+    }).length;
+  };
+
+  const sessionsThisWeek = getSessionsThisWeek();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Loading dashboard...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-slate-400">Redirecting...</div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Dashboard</h1>
+          <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Welcome back, {user?.first_name}!</p>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              await loadData();
+              setRefreshing(false);
+            }}
+            disabled={refreshing}
+            className={`p-2.5 rounded-xl font-medium transition-colors ${
+              darkMode
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+            } ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh data"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button
+            data-tour="add-student-btn"
+            onClick={() => setShowAddContactModal(true)}
+            className={`px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 ${
+              darkMode
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Add Contact
+          </button>
+          <button
+            data-tour="start-class-btn"
+            onClick={() => navigate('/sessions?new=1')}
+            className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-cyan-500/25"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            New Session
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-500 text-white shadow-lg shadow-cyan-500/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-4xl font-bold">{totalContacts}</p>
+          <p className="text-cyan-100 mt-1">Contacts</p>
+        </div>
+
+        <div className={`p-6 rounded-2xl border transition-colors ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-green-500/20 text-green-500 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+          <p className={`text-4xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{sessionsThisWeek}</p>
+          <p className={darkMode ? 'text-slate-300' : 'text-slate-500'}>This Week</p>
+        </div>
+
+        <div className={`p-6 rounded-2xl border transition-colors ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-500 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 1.414m2.828-9.9a9 9 0 012.828-2.828" />
+              </svg>
+            </div>
+          </div>
+          <p className={`text-4xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{totalListening}</p>
+          <p className={darkMode ? 'text-slate-300' : 'text-slate-500'}>Listening <span className="text-xs">(مستمع)</span></p>
+        </div>
+
+        <div className={`p-6 rounded-2xl border transition-colors ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+          </div>
+          <p className={`text-4xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{totalReciting}</p>
+          <p className={darkMode ? 'text-slate-300' : 'text-slate-500'}>Reciting <span className="text-xs">(قارئ)</span></p>
+        </div>
+      </div>
+
+      {/* Contacts Section */}
+      <div className={`p-6 rounded-2xl border transition-colors ${
+        darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>My Contacts</h2>
+            <p className={`text-sm mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>
+              {contacts.length === 0
+                ? 'Add contacts using their email to get started'
+                : 'Select contacts to start a listening session'
+              }
+            </p>
+          </div>
+          {selectedContacts.length > 0 && (
+            <button
+              onClick={() => {
+                const params = new URLSearchParams({ new: '1' });
+                selectedContacts.forEach(id => params.append('student', id));
+                navigate(`/sessions?${params.toString()}`);
+              }}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Start Session with {selectedContacts.length} Reciter{selectedContacts.length > 1 ? 's' : ''}
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contacts.map((contact) => (
+            <div
+              key={contact.id}
+              onClick={() => toggleContactSelection(contact.id)}
+              className={`relative p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                selectedContacts.includes(contact.id)
+                  ? 'border-cyan-500 bg-cyan-500/10'
+                  : darkMode
+                    ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                    : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+              }`}
+            >
+              {/* Selection Checkbox */}
+              <div className={`absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                selectedContacts.includes(contact.id)
+                  ? 'border-cyan-500 bg-cyan-500'
+                  : darkMode ? 'border-slate-600' : 'border-slate-300'
+              }`}>
+                {selectedContacts.includes(contact.id) && (
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+
+              {/* Contact Info */}
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br flex items-center justify-center text-lg font-bold ${
+                  darkMode
+                    ? 'from-slate-600 to-slate-700 text-slate-300'
+                    : 'from-slate-300 to-slate-400 text-white'
+                }`}>
+                  {contact.first_name[0]}{contact.last_name[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold truncate ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{contact.first_name} {contact.last_name}</h3>
+                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>
+                    ID: {contact.student_id}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div className={`mt-4 pt-4 border-t flex items-center justify-between ${
+                darkMode ? 'border-slate-700/50' : 'border-slate-200'
+              }`}>
+                <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-400'}`}>
+                  Added: {new Date(contact.added_at).toLocaleDateString()}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveContact(contact.student_id);
+                    }}
+                    className="text-xs text-red-500 hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Add Contact Card */}
+          <div
+            onClick={() => setShowAddContactModal(true)}
+            className={`p-5 rounded-xl border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[180px] ${
+              darkMode
+                ? 'border-slate-700 hover:border-slate-600 bg-slate-800/30 hover:bg-slate-800/50'
+                : 'border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100'
+            }`}
+          >
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+              darkMode ? 'bg-slate-700' : 'bg-slate-200'
+            }`}>
+              <svg className={`w-6 h-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </div>
+            <p className={`font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>Add New Contact</p>
+            <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-400'}`}>Enter their email address</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Listening Sessions */}
+      {listeningClasses.length > 0 && (
+        <div className={`p-6 rounded-2xl border transition-colors ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Recent Listening Sessions <span className={`text-base font-normal ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>(مستمع)</span></h2>
+              <p className={`text-sm mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>
+                Sessions where you are the listener
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/sessions')}
+              className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-500'
+              }`}
+            >
+              View All
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...listeningClasses]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 4)
+              .map((cls) => {
+                const dateObj = new Date(cls.date + 'T00:00:00');
+                const dayNum = dateObj.getDate();
+                const monthStr = dateObj.toLocaleDateString('en-US', { month: 'short' });
+
+                const hifz = cls.assignments.filter(a => a.type === 'hifz');
+                const sabqi = cls.assignments.filter(a => a.type === 'sabqi');
+                const revision = cls.assignments.filter(a => a.type === 'revision');
+
+                const studentNames = cls.students?.map(s => `${s.first_name} ${s.last_name}`).join(', ');
+
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => navigate(`/sessions/${cls.id}`)}
+                    className={`p-5 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${
+                      darkMode
+                        ? 'border-slate-600 bg-slate-700/60 hover:border-cyan-500/50 hover:shadow-cyan-500/10'
+                        : 'border-slate-300 bg-white hover:border-cyan-400 hover:shadow-cyan-100 shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`text-center px-3 py-1.5 rounded-lg ${
+                        darkMode ? 'bg-cyan-500/15' : 'bg-cyan-50'
+                      }`}>
+                        <div className="text-2xl font-bold text-cyan-500">{dayNum}</div>
+                        <div className={`text-xs font-medium ${darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>{monthStr}</div>
+                      </div>
+                      <div>
+                        <div className={`text-sm font-semibold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{cls.day}</div>
+                        {studentNames && (
+                          <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>{studentNames}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className={`space-y-1.5 pt-3 border-t ${darkMode ? 'border-slate-600' : 'border-slate-200'}`}>
+                      {hifz.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-blue-400">Hifz:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {hifz.map(a => formatPortionLabel(a)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {sabqi.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-cyan-400">Sabqi:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {sabqi.map(a => formatPortionLabel(a)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {revision.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Revision:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {revision.map(a => formatPortionLabel(a)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Reciting Sessions */}
+      {recitingClasses.length > 0 && (
+        <div className={`p-6 rounded-2xl border transition-colors ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Recent Reciting Sessions <span className={`text-base font-normal ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>(قارئ)</span></h2>
+              <p className={`text-sm mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>
+                Sessions where you are the reciter
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/sessions')}
+              className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-500'
+              }`}
+            >
+              View All
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...recitingClasses]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 4)
+              .map((cls) => {
+                const dateObj = new Date(cls.date + 'T00:00:00');
+                const dayNum = dateObj.getDate();
+                const monthStr = dateObj.toLocaleDateString('en-US', { month: 'short' });
+
+                const hifz = cls.assignments.filter(a => a.type === 'hifz');
+                const sabqi = cls.assignments.filter(a => a.type === 'sabqi');
+                const revision = cls.assignments.filter(a => a.type === 'revision');
+
+                // Show listener name for reciting sessions
+                const listenerName = cls.listener_name;
+
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => navigate(`/sessions/${cls.id}`)}
+                    className={`p-5 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${
+                      darkMode
+                        ? 'border-slate-600 bg-slate-700/60 hover:border-amber-500/50 hover:shadow-amber-500/10'
+                        : 'border-slate-300 bg-white hover:border-amber-400 hover:shadow-amber-100 shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`text-center px-3 py-1.5 rounded-lg ${
+                        darkMode ? 'bg-amber-500/15' : 'bg-amber-50'
+                      }`}>
+                        <div className="text-2xl font-bold text-amber-500">{dayNum}</div>
+                        <div className={`text-xs font-medium ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>{monthStr}</div>
+                      </div>
+                      <div>
+                        <div className={`text-sm font-semibold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{cls.day}</div>
+                        {listenerName && (
+                          <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>Listener: {listenerName}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className={`space-y-1.5 pt-3 border-t ${darkMode ? 'border-slate-600' : 'border-slate-200'}`}>
+                      {hifz.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-blue-400">Hifz:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {hifz.map(a => formatPortionLabel(a)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {sabqi.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-cyan-400">Sabqi:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {sabqi.map(a => formatPortionLabel(a)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {revision.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Revision:</span>
+                          <span className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            {revision.map(a => formatPortionLabel(a)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Add Contact Modal */}
+      {showAddContactModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className={`rounded-2xl border p-6 w-full max-w-lg mx-4 ${
+            darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Add New Contact</h2>
+              <button
+                onClick={() => {
+                  setShowAddContactModal(false);
+                  setEmailInput('');
+                  setLookupResult(null);
+                  setLookupError('');
+                }}
+                className={darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Email</label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => {
+                      setEmailInput(e.target.value);
+                      setLookupResult(null);
+                      setLookupError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleLookupContact();
+                    }}
+                    placeholder="user@example.com"
+                    className={`flex-1 px-4 py-2.5 border rounded-xl focus:outline-none focus:border-cyan-500 ${
+                      darkMode
+                        ? 'bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400'
+                        : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                    }`}
+                  />
+                  <button
+                    onClick={handleLookupContact}
+                    disabled={!emailInput.trim() || isLookingUp}
+                    className={`px-4 py-2.5 rounded-xl font-medium transition-colors disabled:cursor-not-allowed ${
+                      darkMode
+                        ? 'bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 text-slate-200'
+                        : 'bg-slate-200 hover:bg-slate-300 disabled:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {isLookingUp ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Enter an email address to search for a user</p>
+              </div>
+
+              {lookupError && (
+                <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-500 text-sm">
+                  {lookupError}
+                </div>
+              )}
+
+              {lookupResult && (
+                <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+                  <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Found user:</p>
+                  <p className={`text-lg font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{lookupResult.first_name} {lookupResult.last_name}</p>
+                  <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{lookupResult.email}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowAddContactModal(false);
+                    setEmailInput('');
+                    setLookupResult(null);
+                    setLookupError('');
+                  }}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors ${
+                    darkMode
+                      ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                      : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddContact}
+                  disabled={!lookupResult || isAdding}
+                  className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                >
+                  {isAdding ? 'Adding...' : 'Add Contact'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

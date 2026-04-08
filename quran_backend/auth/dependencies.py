@@ -39,15 +39,10 @@ async def get_current_verified_user(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Dependency to get the current user and verify they have Teacher capabilities.
-    Requires email verification (is_verified = True).
+    Legacy dependency — no longer enforces role checks.
+    All users have equal capabilities now (no teacher/student distinction).
+    Kept as alias for get_current_user to avoid breaking all call sites at once.
     """
-    if not current_user.get("is_verified"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email verification required for this action. Please verify your email to unlock Teacher capabilities."
-        )
-
     return current_user
 
 

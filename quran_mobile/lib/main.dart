@@ -15,7 +15,6 @@ import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/providers.dart';
 import 'presentation/widgets/tour_tooltip.dart';
-import 'data/models/app_user.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/classes/classes_screen.dart';
@@ -190,7 +189,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       // Pull all remote data to local SQLite (first load populates local DB)
       if (!_initialSyncDone) {
         _initialSyncDone = true;
-        await _syncHelper!.pullAll(user.id, user.role.name);
+        await _syncHelper!.pullAll(user.id);
 
         // Reload ALL providers from fresh local data after sync
         ref.invalidate(classesProvider);
@@ -204,14 +203,12 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       }
 
       // Start periodic sync (every 30 seconds)
-      _syncHelper!.startPeriodicSync(user.id, user.role.name);
+      _syncHelper!.startPeriodicSync(user.id);
 
-      // Auto-start tour for teachers on first launch
-      if (user.role == UserRole.teacher) {
-        final tourDone = await TourService.isTourCompleted();
-        if (!tourDone && mounted) {
-          Future.delayed(const Duration(milliseconds: 800), _startTour);
-        }
+      // Auto-start tour on first launch
+      final tourDone = await TourService.isTourCompleted();
+      if (!tourDone && mounted) {
+        Future.delayed(const Duration(milliseconds: 800), _startTour);
       }
     } catch (e) {
       debugPrint('[MainNavigation] _initLocalFirst error: $e');
@@ -414,11 +411,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    final authState = ref.watch(authProvider);
-    final viewMode = ref.watch(viewModeProvider);
-    final isTeacher = viewMode == UserRole.teacher;
 
-    // Role-based screens
+    // Unified screens — no role branching
     final screens = [
       const DashboardScreen(),
       const ClassesScreen(),
@@ -426,34 +420,18 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       const SettingsScreen(),
     ];
 
-    // Role-based nav items
-    final navItems = isTeacher
-        ? [
-            _NavItem(Icons.dashboard_rounded, 'Dashboard'),
-            _NavItem(Icons.school_rounded, 'Classes'),
-            _NavItem(Icons.menu_book_rounded, 'Reader'),
-            _NavItem(Icons.settings_rounded, 'Settings'),
-          ]
-        : [
-            _NavItem(Icons.dashboard_rounded, 'My Progress'),
-            _NavItem(Icons.school_rounded, 'My Classes'),
-            _NavItem(Icons.menu_book_rounded, 'Reader'),
-            _NavItem(Icons.settings_rounded, 'Settings'),
-          ];
+    // Unified nav items
+    final navItems = [
+      _NavItem(Icons.dashboard_rounded, 'Dashboard'),
+      _NavItem(Icons.school_rounded, 'Sessions'),
+      _NavItem(Icons.menu_book_rounded, 'Reader'),
+      _NavItem(Icons.settings_rounded, 'Settings'),
+    ];
 
     return Scaffold(
-      body: Column(
-        children: [
-          // Role banner (visual indicator of current view mode)
-          _buildRoleBanner(isDarkMode, isTeacher, authState.user?.displayName ?? 'User'),
-          // Main content
-          Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: screens,
-            ),
-          ),
-        ],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -476,7 +454,6 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                   entry.value.icon,
                   entry.value.label,
                   isDarkMode,
-                  isTeacher,
                 );
               }).toList(),
             ),
@@ -486,83 +463,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     );
   }
 
-  Widget _buildRoleBanner(bool isDarkMode, bool isTeacher, String userName) {
-    final Color bgColor;
-    final Color textColor;
-    final Color borderColor;
-    final String message;
-    final IconData icon;
-
-    if (isTeacher) {
-      bgColor = isDarkMode
-          ? AppColors.cyan500.withOpacity(0.1)
-          : AppColors.cyan50;
-      textColor = isDarkMode ? AppColors.cyan400 : AppColors.cyan600;
-      borderColor = isDarkMode
-          ? AppColors.cyan500.withOpacity(0.2)
-          : AppColors.cyan200;
-      message = 'Teacher View';
-      icon = Icons.school_rounded;
-    } else {
-      bgColor = isDarkMode
-          ? AppColors.teal500.withOpacity(0.1)
-          : const Color(0xFFF0FDFA); // teal-50
-      textColor = isDarkMode ? AppColors.teal400 : AppColors.teal600;
-      borderColor = isDarkMode
-          ? AppColors.teal500.withOpacity(0.2)
-          : const Color(0xFF99F6E4); // teal-200
-      message = 'Student View';
-      icon = Icons.person_rounded;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        bottom: 8,
-        left: 16,
-        right: 16,
-      ),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(
-          bottom: BorderSide(color: borderColor, width: 1),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: textColor),
-          const SizedBox(width: 8),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '- Welcome, $userName',
-            style: TextStyle(
-              fontSize: 13,
-              color: textColor.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label, bool isDarkMode, bool isTeacher) {
+  Widget _buildNavItem(int index, IconData icon, String label, bool isDarkMode) {
     final isSelected = _currentIndex == index;
 
-    // Use cyan for teacher, teal for student
-    final accentColor = isTeacher ? AppColors.cyan500 : AppColors.teal500;
-    final selectedColor = isDarkMode
-        ? (isTeacher ? AppColors.cyan400 : AppColors.teal400)
-        : (isTeacher ? AppColors.cyan600 : AppColors.teal600);
+    final accentColor = AppColors.cyan500;
+    final selectedColor = isDarkMode ? AppColors.cyan400 : AppColors.cyan600;
     final unselectedColor = AppColors.textMuted(isDarkMode);
     final selectedBgColor = accentColor.withOpacity(0.15);
 

@@ -7,7 +7,6 @@ import '../../../data/quran_data.dart';
 import '../../../data/models/mistake.dart';
 import '../../../data/models/quran_page_data.dart';
 import '../../providers/providers.dart';
-import '../../../data/models/app_user.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/quran_page_provider.dart';
 import '../../widgets/mushaf_page_widget.dart';
@@ -65,14 +64,9 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    final viewMode = ref.watch(viewModeProvider);
-    final isTeacher = viewMode == UserRole.teacher;
-    // Only show mistakes in Student View — Teacher View shows a clean Quran
-    final mistakes = isTeacher ? <Mistake>[] : (ref.watch(mistakesProvider).value ?? []);
-    // Mistakes with occurrences for the list section (only in Student View)
-    final mistakesWithOccurrences = isTeacher
-        ? <Mistake>[]
-        : (ref.watch(readerMistakeOccurrencesProvider).value ?? []);
+    // Always show mistakes — no role gating in v2.0.0
+    final mistakes = ref.watch(mistakesProvider).value ?? <Mistake>[];
+    final mistakesWithOccurrences = ref.watch(readerMistakeOccurrencesProvider).value ?? <Mistake>[];
 
     return Scaffold(
       key: TourService.readerPageKey,

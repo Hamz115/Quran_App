@@ -25,7 +25,7 @@ else:
     _WRITABLE_DIR = Path(__file__).parent
 
 # Import auth routers and dependencies
-from auth.routes import router as auth_router, students_router, teachers_router
+from auth.routes import router as auth_router, contacts_router, students_router
 from auth.dependencies import get_current_user, get_current_verified_user
 
 # Import sync service
@@ -55,7 +55,7 @@ def get_supabase_user(authorization: str = Header(None)) -> Optional[dict]:
         return {
             "id": payload.get("sub"),  # Supabase user UUID
             "email": payload.get("email"),
-            "role": payload.get("user_metadata", {}).get("role", "student"),
+            "role": payload.get("user_metadata", {}).get("role"),  # No default role
         }
     except Exception as e:
         print(f"JWT decode error: {e}")
@@ -73,8 +73,8 @@ app = FastAPI(title="Quran Logbook API")
 
 # Include auth routers
 app.include_router(auth_router)
-app.include_router(students_router)
-app.include_router(teachers_router)
+app.include_router(contacts_router)
+app.include_router(students_router)  # Legacy alias
 
 # CORS - allow frontend and mobile app to access
 app.add_middleware(
@@ -308,6 +308,26 @@ def init_app_db():
             conn.commit()
         except:
             pass  # Column already exists
+
+    # v2.0.0 migration: Add listener_id column (mirrors teacher_id, no role distinction)
+    v2_migrations = [
+        "ALTER TABLE classes ADD COLUMN listener_id INTEGER REFERENCES users(id)",
+        "ALTER TABLE classes ADD COLUMN supabase_listener_id TEXT",
+    ]
+    for migration in v2_migrations:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except:
+            pass  # Column already exists
+
+    # Backfill listener_id from teacher_id
+    try:
+        conn.execute("UPDATE classes SET listener_id = teacher_id WHERE listener_id IS NULL AND teacher_id IS NOT NULL")
+        conn.execute("UPDATE classes SET supabase_listener_id = supabase_teacher_id WHERE supabase_listener_id IS NULL AND supabase_teacher_id IS NOT NULL")
+        conn.commit()
+    except:
+        pass
 
     # Create sync tracking table
     conn.executescript("""
@@ -631,37 +651,39 @@ def get_surah(surah_number: int):
 
 # ============ CLASSES ENDPOINTS ============
 
-@app.get("/api/classes")
+@app.get("/api/sessions")
+@app.get("/api/classes")  # Legacy alias
 def get_all_classes(
-    role: Optional[str] = None,
+    view: Optional[str] = None,
+    role: Optional[str] = None,  # Legacy param, maps to view
     current_user: dict = Depends(get_current_user)
 ):
-    """Get classes based on user role:
-    - role=teacher (or default for teachers): returns classes they created
-    - role=student (or default for students): returns published classes they're part of
-
-    Teachers can pass role=student to see classes where they are enrolled as a student.
+    """Get sessions for current user:
+    - view=listener (or legacy role=teacher): sessions I created
+    - view=reciter (or legacy role=student): sessions I'm enrolled in
+    - view=all or no param: both (listener sessions by default)
     """
     conn = get_app_db()
     user_id = int(current_user["sub"])
-    is_teacher = current_user.get("is_verified", False)
 
-    # Determine which view to show
-    # If role is explicitly set, use that; otherwise use default based on is_verified
-    show_teacher_view = (role == "teacher") or (role is None and is_teacher)
+    # Map legacy role param to view param
+    effective_view = view or ("listener" if role == "teacher" else ("reciter" if role == "student" else None))
 
-    if show_teacher_view and is_teacher:
-        # Teacher sees all their classes (published or not)
+    # Default: show listener view (sessions I created) — this is the primary use case
+    show_listener_view = effective_view != "reciter"
+
+    if show_listener_view:
+        # Sessions I created (as listener)
         cursor = conn.execute(
-            "SELECT * FROM classes WHERE teacher_id = ? ORDER BY date DESC",
-            (user_id,)
+            "SELECT * FROM classes WHERE (listener_id = ? OR teacher_id = ?) ORDER BY date DESC",
+            (user_id, user_id)
         )
     else:
-        # Student view - sees only published classes they're part of
+        # Sessions I'm enrolled in (as reciter)
         cursor = conn.execute(
             """SELECT c.* FROM classes c
                JOIN class_students cs ON c.id = cs.class_id
-               WHERE cs.student_id = ? AND c.is_published = 1
+               WHERE cs.student_id = ?
                ORDER BY c.date DESC""",
             (user_id,)
         )
@@ -670,9 +692,9 @@ def get_all_classes(
     for row in cursor.fetchall():
         class_dict = dict(row)
         # Get assignments for this class
-        # Teachers see all assignments with student_id
-        # Students see only shared (student_id=NULL) or their own assignments
-        if show_teacher_view and is_teacher:
+        # Listener sees all assignments with student_id
+        # Reciter sees only shared (student_id=NULL) or their own assignments
+        if show_listener_view:
             assign_cursor = conn.execute(
                 "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ?",
                 (class_dict["id"],)
@@ -684,8 +706,8 @@ def get_all_classes(
             )
         class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
 
-        # For teacher view, include list of students in the class with their performance and mistake counts per portion
-        if show_teacher_view and is_teacher:
+        # For listener view, include list of reciters in the session with their performance and mistake counts per portion
+        if show_listener_view:
             students_cursor = conn.execute(
                 """SELECT u.id, u.student_id, u.first_name, u.last_name, cs.performance
                    FROM users u
@@ -790,54 +812,50 @@ def get_all_classes(
     return {"data": classes}
 
 
-@app.get("/api/classes/{class_id}")
+@app.get("/api/sessions/{class_id}")
+@app.get("/api/classes/{class_id}")  # Legacy alias
 def get_class(class_id: int, current_user: dict = Depends(get_current_user)):
-    """Get a single class with assignments (with auth check)"""
+    """Get a single session with assignments (with auth check)"""
     conn = get_app_db()
     user_id = int(current_user["sub"])
-    is_teacher = current_user.get("is_verified", False)
 
     cursor = conn.execute("SELECT * FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
 
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise HTTPException(status_code=404, detail="Session not found")
 
     class_dict = dict(row)
 
-    # Check access permissions
-    if is_teacher:
-        # Teacher must own this class
-        if class_dict.get("teacher_id") != user_id:
-            conn.close()
-            raise HTTPException(status_code=403, detail="Not authorized to access this class")
-    else:
-        # Student must be in the class AND class must be published
+    # Check access permissions — ownership-based, not role-based
+    is_listener = (class_dict.get("listener_id") == user_id) or (class_dict.get("teacher_id") == user_id)
+
+    if not is_listener:
+        # Not the listener — check if enrolled as reciter
         cursor = conn.execute(
             "SELECT 1 FROM class_students WHERE class_id = ? AND student_id = ?",
             (class_id, user_id)
         )
-        if not cursor.fetchone() or not class_dict.get("is_published"):
+        if not cursor.fetchone():
             conn.close()
-            raise HTTPException(status_code=403, detail="Not authorized to access this class")
+            raise HTTPException(status_code=403, detail="Not authorized to access this session")
 
-    # Get assignments - teachers see all, students see only their own (student_id = NULL or their ID)
-    if is_teacher:
+    # Get assignments — listener sees all, reciter sees only shared or their own
+    if is_listener:
         assign_cursor = conn.execute(
             "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ?",
             (class_id,)
         )
     else:
-        # Students see assignments with no student_id (shared) OR their specific student_id
         assign_cursor = conn.execute(
             "SELECT id, type, start_surah, end_surah, start_ayah, end_ayah, student_id FROM assignments WHERE class_id = ? AND (student_id IS NULL OR student_id = ?)",
             (class_id, user_id)
         )
     class_dict["assignments"] = [dict(a) for a in assign_cursor.fetchall()]
 
-    # For teachers, include list of students with their performance
-    if is_teacher:
+    # For listeners, include list of reciters with their performance
+    if is_listener:
         students_cursor = conn.execute(
             """SELECT u.id, u.student_id, u.first_name, u.last_name, cs.performance
                FROM users u
@@ -851,15 +869,16 @@ def get_class(class_id: int, current_user: dict = Depends(get_current_user)):
     return {"data": class_dict}
 
 
-@app.post("/api/classes")
-def create_class(data: ClassCreate, current_user: dict = Depends(get_current_verified_user)):
-    """Create a new class with assignments (Teacher only)
+@app.post("/api/sessions")
+@app.post("/api/classes")  # Legacy alias
+def create_class(data: ClassCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new session with assignments
 
-    For test classes (class_type='test'):
-    - Only one student allowed
+    For test sessions (class_type='test'):
+    - Only one reciter allowed
     - A test record is automatically created
     """
-    teacher_id = int(current_user["sub"])
+    teacher_id = int(current_user["sub"])  # "teacher_id" in DB = listener
     conn = get_app_db()
 
     # Validate class_type
@@ -873,10 +892,10 @@ def create_class(data: ClassCreate, current_user: dict = Depends(get_current_ver
             conn.close()
             raise HTTPException(status_code=400, detail="Test classes must have exactly one student")
 
-    # Create the class with teacher_id and class_type
+    # Create the session with teacher_id + listener_id (dual-write) and class_type
     cursor = conn.execute(
-        "INSERT INTO classes (date, day, notes, teacher_id, is_published, class_type) VALUES (?, ?, ?, ?, 0, ?)",
-        (data.date, data.day, data.notes, teacher_id, data.class_type)
+        "INSERT INTO classes (date, day, notes, teacher_id, listener_id, is_published, class_type) VALUES (?, ?, ?, ?, ?, 1, ?)",
+        (data.date, data.day, data.notes, teacher_id, teacher_id, data.class_type)
     )
     class_id = cursor.lastrowid
 
@@ -887,9 +906,9 @@ def create_class(data: ClassCreate, current_user: dict = Depends(get_current_ver
             (class_id, assignment.type, assignment.start_surah, assignment.end_surah, assignment.start_ayah, assignment.end_ayah, assignment.student_id)
         )
 
-    # Add students to the class
+    # Add reciters to the session
     for student_id in data.student_ids:
-        # Verify student exists and is in teacher's roster
+        # Verify reciter exists and is in contacts
         cursor = conn.execute(
             "SELECT 1 FROM teacher_student_relationships WHERE teacher_id = ? AND student_id = ?",
             (teacher_id, student_id)
@@ -918,18 +937,19 @@ def create_class(data: ClassCreate, current_user: dict = Depends(get_current_ver
     return response
 
 
+@app.patch("/api/sessions/{class_id}/notes")
 @app.patch("/api/classes/{class_id}/notes")
-def update_class_notes(class_id: int, data: ClassNotesUpdate, current_user: dict = Depends(get_current_verified_user)):
+def update_class_notes(class_id: int, data: ClassNotesUpdate, current_user: dict = Depends(get_current_user)):
     """Update notes for a class (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -939,19 +959,20 @@ def update_class_notes(class_id: int, data: ClassNotesUpdate, current_user: dict
     return {"message": "Notes updated", "notes": data.notes}
 
 
+@app.post("/api/sessions/{class_id}/assignments")
 @app.post("/api/classes/{class_id}/assignments")
-def add_class_assignments(class_id: int, assignments: list[AssignmentCreate], current_user: dict = Depends(get_current_verified_user)):
+def add_class_assignments(class_id: int, assignments: list[AssignmentCreate], current_user: dict = Depends(get_current_user)):
     """Add new assignments to an existing class (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -989,19 +1010,20 @@ def update_assignment(assignment_id: int, assignment: AssignmentCreate):
     return {"message": "Assignment updated"}
 
 
+@app.delete("/api/sessions/{class_id}")
 @app.delete("/api/classes/{class_id}")
-def delete_class(class_id: int, current_user: dict = Depends(get_current_verified_user)):
+def delete_class(class_id: int, current_user: dict = Depends(get_current_user)):
     """Delete a class and its assignments (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to delete this class")
 
@@ -1023,19 +1045,20 @@ class PublishUpdate(BaseModel):
     is_published: bool
 
 
+@app.patch("/api/sessions/{class_id}/performance")
 @app.patch("/api/classes/{class_id}/performance")
-def update_class_performance(class_id: int, data: PerformanceUpdate, current_user: dict = Depends(get_current_verified_user)):
+def update_class_performance(class_id: int, data: PerformanceUpdate, current_user: dict = Depends(get_current_user)):
     """Update class performance rating (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -1054,19 +1077,20 @@ class StudentPerformanceUpdate(BaseModel):
     performance: str  # "Excellent", "Very Good", "Good", "Needs Work"
 
 
+@app.patch("/api/sessions/{class_id}/student-performance")
 @app.patch("/api/classes/{class_id}/student-performance")
-def update_student_performance(class_id: int, data: StudentPerformanceUpdate, current_user: dict = Depends(get_current_verified_user)):
+def update_student_performance(class_id: int, data: StudentPerformanceUpdate, current_user: dict = Depends(get_current_user)):
     """Update a specific student's performance for a class (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -1090,19 +1114,20 @@ def update_student_performance(class_id: int, data: StudentPerformanceUpdate, cu
     return {"message": "Student performance updated", "performance": data.performance}
 
 
+@app.patch("/api/sessions/{class_id}/publish")
 @app.patch("/api/classes/{class_id}/publish")
-def update_class_publish(class_id: int, data: PublishUpdate, current_user: dict = Depends(get_current_verified_user)):
+def update_class_publish(class_id: int, data: PublishUpdate, current_user: dict = Depends(get_current_user)):
     """Toggle class visibility for students (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -1116,19 +1141,20 @@ def update_class_publish(class_id: int, data: PublishUpdate, current_user: dict 
     return {"message": "Class visibility updated", "is_published": data.is_published}
 
 
+@app.post("/api/sessions/{class_id}/students")
 @app.post("/api/classes/{class_id}/students")
-def add_students_to_class(class_id: int, student_ids: List[int], current_user: dict = Depends(get_current_verified_user)):
+def add_students_to_class(class_id: int, student_ids: List[int], current_user: dict = Depends(get_current_user)):
     """Add students to an existing class (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -1154,19 +1180,20 @@ def add_students_to_class(class_id: int, student_ids: List[int], current_user: d
     return {"message": f"Added {added} student(s) to class"}
 
 
+@app.delete("/api/sessions/{class_id}/students/{student_id}")
 @app.delete("/api/classes/{class_id}/students/{student_id}")
-def remove_student_from_class(class_id: int, student_id: int, current_user: dict = Depends(get_current_verified_user)):
+def remove_student_from_class(class_id: int, student_id: int, current_user: dict = Depends(get_current_user)):
     """Remove a student from a class (Teacher only)"""
     teacher_id = int(current_user["sub"])
     conn = get_app_db()
 
     # Verify class exists and user owns it
-    cursor = conn.execute("SELECT teacher_id FROM classes WHERE id = ?", (class_id,))
+    cursor = conn.execute("SELECT teacher_id, listener_id FROM classes WHERE id = ?", (class_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Class not found")
-    if row["teacher_id"] != teacher_id:
+    if row["teacher_id"] != teacher_id and (row["listener_id"] is None or row["listener_id"] != teacher_id):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized to modify this class")
 
@@ -2269,28 +2296,39 @@ def create_local_class(
 @app.get("/api/local/classes")
 def get_local_classes(
     role: Optional[str] = None,
+    view: Optional[str] = None,
     user: dict = Depends(require_supabase_user)
 ):
     """
     Get classes from local app.db (instant response).
     Returns same shape as Supabase getClasses: ClassData[]
+    view/role: 'listener'/'teacher' = sessions I created, 'reciter'/'student' = sessions I'm enrolled in
     """
     conn = get_app_db()
     supabase_user_id = user["id"]
-    user_role = role or user.get("role", "student")
 
-    if user_role == "teacher":
+    # Support both 'view' (v2.0.0+) and 'role' (legacy) params
+    resolved = view or role or 'listener'
+    # Map legacy role names to new view names
+    if resolved in ('teacher', 'listener'):
+        resolved = 'listener'
+    elif resolved in ('student', 'reciter'):
+        resolved = 'reciter'
+
+    if resolved == 'listener':
         cursor = conn.execute("""
             SELECT * FROM classes
             WHERE supabase_teacher_id = ?
             ORDER BY date DESC
         """, (supabase_user_id,))
     else:
+        # Reciter view: sessions where user is enrolled as a student
         cursor = conn.execute("""
             SELECT c.* FROM classes c
-            WHERE c.is_published = 1
+            JOIN class_students cs ON cs.class_id = c.id
+            WHERE cs.student_id = ? AND c.is_published = 1
             ORDER BY c.date DESC
-        """)
+        """, (supabase_user_id,))
 
     classes = []
     for row in cursor.fetchall():
@@ -2324,13 +2362,14 @@ def get_local_classes(
             "day": class_dict.get("day", ""),
             "notes": class_dict.get("notes"),
             "performance": class_dict.get("performance"),
-            "teacher_id": supabase_user_id,
+            "teacher_id": class_dict.get("supabase_teacher_id", supabase_user_id),
+            "listener_id": class_dict.get("supabase_teacher_id", supabase_user_id),
             "is_published": bool(class_dict.get("is_published", 0)),
             "assignments": assignments,
         }
 
-        # For teachers, include students with performance
-        if user_role == "teacher":
+        # For listener view, include students with performance
+        if resolved == 'listener':
             students_cursor = conn.execute("""
                 SELECT cs.student_id, cs.performance
                 FROM class_students cs
@@ -2342,20 +2381,19 @@ def get_local_classes(
                 sid = str(s_dict["student_id"])
                 # Try to get student name from local profiles table
                 name_cursor = conn.execute("""
-                    SELECT name, student_id as sid FROM profiles WHERE id = ?
+                    SELECT name FROM profiles WHERE id = ?
                 """, (sid,))
                 name_row = name_cursor.fetchone()
                 if name_row:
                     name_parts = (name_row["name"] or "").split(" ", 1)
                     first_name = name_parts[0] if name_parts else ""
                     last_name = name_parts[1] if len(name_parts) > 1 else ""
-                    student_sid = name_row["sid"] or ""
                 else:
-                    first_name, last_name, student_sid = "Unknown", "", ""
+                    first_name, last_name = "Unknown", ""
 
                 students_list.append({
                     "id": sid,
-                    "student_id": student_sid,
+                    "student_id": sid,
                     "first_name": first_name,
                     "last_name": last_name,
                     "performance": s_dict.get("performance") or class_dict.get("performance"),
@@ -2423,20 +2461,19 @@ def get_local_class(
         s_dict = dict(s)
         sid = str(s_dict["student_id"])
         name_cursor = conn.execute("""
-            SELECT name, student_id as sid FROM profiles WHERE id = ?
+            SELECT name FROM profiles WHERE id = ?
         """, (sid,))
         name_row = name_cursor.fetchone()
         if name_row:
             name_parts = (name_row["name"] or "").split(" ", 1)
             first_name = name_parts[0] if name_parts else ""
             last_name = name_parts[1] if len(name_parts) > 1 else ""
-            student_sid = name_row["sid"] or ""
         else:
-            first_name, last_name, student_sid = "Unknown", "", ""
+            first_name, last_name = "Unknown", ""
 
         students_list.append({
             "id": sid,
-            "student_id": student_sid,
+            "student_id": sid,
             "first_name": first_name,
             "last_name": last_name,
             "performance": s_dict.get("performance") or class_dict.get("performance"),
@@ -2448,7 +2485,8 @@ def get_local_class(
         "day": class_dict.get("day", ""),
         "notes": class_dict.get("notes"),
         "performance": class_dict.get("performance"),
-        "teacher_id": supabase_user_id,
+        "teacher_id": class_dict.get("supabase_teacher_id", supabase_user_id),
+        "listener_id": class_dict.get("supabase_teacher_id", supabase_user_id),
         "is_published": bool(class_dict.get("is_published", 0)),
         "assignments": assignments,
         "students": students_list,

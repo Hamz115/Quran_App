@@ -39,17 +39,17 @@ function screenToRoute(screen: string, classId?: string): string {
   switch (screen) {
     case 'dashboard':
     case 'dashboard-final':
-      return '/teacher';
-    case 'teacher-classes':
-      return '/teacher/classes?new=1';
+      return '/dashboard';
+    case 'sessions':
+      return '/sessions?new=1';
     case 'classroom':
-      return classId ? `/teacher/classes/${classId}` : '/teacher';
+      return classId ? `/sessions/${classId}` : '/dashboard';
     case 'reader':
       return '/reader';
     case 'settings':
       return '/settings';
     default:
-      return '/teacher';
+      return '/dashboard';
   }
 }
 
@@ -66,14 +66,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const driverRef = useRef<Driver | null>(null);
   const interactiveListenerRef = useRef<(() => void) | null>(null);
 
-  // Auto-start tour for teachers on first visit (only once)
+  // Auto-start tour on first visit (only once)
   const autoStarted = useRef(false);
   useEffect(() => {
     if (
       user &&
-      user.role === 'teacher' &&
       !isTourCompleted() &&
-      location.pathname === '/teacher' &&
+      location.pathname === '/dashboard' &&
       !autoStarted.current &&
       !isActive
     ) {
@@ -138,14 +137,14 @@ export function TourProvider({ children }: { children: ReactNode }) {
         d.destroy();
         if (isLastStep) {
           await cleanup();
-          navigate('/teacher');
+          navigate('/dashboard');
         } else {
           advanceToStep(stepIndex + 1);
         }
       },
       onCloseClick: () => {
         d.destroy();
-        cleanup().then(() => navigate('/teacher'));
+        cleanup().then(() => navigate('/dashboard'));
       },
     });
 
@@ -166,7 +165,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
             skipBtn.onclick = () => {
               d.destroy();
               cleanupInteractiveListener();
-              cleanup().then(() => navigate('/teacher'));
+              cleanup().then(() => navigate('/dashboard'));
             };
             popover.appendChild(skipBtn);
           }
@@ -244,18 +243,18 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const advanceToStep = useCallback(async (nextStep: number) => {
     if (nextStep >= TOUR_STEPS.length) {
       await cleanup();
-      navigate('/teacher');
+      navigate('/dashboard');
       return;
     }
 
     const stepDef = TOUR_STEPS[nextStep];
     let classId = tourClassId;
 
-    // Detect class creation: if we just completed the "Create Class" step (step 12),
-    // the URL should now contain the new class ID
+    // Detect session creation: if we just completed the "Create Session" step (step 12),
+    // the URL should now contain the new session ID
     if (stepDef.screen === 'classroom' && !classId) {
-      // Check if we're on a classroom URL after class creation
-      const match = window.location.pathname.match(/\/teacher\/classes\/(.+)/);
+      // Check if we're on a classroom URL after session creation
+      const match = window.location.pathname.match(/\/sessions\/(.+)/);
       if (match) {
         classId = match[1];
         setTourClassIdState(classId);
@@ -266,16 +265,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const targetRoute = screenToRoute(stepDef.screen, classId || undefined);
     const currentPath = window.location.pathname + window.location.search;
 
-    // For teacher-classes, check just the pathname
+    // For sessions, check just the pathname
     const currentPathOnly = window.location.pathname;
     const targetPathOnly = targetRoute.split('?')[0];
 
     const needsNavigation = (() => {
-      if (stepDef.screen === 'teacher-classes') {
-        return currentPathOnly !== '/teacher/classes';
+      if (stepDef.screen === 'sessions') {
+        return currentPathOnly !== '/sessions';
       }
       if (stepDef.screen === 'classroom') {
-        return !currentPathOnly.startsWith('/teacher/classes/');
+        return !currentPathOnly.startsWith('/sessions/');
       }
       return currentPathOnly !== targetPathOnly;
     })();
@@ -331,11 +330,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
     }
   }, [pendingStep, location.pathname, location.search, isActive]);
 
-  // Listen for class creation: when URL changes to /teacher/classes/<id>
-  // and we're in the tour, capture the class ID
+  // Listen for session creation: when URL changes to /sessions/<id>
+  // and we're in the tour, capture the session ID
   useEffect(() => {
     if (isActive) {
-      const match = location.pathname.match(/\/teacher\/classes\/(.+)/);
+      const match = location.pathname.match(/\/sessions\/(.+)/);
       if (match && match[1] !== 'new' && !tourClassId) {
         const newClassId = match[1];
         setTourClassIdState(newClassId);
@@ -350,9 +349,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setTourClassIdState(null);
     clearTourClassId();
 
-    if (location.pathname !== '/teacher') {
+    if (location.pathname !== '/dashboard') {
       setPendingStep(0);
-      navigate('/teacher');
+      navigate('/dashboard');
     } else {
       setTimeout(() => showStep(0), 300);
     }

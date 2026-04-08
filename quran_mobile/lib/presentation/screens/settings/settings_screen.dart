@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../../config/app_colors.dart';
 import '../../../core/services/update_service.dart';
-import '../../../data/models/app_user.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/providers.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/update_dialog.dart';
 import '../../../core/services/tour_service.dart';
@@ -198,94 +196,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
 
-              // ── View Mode Section (teachers only) ──
-              Consumer(
-                builder: (context, ref, child) {
-                  final authState = ref.watch(authProvider);
-                  final isActualTeacher = authState.user?.role == UserRole.teacher;
-                  if (!isActualTeacher) return const SizedBox.shrink();
-
-                  final viewMode = ref.watch(viewModeProvider);
-
-                  void switchView(UserRole mode) {
-                    if (viewMode == mode) return;
-                    ref.read(viewModeProvider.notifier).state = mode;
-                    ref.read(mistakesProvider.notifier).setStudentId(null);
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 32),
-                      _sectionHeader('SWITCH VIEW', isDarkMode),
-                      const SizedBox(height: 12),
-                      GlassmorphicCard(
-                        padding: const EdgeInsets.all(0),
-                        child: Column(
-                          children: [
-                            // Teacher View option
-                            ListTile(
-                              leading: _iconBox(Icons.school_rounded, AppColors.cyan500, isDarkMode),
-                              title: Text(
-                                'Teacher View',
-                                style: TextStyle(
-                                  color: viewMode == UserRole.teacher
-                                      ? AppColors.cyan500
-                                      : AppColors.text(isDarkMode),
-                                  fontWeight: viewMode == UserRole.teacher ? FontWeight.w600 : FontWeight.normal,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Manage your halaqah',
-                                style: TextStyle(color: AppColors.textSecondary(isDarkMode), fontSize: 12),
-                              ),
-                              trailing: viewMode == UserRole.teacher
-                                  ? Icon(Icons.check_circle_rounded, color: AppColors.cyan500)
-                                  : null,
-                              onTap: () => switchView(UserRole.teacher),
-                              tileColor: viewMode == UserRole.teacher
-                                  ? AppColors.cyan500.withOpacity(isDarkMode ? 0.1 : 0.05)
-                                  : null,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                              ),
-                            ),
-                            Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
-                            // Student View option
-                            ListTile(
-                              leading: _iconBox(Icons.person_rounded, AppColors.teal500, isDarkMode),
-                              title: Text(
-                                'Student View',
-                                style: TextStyle(
-                                  color: viewMode == UserRole.student
-                                      ? AppColors.teal500
-                                      : AppColors.text(isDarkMode),
-                                  fontWeight: viewMode == UserRole.student ? FontWeight.w600 : FontWeight.normal,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'See your own classes and progress',
-                                style: TextStyle(color: AppColors.textSecondary(isDarkMode), fontSize: 12),
-                              ),
-                              trailing: viewMode == UserRole.student
-                                  ? Icon(Icons.check_circle_rounded, color: AppColors.teal500)
-                                  : null,
-                              onTap: () => switchView(UserRole.student),
-                              tileColor: viewMode == UserRole.student
-                                  ? AppColors.teal500.withOpacity(isDarkMode ? 0.1 : 0.05)
-                                  : null,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-
               const SizedBox(height: 32),
 
               // ── About Section ──
@@ -413,13 +323,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             style: TextStyle(color: AppColors.text(isDarkMode)),
                           ),
                           subtitle: Text(
-                            user?.role.name.toUpperCase() ?? '',
+                            user?.fullName ?? '',
                             style: TextStyle(
-                              color: user?.role.name == 'teacher'
-                                  ? AppColors.cyan500
-                                  : AppColors.teal500,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
+                              color: AppColors.textSecondary(isDarkMode),
+                              fontSize: 12,
                             ),
                           ),
                         );

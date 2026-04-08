@@ -91,12 +91,12 @@ export default function ExportModal({ report, filters, darkMode, onClose }: Expo
   }
 
   const sectionToggles: { key: keyof typeof sections; label: string; desc: string }[] = [
-    { key: 'summary', label: 'Summary Statistics', desc: 'Classes, total/unique/repeated mistakes, avg performance' },
-    { key: 'classDetails', label: 'Class-by-Class Details', desc: 'Date, portions (Hifz/Sabqi/Manzil), mistakes per class' },
+    { key: 'summary', label: 'Summary Statistics', desc: 'Sessions, total/unique/repeated mistakes, avg performance' },
+    { key: 'classDetails', label: 'Session-by-Session Details', desc: 'Date, portions (Hifz/Sabqi/Manzil), mistakes per session' },
     { key: 'mistakesBySurah', label: 'Mistakes by Surah', desc: 'Mistake distribution across surahs' },
     { key: 'repeatedMistakes', label: 'Repeated Mistakes', desc: 'Words missed multiple times - focus areas' },
     { key: 'performanceChart', label: 'Performance Chart', desc: 'Performance trend over time' },
-    { key: 'teacherNotes', label: 'Teacher Notes', desc: 'Session notes from each class' },
+    { key: 'teacherNotes', label: 'Listener Notes', desc: 'Session notes from each session' },
   ];
 
   return (

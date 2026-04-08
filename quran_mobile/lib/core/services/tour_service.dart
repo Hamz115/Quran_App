@@ -30,8 +30,8 @@ class TourService {
   static const _demoClassIdKey = 'tour_demo_class_id';
 
   // GlobalKey registry — static so screens can reference them
-  static final addStudentKey = GlobalKey(debugLabel: 'tour-add-student');
-  static final startClassKey = GlobalKey(debugLabel: 'tour-start-class');
+  static final addContactKey = GlobalKey(debugLabel: 'tour-add-contact');
+  static final startSessionKey = GlobalKey(debugLabel: 'tour-start-session');
   static final sectionTabsKey = GlobalKey(debugLabel: 'tour-section-tabs');
   static final quranPageKey = GlobalKey(debugLabel: 'tour-quran-page');
   static final mistakesAreaKey = GlobalKey(debugLabel: 'tour-mistakes-area');
@@ -49,24 +49,24 @@ class TourService {
       screen: 'dashboard',
       title: 'Welcome to QuranTrack!',
       description:
-          'This quick tour will show you the core workflow — adding students, starting classes, and tracking Quran recitation mistakes.',
+          'This quick tour will show you the core workflow — adding contacts, starting listening sessions, and tracking Quran recitation mistakes.',
     ),
-    // Step 1: Add Student button
+    // Step 1: Add Contact button
     TourStepDef(
       screen: 'dashboard',
-      targetKey: addStudentKey,
-      title: 'Add Students',
+      targetKey: addContactKey,
+      title: 'Add Contacts',
       description:
-          'Add students to your roster by searching their email address. They must have a QuranTrack account first.',
+          'Add contacts to your roster by searching their email address. They must have a QuranTrack account first.',
       position: ContentPosition.bottom,
     ),
-    // Step 2: Start Class button
+    // Step 2: Start Session button
     TourStepDef(
       screen: 'dashboard',
-      targetKey: startClassKey,
-      title: 'Start a Class',
+      targetKey: startSessionKey,
+      title: 'Start a Session',
       description:
-          'Start a new class session. Select students from your roster, then assign Quran portions for Hifz, Sabqi, or Revision.',
+          'Start a new listening session. Select contacts from your roster, then assign Quran portions for Hifz, Sabqi, or Revision.',
       position: ContentPosition.bottom,
     ),
     // Step 3: Section tabs (Classroom)
@@ -84,7 +84,7 @@ class TourService {
       targetKey: quranPageKey,
       title: 'The Mushaf Page',
       description:
-          "This is the Quran page in authentic Madani Mushaf fonts. Tap any word to mark a mistake during the student's recitation.",
+          "This is the Quran page in authentic Madani Mushaf fonts. Tap any word to mark a mistake during the reciter's recitation.",
       position: ContentPosition.bottom,
     ),
     // Step 5: Mistakes area (Classroom)
@@ -93,7 +93,7 @@ class TourService {
       targetKey: mistakesAreaKey,
       title: 'Mistake Tracking',
       description:
-          'Mistakes appear here, grouped by class session. Toggle between the current page or the full assignment view.',
+          'Mistakes appear here, grouped by session. Toggle between the current page or the full assignment view.',
       position: ContentPosition.top,
     ),
     // Step 6: Reader
@@ -111,7 +111,7 @@ class TourService {
       targetKey: settingsSectionKey,
       title: 'Settings & More',
       description:
-          'Customize your experience — dark/light mode, Teacher/Student view toggle, password changes, and app updates. You can replay this tour anytime from here.',
+          'Customize your experience — dark/light mode, password changes, and app updates. You can replay this tour anytime from here.',
       position: ContentPosition.bottom,
     ),
     // Step 8: Farewell overlay (no target)
@@ -119,7 +119,7 @@ class TourService {
       screen: 'dashboard-final',
       title: "You're All Set!",
       description:
-          'The demo class has been cleaned up. Start adding your real students and begin tracking their progress. Jazakumullahu Khairan!',
+          'The demo session has been cleaned up. Start adding your contacts and begin tracking their recitation. Jazakumullahu Khairan!',
     ),
   ];
 
@@ -142,7 +142,7 @@ class TourService {
 
   // ── Demo class management ──
 
-  static Future<int?> createDemoClass(String teacherId) async {
+  static Future<int?> createDemoClass(String listenerId) async {
     try {
       final repo = ClassRepository();
       final now = DateTime.now();
@@ -154,8 +154,8 @@ class TourService {
       final classSession = await repo.createClass(
         date: dateStr,
         day: dayStr,
-        notes: '[Demo class — created by tutorial]',
-        teacherId: teacherId,
+        notes: '[Demo session — created by tutorial]',
+        teacherId: listenerId,
         assignments: [
           {
             'type': 'hifz',

@@ -16,7 +16,7 @@ final studentReportProvider = FutureProvider.family<StudentReport, String>((ref,
   // 1. Fetch student profile
   final profile = await supabase
       .from('profiles')
-      .select('id, name, email, student_id, created_at')
+      .select('id, name, email, created_at')
       .eq('id', studentId)
       .single();
 
@@ -64,7 +64,7 @@ final studentReportProvider = FutureProvider.family<StudentReport, String>((ref,
     id: (profile['id'] ?? '').toString(),
     name: (profile['name'] as String?) ?? '',
     email: (profile['email'] as String?) ?? '',
-    studentId: (profile['student_id'] as String?) ?? '',
+    studentId: (profile['id'] as String?) ?? '',
     addedAt: (profile['created_at'] as String?) ?? '',
   );
 

@@ -11,14 +11,11 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
-import StudentDashboard from './pages/StudentDashboard';
-import Classes from './pages/Classes';
 import TeacherClasses from './pages/TeacherClasses';
-import StudentClasses from './pages/StudentClasses';
 import Classroom from './pages/Classroom';
 import QuranReader from './pages/QuranReader';
 import { TourProvider } from './contexts/TourContext';
+import { Navigate } from 'react-router-dom';
 
 /** Format bytes to human-readable string */
 function formatBytes(bytes: number): string {
@@ -156,27 +153,29 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Default dashboard */}
+            {/* Unified dashboard */}
             <Route index element={<Dashboard />} />
 
-            {/* Teacher Routes */}
-            <Route path="teacher" element={<TeacherDashboard />} />
-            <Route path="teacher/classes" element={<TeacherClasses />} />
-            <Route path="teacher/classes/:id" element={<Classroom />} />
+            {/* Sessions (was Classes) */}
+            <Route path="sessions" element={<TeacherClasses />} />
+            <Route path="sessions/:id" element={<Classroom />} />
 
-
-            {/* Student Routes */}
-            <Route path="student" element={<StudentDashboard />} />
-            <Route path="student/classes" element={<StudentClasses />} />
-            <Route path="student/classes/:id" element={<Classroom />} />
-
-            {/* Shared/Legacy Routes */}
-            <Route path="classes" element={<Classes />} />
-            <Route path="classes/:id" element={<Classroom />} />
+            {/* Quran Reader */}
             <Route path="reader" element={<QuranReader />} />
 
             {/* Settings */}
             <Route path="settings" element={<Settings />} />
+
+            {/* Legacy redirects */}
+            <Route path="dashboard" element={<Navigate to="/" replace />} />
+            <Route path="teacher" element={<Navigate to="/" replace />} />
+            <Route path="teacher/classes" element={<Navigate to="/sessions" replace />} />
+            <Route path="teacher/classes/:id" element={<Classroom />} />
+            <Route path="student" element={<Navigate to="/" replace />} />
+            <Route path="student/classes" element={<Navigate to="/sessions" replace />} />
+            <Route path="student/classes/:id" element={<Classroom />} />
+            <Route path="classes" element={<Navigate to="/sessions" replace />} />
+            <Route path="classes/:id" element={<Classroom />} />
           </Route>
         </Routes>
         </TourProvider>

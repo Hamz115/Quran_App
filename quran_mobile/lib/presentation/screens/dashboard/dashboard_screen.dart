@@ -7,7 +7,6 @@ import '../../../core/sync/sync_service.dart';
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../../data/models/app_user.dart';
 import '../../widgets/glassmorphic_card.dart';
 import '../../widgets/section_badge.dart';
 import '../classes/report/report_panel.dart';
@@ -23,20 +22,16 @@ class DashboardScreen extends ConsumerWidget {
     final topMistakesAsync = ref.watch(topMistakesProvider);
     final mistakeCountsAsync = ref.watch(mistakeCountsBySurahProvider);
     final classesAsync = ref.watch(classesProvider);
+    final enrolledAsync = ref.watch(enrolledClassesProvider);
     final isDarkMode = ref.watch(themeProvider);
     final authState = ref.watch(authProvider);
     final teacherStudentsAsync = ref.watch(teacherStudentsProvider);
     final teacherClassDatesAsync = ref.watch(teacherClassDatesProvider);
     final classStudentNamesAsync = ref.watch(classStudentNamesProvider);
 
-    // User info from auth — use viewModeProvider for UI decisions
+    // Unified view — no role branching
     final user = authState.user;
-    final viewMode = ref.watch(viewModeProvider);
-    final isTeacher = viewMode == UserRole.teacher;
-
-    // In Student View, use enrolled classes (classes user attends as a student)
-    final enrolledAsync = isTeacher ? null : ref.watch(enrolledClassesProvider);
-    final displayClassesAsync = isTeacher ? classesAsync : enrolledAsync!;
+    final displayClassesAsync = classesAsync;
     final userName = user?.firstName ?? 'User';
     final userInitials = '${user?.firstName?.isNotEmpty == true ? user!.firstName[0] : ''}${user?.lastName?.isNotEmpty == true ? user!.lastName[0] : ''}'.toUpperCase();
 
@@ -49,7 +44,7 @@ class DashboardScreen extends ConsumerWidget {
             final user = ref.read(authProvider).user;
             if (user != null) {
               final syncHelper = ref.read(supabaseSyncHelperProvider);
-              await syncHelper.pullAll(user.id, user.role.name);
+              await syncHelper.pullAll(user.id);
             }
             // Then reload providers from fresh local data
             ref.invalidate(statsProvider);
@@ -76,7 +71,7 @@ class DashboardScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isTeacher ? 'Teacher Dashboard' : 'Student Dashboard',
+                                  'Dashboard',
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
@@ -85,9 +80,7 @@ class DashboardScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  isTeacher
-                                      ? 'Welcome back, $userName! Manage your Halaqah and track student progress.'
-                                      : 'Welcome back, $userName! Track your Quran memorization progress.',
+                                  'Welcome back, $userName!',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: AppColors.textSecondary(isDarkMode),
@@ -98,45 +91,43 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      if (isTeacher) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            // Add Student button
-                            OutlinedButton.icon(
-                              key: TourService.addStudentKey,
-                              onPressed: () => _showAddStudentSheet(context, ref, isDarkMode),
-                              icon: const Icon(Icons.person_add_outlined, size: 18),
-                              label: const Text('Add Student'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.text(isDarkMode),
-                                side: BorderSide(color: AppColors.border(isDarkMode)),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          // Add Contact button
+                          OutlinedButton.icon(
+                            key: TourService.addContactKey,
+                            onPressed: () => _showAddStudentSheet(context, ref, isDarkMode),
+                            icon: const Icon(Icons.person_add_outlined, size: 18),
+                            label: const Text('Add Contact'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.text(isDarkMode),
+                              side: BorderSide(color: AppColors.border(isDarkMode)),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             ),
-                            const SizedBox(width: 12),
-                            // Start New Class button
-                            ElevatedButton.icon(
-                              key: TourService.startClassKey,
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => const CreateClassScreen(),
-                                );
-                              },
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Start New Class'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.emerald400,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Start New Session button
+                          ElevatedButton.icon(
+                            key: TourService.startSessionKey,
+                            onPressed: () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const CreateClassScreen(),
+                              );
+                            },
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('New Session'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.emerald400,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -170,107 +161,57 @@ class DashboardScreen extends ConsumerWidget {
                     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                     final todayStr = '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
 
-                    if (isTeacher) {
-                      // Teacher stats: Total Students, Classes This Week, Total Classes, Today's Date
-                      // All from Supabase-direct providers (instant, no SQLite round-trip)
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: StatCard(
-                                    label: 'Total Students',
-                                    value: '${teacherStudentsAsync.valueOrNull?.length ?? 0}',
-                                    icon: Icons.people_rounded,
-                                    color: AppColors.cyan500,
-                                    badge: 'Active',
-                                  ),
+                    // Unified stats: Contacts, Sessions This Week, Total Sessions, Today's Date
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatCard(
+                                  label: 'Contacts',
+                                  value: '${teacherStudentsAsync.valueOrNull?.length ?? 0}',
+                                  icon: Icons.people_rounded,
+                                  color: AppColors.cyan500,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: StatCard(
-                                    label: 'Classes This Week',
-                                    value: '$teacherClassesThisWeek',
-                                    icon: Icons.check_circle_outline,
-                                    color: AppTheme.emerald400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: StatCard(
-                                    label: 'Total Classes',
-                                    value: '$teacherTotalClasses',
-                                    icon: Icons.calendar_today_rounded,
-                                    color: AppColors.amber500,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: StatCard(
-                                    label: "Today's Date",
-                                    value: todayStr,
-                                    icon: Icons.schedule_rounded,
-                                    color: AppColors.textSecondary(isDarkMode),
-                                    smallText: true,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      // Student stats: My Progress, Classes, To Fix
-                      String currentProgress = '-';
-                      for (final cls in classes) {
-                        final hifzAssignment = cls.assignments.where((a) => a.type == 'hifz').firstOrNull;
-                        if (hifzAssignment != null && hifzAssignment.startSurah > 0 && hifzAssignment.startSurah <= 114) {
-                          currentProgress = AppConstants.surahNames[hifzAssignment.startSurah - 1] ?? '-';
-                          break;
-                        }
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: StatCard(
-                                label: 'My Progress',
-                                value: currentProgress,
-                                icon: Icons.menu_book_rounded,
-                                color: AppColors.teal500,
-                                smallText: true,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatCard(
-                                label: 'Classes',
-                                value: '${classes.length}',
-                                icon: Icons.calendar_today_rounded,
-                                color: AppTheme.emerald400,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: StatCard(
+                                  label: 'This Week',
+                                  value: '$teacherClassesThisWeek',
+                                  icon: Icons.check_circle_outline,
+                                  color: AppTheme.emerald400,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatCard(
-                                label: 'To Fix',
-                                value: '${stats['repeatedMistakes']}',
-                                icon: Icons.repeat_rounded,
-                                color: AppTheme.mistake5,
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatCard(
+                                  label: 'Listening (مستمع)',
+                                  value: '$teacherTotalClasses',
+                                  icon: Icons.hearing_rounded,
+                                  color: const Color(0xFF8B5CF6),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: StatCard(
+                                  label: 'Reciting (قارئ)',
+                                  value: '${enrolledAsync.valueOrNull?.length ?? 0}',
+                                  icon: Icons.menu_book_rounded,
+                                  color: AppColors.amber500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
                   },
                   loading: () => const Padding(
                     padding: EdgeInsets.all(20),
@@ -287,13 +228,13 @@ class DashboardScreen extends ConsumerWidget {
 
               // Teacher: Show student management placeholder
               // Student: Show surahs needing attention
-              if (isTeacher) ...[
+              ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SectionCard(
-                      title: 'My Students',
-                      subtitle: 'Manage your halaqah students',
+                      title: 'My Contacts',
+                      subtitle: 'Manage your contacts',
                       child: teacherStudentsAsync.when(
                         loading: () => const Padding(
                           padding: EdgeInsets.all(32),
@@ -418,123 +359,6 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-              ] else ...[
-                // Student: Weak Surahs
-                SliverToBoxAdapter(
-                  child: mistakeCountsAsync.when(
-                    data: (counts) {
-                      if (counts.isEmpty) return const SizedBox.shrink();
-
-                      final sortedSurahs = counts.entries.toList()
-                        ..sort((a, b) => b.value.compareTo(a.value));
-                      final topSurahs = sortedSurahs.take(5).toList();
-                      final maxCount = topSurahs.isNotEmpty ? topSurahs.first.value : 1;
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: SectionCard(
-                          title: 'Surahs Needing Attention',
-                          subtitle: 'Based on mistake frequency',
-                          child: Column(
-                            children: topSurahs.map((entry) {
-                              final surahName = AppConstants.surahNames[entry.key] ?? 'Surah ${entry.key}';
-                              final progress = entry.value / maxCount;
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 24,
-                                      child: Text(
-                                        '${entry.key}.',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textMuted(isDarkMode),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        surahName,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.text(isDarkMode),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      flex: 3,
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: progress,
-                                          backgroundColor: AppColors.border(isDarkMode),
-                                          valueColor: AlwaysStoppedAnimation(
-                                            AppColors.getMistakeColor(entry.value),
-                                          ),
-                                          minHeight: 8,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    SizedBox(
-                                      width: 32,
-                                      child: Text(
-                                        '${entry.value}',
-                                        textAlign: TextAlign.end,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.getMistakeColor(entry.value),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-                // Student: Top Repeated Mistakes
-                SliverToBoxAdapter(
-                  child: topMistakesAsync.when(
-                    data: (mistakes) {
-                      if (mistakes.isEmpty) return const SizedBox.shrink();
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: SectionCard(
-                          title: 'Top Repeated Mistakes',
-                          subtitle: 'Words to review',
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: mistakes.map((m) => MistakeBadge(
-                              errorCount: m.errorCount,
-                              wordText: m.wordText,
-                              location: '${m.ayahNumber}:${m.wordIndex + 1}',
-                            )).toList(),
-                          ),
-                        ),
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                ),
               ],
 
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
@@ -549,7 +373,7 @@ class DashboardScreen extends ConsumerWidget {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: SectionCard(
-                          title: 'Recent Classes',
+                          title: 'Recent Listening Sessions (مستمع)',
                           child: Center(
                             child: Padding(
                               padding: const EdgeInsets.all(32),
@@ -579,7 +403,7 @@ class DashboardScreen extends ConsumerWidget {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: SectionCard(
-                        title: 'Recent Classes',
+                        title: 'Recent Listening Sessions (مستمع)',
                         child: Column(
                           children: recentClasses.map((classItem) {
                             return Container(
@@ -635,7 +459,7 @@ class DashboardScreen extends ConsumerWidget {
                                                 color: AppColors.text(isDarkMode),
                                               ),
                                             ),
-                                            if (isTeacher && studentNamesMap[classItem.supabaseId] != null) ...[
+                                            if (studentNamesMap[classItem.supabaseId] != null) ...[
                                               const SizedBox(width: 8),
                                               Flexible(
                                                 child: Text(
@@ -685,6 +509,110 @@ class DashboardScreen extends ConsumerWidget {
                   },
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Text('Error: $e'),
+                ),
+              ),
+
+              // Recent Reciting Sessions (where user is the reciter)
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              SliverToBoxAdapter(
+                child: enrolledAsync.when(
+                  data: (enrolledClasses) {
+                    if (enrolledClasses.isEmpty) return const SizedBox.shrink();
+                    final recentEnrolled = enrolledClasses.take(3).toList();
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: SectionCard(
+                        title: 'Recent Reciting Sessions (قارئ)',
+                        subtitle: 'Sessions where you are the reciter',
+                        child: Column(
+                          children: recentEnrolled.map((classItem) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.amber500.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.amber500.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          classItem.date.contains('-') ? classItem.date.split('-').last : '?',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.amber500,
+                                          ),
+                                        ),
+                                        Text(
+                                          _getMonthAbbr(classItem.date),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: AppColors.amber500.withOpacity(0.8),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          classItem.day,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.text(isDarkMode),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: classItem.assignments.map((a) {
+                                            final portionLabel = AppConstants.formatPortionLabel(
+                                              startSurah: a.startSurah,
+                                              endSurah: a.endSurah,
+                                              startAyah: a.startAyah,
+                                              endAyah: a.endAyah,
+                                            );
+                                            return SectionBadge(
+                                              type: a.type,
+                                              text: portionLabel,
+                                              compact: true,
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.textMuted(isDarkMode),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (e, _) => const SizedBox.shrink(),
                 ),
               ),
 

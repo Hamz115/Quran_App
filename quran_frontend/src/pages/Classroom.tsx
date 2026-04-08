@@ -131,7 +131,10 @@ export default function Classroom() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { darkMode } = useTheme();
-  const isTeacher = user?.role === 'teacher';
+  // isListener = ownership-based: true if user created this session (listener_id or teacher_id matches)
+  const [isListener, setIsListener] = useState(false);
+  // Legacy alias for minimal code changes in JSX
+  const isTeacher = isListener;
 
   // Compute mushaf page dimensions based on window size
   const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -156,9 +159,10 @@ export default function Classroom() {
   const preSelectedStudentId = searchParams.get('student');
 
   const getBackRoute = () => {
-    if (location.pathname.startsWith('/teacher/')) return '/teacher/classes';
-    if (location.pathname.startsWith('/student/')) return '/student/classes';
-    return '/classes';
+    // Legacy URL support
+    if (location.pathname.startsWith('/teacher/')) return '/sessions';
+    if (location.pathname.startsWith('/student/')) return '/sessions';
+    return '/sessions';
   };
 
   const [classData, setClassData] = useState<ClassData | null>(null);
@@ -302,7 +306,12 @@ export default function Classroom() {
         if (data.assignments.length > 0) {
           setActiveSection(data.assignments[0].type as SectionType);
         }
-        if (isTeacher && data.students && data.students.length > 0) {
+        // Ownership check: am I the listener (creator) of this session?
+        const amListener = user?.id != null && (
+          data.listener_id === user.id || data.teacher_id === user.id
+        );
+        setIsListener(amListener);
+        if (amListener && data.students && data.students.length > 0) {
           const validPreSelected = preSelectedStudentId && data.students.some(s => s.id === preSelectedStudentId);
           setSelectedStudentId(validPreSelected ? preSelectedStudentId : data.students[0].id);
         }
@@ -313,7 +322,7 @@ export default function Classroom() {
       });
 
     return () => { isMounted = false; };
-  }, [id, isTeacher, preSelectedStudentId]);
+  }, [id, user?.id, preSelectedStudentId]);
 
   // Load surah list
   useEffect(() => {
@@ -872,7 +881,7 @@ export default function Classroom() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            {isTeacher ? (classData.notes ? 'View Notes' : 'Add Notes') : 'View Notes'}
+            {isTeacher ? (classData.notes ? 'Listener Notes (ملاحظات)' : 'Add Notes (ملاحظات)') : 'Listener Notes (ملاحظات)'}
           </button>
         )}
 
@@ -890,7 +899,7 @@ export default function Classroom() {
       {showNotesEditor && (
         <div className={`card p-5 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class Notes</h3>
+            <h3 className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Listener Notes (ملاحظات المستمع)</h3>
             <button onClick={() => setShowNotesEditor(false)} className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700/50 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

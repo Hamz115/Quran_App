@@ -20,7 +20,7 @@ interface AuthContextType {
     email: string;
     username: string;
     password: string;
-    role: 'teacher' | 'student';
+    role?: 'teacher' | 'student';  // Legacy, optional
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -48,12 +48,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 // Trigger local-first sync (non-blocking)
-async function triggerLocalSync(role: 'teacher' | 'student'): Promise<void> {
+async function triggerLocalSync(): Promise<void> {
   try {
     const available = await isLocalApiAvailable();
     if (available) {
-      console.log('AuthContext: Triggering local sync for role:', role);
-      await triggerSync(role);
+      console.log('AuthContext: Triggering local sync');
+      await triggerSync();
       console.log('AuthContext: Sync triggered successfully');
     } else {
       console.log('AuthContext: Local API not available, skipping sync');
@@ -89,8 +89,8 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     email: data.email,
     first_name: firstName,
     last_name: lastName,
-    role: data.role as 'teacher' | 'student',
-    is_verified: data.is_verified,
+    role: (data.role as 'teacher' | 'student' | null) || null,
+    is_verified: true,  // Legacy, always true now
     created_at: data.created_at,
   };
 }
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.log('AuthContext: Profile loaded:', profile?.email);
               // Trigger sync on app start (non-blocking)
               if (profile?.role) {
-                triggerLocalSync(profile.role);
+                triggerLocalSync();
               }
             }
           } catch (profileError) {
@@ -305,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (newSession?.user) {
         const profile = await fetchUserProfile(newSession.user.id);
         if (profile?.role) {
-          triggerLocalSync(profile.role); // Don't await - background operation
+          triggerLocalSync(); // Don't await - background operation
         }
       }
     } catch (err) {
@@ -349,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             data: {
               name: `${data.first_name} ${data.last_name}`,
-              role: data.role,
+              // role no longer sent — all users are equal
             },
           },
         }),
@@ -363,7 +363,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('AuthContext: Signup successful');
 
       // Trigger local sync in background (non-blocking)
-      triggerLocalSync(data.role); // Don't await - background operation
+      triggerLocalSync(); // Don't await - background operation
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('TIMEOUT')) {
         clearSupabaseStorage();

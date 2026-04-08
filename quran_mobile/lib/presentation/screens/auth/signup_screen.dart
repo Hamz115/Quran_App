@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../config/app_colors.dart';
-import '../../../data/models/app_user.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -22,7 +21,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  UserRole? _selectedRole;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -42,11 +40,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedRole == null) {
-      setState(() => _error = 'Please select Teacher or Student');
-      return;
-    }
-
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() => _error = 'Passwords do not match');
       return;
@@ -63,7 +56,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         password: _passwordController.text,
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        role: _selectedRole!,
       );
       // Navigation happens automatically via auth state
     } catch (e) {
@@ -425,41 +417,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             const SizedBox(height: 16),
           ],
 
-          // Role selection
-          Text(
-            'I am a...',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary(isDarkMode),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildRoleCard(
-                  UserRole.teacher,
-                  'Teacher',
-                  Icons.school_rounded,
-                  AppColors.cyan500,
-                  isDarkMode,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildRoleCard(
-                  UserRole.student,
-                  'Student',
-                  Icons.menu_book_rounded,
-                  AppColors.teal500,
-                  isDarkMode,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
           // Name fields
           Row(
             children: [
@@ -566,14 +523,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _isLoading || _selectedRole == null ? null : _handleSignup,
+              onPressed: _isLoading ? null : _handleSignup,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.transparent,
                 disabledBackgroundColor: Colors.grey.withOpacity(0.3),
-                shadowColor: (_selectedRole == UserRole.teacher
-                    ? AppColors.cyan500
-                    : AppColors.teal500).withOpacity(0.3),
+                shadowColor: AppColors.cyan500.withOpacity(0.3),
                 elevation: 8,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -581,17 +536,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
               child: Ink(
                 decoration: BoxDecoration(
-                  gradient: _selectedRole == null
-                      ? LinearGradient(
-                          colors: [Colors.grey[400]!, Colors.grey[500]!],
-                        )
-                      : _selectedRole == UserRole.teacher
-                          ? LinearGradient(
-                              colors: [AppColors.cyan500, AppColors.teal500],
-                            )
-                          : LinearGradient(
-                              colors: [AppColors.teal500, AppColors.cyan500],
-                            ),
+                  gradient: LinearGradient(
+                    colors: [AppColors.cyan500, AppColors.teal500],
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Container(
@@ -647,62 +594,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRoleCard(
-    UserRole role,
-    String label,
-    IconData icon,
-    Color color,
-    bool isDarkMode,
-  ) {
-    final isSelected = _selectedRole == role;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRole = role),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? color.withOpacity(isDarkMode ? 0.2 : 0.1)
-              : isDarkMode
-                  ? const Color(0xFF252D3D)
-                  : AppColors.cyan50.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? color
-                : isDarkMode
-                    ? AppColors.cyan500.withOpacity(0.2)
-                    : AppColors.cyan200,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? color
-                  : AppColors.textMuted(isDarkMode),
-              size: 28,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isSelected
-                    ? color
-                    : AppColors.textSecondary(isDarkMode),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

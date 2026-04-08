@@ -6,7 +6,7 @@ import 'driver.js/dist/driver.css';
 export type StepType = 'info' | 'interactive';
 
 export interface TourStepDef {
-  screen: 'dashboard' | 'teacher-classes' | 'classroom' | 'reader' | 'settings' | 'dashboard-final';
+  screen: 'dashboard' | 'sessions' | 'classroom' | 'reader' | 'settings' | 'dashboard-final';
   element?: string; // data-tour selector, or undefined for full overlay
   title: string;
   description: string;
@@ -21,65 +21,65 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     screen: 'dashboard',
     title: 'Welcome to QuranTrack!',
-    description: 'This hands-on tour will walk you through creating your first class, tracking mistakes, and managing sessions. Follow along!',
+    description: 'This hands-on tour will walk you through creating your first session, tracking mistakes, and managing recitation. Follow along!',
     type: 'info',
   },
   {
     screen: 'dashboard',
     element: '[data-tour="add-student-btn"]',
-    title: 'Add Students',
-    description: 'Add students to your roster by searching their email. They must have a QuranTrack account first.',
+    title: 'Add Contacts',
+    description: 'Add contacts to your roster by searching their email. They must have a QuranTrack account first.',
     side: 'bottom',
     type: 'info',
   },
   {
     screen: 'dashboard',
     element: '[data-tour="start-class-btn"]',
-    title: 'Start a Class',
-    description: "Let's create your first class. <strong>Click this button.</strong>",
+    title: 'Start a Session',
+    description: "Let's create your first listening session. <strong>Click this button.</strong>",
     side: 'bottom',
     type: 'interactive',
     interactiveTarget: '[data-tour="start-class-btn"]',
   },
 
-  // ── PHASE 2: CLASS CREATION (TeacherClasses modal) ──
+  // ── PHASE 2: SESSION CREATION (Sessions modal) ──
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="class-date"]',
-    title: 'Class Date',
-    description: 'The date and day are auto-filled. You can change them if this class was on a different day.',
+    title: 'Session Date',
+    description: 'The date and day are auto-filled. You can change them if this session was on a different day.',
     side: 'bottom',
     type: 'info',
     waitForElement: '[data-tour="class-date"]',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="student-selector"]',
-    title: 'Select Students',
-    description: "Select students from your roster. If you haven't added any yet, that's fine — you can skip this for now.",
+    title: 'Select Contacts',
+    description: "Select contacts (reciters) from your roster. If you haven't added any yet, that's fine — you can skip this for now.",
     side: 'bottom',
     type: 'info',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="next-portions-btn"]',
     title: 'Continue to Portions',
-    description: '<strong>Click "Next: Choose Portions"</strong> to configure what the student will recite.',
+    description: '<strong>Click "Next: Choose Portions"</strong> to configure what the reciter will recite.',
     side: 'top',
     type: 'interactive',
     interactiveTarget: '[data-tour="next-portions-btn"]',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="hifz-section"]',
     title: 'Memorization (Hifz)',
-    description: 'This is the Memorization section. It\'s on by default. Each section lets you assign a Quran portion for the student to recite.',
+    description: 'This is the Memorization section. It\'s on by default. Each section lets you assign a Quran portion for the reciter.',
     side: 'bottom',
     type: 'info',
     waitForElement: '[data-tour="hifz-section"]',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="portion-mode"]',
     title: 'Selection Mode',
     description: 'Choose how to select the portion — <strong>By Surah</strong> (surah + ayah range), <strong>By Page</strong>, or <strong>By Juz</strong>.',
@@ -87,7 +87,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'info',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="surah-selector"]',
     title: 'Choose a Surah',
     description: '<strong>Select any surah</strong> you\'d like to test with.',
@@ -96,7 +96,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     interactiveTarget: '[data-tour="surah-selector"]',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="ayah-range"]',
     title: 'Ayah Range',
     description: 'Set the start and end ayah. If you leave them as is, the full surah is used.',
@@ -104,15 +104,15 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'info',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="sabqi-toggle"]',
     title: 'Recent Review (Sabqi)',
-    description: 'Toggle this ON to add a Recent Review section. Toggle OFF if not needed for this class.',
+    description: 'Toggle this ON to add a Recent Review section. Toggle OFF if not needed for this session.',
     side: 'bottom',
     type: 'info',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="manzil-toggle"]',
     title: 'Revision (Manzil)',
     description: 'Toggle this ON to add a Revision section.',
@@ -120,10 +120,10 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'info',
   },
   {
-    screen: 'teacher-classes',
+    screen: 'sessions',
     element: '[data-tour="create-class-btn"]',
-    title: 'Create the Class',
-    description: "You're ready! <strong>Click Create Class</strong> to start the session.",
+    title: 'Create the Session',
+    description: "You're ready! <strong>Click Create Session</strong> to start.",
     side: 'top',
     type: 'interactive',
     interactiveTarget: '[data-tour="create-class-btn"]',
@@ -163,7 +163,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'classroom',
     element: '[data-tour="word-popup"]',
     title: 'Word Mistake',
-    description: 'This is a <strong>Whole Word Mistake</strong> — marks the entire word as incorrect. Use it when the student skips or misreads the whole word. <strong>Click "Whole Word" to mark it.</strong>',
+    description: 'This is a <strong>Whole Word Mistake</strong> — marks the entire word as incorrect. Use it when the reciter skips or misreads the whole word. <strong>Click "Whole Word" to mark it.</strong>',
     side: 'left',
     type: 'interactive',
     interactiveTarget: '[data-tour="whole-word-btn"]',
@@ -183,7 +183,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'classroom',
     element: '[data-tour="letter-mistakes"]',
     title: 'Letter Mistakes',
-    description: 'These are the <strong>individual letters</strong>. Click any letter to mark it as a mistake — the student read the wrong letter. <strong>Click any letter.</strong>',
+    description: 'These are the <strong>individual letters</strong>. Click any letter to mark it as a mistake — the reciter read the wrong letter. <strong>Click any letter.</strong>',
     side: 'left',
     type: 'interactive',
     interactiveTarget: '[data-tour="letter-mistakes"]',
@@ -215,7 +215,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'classroom',
     element: '[data-tour="mistakes-area"]',
     title: 'Mistakes Area',
-    description: 'All your mistakes appear here, grouped by class session. You can scroll down to see them.',
+    description: 'All mistakes appear here, grouped by session. You can scroll down to see them.',
     side: 'top',
     type: 'info',
   },
@@ -233,7 +233,7 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     screen: 'classroom',
     element: '[data-tour="notes-btn"]',
-    title: 'Session Notes',
+    title: 'Listener Notes (ملاحظات)',
     description: 'Add notes about this session — observations or feedback. <strong>Click to open the notes editor.</strong>',
     side: 'bottom',
     type: 'interactive',
@@ -262,7 +262,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'classroom',
     element: '[data-tour="performance-dropdown"]',
     title: 'Performance Rating',
-    description: "Rate the student's performance for this session — Excellent, Very Good, Good, or Needs Work. <strong>Select any rating.</strong>",
+    description: "Rate the reciter's performance for this session — Excellent, Very Good, Good, or Needs Work. <strong>Select any rating.</strong>",
     side: 'bottom',
     type: 'interactive',
     interactiveTarget: '[data-tour="performance-dropdown"]',
@@ -283,17 +283,17 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'settings',
     element: '[data-tour="settings-section"]',
     title: 'Settings',
-    description: 'Customize your experience — dark/light mode, Teacher/Student view, password, and updates. You can replay this tour anytime from the "Show Tutorial" button here.',
+    description: 'Customize your experience — dark/light mode, password, and updates. You can replay this tour anytime from the "Show Tutorial" button here.',
     side: 'bottom',
     type: 'info',
   },
 
-  // ── PHASE 9: DELETE CLASS & FAREWELL ──
+  // ── PHASE 9: DELETE SESSION & FAREWELL ──
   {
     screen: 'classroom',
     element: '[data-tour="delete-btn"]',
-    title: 'Delete This Class',
-    description: "Let's clean up the class we just created. <strong>Click the Delete button.</strong>",
+    title: 'Delete This Session',
+    description: "Let's clean up the session we just created. <strong>Click the Delete button.</strong>",
     side: 'bottom',
     type: 'interactive',
     interactiveTarget: '[data-tour="delete-btn"]',
@@ -303,7 +303,7 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     screen: 'dashboard-final',
     title: "You're All Set!",
-    description: "You've learned how to add students, create classes, track letter/haraka/word mistakes, manage notes and performance, and delete classes. A confirmation always appears before deleting — <strong>deleting a class permanently removes all its mistakes.</strong> Jazakumullahu Khairan!",
+    description: "You've learned how to add contacts, create listening sessions, track letter/haraka/word mistakes, manage notes and performance, and delete sessions. A confirmation always appears before deleting — <strong>deleting a session permanently removes all its mistakes.</strong> Jazakumullahu Khairan!",
     type: 'info',
   },
 ];

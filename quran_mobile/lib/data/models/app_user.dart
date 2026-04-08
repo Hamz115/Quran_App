@@ -1,9 +1,12 @@
 import 'package:equatable/equatable.dart';
 
-/// User roles in the app
+/// User roles in the app (legacy — kept for backward compatibility)
+/// In v2.0.0+, all users have the same account type.
+/// "teacher" maps to "listener" (person evaluating recitation)
+/// "student" maps to "reciter" (person reciting)
 enum UserRole {
-  teacher,
-  student;
+  teacher,  // Legacy: maps to "listener"
+  student;  // Legacy: maps to "reciter"
 
   static UserRole fromString(String? role) {
     switch (role?.toLowerCase()) {
@@ -11,7 +14,8 @@ enum UserRole {
         return UserRole.teacher;
       case 'student':
       default:
-        return UserRole.student;
+        // Default to teacher (listener) — everyone can create sessions now
+        return UserRole.teacher;
     }
   }
 
@@ -63,7 +67,7 @@ class AppUser extends Equatable {
       firstName: firstName,
       lastName: lastName,
       role: UserRole.fromString(profile['role'] as String?),
-      isVerified: profile['is_verified'] as bool? ?? false,
+      isVerified: true, // v2.0.0: always verified, no role-gating
       studentId: profile['student_id'] as String?,
       createdAt: DateTime.parse(
         profile['created_at'] as String? ?? DateTime.now().toIso8601String(),
@@ -88,7 +92,7 @@ class AppUser extends Equatable {
       firstName: firstName,
       lastName: lastName,
       role: UserRole.fromString(metadata?['role'] as String?),
-      isVerified: false,
+      isVerified: true, // v2.0.0: always verified
       createdAt: DateTime.now(),
     );
   }

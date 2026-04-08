@@ -10,8 +10,9 @@
  * Cross-device operations (students, auth) always go through Supabase.
  */
 
-// Re-export types
-export type { StudentListItem, TeacherListItem, StudentLookup, User } from './types';
+// Re-export types (new names + legacy aliases)
+export type { ContactListItem, ContactLookup, User } from './types';
+export type { StudentListItem, TeacherListItem, StudentLookup } from './types';
 
 // Re-export types from supabase-api (needed by consumers)
 export type {
@@ -64,11 +65,19 @@ export type { SyncStatus } from './lib/local-api';
 // ============ CROSS-DEVICE OPS (always Supabase) ============
 
 export {
+  // New names
+  getMyContacts,
+  lookupContact,
+  addContact,
+  removeContact,
+  getMyListeners,
+  // Legacy aliases
   getMyStudents,
   lookupStudent,
   addStudent,
   removeStudent,
   getMyTeachers,
+  // Unchanged
   getStats,
   getSuggestedPortions,
   getStudentReport,
@@ -80,20 +89,21 @@ export {
  * Get classes — local sidecar first, Supabase fallback.
  * Falls back to Supabase if local returns empty (DB may not be synced yet).
  */
-export async function getClasses(role?: 'teacher' | 'student') {
+export async function getClasses(view?: 'listener' | 'reciter' | 'teacher' | 'student') {
+  // Map legacy role to view
+  const mappedView = view === 'teacher' ? 'listener' : view === 'student' ? 'reciter' : view;
   if (await isLocalApiAvailable()) {
     try {
-      const localResult = await getLocalClasses(role);
+      const localResult = await getLocalClasses(mappedView as 'listener' | 'reciter' | 'all' | undefined);
       if (Array.isArray(localResult) && localResult.length > 0) {
         return localResult;
       }
-      // Local DB empty — fall through to Supabase (might not be synced yet)
       console.log('[local-first] getClasses local returned empty, trying Supabase');
     } catch (err) {
       console.warn('[local-first] getClasses local failed, falling back to Supabase:', err);
     }
   }
-  return getSupabaseClasses(role);
+  return getSupabaseClasses(view);
 }
 
 /**

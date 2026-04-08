@@ -64,12 +64,13 @@ class ClassRepository {
     final now = DateTime.now().toIso8601String();
     final deviceId = _uuid.v4();
 
-    // Insert class
+    // Insert class (dual-write teacher_id + listener_id for v2.0.0)
     final classId = await db.insert('classes', {
       'date': date,
       'day': day,
       'notes': notes,
       'teacher_id': teacherId,
+      'listener_id': teacherId,
       'created_at': now,
       'updated_at': now,
       'sync_status': 'pending',
@@ -367,13 +368,13 @@ class ClassRepository {
     );
   }
 
-  // Get all classes for a specific teacher
+  // Get all classes for a specific listener (checks both teacher_id and listener_id)
   Future<List<ClassSession>> getClassesByTeacherId(String teacherId) async {
     final db = await _dbHelper.appDatabase;
     final results = await db.query(
       'classes',
-      where: 'teacher_id = ? AND is_deleted = 0',
-      whereArgs: [teacherId],
+      where: '(teacher_id = ? OR listener_id = ?) AND is_deleted = 0',
+      whereArgs: [teacherId, teacherId],
       orderBy: 'date DESC',
     );
 
@@ -452,6 +453,7 @@ class ClassRepository {
         'notes': notes,
         'performance': performance,
         'teacher_id': teacherId,
+        'listener_id': teacherId,
         'updated_at': now,
         'sync_status': 'synced',
       }, where: 'id = ?', whereArgs: [classId]);
@@ -462,6 +464,7 @@ class ClassRepository {
       classId = await db.insert('classes', {
         'supabase_id': supabaseId,
         'teacher_id': teacherId,
+        'listener_id': teacherId,
         'date': date,
         'day': day,
         'notes': notes,
@@ -498,10 +501,10 @@ class ClassRepository {
   Future<void> removeStaleClasses(String teacherId, Set<String> remoteIds) async {
     final db = await _dbHelper.appDatabase;
 
-    // Find local classes with supabase_id set (already synced) for this teacher
+    // Find local classes with supabase_id set (already synced) for this listener
     final localSynced = await db.query('classes',
-      where: 'teacher_id = ? AND supabase_id IS NOT NULL AND is_deleted = 0',
-      whereArgs: [teacherId],
+      where: '(teacher_id = ? OR listener_id = ?) AND supabase_id IS NOT NULL AND is_deleted = 0',
+      whereArgs: [teacherId, teacherId],
     );
 
     for (final row in localSynced) {

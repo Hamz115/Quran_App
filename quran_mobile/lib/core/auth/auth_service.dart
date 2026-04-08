@@ -44,13 +44,13 @@ class AuthService {
     return profile;
   }
 
-  /// Sign up with email and password
+  /// Sign up with email and password (no role required in v2.0.0)
   Future<AppUser> signUp({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
-    required UserRole role,
+    UserRole? role, // Legacy param, ignored
   }) async {
     final fullName = '$firstName $lastName'.trim();
 
@@ -59,7 +59,7 @@ class AuthService {
       password: password,
       data: {
         'name': fullName,
-        'role': role.toJson(),
+        // No role sent — Supabase trigger defaults to null
       },
     );
 

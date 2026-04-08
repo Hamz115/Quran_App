@@ -149,9 +149,9 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
       {/* Tab navigation */}
       <div className={`flex ${cardBg} border-b ${borderColor} rounded-t-xl px-4 sm:px-6`}>
         {[
-          { id: 'classes' as const, label: 'Classes', count: filteredReport.summary.total_classes, countColor: 'bg-cyan-600/20 text-cyan-400' },
-          { id: 'mistakes' as const, label: 'Mistakes', count: filteredReport.summary.total_mistakes, countColor: 'bg-red-500/20 text-red-400' },
-          { id: 'performance' as const, label: 'Performance', count: null, countColor: '' },
+          { id: 'classes' as const, label: 'Sessions (جلسات)', count: filteredReport.summary.total_classes, countColor: 'bg-cyan-600/20 text-cyan-400' },
+          { id: 'mistakes' as const, label: 'Mistakes (أخطاء)', count: filteredReport.summary.total_mistakes, countColor: 'bg-red-500/20 text-red-400' },
+          { id: 'performance' as const, label: 'Performance (أداء)', count: null, countColor: '' },
         ].map(tab => (
           <button
             key={tab.id}

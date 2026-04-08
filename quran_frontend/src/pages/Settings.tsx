@@ -153,7 +153,7 @@ export default function Settings() {
                 Version
               </span>
               <span className={`font-mono font-medium ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-                v1.10.0
+                v2.0.0
               </span>
             </div>
 
@@ -326,21 +326,7 @@ export default function Settings() {
             </span>
           </div>
 
-          {/* Role */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <span className={`text-sm font-medium w-32 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Role
-            </span>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              user?.role === 'teacher'
-                ? darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
-                : darkMode ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700'
-            }`}>
-              {user?.role === 'teacher' ? 'Teacher' : 'Student'}
-            </span>
-          </div>
-
-          {/* Student ID */}
+          {/* User ID */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <span className={`text-sm font-medium w-32 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Student ID

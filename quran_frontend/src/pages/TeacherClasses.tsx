@@ -3,9 +3,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
-import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion } from '../api';
+import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion, ContactListItem } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
-import { JUZ_BOUNDARIES } from '../lib/quran-utils';
+import { JUZ_BOUNDARIES, formatPortionLabel } from '../lib/quran-utils';
 import { ReportPanel } from '../components/teacher-classes';
 
 interface SurahInfo {
@@ -413,9 +413,11 @@ export default function TeacherClasses() {
   const { darkMode } = useTheme();
   const { user } = useAuth();
   const [, setClasses] = useState<ClassData[]>([]);
+  const [recitingClasses, setRecitingClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'listening' | 'reciting'>('listening');
 
   // Modal state
   const [showNewClassModal, setShowNewClassModal] = useState(false);
@@ -517,18 +519,25 @@ export default function TeacherClasses() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function refreshData() {
-    try {
-      const [classesData, studentsData, surahsData] = await Promise.all([
-        getClasses(),
-        getMyStudents(),
-        getSurahs()
-      ]);
-      setClasses(classesData);
-      setStudents(studentsData);
-      setSurahList(surahsData);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    }
+    // Load each independently so one failure doesn't break everything
+    const [classesResult, reciterResult, studentsResult, surahsResult] = await Promise.allSettled([
+      getClasses('listener'),
+      getClasses('reciter'),
+      getMyStudents(),
+      getSurahs()
+    ]);
+
+    if (classesResult.status === 'fulfilled') setClasses(classesResult.value);
+    else console.error('Failed to load listener classes:', classesResult.reason);
+
+    if (reciterResult.status === 'fulfilled') setRecitingClasses(reciterResult.value);
+    else console.error('Failed to load reciter classes:', reciterResult.reason);
+
+    if (studentsResult.status === 'fulfilled') setStudents(studentsResult.value);
+    else console.error('Failed to load students:', studentsResult.reason);
+
+    if (surahsResult.status === 'fulfilled') setSurahList(surahsResult.value);
+    else console.error('Failed to load surahs:', surahsResult.reason);
   }
 
   useEffect(() => {
@@ -709,7 +718,7 @@ export default function TeacherClasses() {
 
       if (result.id) {
         resetModal();
-        navigate(`/teacher/classes/${result.id}`);
+        navigate(`/sessions/${result.id}`);
       } else if ('detail' in result) {
         alert('Error: ' + (result as { detail: string }).detail);
       }
@@ -740,8 +749,8 @@ export default function TeacherClasses() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Classes</h1>
-          <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Manage all your teaching sessions</p>
+          <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Sessions</h1>
+          <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>Manage your listening and reciting sessions</p>
         </div>
         <div className="flex items-center gap-3 self-start sm:self-auto flex-shrink-0">
           <button
@@ -762,48 +771,87 @@ export default function TeacherClasses() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
+          {activeTab === 'listening' && (
+            <button
+              onClick={() => setShowNewClassModal(true)}
+              className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              New Session
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Listening / Reciting Tabs */}
+      <div className={`flex gap-2 p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
         <button
-          onClick={() => setShowNewClassModal(true)}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+          onClick={() => setActiveTab('listening')}
+          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'listening'
+              ? 'bg-cyan-600 text-white shadow-md'
+              : darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-200'
+          }`}
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          New Class
+          Listening (مستمع)
         </button>
-        </div>
+        <button
+          onClick={() => setActiveTab('reciting')}
+          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'reciting'
+              ? 'bg-amber-500 text-white shadow-md'
+              : darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          Reciting (قارئ)
+        </button>
       </div>
 
-      {/* Student Selector */}
-      <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-slate-200'}`}>
-        <div className="flex items-center gap-3">
-          <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Student</span>
-          <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
-            {students.map(s => (
-              <button
-                key={s.id}
-                onClick={() => setSelectedStudentFilter(s.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedStudentFilter === s.id
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                }`}
-              >
-                {s.first_name}
-              </button>
-            ))}
-            {students.length === 0 && (
-              <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>No students added yet</span>
-            )}
+      {/* Listening Tab: Student selector + Report */}
+      {activeTab === 'listening' && (
+        <>
+          {/* Student Selector */}
+          <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-slate-200'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>Contact</span>
+              <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
+                {students.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelectedStudentFilter(s.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                      selectedStudentFilter === s.id
+                        ? 'bg-cyan-600 text-white shadow-lg'
+                        : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    }`}
+                  >
+                    {s.first_name}
+                  </button>
+                ))}
+                {students.length === 0 && (
+                  <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-400'}`}>No contacts added yet</span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Report content for selected student */}
-      {selectedStudentFilter && (
+          {/* Report content for selected student */}
+          {selectedStudentFilter && (
+            <ReportPanel
+              key={selectedStudentFilter}
+              studentId={selectedStudentFilter}
+            />
+          )}
+        </>
+      )}
+
+      {/* Reciting Tab: Full report for the current user (they are the reciter) */}
+      {activeTab === 'reciting' && user?.id && (
         <ReportPanel
-          key={selectedStudentFilter}
-          studentId={selectedStudentFilter}
+          key={`reciter-${user.id}`}
+          studentId={user.id}
         />
       )}
 

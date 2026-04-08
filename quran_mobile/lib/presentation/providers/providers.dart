@@ -18,10 +18,9 @@ import '../../data/models/suggested_portions.dart';
 import '../../data/models/app_user.dart';
 import 'auth_provider.dart';
 
-// View mode provider — lets teachers switch between Teacher/Student view
+// View mode provider — v2.0.0: always defaults to teacher (listener) since everyone can create sessions
 final viewModeProvider = StateProvider<UserRole>((ref) {
-  final auth = ref.watch(authProvider);
-  return auth.user?.role ?? UserRole.student;
+  return UserRole.teacher; // Everyone starts in listener mode
 });
 
 // Core providers
@@ -152,7 +151,7 @@ final teacherClassDatesProvider = FutureProvider<List<String>>((ref) async {
   final response = await supabase
       .from('classes')
       .select('date')
-      .eq('teacher_id', user.id)
+      .or('teacher_id.eq.${user.id},listener_id.eq.${user.id}')
       .order('date', ascending: false);
 
   return (response as List).map((row) => (row['date'] as String?) ?? '').toList();
@@ -172,7 +171,7 @@ final classStudentNamesProvider = FutureProvider<Map<String, List<String>>>((ref
       .inFilter('class_id', (await supabase
           .from('classes')
           .select('id')
-          .eq('teacher_id', user.id)).map((r) => r['id'].toString()).toList());
+          .or('teacher_id.eq.${user.id},listener_id.eq.${user.id}')).map((r) => r['id'].toString()).toList());
 
   final map = <String, List<String>>{};
   for (final row in (response as List)) {
@@ -397,7 +396,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
       await supabase
           .from('classes')
           .update({'is_published': true})
-          .eq('teacher_id', teacherId)
+          .or('teacher_id.eq.$teacherId,listener_id.eq.$teacherId')
           .or('is_published.is.null,is_published.eq.false');
     } catch (e) {
       debugPrint('[ClassesNotifier] _fixUnpublishedClasses: $e');
@@ -449,6 +448,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
       // Insert class to Supabase
       final classResponse = await supabase.from('classes').insert({
         'teacher_id': teacherId,
+        'listener_id': teacherId,
         'date': localClass.date,
         'day': localClass.day,
         'notes': localClass.notes,
@@ -1052,13 +1052,6 @@ final statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
     return {'totalClasses': 0, 'totalMistakes': 0, 'repeatedMistakes': 0};
   }
 
-  // In Student View, teacher has no own mistakes — return empty stats
-  final viewMode = ref.watch(viewModeProvider);
-  final isActualTeacher = user.role == UserRole.teacher;
-  if (isActualTeacher && viewMode == UserRole.student) {
-    return {'totalClasses': 0, 'totalMistakes': 0, 'repeatedMistakes': 0};
-  }
-
   final mistakeRepo = ref.watch(mistakeRepositoryProvider);
   return mistakeRepo.getStats();
 });
@@ -1069,11 +1062,6 @@ final topMistakesProvider = FutureProvider<List<Mistake>>((ref) async {
   final user = ref.read(authProvider).user;
   if (user == null) return [];
 
-  // In Student View, teacher has no own mistakes
-  final viewMode = ref.watch(viewModeProvider);
-  final isActualTeacher = user.role == UserRole.teacher;
-  if (isActualTeacher && viewMode == UserRole.student) return [];
-
   final mistakeRepo = ref.watch(mistakeRepositoryProvider);
   return mistakeRepo.getTopRepeatedMistakes(limit: 10);
 });
@@ -1083,11 +1071,6 @@ final topMistakesProvider = FutureProvider<List<Mistake>>((ref) async {
 final mistakeCountsBySurahProvider = FutureProvider<Map<int, int>>((ref) async {
   final user = ref.read(authProvider).user;
   if (user == null) return {};
-
-  // In Student View, teacher has no own mistakes
-  final viewMode = ref.watch(viewModeProvider);
-  final isActualTeacher = user.role == UserRole.teacher;
-  if (isActualTeacher && viewMode == UserRole.student) return {};
 
   final mistakeRepo = ref.watch(mistakeRepositoryProvider);
   return mistakeRepo.getMistakeCountsBySurah();

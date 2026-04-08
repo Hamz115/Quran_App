@@ -62,8 +62,8 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role?: 'teacher' | 'student';
-  is_verified: boolean;
+  role?: 'teacher' | 'student' | null;  // Legacy, no longer used for access control
+  is_verified: boolean;  // Legacy, always true now
   created_at: string;
 }
 
@@ -80,7 +80,7 @@ export interface TokenResponse {
   token_type: string;
 }
 
-export interface StudentListItem {
+export interface ContactListItem {
   id: string;  // UUID
   student_id: string;
   first_name: string;
@@ -89,17 +89,17 @@ export interface StudentListItem {
   added_at: string;
 }
 
-export interface TeacherListItem {
-  id: string;  // UUID
-  first_name: string;
-  last_name: string;
-  added_at: string;
-}
+// Legacy aliases
+export type StudentListItem = ContactListItem;
+export type TeacherListItem = ContactListItem;
 
-export interface StudentLookup {
+export interface ContactLookup {
   student_id: string;
   email: string;
   first_name: string;
   last_name: string;
   display_name: string;
 }
+
+// Legacy alias
+export type StudentLookup = ContactLookup;

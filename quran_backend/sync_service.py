@@ -205,12 +205,12 @@ def push_pending_classes(supabase_user_id: str) -> Dict[str, int]:
         try:
             remote_data = {
                 "teacher_id": supabase_user_id,
+                "listener_id": supabase_user_id,  # Dual-write for v2.0
                 "date": class_data["date"],
                 "day": class_data["day"],
                 "notes": class_data.get("notes"),
                 "performance": class_data.get("performance"),
-                "is_published": bool(class_data.get("is_published", 0)),
-                "class_type": class_data.get("class_type", "regular"),
+                "is_published": True,  # All sessions visible now
             }
 
             if supabase_id:
@@ -240,8 +240,9 @@ def push_pending_classes(supabase_user_id: str) -> Dict[str, int]:
                     last_synced_at = ?
                 WHERE id = ?
             """, (supabase_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
-            # Sync assignments for this class
+            # Sync assignments and students for this class
             push_class_assignments(conn, supabase, local_id, supabase_id)
+            push_class_students(conn, supabase, local_id, supabase_id)
         else:
             conn.execute("UPDATE classes SET sync_status = 'error' WHERE id = ?", (local_id,))
     conn.commit()
@@ -285,6 +286,28 @@ def push_class_assignments(conn, supabase: Client, local_class_id: int, supabase
 
         except Exception as e:
             print(f"Error syncing assignment {local_id}: {e}")
+
+
+def push_class_students(conn, supabase: Client, local_class_id: int, supabase_class_id: str):
+    """Push class_students enrollments for a class to Supabase."""
+    cursor = conn.execute("""
+        SELECT student_id FROM class_students WHERE class_id = ?
+    """, (local_class_id,))
+
+    for row in cursor.fetchall():
+        student_id = row["student_id"] if isinstance(row, dict) else row[0]
+        try:
+            # Check if already exists
+            existing = supabase.table("class_students").select("id").eq(
+                "class_id", supabase_class_id
+            ).eq("student_id", student_id).execute()
+            if not existing.data:
+                supabase.table("class_students").insert({
+                    "class_id": supabase_class_id,
+                    "student_id": student_id,
+                }).execute()
+        except Exception as e:
+            print(f"Error syncing class_student {local_class_id}/{student_id}: {e}")
 
 
 def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
@@ -342,7 +365,7 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
             sync_results.append((local_id, None, False))
             results["errors"] += 1
 
-    # Step 3: Reopen connection briefly to update sync statuses
+    # Step 3: Reopen connection briefly to update sync statuses and sync occurrences
     conn = get_app_db()
     for local_id, supabase_id, success in sync_results:
         if success:
@@ -354,11 +377,42 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
                     last_synced_at = ?
                 WHERE id = ?
             """, (supabase_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
+            # Sync mistake_occurrences for this mistake
+            push_mistake_occurrences(conn, supabase, local_id, supabase_id)
         else:
             conn.execute("UPDATE mistakes SET sync_status = 'error' WHERE id = ?", (local_id,))
     conn.commit()
     conn.close()
     return results
+
+
+def push_mistake_occurrences(conn, supabase: Client, local_mistake_id: int, supabase_mistake_id: str):
+    """Push mistake_occurrences for a mistake to Supabase."""
+    cursor = conn.execute("""
+        SELECT mo.class_id, mo.occurred_at, c.supabase_id as class_supabase_id
+        FROM mistake_occurrences mo
+        LEFT JOIN classes c ON mo.class_id = c.id
+        WHERE mo.mistake_id = ?
+    """, (local_mistake_id,))
+
+    for row in cursor.fetchall():
+        occ = dict(row)
+        class_supabase_id = occ.get("class_supabase_id")
+        if not class_supabase_id:
+            continue  # Class not yet synced, skip this occurrence
+
+        try:
+            # Check if this occurrence already exists
+            existing = supabase.table("mistake_occurrences").select("id").eq(
+                "mistake_id", supabase_mistake_id
+            ).eq("class_id", class_supabase_id).execute()
+            if not existing.data:
+                supabase.table("mistake_occurrences").insert({
+                    "mistake_id": supabase_mistake_id,
+                    "class_id": class_supabase_id,
+                }).execute()
+        except Exception as e:
+            print(f"Error syncing mistake_occurrence {local_mistake_id}/{class_supabase_id}: {e}")
 
 
 # ============ PULL: Supabase → Local ============
@@ -501,7 +555,7 @@ def full_sync(supabase_user_id: str, user_role: str = "student") -> Dict[str, An
 
     Args:
         supabase_user_id: The Supabase UUID of the logged-in user
-        user_role: 'teacher' or 'student' - determines what to sync
+        user_role: Legacy param, ignored — all users sync everything now
     """
     results = {
         "profiles": {},
@@ -513,9 +567,8 @@ def full_sync(supabase_user_id: str, user_role: str = "student") -> Dict[str, An
     # Always sync profiles first (one-way from Supabase)
     results["profiles"] = pull_profiles()
 
-    # Sync teacher-student relationships if teacher
-    if user_role == "teacher":
-        results["teacher_students"] = pull_teacher_students(supabase_user_id)
+    # Always sync contacts (no role check — everyone can have contacts)
+    results["teacher_students"] = pull_teacher_students(supabase_user_id)
 
     # Push local changes first
     results["push"]["classes"] = push_pending_classes(supabase_user_id)
@@ -537,9 +590,9 @@ def mark_for_sync(table: str, local_id: int, supabase_user_id: str):
     if table == "classes":
         conn.execute("""
             UPDATE classes
-            SET sync_status = 'pending', supabase_teacher_id = ?, updated_at = ?
+            SET sync_status = 'pending', supabase_teacher_id = ?, supabase_listener_id = ?, updated_at = ?
             WHERE id = ?
-        """, (supabase_user_id, datetime.utcnow().isoformat(), local_id))
+        """, (supabase_user_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
     elif table == "mistakes":
         conn.execute("""
             UPDATE mistakes

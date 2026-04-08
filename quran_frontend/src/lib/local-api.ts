@@ -97,9 +97,8 @@ export interface SyncStatus {
   synced: boolean;
 }
 
-export async function triggerSync(role?: 'teacher' | 'student'): Promise<{ message: string; user_id: string; role: string }> {
-  const params = role ? `?role=${role}` : '';
-  return apiCall(`/api/sync${params}`, { method: 'POST' });
+export async function triggerSync(): Promise<{ message: string; user_id: string; role: string }> {
+  return apiCall('/api/sync', { method: 'POST' });
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -136,8 +135,8 @@ export async function createLocalClass(classData: {
  * Get classes from local FastAPI sidecar.
  * Returns same shape as Supabase getClasses: ClassData[]
  */
-export async function getLocalClasses(role?: 'teacher' | 'student'): Promise<ClassData[]> {
-  const params = role ? `?role=${role}` : '';
+export async function getLocalClasses(view?: 'listener' | 'reciter' | 'all'): Promise<ClassData[]> {
+  const params = view ? `?view=${view}` : '';
   return apiCall(`/api/local/classes${params}`);
 }
 
