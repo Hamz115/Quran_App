@@ -10,7 +10,6 @@ import {
   isTourCompleted,
   markTourCompleted,
   setTourClassId,
-  getTourClassId,
   clearTourClassId,
 } from '../lib/tour';
 
@@ -263,8 +262,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
     }
 
     const targetRoute = screenToRoute(stepDef.screen, classId || undefined);
-    const currentPath = window.location.pathname + window.location.search;
-
     // For sessions, check just the pathname
     const currentPathOnly = window.location.pathname;
     const targetPathOnly = targetRoute.split('?')[0];

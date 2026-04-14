@@ -323,7 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string;
     username: string;
     password: string;
-    role: 'teacher' | 'student';
+    role?: 'teacher' | 'student';
   }) => {
     // Clear storage first
     console.log('AuthContext: Signup - clearing storage first');

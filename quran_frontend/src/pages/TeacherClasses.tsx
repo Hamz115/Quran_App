@@ -3,9 +3,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
-import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion, ContactListItem } from '../api';
+import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
-import { JUZ_BOUNDARIES, formatPortionLabel } from '../lib/quran-utils';
+import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { ReportPanel } from '../components/teacher-classes';
 
 interface SurahInfo {
@@ -413,7 +413,7 @@ export default function TeacherClasses() {
   const { darkMode } = useTheme();
   const { user } = useAuth();
   const [, setClasses] = useState<ClassData[]>([]);
-  const [recitingClasses, setRecitingClasses] = useState<ClassData[]>([]);
+  const [, setRecitingClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
   const [loading, setLoading] = useState(true);

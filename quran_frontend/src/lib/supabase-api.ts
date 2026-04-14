@@ -4,14 +4,9 @@
 // Uses local-first caching for instant loading
 
 import { supabase } from './supabase';
-import { cacheFirst, invalidateCache, saveToCache, getFromCache } from './cache';
+import { cacheFirst, invalidateCache } from './cache';
 import { surahNames } from './quran-utils';
-import type { ContactListItem, ContactLookup, ContactListItem as ListenerListItem } from '../types';
-
-// Legacy type aliases for backward compatibility
-type StudentListItem = ContactListItem;
-type StudentLookup = ContactLookup;
-type TeacherListItem = ContactListItem;
+import type { ContactListItem, ContactLookup } from '../types';
 
 // Cache keys
 const CACHE_KEYS = {
@@ -192,8 +187,10 @@ async function fetchListenersFromSupabase(): Promise<ContactListItem[]> {
     const nameParts = teacher.name.split(' ');
     return {
       id: teacher.id,
+      student_id: teacher.id,
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
+      email: '',
       added_at: row.created_at,
     };
   });
