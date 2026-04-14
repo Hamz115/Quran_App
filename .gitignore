@@ -67,3 +67,6 @@ quran_frontend/src-tauri/gen/
 quran_frontend/~/.tauri/
 *.key
 *.key.pub
+
+# Syncthing
+.stfolder/
