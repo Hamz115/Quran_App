@@ -305,6 +305,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     final targets = <TargetFocus>[];
     final totalSteps = allSteps.length;
 
+    final screenSize = MediaQuery.of(context).size;
+
     for (int i = fromIndex; i <= toIndex; i++) {
       final step = allSteps[i];
       final isFullOverlay = step.targetKey == null;
@@ -313,15 +315,16 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         TargetFocus(
           identify: 'step_$i',
           keyTarget: isFullOverlay ? null : step.targetKey,
+          // For full-overlay steps (welcome/farewell), make the "spotlight"
+          // span the entire screen so nothing is dimmed — the tooltip card
+          // stands out via its own styling and the user keeps context of
+          // the app UI behind it.
           targetPosition: isFullOverlay
-              ? TargetPosition(const Size(1, 1), Offset(
-                  MediaQuery.of(context).size.width / 2,
-                  MediaQuery.of(context).size.height / 2,
-                ))
+              ? TargetPosition(screenSize, Offset.zero)
               : null,
-          shape: isFullOverlay ? ShapeLightFocus.Circle : ShapeLightFocus.RRect,
+          shape: ShapeLightFocus.RRect,
           radius: isFullOverlay ? 0 : 8,
-          paddingFocus: 8,
+          paddingFocus: isFullOverlay ? 0 : 8,
           contents: [
             TargetContent(
               align: _getContentAlign(step.position),
@@ -349,9 +352,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
     TutorialCoachMark(
       targets: targets,
+      // Lighter overlay so surrounding app context stays visible behind
+      // the spotlight — a "blank dark screen" is bad UX.
       colorShadow: isDarkMode
-          ? const Color(0xBF000000) // 75% opacity black
-          : const Color(0x99000000), // 60% opacity black
+          ? const Color(0x80000000) // 50% opacity black
+          : const Color(0x73000000), // ~45% opacity black
       opacityShadow: 1.0,
       hideSkip: true, // We use our own skip button in the tooltip
       onFinish: () {

@@ -1,30 +1,44 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:quran_mobile/main.dart';
+import 'package:quran_mobile/presentation/widgets/tour_tooltip.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('TourTooltip renders tutorial content and advances', (
+    WidgetTester tester,
+  ) async {
+    var nextTapped = false;
+    var skipTapped = false;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TourTooltip(
+            title: 'Welcome to QuranTrack!',
+            description: 'Track recitation mistakes and manage sessions.',
+            currentStep: 0,
+            totalSteps: 9,
+            isDarkMode: true,
+            isLastStep: false,
+            onNext: () => nextTapped = true,
+            onSkip: () => skipTapped = true,
+          ),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    expect(find.text('Step 1 of 9'), findsOneWidget);
+    expect(find.text('Welcome to QuranTrack!'), findsOneWidget);
+    expect(find.text('Track recitation mistakes and manage sessions.'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
     await tester.pump();
+    expect(nextTapped, isTrue);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Skip'));
+    await tester.pump();
+    expect(skipTapped, isTrue);
   });
 }
