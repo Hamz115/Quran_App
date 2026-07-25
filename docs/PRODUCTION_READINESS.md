@@ -2,7 +2,7 @@
 
 **Generated:** 3 February 2026
 **Last Updated:** 25 July 2026
-**Status:** v2.1.0 stabilization in progress — live contact/security migration verified; listener/reciter schema v3 drafted but not applied live
+**Status:** v2.1.0 release-candidate stabilization — live listener/reciter schema v3 applied; web and Android canonical workflows verified
 
 ---
 
@@ -10,8 +10,9 @@
 
 ### Current Stabilization Notes
 - The live contact lookup/security migration has been applied and verified on Supabase.
-- Listener/reciter schema terminology migration is staged locally in `docs/supabase_listener_reciter_schema_v3.sql`; it has been audited/corrected for `classes.teacher_id` compatibility but must not be applied live until the updated clients are validated.
-- React/Tauri and backend checks pass locally. Flutter validation was completed over SSH on Hamza's laptop: targeted migration analysis reports no issues and all 8 Flutter tests pass.
+- Listener/reciter schema v3 is live. Canonical tables, columns, functions, RLS policies, read-only `security_invoker` compatibility views, row preservation, and integrity checks were verified.
+- React and Flutter clients completed pre-v3 and post-v3 runtime workflows. Android validation covered contact lookup, UUID session creation, page 590 / Al-Inshiqaq `84:25`, mistake capture, notes, ratings, reports, restart persistence, and cross-client synchronization.
+- React production build and backend migration tests pass. Flutter targeted analysis reports no new compile errors, and the complete Flutter test suite passes after the final cache-invalidation patch.
 
 ### Core Functionality (Strong)
 - **QPC Font Rendering** - Pixel-perfect Madani Mushaf display on web AND Flutter mobile (Phase 13.4)
@@ -60,20 +61,22 @@
 
 ---
 
-### 2. **Flutter Mobile Data Sync** (LOW PRIORITY — desktop is primary)
-**Status:** Auth works, some Supabase queries on web build, but native mobile sync incomplete
-**Impact:** Mobile app is functional but not fully synced with cloud
+### 2. **Flutter Mobile Data Sync** (MEDIUM PRIORITY)
+**Status:** Core native synchronization is implemented and live-v3 verified
+**Impact:** Classes, assignments, contacts, mistakes, occurrences, notes, ratings, and reports synchronize across Android and React clients
 
-**Missing:**
-- Sync classes to/from Supabase on native mobile
-- Sync mistakes to/from Supabase on native mobile
-- Conflict resolution
-- Offline queue
-- Background sync service
+**Verified:**
+- canonical v3 contact and session reads/writes;
+- UUID-backed class navigation;
+- local-first mistake capture with cloud occurrence writes;
+- force-stop/relaunch persistence;
+- Android-to-web report synchronization.
 
-**Note:** With the desktop app (Tauri) now the primary distribution target, Flutter mobile sync drops in priority. The desktop app uses the FastAPI backend directly with Supabase sync built in. Mobile sync can be revisited when mobile distribution is prioritized.
-
-**Estimate:** 5-7 days (when prioritized)
+**Remaining hardening:**
+- deterministic conflict resolution for simultaneous edits;
+- durable offline retry/queue observability;
+- user-facing sync failure status and recovery controls;
+- broader long-duration background/offline testing.
 
 ---
 

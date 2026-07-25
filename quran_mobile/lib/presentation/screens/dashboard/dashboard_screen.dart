@@ -52,6 +52,7 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(mistakeCountsBySurahProvider);
             ref.read(classesProvider.notifier).loadClasses();
             ref.invalidate(enrolledClassesProvider);
+            ref.invalidate(teacherStudentsProvider);
             ref.invalidate(teacherClassDatesProvider);
             ref.invalidate(classStudentNamesProvider);
           },

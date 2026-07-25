@@ -18,6 +18,7 @@ import '../../data/models/assignment.dart';
 import '../../data/models/suggested_portions.dart';
 import '../../data/models/app_user.dart';
 import 'auth_provider.dart';
+import 'report_provider.dart';
 
 // View mode provider — v2.0.0: always defaults to teacher (listener) since everyone can create sessions
 final viewModeProvider = StateProvider<UserRole>((ref) {
@@ -585,8 +586,10 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
         );
       }
 
-      // Reload to pick up supabase_id
+      // Reload to pick up supabase_id and expire any report that may already
+      // be cached for the linked reciters.
       await loadClasses();
+      _ref.invalidate(studentReportProvider);
       return supabaseClassId;
     } catch (e) {
       debugPrint('[ClassesNotifier] class push failed: $e');
@@ -767,6 +770,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
       try {
         final supabase = Supabase.instance.client;
         await supabase.from('classes').update({'notes': notes}).eq('id', sbId);
+        _ref.invalidate(studentReportProvider);
       } catch (e) {
         debugPrint('[ClassesNotifier] background updateNotes failed: $e');
       }
@@ -785,6 +789,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
       try {
         final supabase = Supabase.instance.client;
         await supabase.from('classes').update({'performance': performance}).eq('id', sbId);
+        _ref.invalidate(studentReportProvider);
       } catch (e) {
         debugPrint('[ClassesNotifier] background updatePerformance failed: $e');
       }
@@ -1047,8 +1052,10 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
         }
       }
 
-      // Reload to pick up supabase_id
+      // Reload to pick up supabase_id and expire cached Supabase reports only
+      // after the remote mistake and occurrence writes have completed.
       await loadMistakes();
+      _ref.invalidate(studentReportProvider);
     } catch (e) {
       debugPrint('[MistakesNotifier] background push mistake failed: $e');
       // Mistake is still saved locally — will sync on next periodic sync
@@ -1072,6 +1079,7 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
       try {
         final supabase = Supabase.instance.client;
         await supabase.from('mistakes').delete().eq('id', sbId);
+        _ref.invalidate(studentReportProvider);
       } catch (e) {
         debugPrint('[MistakesNotifier] background removeMistake failed: $e');
       }

@@ -28,6 +28,10 @@ BEGIN
   END IF;
 END $$;
 
+-- Drop policies that depend on legacy helper functions before replacing them.
+-- PostgreSQL otherwise blocks DROP FUNCTION even inside this transaction.
+DROP POLICY IF EXISTS "Teachers can manage class students" ON public.class_students;
+
 -- Drop functions whose SQL bodies use legacy names. They are recreated below.
 DROP FUNCTION IF EXISTS public.lookup_profile_by_email(text);
 DROP FUNCTION IF EXISTS public.is_class_teacher(uuid);
