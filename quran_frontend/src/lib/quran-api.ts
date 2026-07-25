@@ -1,7 +1,7 @@
 // Quran API functions - Local FastAPI endpoints
 // These stay local because Quran data is bundled with the app
 
-const QURAN_API_BASE = 'http://localhost:8000/api';
+const QURAN_API_BASE = (import.meta.env.VITE_QURAN_API_BASE || 'http://localhost:8000/api').replace(/\/$/, '');
 
 // QPC v2 word data
 export interface QuranPageWord {

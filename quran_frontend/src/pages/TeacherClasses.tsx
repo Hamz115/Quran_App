@@ -8,6 +8,7 @@ import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion } 
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
 import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { ReportPanel } from '../components/teacher-classes';
+import { invalidateCache } from '../lib/cache';
 
 interface SurahInfo {
   number: number;
@@ -759,6 +760,8 @@ export default function TeacherClasses() {
           <button
             onClick={async () => {
               setRefreshing(true);
+              invalidateCache('classes');
+              invalidateCache('contacts');
               await refreshData();
               setRefreshing(false);
             }}

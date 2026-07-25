@@ -576,10 +576,9 @@ export async function createClass(classData: {
 
     await runWithLegacyFallback<unknown>(
       () => (supabase as any).from('assignments').insert(assignments as any),
-      () => (supabase as any).from('assignments').insert(assignments.map(a => ({
-        ...a,
-        student_id: a.reciter_id,
-        reciter_id: undefined,
+      () => (supabase as any).from('assignments').insert(assignments.map(({ reciter_id, ...assignment }) => ({
+        ...assignment,
+        student_id: reciter_id,
       })) as any),
     );
   }
@@ -677,10 +676,9 @@ export async function addClassAssignments(classId: string, assignments: Array<{
 
   await runWithLegacyFallback<unknown>(
     () => (supabase as any).from('assignments').insert(rows as any),
-    () => (supabase as any).from('assignments').insert(rows.map(row => ({
+    () => (supabase as any).from('assignments').insert(rows.map(({ reciter_id, ...row }) => ({
       ...row,
-      student_id: row.reciter_id,
-      reciter_id: undefined,
+      student_id: reciter_id,
     })) as any),
   );
 

@@ -5,6 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 SQL_PATH = ROOT / "docs" / "supabase_listener_reciter_schema_v3.sql"
+SUPABASE_API_PATH = ROOT / "quran_frontend" / "src" / "lib" / "supabase-api.ts"
 
 
 class ListenerReciterSchemaSqlTest(unittest.TestCase):
@@ -35,6 +36,15 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
     def test_legacy_compatibility_views_respect_underlying_rls(self):
         sql = self.sql
         self.assertEqual(sql.count("WITH (security_invoker = true) AS"), 2)
+
+    def test_v2_assignment_fallback_omits_canonical_column(self):
+        api_source = SUPABASE_API_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("reciter_id: undefined", api_source)
+        self.assertGreaterEqual(
+            api_source.count("map(({ reciter_id, ..."),
+            2,
+            "Both assignment write fallbacks must remove reciter_id before PostgREST infers columns",
+        )
 
 
 if __name__ == "__main__":

@@ -224,6 +224,7 @@ export default function Classroom() {
   const [currentPage, setCurrentPage] = useState<number>(560);
   const [pageData, setPageData] = useState<QuranPageData | null>(null);
   const [pageLoading, setPageLoading] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [fontLoaded, setFontLoaded] = useState(false);
 
   // Word popup state
@@ -276,12 +277,17 @@ export default function Classroom() {
 
     const loadPage = async () => {
       setPageLoading(true);
+      setPageError(null);
+      setPageData(null);
       try {
         const data = await getQuranPage(currentPage);
         if (!isMounted) return;
         setPageData(data);
       } catch (err) {
         console.error('Failed to load page:', err);
+        if (isMounted) {
+          setPageError(err instanceof Error ? err.message : 'Failed to load Quran page');
+        }
       } finally {
         if (isMounted) setPageLoading(false);
       }
@@ -1093,7 +1099,14 @@ export default function Classroom() {
               {/* Page Content */}
               <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 1, padding: '4% 6%' }}>
 
-              {(pageLoading || !fontLoaded || !pageData) ? (
+              {pageError ? (
+                <div className="flex items-center justify-center h-full px-6">
+                  <div className="text-center text-red-700">
+                    <p className="font-semibold">Unable to load page {currentPage}</p>
+                    <p className="mt-1 text-sm">{pageError}</p>
+                  </div>
+                </div>
+              ) : (pageLoading || !fontLoaded || !pageData) ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="spinner mb-2"></div>
