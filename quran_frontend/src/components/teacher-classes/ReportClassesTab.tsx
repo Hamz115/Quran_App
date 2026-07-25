@@ -147,10 +147,10 @@ function ClassRow({
             <div className="flex gap-6 p-3.5 rounded-lg">
               <div className="flex-[2]">
                 <div className={`text-[11px] font-semibold uppercase tracking-wide mb-2 ${textMuted}`}>
-                  Mistakes in this class
+                  Mistakes in this session
                 </div>
                 {cls.mistakes.length === 0 ? (
-                  <p className={`text-xs ${textSecondary}`}>No mistakes recorded for this class</p>
+                  <p className={`text-xs ${textSecondary}`}>No mistakes recorded for this session</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {cls.mistakes.map((m, i) => (
@@ -172,7 +172,7 @@ function ClassRow({
               </div>
               <div className="flex-1">
                 <div className={`text-[11px] font-semibold uppercase tracking-wide mb-2 ${textMuted}`}>
-                  Teacher Notes
+                  Listener Notes
                 </div>
                 {cls.notes ? (
                   <div className={`text-xs italic leading-relaxed p-3 rounded-md border-l-[3px] ${

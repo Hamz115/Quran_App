@@ -17,7 +17,7 @@ class ReportSummaryStrip extends ConsumerWidget {
     final isDark = ref.watch(themeProvider);
 
     final stats = [
-      _Stat('Classes', summary.totalClasses.toString(), AppColors.cyan400),
+      _Stat('Sessions', summary.totalClasses.toString(), AppColors.cyan400),
       _Stat('Mistakes', summary.totalMistakes.toString(), null),
       _Stat('Unique', summary.uniqueMistakes.toString(), null),
       _Stat('Repeated', summary.repeatedMistakes.toString(), const Color(0xFFF87171)),

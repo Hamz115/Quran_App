@@ -296,7 +296,7 @@ class _StatsCards extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 label: 'Current Streak',
-                value: '${stats.currentStreak} classes',
+                value: '${stats.currentStreak} sessions',
                 subtitle: 'Very Good or above',
                 valueColor: const Color(0xFF4ADE80), // green-400
                 isDark: isDark,
@@ -306,7 +306,7 @@ class _StatsCards extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 label: 'Best Streak',
-                value: '${stats.bestStreak} classes',
+                value: '${stats.bestStreak} sessions',
                 subtitle: stats.bestStreakRange.isNotEmpty ? stats.bestStreakRange : 'N/A',
                 valueColor: AppColors.cyan400,
                 isDark: isDark,
@@ -423,7 +423,7 @@ class _MistakesPerClassCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'MISTAKES / CLASS',
+            'MISTAKES / SESSION',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,

@@ -39,7 +39,7 @@ export default function ProtectedRoute({ children, requireVerified = false }: Pr
           </div>
           <h2 className="text-xl font-bold text-slate-100 mb-2">Verification Required</h2>
           <p className="text-slate-400 mb-6">
-            You need to verify your email to access Teacher features. Check your email for a verification link.
+            You need to verify your email to access listener features. Check your email for a verification link.
           </p>
           <button
             onClick={() => window.location.href = '/'}

@@ -728,7 +728,7 @@ export default function TeacherClasses() {
       }
     } catch (err) {
       console.error('Error creating class:', err);
-      alert('Error creating class: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      alert('Error creating session: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setCreating(false);
     }
@@ -743,7 +743,7 @@ export default function TeacherClasses() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-slate-400">Loading classes...</div>
+        <div className="text-slate-400">Loading sessions...</div>
       </div>
     );
   }
@@ -861,7 +861,7 @@ export default function TeacherClasses() {
         />
       )}
 
-      {/* New Class Modal */}
+      {/* New session modal */}
       {showNewClassModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className={`rounded-2xl border w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
@@ -869,7 +869,7 @@ export default function TeacherClasses() {
             <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
               <div>
                 <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {modalStep === 1 ? 'Select Students' : 'Configure Portions'}
+                  {modalStep === 1 ? 'Select Reciters' : 'Configure Portions'}
                 </h2>
                 <p className={`text-sm mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Step {modalStep} of 2
@@ -885,12 +885,12 @@ export default function TeacherClasses() {
             {/* Modal Body */}
             <div ref={modalBodyRef} className="p-6 overflow-y-auto flex-1">
               {modalStep === 1 ? (
-                /* Step 1: Select Students */
+                /* Step 1: Select reciters */
                 <div className="space-y-4">
                   {/* Date Picker */}
                   <div data-tour="class-date">
                     <label className={`block text-sm font-medium mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                      Class Date
+                      Session Date
                     </label>
                     <input
                       type="date"
@@ -911,12 +911,12 @@ export default function TeacherClasses() {
                   {/* Student Selection */}
                   <div data-tour="student-selector">
                   <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Select students for this class
+                    Select reciters for this session
                   </label>
                   {students.length === 0 ? (
                     <div className={`p-6 rounded-xl text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
-                      <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>No students added yet</p>
-                      <p className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Add students from the Dashboard first</p>
+                      <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>No reciters added yet</p>
+                      <p className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Add contacts from the Dashboard first</p>
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -960,7 +960,7 @@ export default function TeacherClasses() {
                 <div className="space-y-4">
                   <div className={`p-3 rounded-lg flex items-center gap-2 ${darkMode ? 'bg-slate-700/50' : 'bg-slate-100'}`}>
                     <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {'Class'} with: <span className={`font-medium ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{selectedStudentNames}</span>
+                      {'Session'} with: <span className={`font-medium ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{selectedStudentNames}</span>
                     </p>
                   </div>
 
@@ -980,7 +980,7 @@ export default function TeacherClasses() {
                               : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
                           }`}
                         >
-                          Same for all students
+                          Same for all reciters
                         </button>
                         <button
                           type="button"
@@ -994,7 +994,7 @@ export default function TeacherClasses() {
                               : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
                           }`}
                         >
-                          Different per student
+                          Different per reciter
                         </button>
                       </div>
                     </div>
@@ -1038,8 +1038,8 @@ export default function TeacherClasses() {
 
                   <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     {portionMode === 'per-student' && selectedStudents.length > 1
-                      ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'student'}:`
-                      : 'Select the Quran portions for this class (you can also add/edit later):'}
+                      ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'reciter'}:`
+                      : 'Select the Quran portions for this session (you can also add/edit later):'}
                   </p>
 
                   <div className="space-y-3">
@@ -1163,7 +1163,7 @@ export default function TeacherClasses() {
                         Creating...
                       </>
                     ) : (
-                      'Start Class'
+                      'Start Session'
                     )}
                   </button>
                 </>
@@ -1183,7 +1183,7 @@ export default function TeacherClasses() {
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                Class Notes
+                Session Notes
               </h2>
               <button
                 onClick={() => {
@@ -1203,7 +1203,7 @@ export default function TeacherClasses() {
               <textarea
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
-                placeholder="Add observations, feedback, or reminders for this class..."
+                placeholder="Add observations, feedback, or reminders for this session..."
                 rows={5}
                 className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow ${darkMode ? 'border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
               />

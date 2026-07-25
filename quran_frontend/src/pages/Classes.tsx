@@ -214,7 +214,7 @@ export default function Classes() {
 
   const handleDeleteClass = (e: React.MouseEvent, classId: string) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this class?')) return;
+    if (!confirm('Are you sure you want to delete this session?')) return;
 
     // Optimistically remove from UI (instant)
     setClasses(classes.filter(c => c.id !== classId));
@@ -322,7 +322,7 @@ export default function Classes() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="spinner mb-4"></div>
-        <p className="text-slate-400">Loading classes...</p>
+        <p className="text-slate-400">Loading sessions...</p>
       </div>
     );
   }
@@ -332,8 +332,8 @@ export default function Classes() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">Classes</h1>
-          <p className="text-slate-400 mt-1">Manage your teaching sessions</p>
+          <h1 className="text-3xl font-bold text-slate-100">Sessions</h1>
+          <p className="text-slate-400 mt-1">Manage your listening sessions</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Backup Status */}
@@ -372,7 +372,7 @@ export default function Classes() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            New Class
+            New Session
           </button>
         </div>
       </div>
@@ -385,13 +385,13 @@ export default function Classes() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-slate-100 mb-2">No classes yet</h3>
-          <p className="text-slate-400 mb-8">Start your first class to begin tracking progress</p>
+          <h3 className="text-xl font-semibold text-slate-100 mb-2">No sessions yet</h3>
+          <p className="text-slate-400 mb-8">Start your first session to begin tracking progress</p>
           <button
             onClick={() => setShowModal(true)}
             className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-medium hover:bg-cyan-700 transition-colors"
           >
-            Create First Class
+            Create First Session
           </button>
         </div>
       ) : (
@@ -403,7 +403,7 @@ export default function Classes() {
               <div className="bg-slate-700/70 px-4 py-3 border-b border-slate-600">
                 <h3 className="text-sm font-semibold text-slate-200">
                   {formatMonthHeader(monthKey)}
-                  <span className="ml-2 text-slate-400 font-normal">({monthClasses.length} {monthClasses.length === 1 ? 'class' : 'classes'})</span>
+                  <span className="ml-2 text-slate-400 font-normal">({monthClasses.length} {monthClasses.length === 1 ? 'session' : 'sessions'})</span>
                 </h3>
               </div>
 
@@ -529,7 +529,7 @@ export default function Classes() {
                           <button
                             onClick={(e) => handleDeleteClass(e, classItem.id)}
                             className="p-1.5 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors"
-                            title="Delete class"
+                            title="Delete session"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -551,7 +551,7 @@ export default function Classes() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedNote(null)}>
           <div className="bg-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-100">Class Note</h3>
+              <h3 className="text-lg font-semibold text-slate-100">Session Note</h3>
               <button
                 onClick={() => setSelectedNote(null)}
                 className="p-1 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
@@ -564,7 +564,7 @@ export default function Classes() {
             <textarea
               value={selectedNote.note}
               onChange={(e) => setSelectedNote({ ...selectedNote, note: e.target.value })}
-              placeholder="Add a note for this class..."
+              placeholder="Add a note for this session..."
               className="w-full h-32 px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
             />
             <div className="flex gap-3 mt-4">
@@ -585,7 +585,7 @@ export default function Classes() {
         </div>
       )}
 
-      {/* New Class Modal - BIGGER */}
+      {/* New session modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
@@ -593,8 +593,8 @@ export default function Classes() {
             <div className="p-6 border-b border-slate-700/30">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-100">New Class</h2>
-                  <p className="text-slate-400 mt-1">Configure today's teaching session</p>
+                  <h2 className="text-2xl font-bold text-slate-100">New Session</h2>
+                  <p className="text-slate-400 mt-1">Configure today's listening session</p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
@@ -800,7 +800,7 @@ export default function Classes() {
                 disabled={!sections.some(s => s.enabled && s.portions.length > 0)}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-medium hover:from-cyan-600 hover:to-teal-600 transition-all shadow-lg shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Class
+                Create Session
               </button>
             </div>
           </div>

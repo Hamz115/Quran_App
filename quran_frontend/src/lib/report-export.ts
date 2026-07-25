@@ -281,12 +281,12 @@ export function buildReportHTML(config: ExportConfig): { html: string; filename:
 
   const bodyHtml = `
     <div class="doc-header">
-      <h1>Student Progress Report</h1>
+      <h1>Reciter Progress Report</h1>
       <div class="subtitle">${escHtml(report.student.name)}</div>
       <div class="meta-row">
         <span>Filters: <strong>${escHtml(filterText)}</strong></span>
         <span>Generated: <strong>${today}</strong></span>
-        <span>Student since: <strong>${fmtDate(report.student.added_at)}</strong></span>
+        <span>Reciter since: <strong>${fmtDate(report.student.added_at)}</strong></span>
       </div>
     </div>
     <div class="doc-body">
@@ -375,7 +375,7 @@ export function exportToPDF(config: ExportConfig): void {
   const footer = document.createElement('div');
   footer.className = 'doc-footer';
   footer.style.cssText = 'padding:20px 40px;background:#f1f5f9;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;';
-  footer.innerHTML = `<span>QuranTrack &mdash; Student Progress Report</span><span>${escHtml(report.student.name)}</span>`;
+  footer.innerHTML = `<span>QuranTrack &mdash; Reciter Progress Report</span><span>${escHtml(report.student.name)}</span>`;
   const pdfRoot = container.querySelector('.pdf-root');
   if (pdfRoot) pdfRoot.appendChild(footer);
 
@@ -400,10 +400,10 @@ export function exportToPDF(config: ExportConfig): void {
 
 export function exportToCSV(config: ExportConfig): void {
   const { filteredReport: report, sections } = config;
-  let csv = 'Student Progress Report\n\n';
+  let csv = 'Reciter Progress Report\n\n';
 
-  // Student Info
-  csv += 'Name,Email,Student ID,Added Date\n';
+  // Reciter info
+  csv += 'Name,Email,User Code,Added Date\n';
   csv += `"${report.student.name}","${report.student.email}","${report.student.student_id}","${report.student.added_at}"\n\n`;
 
   // Filter summary
@@ -460,11 +460,11 @@ export function exportToCSV(config: ExportConfig): void {
     csv += '\n';
   }
 
-  // Teacher Notes
+  // Listener notes
   if (sections.teacherNotes) {
     const classesWithNotes = report.classes.filter(c => c.notes);
     if (classesWithNotes.length > 0) {
-      csv += 'Teacher Notes\n';
+      csv += 'Listener Notes\n';
       csv += 'Date,Day,Notes\n';
       for (const c of classesWithNotes) {
         csv += `"${c.date}","${c.day}","${(c.notes || '').replace(/"/g, '""')}"\n`;
@@ -484,23 +484,23 @@ export async function exportToWord(config: ExportConfig): Promise<void> {
   // Title
   children.push(
     new Paragraph({
-      text: 'Student Progress Report',
+      text: 'Reciter Progress Report',
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 200 }
     })
   );
 
-  // Student Info
+  // Reciter info
   children.push(
     new Paragraph({
-      children: [boldText('Student Information')],
+      children: [boldText('Reciter Information')],
       spacing: { before: 300, after: 100 }
     })
   );
 
   children.push(new Paragraph({ text: `Name: ${report.student.name}`, spacing: { after: 50 } }));
   children.push(new Paragraph({ text: `Email: ${report.student.email}`, spacing: { after: 50 } }));
-  children.push(new Paragraph({ text: `Student ID: ${report.student.student_id}`, spacing: { after: 50 } }));
+  children.push(new Paragraph({ text: `User Code: ${report.student.student_id}`, spacing: { after: 50 } }));
   children.push(new Paragraph({ text: `Added Date: ${new Date(report.student.added_at).toLocaleDateString()}`, spacing: { after: 100 } }));
 
   // Filter summary
@@ -654,12 +654,12 @@ export async function exportToWord(config: ExportConfig): Promise<void> {
     children.push(new Table({ rows: perfTableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
   }
 
-  // Teacher Notes
+  // Listener notes
   if (sections.teacherNotes) {
     const classesWithNotes = report.classes.filter(c => c.notes);
     if (classesWithNotes.length > 0) {
       children.push(
-        new Paragraph({ children: [boldText('Teacher Notes')], spacing: { before: 300, after: 100 } })
+        new Paragraph({ children: [boldText('Listener Notes')], spacing: { before: 300, after: 100 } })
       );
 
       const notesTableRows = [

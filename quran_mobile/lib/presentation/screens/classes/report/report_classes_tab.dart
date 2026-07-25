@@ -36,7 +36,7 @@ class ReportClassesTab extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 48),
         alignment: Alignment.center,
         child: Text(
-          'No classes found for the selected filters',
+          'No sessions found for the selected filters',
           style: TextStyle(
             fontSize: 14,
             color: AppColors.textSecondary(isDark),
@@ -387,7 +387,7 @@ class _ClassRow extends StatelessWidget {
           const SizedBox(height: 8),
           if (cls.mistakes.isEmpty)
             Text(
-              'No mistakes recorded for this class',
+              'No mistakes recorded for this session',
               style: TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary(isDark),
@@ -515,7 +515,7 @@ class _ClassRow extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          // Teacher Notes
+          // Listener notes
           Text(
             'TEACHER NOTES',
             style: TextStyle(
@@ -565,7 +565,7 @@ class _ClassRow extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () => _confirmDelete(isDark),
                 icon: const Icon(Icons.delete_outline, size: 16),
-                label: const Text('Delete Class'),
+                label: const Text('Delete Session'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.error,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

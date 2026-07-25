@@ -91,7 +91,7 @@ export default function StudentDashboard() {
   const topRepeatedMistakes = stats?.top_repeated_mistakes || [];
   const latestClass = classes[0];
   const currentSurah = latestClass?.assignments[0]?.start_surah || 67;
-  const teacherName = teachers.length > 0 ? `${teachers[0].first_name} ${teachers[0].last_name}` : 'No teacher yet';
+  const teacherName = teachers.length > 0 ? `${teachers[0].first_name} ${teachers[0].last_name}` : 'No listener yet';
 
 
   return (
@@ -160,7 +160,7 @@ export default function StudentDashboard() {
             </div>
           </div>
           <p className={`text-4xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{totalClasses}</p>
-          <p className={`mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Classes Attended</p>
+          <p className={`mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Sessions Attended</p>
         </div>
 
         <div className={`card p-6 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
@@ -356,7 +356,7 @@ export default function StudentDashboard() {
 
         {classes.length === 0 ? (
           <div className="text-center py-12">
-            <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>No classes yet. Your teacher will add classes soon!</p>
+            <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>No sessions yet. A listener will add sessions when you recite.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

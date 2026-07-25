@@ -76,7 +76,7 @@ export default function TeacherDashboard() {
       // Check if already in student list
       const alreadyAdded = students.some(s => s.email?.toLowerCase() === emailInput.trim().toLowerCase());
       if (alreadyAdded) {
-        setLookupError('This student is already in your list');
+        setLookupError('This contact is already in your list');
       } else {
         setLookupResult(result);
       }
@@ -98,14 +98,14 @@ export default function TeacherDashboard() {
       setEmailInput('');
       setLookupResult(null);
     } catch (err) {
-      setLookupError(err instanceof Error ? err.message : 'Failed to add student');
+      setLookupError(err instanceof Error ? err.message : 'Failed to add contact');
     } finally {
       setIsAdding(false);
     }
   };
 
   const handleRemoveStudent = async (studentId: string) => {
-    if (!confirm('Are you sure you want to remove this student from your roster?')) return;
+    if (!confirm('Are you sure you want to remove this contact?')) return;
 
     try {
       await removeStudent(studentId);
@@ -150,8 +150,8 @@ export default function TeacherDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Teacher Dashboard</h1>
-          <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Welcome back, {user?.first_name}! Manage your Halaqah and track student progress.</p>
+          <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Listener Dashboard</h1>
+          <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Welcome back, {user?.first_name}! Manage your halaqah and track reciter progress.</p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <button
@@ -184,7 +184,7 @@ export default function TeacherDashboard() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
-            Add Student
+            Add Contact
           </button>
           <button
             data-tour="start-class-btn"
@@ -194,7 +194,7 @@ export default function TeacherDashboard() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Start New Class
+            Start New Session
           </button>
         </div>
       </div>
@@ -211,7 +211,7 @@ export default function TeacherDashboard() {
             <span className="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full">Active</span>
           </div>
           <p className="text-4xl font-bold">{totalStudents}</p>
-          <p className="text-cyan-100 mt-1">Total Students</p>
+          <p className="text-cyan-100 mt-1">Total Contacts</p>
         </div>
 
         <div className={`p-6 rounded-2xl border transition-colors ${
@@ -225,7 +225,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
           <p className={`text-4xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{classesThisWeek}</p>
-          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Classes This Week</p>
+          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Sessions This Week</p>
         </div>
 
         <div className={`p-6 rounded-2xl border transition-colors ${
@@ -265,11 +265,11 @@ export default function TeacherDashboard() {
       }`}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>My Students</h2>
+            <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>My Contacts</h2>
             <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               {students.length === 0
-                ? 'Add students using their email to get started'
-                : 'Select students to start a group class'
+                ? 'Add contacts using their email to get started'
+                : 'Select reciters to start a group session'
               }
             </p>
           </div>
@@ -285,7 +285,7 @@ export default function TeacherDashboard() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Start Class with {selectedStudents.length} Student{selectedStudents.length > 1 ? 's' : ''}
+              Start Session with {selectedStudents.length} Reciter{selectedStudents.length > 1 ? 's' : ''}
             </button>
           )}
         </div>
@@ -355,7 +355,7 @@ export default function TeacherDashboard() {
             </div>
           ))}
 
-          {/* Add Student Card */}
+          {/* Add contact card */}
           <div
             onClick={() => setShowAddStudentModal(true)}
             className={`p-5 rounded-xl border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[180px] ${
@@ -371,7 +371,7 @@ export default function TeacherDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </div>
-            <p className={`font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Add New Student</p>
+            <p className={`font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Add New Contact</p>
             <p className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Enter their email address</p>
           </div>
         </div>
@@ -474,14 +474,14 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* Add Student Modal */}
+      {/* Add contact modal */}
       {showAddStudentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className={`rounded-2xl border p-6 w-full max-w-lg mx-4 ${
             darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
           }`}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Add New Student</h2>
+              <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Add New Contact</h2>
               <button
                 onClick={() => {
                   setShowAddStudentModal(false);
@@ -499,7 +499,7 @@ export default function TeacherDashboard() {
 
             <div className="space-y-4">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Student Email</label>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Contact Email</label>
                 <div className="flex gap-2">
                   <input
                     type="email"
@@ -512,7 +512,7 @@ export default function TeacherDashboard() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleLookupStudent();
                     }}
-                    placeholder="student@example.com"
+                    placeholder="reciter@example.com"
                     className={`flex-1 px-4 py-2.5 border rounded-xl focus:outline-none focus:border-cyan-500 ${
                       darkMode
                         ? 'bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400'
@@ -569,7 +569,7 @@ export default function TeacherDashboard() {
                   disabled={!lookupResult || isAdding}
                   className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
                 >
-                  {isAdding ? 'Adding...' : 'Add Student'}
+                  {isAdding ? 'Adding...' : 'Add Contact'}
                 </button>
               </div>
             </div>

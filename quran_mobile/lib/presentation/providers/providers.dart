@@ -100,12 +100,12 @@ final teacherStudentsProvider = FutureProvider<List<({String id, String name})>>
     final student = row['reciter'] as Map<String, dynamic>?;
     return (
       id: (student?['id'] ?? row['reciter_id'] ?? row['student_id']).toString(),
-      name: (student?['name'] ?? 'Student').toString(),
+      name: (student?['name'] ?? 'Reciter').toString(),
     );
   }).toList();
 });
 
-/// Add a student by email address (STAYS ON SUPABASE — cross-device operation).
+/// Add a reciter contact by email address (STAYS ON SUPABASE — cross-device operation).
 Future<String> addStudentByEmail(WidgetRef ref, String email) async {
   final user = ref.read(authProvider).user;
   if (user == null) throw Exception('Not authenticated');
@@ -126,7 +126,7 @@ Future<String> addStudentByEmail(WidgetRef ref, String email) async {
 
   final studentData = lookupRows.first as Map<String, dynamic>;
   final studentId = studentData['id'].toString();
-  final studentName = (studentData['name'] as String?) ?? 'Student';
+  final studentName = (studentData['name'] as String?) ?? 'Reciter';
 
   // Check if already added
   final existing = await withLegacySchemaFallback(
@@ -145,7 +145,7 @@ Future<String> addStudentByEmail(WidgetRef ref, String email) async {
   );
 
   if (existing != null) {
-    throw Exception('Student already added to your list');
+    throw Exception('Contact already added to your list');
   }
 
   // Add relationship
@@ -214,7 +214,7 @@ final classStudentNamesProvider = FutureProvider<Map<String, List<String>>>((ref
   final map = <String, List<String>>{};
   for (final row in (response as List)) {
     final classId = row['class_id'].toString();
-    final studentName = (row['reciter'] as Map<String, dynamic>?)?['name'] as String? ?? 'Student';
+    final studentName = (row['reciter'] as Map<String, dynamic>?)?['name'] as String? ?? 'Reciter';
     map.putIfAbsent(classId, () => []).add(studentName);
   }
   return map;
@@ -251,7 +251,7 @@ final classStudentsProvider = FutureProvider.family<List<({String id, String nam
     final student = row['reciter'] as Map<String, dynamic>?;
     return (
       id: (student?['id'] ?? row['reciter_id'] ?? row['student_id']).toString(),
-      name: (student?['name'] ?? 'Student').toString(),
+      name: (student?['name'] ?? 'Reciter').toString(),
     );
   }).toList();
 });
@@ -381,7 +381,7 @@ final previousClassMistakesProvider = FutureProvider.family<List<PreviousClassMi
   for (final group in rawGroups) {
     final mistakeRows = group['mistakes'] as List<Map<String, Object?>>;
 
-    // Deduplicate by location within this class, keep highest error count
+    // Deduplicate by location within this session, keep highest error count
     final Map<String, PreviousMistakeInfo> deduped = {};
     for (final m in mistakeRows) {
       final surahNumber = m['surah_number'] as int? ?? 0;
@@ -688,7 +688,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
   Future<void> _cleanupMistakesForClass(String classId) async {
     final supabase = Supabase.instance.client;
 
-    // 1. Find all mistake_occurrences for this class
+    // 1. Find all mistake_occurrences for this session
     final occResponse = await supabase
         .from('mistake_occurrences')
         .select('id, mistake_id')
@@ -698,7 +698,7 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
     final mistakeIds = occurrences.map((o) => o['mistake_id'].toString()).toSet().toList();
 
-    // 2. Delete the occurrences for this class
+    // 2. Delete the occurrences for this session
     await supabase.from('mistake_occurrences').delete().eq('class_id', classId);
 
     // 3. For each affected mistake, check remaining occurrences
@@ -1258,7 +1258,7 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
         startSurah: 67, endSurah: 67,
         startAyah: 1, endAyah: 30,
         surahName: 'Al-Mulk',
-        note: 'No previous classes — starting from Al-Mulk',
+        note: 'No previous sessions — starting from Al-Mulk',
       ),
     );
   }
@@ -1290,7 +1290,7 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
       startAyah: a['start_ayah'],
       endAyah: a['end_ayah'],
       surahName: AppConstants.surahNames[a['start_surah']] ?? 'Surah ${a['start_surah']}',
-      note: 'Same as last class — adjust as needed',
+      note: 'Same as last session — adjust as needed',
     );
 
     if (type == 'hifz') {

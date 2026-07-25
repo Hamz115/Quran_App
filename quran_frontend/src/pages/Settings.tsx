@@ -329,7 +329,7 @@ export default function Settings() {
           {/* User ID */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <span className={`text-sm font-medium w-32 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Student ID
+              User Code
             </span>
             <span className={`${user?.student_id ? (darkMode ? 'text-white' : 'text-slate-800') : (darkMode ? 'text-slate-500' : 'text-slate-400')} ${user?.student_id ? 'font-mono' : 'italic'}`}>
               {user?.student_id || 'Not assigned'}

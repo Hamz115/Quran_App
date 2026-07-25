@@ -143,7 +143,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       body: classAsync.when(
         data: (classData) {
           if (classData == null) {
-            return const Center(child: Text('Class not found'));
+            return const Center(child: Text('Session not found'));
           }
 
           // Get available sections
@@ -535,7 +535,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
                   // Title
                   Text(
-                    'Classroom Settings',
+                    'Session Settings',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -618,11 +618,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   ) {
     return classStudentsAsync.when(
       data: (classStudents) {
-        // If class has exactly 1 enrolled student, show static label (no dropdown)
+        // If the session has exactly one reciter, show a static label.
         if (classStudents.length == 1) {
           return Row(
             children: [
-              Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+              Text('Reciter: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -649,7 +649,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
         return Row(
           children: [
-            Text('Student: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+            Text('Reciter: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
             const SizedBox(width: 8),
             Expanded(
               child: SingleChildScrollView(
@@ -1153,7 +1153,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final mistakes = mistakesAsync.value ?? [];
     final relevantMistakes = _getMistakesForAssignment(mistakes, assignment);
 
-    // Get mistake IDs belonging to this class
+    // Get mistake IDs belonging to this session
     final classMistakeIdsAsync = ref.watch(classMistakeIdsProvider(widget.classId));
     final classMistakeIds = classMistakeIdsAsync.valueOrNull ?? <String>{};
 
@@ -1211,7 +1211,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           Row(
             children: [
               Text(
-                'MISTAKES IN THIS CLASS (${thisClassMistakes.length})',
+                'MISTAKES IN THIS SESSION (${thisClassMistakes.length})',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -1249,7 +1249,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           const SizedBox(height: 10),
           if (thisClassMistakes.isEmpty)
             Text(
-              _showPageOnly ? 'No mistakes on this page' : 'No mistakes in this class',
+              _showPageOnly ? 'No mistakes on this page' : 'No mistakes in this session',
               style: TextStyle(fontSize: 12, color: AppColors.textMuted(isDarkMode)),
             )
           else
@@ -1607,7 +1607,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Class Notes',
+              'Session Notes',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -1626,7 +1626,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               },
               style: TextStyle(fontSize: 14, color: AppColors.text(isDarkMode)),
               decoration: InputDecoration(
-                hintText: 'Add notes about this class session...',
+                hintText: 'Add notes about this session...',
                 hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
                 filled: true,
                 fillColor: AppColors.background(isDarkMode),

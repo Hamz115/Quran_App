@@ -90,7 +90,7 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${report.student.name} \u00B7 Student since ${formatReportDate(report.student.addedAt)}',
+                      '${report.student.name} \u00B7 Reciter since ${formatReportDate(report.student.addedAt)}',
                       style: TextStyle(
                         fontSize: 13,
                         color: AppColors.textMuted(isDark),
@@ -149,7 +149,7 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                 children: [
                   Expanded(
                     child: _TabButton(
-                      label: 'Classes',
+                      label: 'Sessions',
                       count: filteredReport.summary.totalClasses,
                       countColor: AppColors.cyan400,
                       countBgColor: const Color(0x33069291), // cyan-600/20

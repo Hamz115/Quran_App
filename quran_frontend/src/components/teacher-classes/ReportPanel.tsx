@@ -120,7 +120,7 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
         <div>
           <p className={`text-sm ${textMuted}`}>
-            {report.student.name} &middot; Student since {formatDate(report.student.added_at)}
+            {report.student.name} &middot; Reciter since {formatDate(report.student.added_at)}
           </p>
         </div>
         {!hideExport && (

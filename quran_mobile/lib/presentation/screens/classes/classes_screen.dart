@@ -359,7 +359,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No students added yet',
+              'No reciters added yet',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -368,7 +368,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Students will appear here once they join your class.\nShare your teacher ID to get started.',
+              'Reciters will appear here after they are added as contacts.\nShare your user code to get started.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,

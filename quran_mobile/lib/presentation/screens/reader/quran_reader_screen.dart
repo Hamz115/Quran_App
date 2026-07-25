@@ -714,7 +714,7 @@ class _MistakesByClassSection extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(
-                    text: day.isNotEmpty ? day : 'Class',
+                    text: day.isNotEmpty ? day : 'Session',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,

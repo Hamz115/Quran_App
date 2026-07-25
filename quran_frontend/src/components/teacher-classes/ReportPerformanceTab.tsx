@@ -100,7 +100,7 @@ export default function ReportPerformanceTab({ performanceTrend, performanceStat
           <div className={`text-[11px] mt-0.5 ${textMuted}`}>{performanceStats.bestStreakRange || 'N/A'}</div>
         </div>
         <div className={`rounded-xl border ${borderColor} ${cardBg} p-4`}>
-          <div className={`text-[11px] uppercase tracking-wide mb-1.5 ${textMuted}`}>Mistakes / Class</div>
+          <div className={`text-[11px] uppercase tracking-wide mb-1.5 ${textMuted}`}>Mistakes / Session</div>
           <div className={`text-2xl font-bold ${textPrimary}`}>
             {performanceStats.mistakesPerClass}
             <span className={`text-sm font-normal ml-1 ${textMuted}`}>avg</span>

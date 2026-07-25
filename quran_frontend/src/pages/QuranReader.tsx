@@ -569,7 +569,7 @@ export default function QuranReader() {
         </button>
       </div>
 
-      {/* Mistakes by Class Section */}
+      {/* Mistakes by session section */}
       {(() => {
         // Filter mistakes for the current page
         const pageMistakes = mistakes.filter(m => {
@@ -621,7 +621,7 @@ export default function QuranReader() {
                   return (
                     <div key={key} className={`border-l-2 pl-4 ${darkMode ? 'border-cyan-600' : 'border-cyan-400'}`}>
                       <h4 className={`text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                        {day || 'Class'} <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>({date})</span>
+                        {day || 'Session'} <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>({date})</span>
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {classMistakes.map(m => (

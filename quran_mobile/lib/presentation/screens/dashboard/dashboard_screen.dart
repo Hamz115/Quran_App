@@ -246,7 +246,7 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         error: (e, _) => Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Text('Error loading students: $e',
+                          child: Text('Error loading contacts: $e',
                             style: const TextStyle(color: AppColors.error)),
                         ),
                         data: (students) {
@@ -270,7 +270,7 @@ class DashboardScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      'No students yet',
+                                      'No contacts yet',
                                       style: TextStyle(
                                         fontSize: 16,
                                         color: AppColors.textSecondary(isDarkMode),
@@ -278,7 +278,7 @@ class DashboardScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Add students to your halaqah to start tracking their progress.',
+                                      'Add contacts to your halaqah to start tracking recitation progress.',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontSize: 14,
@@ -390,7 +390,7 @@ class DashboardScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'No classes yet',
+                                    'No sessions yet',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: AppColors.textSecondary(isDarkMode),
@@ -800,7 +800,7 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Add Student',
+            'Add Contact',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -819,7 +819,7 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
             autofocus: true,
             style: TextStyle(fontSize: 15, color: AppColors.text(isDark)),
             decoration: InputDecoration(
-              hintText: 'student@example.com',
+              hintText: 'reciter@example.com',
               hintStyle: TextStyle(color: AppColors.textMuted(isDark)),
               prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary(isDark)),
               filled: true,
@@ -873,7 +873,7 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Add Student'),
+                      : const Text('Add Contact'),
                 ),
               ),
             ],

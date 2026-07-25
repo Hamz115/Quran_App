@@ -736,7 +736,7 @@ export async function updateStudentPerformance(classId: string, studentId: strin
   // Also update class-level performance for backward compatibility
   await (supabase as any).from('classes').update({ performance }).eq('id', classId);
 
-  return { message: 'Student performance updated' };
+  return { message: 'Reciter performance updated' };
 }
 
 export async function addClassStudents(classId: string, studentIds: string[]): Promise<{ message: string }> {
@@ -752,7 +752,7 @@ export async function addClassStudents(classId: string, studentIds: string[]): P
       student_id: row.reciter_id,
     })) as any),
   );
-  return { message: 'Students added successfully' };
+  return { message: 'Reciters added successfully' };
 }
 
 export async function removeClassStudent(classId: string, studentId: string): Promise<{ message: string }> {
@@ -768,7 +768,7 @@ export async function removeClassStudent(classId: string, studentId: string): Pr
       .eq('class_id', classId)
       .eq('student_id', studentId),
   );
-  return { message: 'Student removed from class' };
+  return { message: 'Reciter removed from session' };
 }
 
 // ============ MISTAKES ============
@@ -1223,7 +1223,7 @@ export async function getStudentReport(studentId: string): Promise<any> {
     .single();
 
   if (profileError || !profile) {
-    throw new Error('Student not found');
+    throw new Error('Reciter not found');
   }
   const profileData = profile as any;
 

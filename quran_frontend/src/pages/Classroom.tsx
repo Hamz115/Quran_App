@@ -542,7 +542,7 @@ export default function Classroom() {
       if (existing) {
         return prev.map(m => {
           if (m.id !== existing.id) return m;
-          // Add occurrence for this class if not already present
+          // Add occurrence for this session if not already present
           const hasThisClass = m.occurrences?.some(o => o.class_id === id);
           const updatedOccurrences = hasThisClass ? m.occurrences : [
             ...(m.occurrences || []),
@@ -551,7 +551,7 @@ export default function Classroom() {
           return { ...m, error_count: m.error_count + 1, occurrences: updatedOccurrences };
         });
       }
-      // New mistake — add with temporary id + occurrence for this class
+      // New mistake — add with temporary id + occurrence for this session
       return [...prev, {
         id: `temp-${Date.now()}`,
         student_id: isTeacher ? selectedStudentId || '' : '',
@@ -631,7 +631,7 @@ export default function Classroom() {
 
   const handleDeleteClass = () => {
     if (!classData) return;
-    if (!confirm('Are you sure you want to delete this class?')) return;
+    if (!confirm('Are you sure you want to delete this session?')) return;
 
     // Navigate immediately (instant)
     navigate(getBackRoute());
@@ -727,7 +727,7 @@ export default function Classroom() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="spinner mb-4"></div>
-        <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Loading class...</p>
+        <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Loading session...</p>
       </div>
     );
   }
@@ -735,9 +735,9 @@ export default function Classroom() {
   if (!classData) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <h2 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class not found</h2>
+        <h2 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Session not found</h2>
         <button onClick={() => navigate(getBackRoute())} className="px-6 py-3 bg-cyan-600 text-white rounded-xl">
-          Back to Classes
+          Back to Sessions
         </button>
       </div>
     );
@@ -791,10 +791,10 @@ export default function Classroom() {
           </svg>
         </button>
         <div className="flex-1">
-          <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Class - {classData.day}, {classData.date}</h1>
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Session - {classData.day}, {classData.date}</h1>
           {isTeacher && classData.students && classData.students.length > 0 && (
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Student:</span>
+              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Reciter:</span>
               {classData.students.length === 1 ? (
                 <span className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                   {classData.students[0].first_name} {classData.students[0].last_name}
@@ -933,7 +933,7 @@ export default function Classroom() {
             </>
           ) : (
             <div className={`px-4 py-3 rounded-xl border ${darkMode ? 'border-slate-600 bg-slate-800/50 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-              {classData.notes || 'No notes for this class.'}
+              {classData.notes || 'No notes for this session.'}
             </div>
           )}
         </div>
@@ -1293,14 +1293,14 @@ export default function Classroom() {
                   </button>
                 </div>
 
-                {/* Mistakes in this class */}
+                {/* Mistakes in this session */}
                 {mistakesInThisClass.length > 0 && (
                   <div className="card p-6 border-2 border-cyan-600/30">
                     <h3 className="font-semibold text-cyan-400 mb-4 flex items-center gap-2">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      Mistakes in this class ({mistakesInThisClass.length})
+                      Mistakes in this session ({mistakesInThisClass.length})
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {mistakesInThisClass.map(renderMistake)}
@@ -1308,7 +1308,7 @@ export default function Classroom() {
                   </div>
                 )}
 
-                {/* Mistakes from previous classes - grouped by day */}
+                {/* Mistakes from previous sessions - grouped by day */}
                 {mistakesFromPrevious.length > 0 && (() => {
                   const mistakesByDay: { [key: string]: { day: string; date: string; class_id: string; mistakes: Mistake[] }[] } = {};
 
@@ -1341,7 +1341,7 @@ export default function Classroom() {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Mistakes from previous classes
+                        Mistakes from previous sessions
                       </h3>
                       <div className="space-y-4">
                         {sortedDays.map(dayKey => {
@@ -1371,7 +1371,7 @@ export default function Classroom() {
         </>
       ) : (
         <div className="card p-12 text-center">
-          <p className="text-slate-400">No {activeSection} portion assigned for this class.</p>
+          <p className="text-slate-400">No {activeSection} portion assigned for this session.</p>
         </div>
       )}
 
@@ -1516,9 +1516,9 @@ export default function Classroom() {
               </div>
               {isTeacher && classData?.students && classData.students.length > 1 && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Assign to Student</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Assign to Reciter</label>
                   <select value={newPortionStudentId ?? 'all'} onChange={(e) => setNewPortionStudentId(e.target.value === 'all' ? null : e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
-                    <option value="all">All Students</option>
+                    <option value="all">All Reciters</option>
                     {classData.students.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name} only</option>)}
                   </select>
                 </div>

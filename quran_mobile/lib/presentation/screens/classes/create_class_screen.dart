@@ -136,7 +136,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'New Class',
+                        'New Session',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -243,7 +243,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Create Class'),
+                        : const Text('Create Session'),
                   ),
                 ),
               ],
@@ -266,7 +266,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               border: Border.all(color: AppColors.border(isDarkMode)),
             ),
             child: Text(
-              'No students yet. Add students from the dashboard first.',
+              'No contacts yet. Add contacts from the dashboard first.',
               style: TextStyle(fontSize: 14, color: AppColors.textMuted(isDarkMode)),
             ),
           );
@@ -276,7 +276,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Student',
+              'Reciter',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -298,7 +298,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               ),
               child: DropdownButton<String>(
                 value: _selectedStudentId,
-                hint: Text('Select a student', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                hint: Text('Select a reciter', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
                 isExpanded: true,
                 dropdownColor: AppColors.surface(isDarkMode),
                 underline: const SizedBox(),
@@ -341,7 +341,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Error loading students: $e', style: const TextStyle(color: AppColors.error)),
+      error: (e, _) => Text('Error loading contacts: $e', style: const TextStyle(color: AppColors.error)),
     );
   }
 
@@ -893,7 +893,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
     if (_selectedStudentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a student')),
+        const SnackBar(content: Text('Please select a reciter')),
       );
       return;
     }
