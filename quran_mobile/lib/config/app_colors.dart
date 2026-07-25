@@ -20,6 +20,23 @@ class AppColors {
   static const Color teal400 = Color(0xFF2DD4BF);
   static const Color teal500 = Color(0xFF14B8A6);
   static const Color teal600 = Color(0xFF0D9488);
+  static const Color teal700 = Color(0xFF0F766E);
+
+  // ============================================
+  // PREMIUM QURANTRACK PALETTE
+  // ============================================
+  static const Color deepTeal = Color(0xFF063B3D);
+  static const Color inkTeal = Color(0xFF052E33);
+  static const Color night = Color(0xFF071316);
+  static const Color nightSurface = Color(0xFF102126);
+  static const Color nightCard = Color(0xFF142B31);
+  static const Color parchment = Color(0xFFFFFBF0);
+  static const Color parchmentWarm = Color(0xFFF7F0DF);
+  static const Color mist = Color(0xFFEAF8F6);
+  static const Color porcelain = Color(0xFFF6FCFB);
+  static const Color gold = Color(0xFFD7B56D);
+  static const Color goldSoft = Color(0xFFF4E4B8);
+  static const Color rose = Color(0xFFE46F7A);
 
   // ============================================
   // ACCENT COLORS (Emerald)
@@ -80,42 +97,66 @@ class AppColors {
   // ============================================
   // DARK THEME SPECIFIC
   // ============================================
-  static const Color darkBackground = Color(0xFF0F172A);     // slate-900
-  static const Color darkSurface = Color(0xFF1E293B);        // slate-800
-  static const Color darkCard = Color(0xFF1E293B);           // slate-800
-  static const Color darkBorder = Color(0xFF334155);         // slate-700
-  static const Color darkInputBg = Color(0xFF252D3D);        // custom
-  static const Color darkOverlay = Color(0xCC1A1F2E);        // rgba(26,31,46,0.8)
-  static const Color darkText = Color(0xFFF1F5F9);           // slate-100
-  static const Color darkTextSecondary = Color(0xFF94A3B8);  // slate-400
-  static const Color darkTextMuted = Color(0xFF64748B);      // slate-500
+  static const Color darkBackground = night;
+  static const Color darkSurface = nightSurface;
+  static const Color darkCard = nightCard;
+  static const Color darkBorder = Color(0xFF254249);
+  static const Color darkInputBg = Color(0xFF102A30);
+  static const Color darkOverlay = Color(0xCC1A1F2E); // rgba(26,31,46,0.8)
+  static const Color darkText = Color(0xFFF1F5F9); // slate-100
+  static const Color darkTextSecondary = Color(0xFF94A3B8); // slate-400
+  static const Color darkTextMuted = Color(0xFF64748B); // slate-500
 
   // ============================================
   // LIGHT THEME SPECIFIC
   // ============================================
-  static const Color lightBackground = Color(0xFFF8FAFC);    // slate-50
-  static const Color lightSurface = Color(0xFFFFFFFF);       // white
-  static const Color lightCard = Color(0xFFFFFFFF);          // white
-  static const Color lightBorder = Color(0xFFE2E8F0);        // slate-200
-  static const Color lightInputBg = Color(0xFFF0FDFA);       // cyan-50
-  static const Color lightOverlay = Color(0xB3E0F2FE);       // sky-100/70
-  static const Color lightText = Color(0xFF1E293B);          // slate-800
+  static const Color lightBackground = porcelain;
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightCard = Color(0xFFFFFFFF);
+  static const Color lightBorder = Color(0xFFD9E9E6);
+  static const Color lightInputBg = Color(0xFFF3FBFA);
+  static const Color lightOverlay = Color(0xB3E0F2FE); // sky-100/70
+  static const Color lightText = Color(0xFF1E293B); // slate-800
   static const Color lightTextSecondary = Color(0xFF64748B); // slate-500
-  static const Color lightTextMuted = Color(0xFF94A3B8);     // slate-400
+  static const Color lightTextMuted = Color(0xFF94A3B8); // slate-400
 
   // ============================================
   // GRADIENT DEFINITIONS
   // ============================================
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [cyan500, teal500],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    colors: [cyan600, teal600, emerald500],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
   static const LinearGradient primaryGradientHover = LinearGradient(
-    colors: [cyan600, teal600],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    colors: [cyan700, teal700],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient premiumLightGradient = LinearGradient(
+    colors: [porcelain, mist, Color(0xFFFFFCF3)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient premiumDarkGradient = LinearGradient(
+    colors: [night, inkTeal, Color(0xFF0D1F24)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient readerLightGradient = LinearGradient(
+    colors: [parchment, Color(0xFFFFF7E5), Color(0xFFF5EBCF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  static const LinearGradient readerDarkGradient = LinearGradient(
+    colors: [Color(0xFF020607), Color(0xFF071316), Color(0xFF0C171A)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
   );
 
   // ============================================
@@ -147,17 +188,30 @@ class AppColors {
   }
 
   /// Get theme-aware color
-  static Color background(bool isDark) => isDark ? darkBackground : lightBackground;
+  static Color background(bool isDark) =>
+      isDark ? darkBackground : lightBackground;
   static Color surface(bool isDark) => isDark ? darkSurface : lightSurface;
   static Color card(bool isDark) => isDark ? darkCard : lightCard;
   static Color border(bool isDark) => isDark ? darkBorder : lightBorder;
   static Color inputBg(bool isDark) => isDark ? darkInputBg : lightInputBg;
   static Color text(bool isDark) => isDark ? darkText : lightText;
-  static Color textSecondary(bool isDark) => isDark ? darkTextSecondary : lightTextSecondary;
-  static Color textMuted(bool isDark) => isDark ? darkTextMuted : lightTextMuted;
+  static Color textSecondary(bool isDark) =>
+      isDark ? darkTextSecondary : lightTextSecondary;
+  static Color textMuted(bool isDark) =>
+      isDark ? darkTextMuted : lightTextMuted;
   static Color overlay(bool isDark) => isDark ? darkOverlay : lightOverlay;
 
   /// Primary color adjusts slightly for light mode
   static Color primary(bool isDark) => isDark ? cyan500 : cyan600;
   static Color primaryLight(bool isDark) => isDark ? cyan400 : cyan500;
+  static Color elevatedSurface(bool isDark) =>
+      isDark ? const Color(0xFF18363C) : lightSurface;
+  static Color softSurface(bool isDark) =>
+      isDark ? const Color(0xFF10252A) : const Color(0xFFF7FCFB);
+  static Color readerBackground(bool isDark) =>
+      isDark ? Colors.black : parchment;
+  static LinearGradient appBackgroundGradient(bool isDark) =>
+      isDark ? premiumDarkGradient : premiumLightGradient;
+  static LinearGradient readerGradient(bool isDark) =>
+      isDark ? readerDarkGradient : readerLightGradient;
 }

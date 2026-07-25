@@ -6,6 +6,7 @@ import '../../../core/services/update_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/premium_scaffold.dart';
 import '../../widgets/update_dialog.dart';
 import '../../../core/services/tour_service.dart';
 
@@ -146,36 +147,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
-      body: SafeArea(
+      body: PremiumScaffoldBackground(
+        useSafeArea: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: MediaQuery.of(context).padding.top,
+            bottom: 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Settings',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text(isDarkMode),
-                ),
+              PremiumPageHeader(
+                icon: Icons.settings_rounded,
+                title: 'Settings',
+                subtitle: 'Account, appearance, updates, and tutorial',
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Manage your account and app settings',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary(isDarkMode)),
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 12),
 
               // ── Appearance Section ──
-              Container(key: TourService.settingsSectionKey, child: _sectionHeader('APPEARANCE', isDarkMode)),
+              Container(
+                key: TourService.settingsSectionKey,
+                child: _sectionHeader('APPEARANCE', isDarkMode),
+              ),
               const SizedBox(height: 12),
 
               GlassmorphicCard(
                 padding: const EdgeInsets.all(0),
                 child: ListTile(
                   leading: _iconBox(
-                    isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    isDarkMode
+                        ? Icons.dark_mode_rounded
+                        : Icons.light_mode_rounded,
                     AppColors.cyan500,
                     isDarkMode,
                   ),
@@ -185,11 +189,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   subtitle: Text(
                     isDarkMode ? 'Dark mode' : 'Light mode',
-                    style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                    style: TextStyle(
+                      color: AppColors.textSecondary(isDarkMode),
+                    ),
                   ),
                   trailing: Switch(
                     value: isDarkMode,
-                    onChanged: (_) => ref.read(themeProvider.notifier).toggleTheme(),
+                    onChanged: (_) =>
+                        ref.read(themeProvider.notifier).toggleTheme(),
                     activeColor: AppColors.cyan500,
                     activeTrackColor: AppColors.cyan500.withOpacity(0.5),
                   ),
@@ -217,15 +224,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         style: TextStyle(color: AppColors.text(isDarkMode)),
                       ),
                       subtitle: Text(
-                        _appVersion.isNotEmpty ? 'Version $_appVersion' : 'Loading...',
-                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                        _appVersion.isNotEmpty
+                            ? 'Version $_appVersion'
+                            : 'Loading...',
+                        style: TextStyle(
+                          color: AppColors.textSecondary(isDarkMode),
+                        ),
                       ),
                     ),
-                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                    const PremiumDivider(),
                     ListTile(
                       leading: _isCheckingUpdate
                           ? _loadingIconBox(AppColors.cyan500, isDarkMode)
-                          : _iconBox(Icons.system_update_rounded, AppColors.cyan500, isDarkMode),
+                          : _iconBox(
+                              Icons.system_update_rounded,
+                              AppColors.cyan500,
+                              isDarkMode,
+                            ),
                       title: Text(
                         'Check for Updates',
                         style: TextStyle(color: AppColors.text(isDarkMode)),
@@ -238,17 +253,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           color: _updateStatusText == 'Up to date!'
                               ? AppColors.teal500
                               : _updateStatusText == 'Check failed'
-                                  ? AppColors.error
-                                  : AppColors.textSecondary(isDarkMode),
+                              ? AppColors.error
+                              : AppColors.textSecondary(isDarkMode),
                         ),
                       ),
                       trailing: SizedBox(
                         width: 100,
                         child: ElevatedButton(
-                          onPressed: _isCheckingUpdate ? null : _checkForUpdates,
+                          onPressed: _isCheckingUpdate
+                              ? null
+                              : _checkForUpdates,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.cyan500,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(_isCheckingUpdate ? 'Checking' : 'Check'),
                         ),
@@ -278,7 +298,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   subtitle: Text(
                     'Learn how to use QuranTrack',
-                    style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                    style: TextStyle(
+                      color: AppColors.textSecondary(isDarkMode),
+                    ),
                   ),
                   trailing: SizedBox(
                     width: 80,
@@ -289,7 +311,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.cyan500,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       child: const Text('Start'),
                     ),
@@ -332,7 +357,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         );
                       },
                     ),
-                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                    const PremiumDivider(),
 
                     // Change Password toggle
                     ListTile(
@@ -346,11 +371,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         style: TextStyle(color: AppColors.text(isDarkMode)),
                       ),
                       subtitle: Text(
-                        _showPasswordForm ? 'Enter your new password below' : 'Tap to change your password',
-                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                        _showPasswordForm
+                            ? 'Enter your new password below'
+                            : 'Tap to change your password',
+                        style: TextStyle(
+                          color: AppColors.textSecondary(isDarkMode),
+                        ),
                       ),
                       trailing: Icon(
-                        _showPasswordForm ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        _showPasswordForm
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
                         color: AppColors.textSecondary(isDarkMode),
                       ),
                       onTap: () {
@@ -368,7 +399,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     // Collapsible password form
                     if (_showPasswordForm) ...[
-                      Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                      const PremiumDivider(),
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -381,11 +412,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: AppColors.error.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                  border: Border.all(
+                                    color: AppColors.error.withOpacity(0.3),
+                                  ),
                                 ),
                                 child: Text(
                                   _passwordError!,
-                                  style: TextStyle(color: AppColors.error, fontSize: 13),
+                                  style: TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             if (_passwordSuccess)
@@ -395,29 +431,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: AppColors.teal500.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.teal500.withOpacity(0.3)),
+                                  border: Border.all(
+                                    color: AppColors.teal500.withOpacity(0.3),
+                                  ),
                                 ),
                                 child: Text(
                                   'Password changed successfully!',
-                                  style: TextStyle(color: AppColors.teal500, fontSize: 13),
+                                  style: TextStyle(
+                                    color: AppColors.teal500,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             TextField(
                               controller: _newPasswordController,
                               obscureText: true,
-                              style: TextStyle(color: AppColors.text(isDarkMode)),
+                              style: TextStyle(
+                                color: AppColors.text(isDarkMode),
+                              ),
                               decoration: InputDecoration(
                                 labelText: 'New Password',
                                 hintText: 'Enter new password (8+ characters)',
-                                labelStyle: TextStyle(color: AppColors.textSecondary(isDarkMode)),
-                                hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+                                labelStyle: TextStyle(
+                                  color: AppColors.textSecondary(isDarkMode),
+                                ),
+                                hintStyle: TextStyle(
+                                  color: AppColors.textMuted(isDarkMode),
+                                ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColors.border(isDarkMode)),
+                                  borderSide: BorderSide(
+                                    color: AppColors.border(isDarkMode),
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColors.cyan500),
+                                  borderSide: BorderSide(
+                                    color: AppColors.cyan500,
+                                  ),
                                 ),
                               ),
                             ),
@@ -425,19 +476,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             TextField(
                               controller: _confirmPasswordController,
                               obscureText: true,
-                              style: TextStyle(color: AppColors.text(isDarkMode)),
+                              style: TextStyle(
+                                color: AppColors.text(isDarkMode),
+                              ),
                               decoration: InputDecoration(
                                 labelText: 'Confirm New Password',
                                 hintText: 'Confirm new password',
-                                labelStyle: TextStyle(color: AppColors.textSecondary(isDarkMode)),
-                                hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+                                labelStyle: TextStyle(
+                                  color: AppColors.textSecondary(isDarkMode),
+                                ),
+                                hintStyle: TextStyle(
+                                  color: AppColors.textMuted(isDarkMode),
+                                ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColors.border(isDarkMode)),
+                                  borderSide: BorderSide(
+                                    color: AppColors.border(isDarkMode),
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColors.cyan500),
+                                  borderSide: BorderSide(
+                                    color: AppColors.cyan500,
+                                  ),
                                 ),
                               ),
                             ),
@@ -446,10 +507,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               children: [
                                 Expanded(
                                   child: ElevatedButton(
-                                    onPressed: _passwordLoading ? null : _handlePasswordChange,
+                                    onPressed: _passwordLoading
+                                        ? null
+                                        : _handlePasswordChange,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.cyan500,
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -479,7 +544,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   },
                                   child: Text(
                                     'Cancel',
-                                    style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary(
+                                        isDarkMode,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -489,7 +558,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ],
 
-                    Divider(color: AppColors.border(isDarkMode).withOpacity(0.5), height: 1),
+                    const PremiumDivider(),
 
                     // Sign out
                     ListTile(
@@ -504,7 +573,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       subtitle: Text(
                         'Sign out of your account',
-                        style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                        style: TextStyle(
+                          color: AppColors.textSecondary(isDarkMode),
+                        ),
                       ),
                       trailing: SizedBox(
                         width: 100,
@@ -512,7 +583,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           onPressed: () => _showSignOutDialog(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.error,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                           child: const Text('Sign Out'),
                         ),
@@ -549,7 +623,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withOpacity(isDarkMode ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(isDarkMode ? 0.22 : 0.16)),
       ),
       child: Icon(icon, color: color, size: 20),
     );

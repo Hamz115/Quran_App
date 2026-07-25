@@ -62,33 +62,35 @@ class _UpdateDialogState extends State<UpdateDialog> {
     _subscription = widget.updateService
         .downloadAndInstall(widget.updateInfo.downloadUrl)
         .listen(
-      (event) {
-        setState(() {
-          if (event.status == OtaStatus.DOWNLOADING) {
-            _progress = double.tryParse(event.value ?? '0') ?? 0;
-            _status = 'Downloading... ${_progress.toStringAsFixed(0)}%';
-          } else if (event.status == OtaStatus.INSTALLING) {
-            _status = 'Installing...';
-            _progress = 100;
-          } else if (event.status == OtaStatus.ALREADY_RUNNING_ERROR) {
-            _error = 'Download already in progress';
-            _downloading = false;
-          } else if (event.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR) {
-            _error = 'Install permission denied. Please allow app installs from this source in Settings.';
-            _downloading = false;
-          } else if (event.status == OtaStatus.INTERNAL_ERROR) {
-            _error = 'Download failed: ${event.value}';
-            _downloading = false;
-          }
-        });
-      },
-      onError: (e) {
-        setState(() {
-          _error = 'Download failed: $e';
-          _downloading = false;
-        });
-      },
-    );
+          (event) {
+            setState(() {
+              if (event.status == OtaStatus.DOWNLOADING) {
+                _progress = double.tryParse(event.value ?? '0') ?? 0;
+                _status = 'Downloading... ${_progress.toStringAsFixed(0)}%';
+              } else if (event.status == OtaStatus.INSTALLING) {
+                _status = 'Installing...';
+                _progress = 100;
+              } else if (event.status == OtaStatus.ALREADY_RUNNING_ERROR) {
+                _error = 'Download already in progress';
+                _downloading = false;
+              } else if (event.status ==
+                  OtaStatus.PERMISSION_NOT_GRANTED_ERROR) {
+                _error =
+                    'Install permission denied. Please allow app installs from this source in Settings.';
+                _downloading = false;
+              } else if (event.status == OtaStatus.INTERNAL_ERROR) {
+                _error = 'Download failed: ${event.value}';
+                _downloading = false;
+              }
+            });
+          },
+          onError: (e) {
+            setState(() {
+              _error = 'Download failed: $e';
+              _downloading = false;
+            });
+          },
+        );
   }
 
   @override
@@ -97,11 +99,26 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
     return AlertDialog(
       backgroundColor: AppColors.surface(dark),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: AppColors.border(dark).withOpacity(0.72)),
+      ),
       title: Row(
         children: [
-          Icon(Icons.system_update_rounded, color: AppColors.cyan500, size: 24),
-          const SizedBox(width: 8),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.system_update_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Update Available',
@@ -127,8 +144,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
               constraints: const BoxConstraints(maxHeight: 150),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.background(dark),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.softSurface(dark),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border(dark)),
               ),
               child: SingleChildScrollView(
@@ -182,7 +199,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.cyan500,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 child: const Text('Update Now'),

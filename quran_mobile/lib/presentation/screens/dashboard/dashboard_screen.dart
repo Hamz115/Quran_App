@@ -8,6 +8,7 @@ import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/premium_scaffold.dart';
 import '../../widgets/section_badge.dart';
 import '../classes/report/report_panel.dart';
 import '../classes/create_class_screen.dart';
@@ -33,11 +34,11 @@ class DashboardScreen extends ConsumerWidget {
     final user = authState.user;
     final displayClassesAsync = classesAsync;
     final userName = user?.firstName ?? 'User';
-    final userInitials = '${user?.firstName?.isNotEmpty == true ? user!.firstName[0] : ''}${user?.lastName?.isNotEmpty == true ? user!.lastName[0] : ''}'.toUpperCase();
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
-      body: SafeArea(
+      body: PremiumScaffoldBackground(
+        useSafeArea: false,
         child: RefreshIndicator(
           onRefresh: () async {
             // Pull fresh data from Supabase first
@@ -58,79 +59,89 @@ class DashboardScreen extends ConsumerWidget {
           },
           child: CustomScrollView(
             slivers: [
-              // Header with title and action buttons
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
+                child: SafeArea(
+                  bottom: false,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Dashboard',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.text(isDarkMode),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Welcome back, $userName!',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary(isDarkMode),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      PremiumPageHeader(
+                        icon: Icons.auto_stories_rounded,
+                        title: 'Dashboard',
+                        subtitle: 'Welcome back, $userName',
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          // Add Contact button
-                          OutlinedButton.icon(
-                            key: TourService.addContactKey,
-                            onPressed: () => _showAddStudentSheet(context, ref, isDarkMode),
-                            icon: const Icon(Icons.person_add_outlined, size: 18),
-                            label: const Text('Add Contact'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.text(isDarkMode),
-                              side: BorderSide(color: AppColors.border(isDarkMode)),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                        child: Row(
+                          children: [
+                            OutlinedButton.icon(
+                              key: TourService.addContactKey,
+                              onPressed: () => _showAddStudentSheet(
+                                context,
+                                ref,
+                                isDarkMode,
+                              ),
+                              icon: const Icon(
+                                Icons.person_add_outlined,
+                                size: 18,
+                              ),
+                              label: const Text('Add Contact'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.text(isDarkMode),
+                                side: BorderSide(
+                                  color: AppColors.border(isDarkMode),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Start New Session button
-                          ElevatedButton.icon(
-                            key: TourService.startSessionKey,
-                            onPressed: () {
-                              if (TourService.isTourActive) {
-                                TourService.completeInteraction();
-                              }
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => const CreateClassScreen(),
-                              );
-                            },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('New Session'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.emerald400,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                key: TourService.startSessionKey,
+                                decoration: BoxDecoration(
+                                  gradient: AppColors.primaryGradient,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.cyan600.withOpacity(
+                                        isDarkMode ? 0.30 : 0.22,
+                                      ),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 9),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    if (TourService.isTourActive) {
+                                      TourService.completeInteraction();
+                                    }
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => const CreateClassScreen(),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text('New Session'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -141,10 +152,10 @@ class DashboardScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: statsAsync.when(
                   data: (stats) {
-                    final classes = displayClassesAsync.value ?? [];
-
                     final now = DateTime.now();
-                    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+                    final startOfWeek = now.subtract(
+                      Duration(days: now.weekday - 1),
+                    );
                     final endOfWeek = startOfWeek.add(const Duration(days: 6));
 
                     // Teacher stats from Supabase-direct provider (instant)
@@ -153,17 +164,16 @@ class DashboardScreen extends ConsumerWidget {
                     final teacherClassesThisWeek = classDates.where((dateStr) {
                       try {
                         final date = DateTime.parse(dateStr);
-                        return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-                               date.isBefore(endOfWeek.add(const Duration(days: 1)));
+                        return date.isAfter(
+                              startOfWeek.subtract(const Duration(days: 1)),
+                            ) &&
+                            date.isBefore(
+                              endOfWeek.add(const Duration(days: 1)),
+                            );
                       } catch (_) {
                         return false;
                       }
                     }).length;
-
-                    // Format today's date
-                    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                    final todayStr = '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
 
                     // Unified stats: Contacts, Sessions This Week, Total Sessions, Today's Date
                     return Padding(
@@ -175,7 +185,8 @@ class DashboardScreen extends ConsumerWidget {
                               Expanded(
                                 child: StatCard(
                                   label: 'Contacts',
-                                  value: '${teacherStudentsAsync.valueOrNull?.length ?? 0}',
+                                  value:
+                                      '${teacherStudentsAsync.valueOrNull?.length ?? 0}',
                                   icon: Icons.people_rounded,
                                   color: AppColors.cyan500,
                                 ),
@@ -206,7 +217,8 @@ class DashboardScreen extends ConsumerWidget {
                               Expanded(
                                 child: StatCard(
                                   label: 'Reciting (قارئ)',
-                                  value: '${enrolledAsync.valueOrNull?.length ?? 0}',
+                                  value:
+                                      '${enrolledAsync.valueOrNull?.length ?? 0}',
                                   icon: Icons.menu_book_rounded,
                                   color: AppColors.amber500,
                                 ),
@@ -223,7 +235,10 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   error: (e, _) => Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text('Error: $e', style: const TextStyle(color: AppColors.error)),
+                    child: Text(
+                      'Error: $e',
+                      style: const TextStyle(color: AppColors.error),
+                    ),
                   ),
                 ),
               ),
@@ -246,47 +261,20 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         error: (e, _) => Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Text('Error loading contacts: $e',
-                            style: const TextStyle(color: AppColors.error)),
+                          child: Text(
+                            'Error loading contacts: $e',
+                            style: const TextStyle(color: AppColors.error),
+                          ),
                         ),
                         data: (students) {
                           if (students.isEmpty) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(32),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.cyan500.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Icon(
-                                        Icons.people_rounded,
-                                        size: 48,
-                                        color: AppColors.cyan500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No contacts yet',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: AppColors.textSecondary(isDarkMode),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Add contacts to your halaqah to start tracking recitation progress.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: AppColors.textMuted(isDarkMode),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            return const Center(
+                              child: PremiumEmptyState(
+                                icon: Icons.people_rounded,
+                                title: 'No contacts yet',
+                                body:
+                                    'Add contacts to your halaqah to start tracking recitation progress.',
+                                color: AppColors.cyan500,
                               ),
                             );
                           }
@@ -294,7 +282,12 @@ class DashboardScreen extends ConsumerWidget {
                           return Column(
                             children: students.map((student) {
                               final initials = student.name.isNotEmpty
-                                  ? student.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+                                  ? student.name
+                                        .split(' ')
+                                        .map((w) => w.isNotEmpty ? w[0] : '')
+                                        .take(2)
+                                        .join()
+                                        .toUpperCase()
                                   : '?';
 
                               return InkWell(
@@ -312,11 +305,18 @@ class DashboardScreen extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
                                   margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 11,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.border(isDarkMode).withOpacity(0.5)),
+                                    color: AppColors.softSurface(isDarkMode),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: AppColors.border(
+                                        isDarkMode,
+                                      ).withOpacity(0.72),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -324,8 +324,12 @@ class DashboardScreen extends ConsumerWidget {
                                         width: 40,
                                         height: 40,
                                         decoration: BoxDecoration(
-                                          color: AppColors.cyan500.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: AppColors.cyan500.withOpacity(
+                                            0.15,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                         ),
                                         alignment: Alignment.center,
                                         child: Text(
@@ -372,7 +376,8 @@ class DashboardScreen extends ConsumerWidget {
                 child: displayClassesAsync.when(
                   data: (classes) {
                     final recentClasses = classes.take(3).toList();
-                    final studentNamesMap = classStudentNamesAsync.valueOrNull ?? {};
+                    final studentNamesMap =
+                        classStudentNamesAsync.valueOrNull ?? {};
                     if (recentClasses.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -393,7 +398,9 @@ class DashboardScreen extends ConsumerWidget {
                                     'No sessions yet',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: AppColors.textSecondary(isDarkMode),
+                                      color: AppColors.textSecondary(
+                                        isDarkMode,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -414,9 +421,13 @@ class DashboardScreen extends ConsumerWidget {
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.border(isDarkMode).withOpacity(0.5)),
+                                color: AppColors.softSurface(isDarkMode),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.border(
+                                    isDarkMode,
+                                  ).withOpacity(0.72),
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -424,14 +435,24 @@ class DashboardScreen extends ConsumerWidget {
                                     width: 48,
                                     height: 48,
                                     decoration: BoxDecoration(
-                                      color: AppColors.border(isDarkMode).withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(10),
+                                      color: AppColors.cyan500.withOpacity(
+                                        0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: AppColors.cyan500.withOpacity(
+                                          0.18,
+                                        ),
+                                      ),
                                     ),
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          classItem.date.contains('-') ? classItem.date.split('-').last : '?',
+                                          classItem.date.contains('-')
+                                              ? classItem.date.split('-').last
+                                              : '?',
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -442,7 +463,9 @@ class DashboardScreen extends ConsumerWidget {
                                           _getMonthAbbr(classItem.date),
                                           style: TextStyle(
                                             fontSize: 10,
-                                            color: AppColors.textSecondary(isDarkMode),
+                                            color: AppColors.textSecondary(
+                                              isDarkMode,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -451,7 +474,8 @@ class DashboardScreen extends ConsumerWidget {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
@@ -460,19 +484,29 @@ class DashboardScreen extends ConsumerWidget {
                                               style: TextStyle(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w600,
-                                                color: AppColors.text(isDarkMode),
+                                                color: AppColors.text(
+                                                  isDarkMode,
+                                                ),
                                               ),
                                             ),
-                                            if (studentNamesMap[classItem.supabaseId] != null) ...[
+                                            if (studentNamesMap[classItem
+                                                    .supabaseId] !=
+                                                null) ...[
                                               const SizedBox(width: 8),
                                               Flexible(
                                                 child: Text(
-                                                  studentNamesMap[classItem.supabaseId]!.join(', '),
+                                                  studentNamesMap[classItem
+                                                          .supabaseId]!
+                                                      .join(', '),
                                                   style: TextStyle(
                                                     fontSize: 13,
-                                                    color: AppColors.textSecondary(isDarkMode),
+                                                    color:
+                                                        AppColors.textSecondary(
+                                                          isDarkMode,
+                                                        ),
                                                   ),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -482,13 +516,16 @@ class DashboardScreen extends ConsumerWidget {
                                         Wrap(
                                           spacing: 6,
                                           runSpacing: 4,
-                                          children: classItem.assignments.map((a) {
-                                            final portionLabel = AppConstants.formatPortionLabel(
-                                              startSurah: a.startSurah,
-                                              endSurah: a.endSurah,
-                                              startAyah: a.startAyah,
-                                              endAyah: a.endAyah,
-                                            );
+                                          children: classItem.assignments.map((
+                                            a,
+                                          ) {
+                                            final portionLabel =
+                                                AppConstants.formatPortionLabel(
+                                                  startSurah: a.startSurah,
+                                                  endSurah: a.endSurah,
+                                                  startAyah: a.startAyah,
+                                                  endAyah: a.endAyah,
+                                                );
                                             return SectionBadge(
                                               type: a.type,
                                               text: portionLabel,
@@ -511,7 +548,8 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Text('Error: $e'),
                 ),
               ),
@@ -535,9 +573,11 @@ class DashboardScreen extends ConsumerWidget {
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppColors.surface(isDarkMode).withOpacity(isDarkMode ? 0.5 : 1.0),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.amber500.withOpacity(0.3)),
+                                color: AppColors.softSurface(isDarkMode),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.amber500.withOpacity(0.3),
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -545,14 +585,19 @@ class DashboardScreen extends ConsumerWidget {
                                     width: 48,
                                     height: 48,
                                     decoration: BoxDecoration(
-                                      color: AppColors.amber500.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(10),
+                                      color: AppColors.amber500.withOpacity(
+                                        0.15,
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          classItem.date.contains('-') ? classItem.date.split('-').last : '?',
+                                          classItem.date.contains('-')
+                                              ? classItem.date.split('-').last
+                                              : '?',
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -563,7 +608,8 @@ class DashboardScreen extends ConsumerWidget {
                                           _getMonthAbbr(classItem.date),
                                           style: TextStyle(
                                             fontSize: 10,
-                                            color: AppColors.amber500.withOpacity(0.8),
+                                            color: AppColors.amber500
+                                                .withOpacity(0.8),
                                           ),
                                         ),
                                       ],
@@ -572,7 +618,8 @@ class DashboardScreen extends ConsumerWidget {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           classItem.day,
@@ -586,13 +633,16 @@ class DashboardScreen extends ConsumerWidget {
                                         Wrap(
                                           spacing: 6,
                                           runSpacing: 4,
-                                          children: classItem.assignments.map((a) {
-                                            final portionLabel = AppConstants.formatPortionLabel(
-                                              startSurah: a.startSurah,
-                                              endSurah: a.endSurah,
-                                              startAyah: a.startAyah,
-                                              endAyah: a.endAyah,
-                                            );
+                                          children: classItem.assignments.map((
+                                            a,
+                                          ) {
+                                            final portionLabel =
+                                                AppConstants.formatPortionLabel(
+                                                  startSurah: a.startSurah,
+                                                  endSurah: a.endSurah,
+                                                  startAyah: a.startAyah,
+                                                  endAyah: a.endAyah,
+                                                );
                                             return SectionBadge(
                                               type: a.type,
                                               text: portionLabel,
@@ -676,14 +726,32 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   String _getMonthAbbr(String date) {
-    final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final parts = date.split('-');
     if (parts.length < 2) return '';
     final month = (int.tryParse(parts[1]) ?? 1).clamp(0, 12);
     return months[month];
   }
 
-  void _showAddStudentSheet(BuildContext context, WidgetRef ref, bool isDarkMode) {
+  void _showAddStudentSheet(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDarkMode,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -715,9 +783,7 @@ class _StudentReportPage extends ConsumerWidget {
         foregroundColor: AppColors.text(isDark),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: ReportPanel(studentId: studentId),
-      ),
+      body: SingleChildScrollView(child: ReportPanel(studentId: studentId)),
     );
   }
 }
@@ -758,9 +824,9 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
       final name = await addStudentByEmail(ref, email);
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name added successfully!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$name added successfully!')));
       }
     } catch (e) {
       if (mounted) {
@@ -779,7 +845,9 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20, right: 20, top: 20,
+        left: 20,
+        right: 20,
+        top: 20,
       ),
       decoration: BoxDecoration(
         color: AppColors.surface(isDark),
@@ -791,7 +859,8 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
         children: [
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.textMuted(isDark),
                 borderRadius: BorderRadius.circular(2),
@@ -810,7 +879,10 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
           const SizedBox(height: 4),
           Text(
             'Enter an email address to search and add a user to your halaqah.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary(isDark)),
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary(isDark),
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -821,7 +893,10 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
             decoration: InputDecoration(
               hintText: 'reciter@example.com',
               hintStyle: TextStyle(color: AppColors.textMuted(isDark)),
-              prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary(isDark)),
+              prefixIcon: Icon(
+                Icons.email_outlined,
+                color: AppColors.textSecondary(isDark),
+              ),
               filled: true,
               fillColor: AppColors.background(isDark),
               border: OutlineInputBorder(
@@ -856,7 +931,10 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     side: BorderSide(color: AppColors.textMuted(isDark)),
                   ),
-                  child: Text('Cancel', style: TextStyle(color: AppColors.text(isDark))),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: AppColors.text(isDark)),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -871,7 +949,10 @@ class _AddStudentSheetState extends ConsumerState<_AddStudentSheet> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text('Add Contact'),
                 ),

@@ -2,10 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
-import '../../../data/quran_data.dart' show getJuzBoundary, pageStarts, totalPages, getPageForSurah, getLastPageForSurah;
+import '../../../data/quran_data.dart'
+    show
+        getJuzBoundary,
+        pageStarts,
+        totalPages,
+        getPageForSurah,
+        getLastPageForSurah;
 import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/report_provider.dart';
+import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/premium_scaffold.dart';
 import '../classroom/classroom_screen.dart';
 import '../../../core/services/tour_service.dart';
 
@@ -58,7 +66,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   Future<void> _prefillFromPreviousClass() async {
     if (_selectedStudentId == null) return;
     try {
-      final suggestions = await ref.read(suggestedPortionsProvider(_selectedStudentId!).future);
+      final suggestions = await ref.read(
+        suggestedPortionsProvider(_selectedStudentId!).future,
+      );
       if (!mounted) return;
 
       setState(() {
@@ -107,12 +117,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     final isDarkMode = ref.watch(themeProvider);
     final studentsAsync = ref.watch(teacherStudentsProvider);
 
-    return Container(
+    return PremiumSheetFrame(
       height: MediaQuery.of(context).size.height * 0.9,
-      decoration: BoxDecoration(
-        color: AppColors.surface(isDarkMode),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       child: Column(
         children: [
           // Handle
@@ -137,11 +143,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     children: [
                       Text(
                         'New Session',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text(isDarkMode),
-                        ),
+                        style: Theme.of(context).textTheme.headlineMedium,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -194,11 +196,32 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    _buildSection('hifz', 'Hifz (New Memorization)', 'New verses to memorize', AppColors.hifzColor, surahs, isDarkMode),
+                    _buildSection(
+                      'hifz',
+                      'Hifz (New Memorization)',
+                      'New verses to memorize',
+                      AppColors.hifzColor,
+                      surahs,
+                      isDarkMode,
+                    ),
                     const SizedBox(height: 12),
-                    _buildSection('sabqi', 'Sabqi (Recent)', 'Recently memorized, needs reinforcement', AppColors.sabqiColor, surahs, isDarkMode),
+                    _buildSection(
+                      'sabqi',
+                      'Sabqi (Recent)',
+                      'Recently memorized, needs reinforcement',
+                      AppColors.sabqiColor,
+                      surahs,
+                      isDarkMode,
+                    ),
                     const SizedBox(height: 12),
-                    _buildSection('revision', 'Revision (Manzil)', 'Long-term revision', AppColors.revisionColor, surahs, isDarkMode),
+                    _buildSection(
+                      'revision',
+                      'Revision (Manzil)',
+                      'Long-term revision',
+                      AppColors.revisionColor,
+                      surahs,
+                      isDarkMode,
+                    ),
 
                     const SizedBox(height: 100),
                   ],
@@ -213,8 +236,21 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface(isDarkMode),
-              border: Border(top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5))),
+              color: AppColors.surface(
+                isDarkMode,
+              ).withOpacity(isDarkMode ? 0.92 : 0.98),
+              border: Border(
+                top: BorderSide(
+                  color: AppColors.border(isDarkMode).withOpacity(0.5),
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDarkMode ? 0.28 : 0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, -8),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -225,7 +261,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: AppColors.textMuted(isDarkMode)),
                     ),
-                    child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: AppColors.text(isDarkMode)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -235,13 +274,16 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     onPressed: _isCreating ? null : _createClass,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: AppColors.cyan500,
+                      backgroundColor: AppColors.cyan600,
                     ),
                     child: _isCreating
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Create Session'),
                   ),
@@ -254,20 +296,21 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildStudentSelector(AsyncValue<List<({String id, String name})>> studentsAsync, bool isDarkMode) {
+  Widget _buildStudentSelector(
+    AsyncValue<List<({String id, String name})>> studentsAsync,
+    bool isDarkMode,
+  ) {
     return studentsAsync.when(
       data: (students) {
         if (students.isEmpty) {
-          return Container(
+          return GlassmorphicCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background(isDarkMode).withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border(isDarkMode)),
-            ),
             child: Text(
               'No contacts yet. Add contacts from the dashboard first.',
-              style: TextStyle(fontSize: 14, color: AppColors.textMuted(isDarkMode)),
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textMuted(isDarkMode),
+              ),
             ),
           );
         }
@@ -287,8 +330,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: AppColors.background(isDarkMode),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.softSurface(isDarkMode),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _selectedStudentId != null
                       ? AppColors.cyan500.withOpacity(0.5)
@@ -298,37 +341,54 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               ),
               child: DropdownButton<String>(
                 value: _selectedStudentId,
-                hint: Text('Select a reciter', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                hint: Text(
+                  'Select a reciter',
+                  style: TextStyle(color: AppColors.textMuted(isDarkMode)),
+                ),
                 isExpanded: true,
                 dropdownColor: AppColors.surface(isDarkMode),
                 underline: const SizedBox(),
-                style: TextStyle(fontSize: 15, color: AppColors.text(isDarkMode)),
-                items: students.map((s) => DropdownMenuItem(
-                  value: s.id,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppColors.cyan500.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.cyan500,
-                          ),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppColors.text(isDarkMode),
+                ),
+                items: students
+                    .map(
+                      (s) => DropdownMenuItem(
+                        value: s.id,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColors.cyan500.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                s.name.isNotEmpty
+                                    ? s.name[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.cyan500,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                s.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(s.name, overflow: TextOverflow.ellipsis)),
-                    ],
-                  ),
-                )).toList(),
+                    )
+                    .toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedStudentId = value);
@@ -341,7 +401,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Error loading contacts: $e', style: const TextStyle(color: AppColors.error)),
+      error: (e, _) => Text(
+        'Error loading contacts: $e',
+        style: const TextStyle(color: AppColors.error),
+      ),
     );
   }
 
@@ -356,17 +419,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.background(isDarkMode),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.softSurface(isDarkMode),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border(isDarkMode)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.calendar_today_rounded, color: AppColors.textSecondary(isDarkMode), size: 20),
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    color: AppColors.textSecondary(isDarkMode),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
-                    style: TextStyle(fontSize: 16, color: AppColors.text(isDarkMode)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.text(isDarkMode),
+                    ),
                   ),
                 ],
               ),
@@ -378,13 +448,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.background(isDarkMode).withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.softSurface(isDarkMode),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.border(isDarkMode)),
             ),
             child: Text(
               dayName,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.text(isDarkMode)),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.text(isDarkMode),
+              ),
             ),
           ),
         ),
@@ -392,17 +466,38 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildSection(String type, String label, String description, Color color, List surahs, bool isDarkMode) {
+  Widget _buildSection(
+    String type,
+    String label,
+    String description,
+    Color color,
+    List surahs,
+    bool isDarkMode,
+  ) {
     final isEnabled = _sectionEnabled[type]!;
     final portions = _portions[type]!;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: isEnabled ? color.withOpacity(0.1) : AppColors.background(isDarkMode).withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
+        gradient: isEnabled
+            ? LinearGradient(
+                colors: [
+                  color.withOpacity(isDarkMode ? 0.18 : 0.12),
+                  AppColors.surface(
+                    isDarkMode,
+                  ).withOpacity(isDarkMode ? 0.82 : 0.96),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: isEnabled ? null : AppColors.softSurface(isDarkMode),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isEnabled ? color.withOpacity(0.3) : AppColors.border(isDarkMode),
+          color: isEnabled
+              ? color.withOpacity(0.3)
+              : AppColors.border(isDarkMode),
           width: isEnabled ? 2 : 1,
         ),
       ),
@@ -425,7 +520,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: isEnabled ? color : AppColors.textSecondary(isDarkMode),
+                            color: isEnabled
+                                ? color
+                                : AppColors.textSecondary(isDarkMode),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -433,7 +530,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isEnabled ? AppColors.textSecondary(isDarkMode) : AppColors.textMuted(isDarkMode),
+                            color: isEnabled
+                                ? AppColors.textSecondary(isDarkMode)
+                                : AppColors.textMuted(isDarkMode),
                           ),
                         ),
                       ],
@@ -464,9 +563,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.background(isDarkMode).withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border(isDarkMode).withOpacity(0.5)),
+                  color: AppColors.surface(
+                    isDarkMode,
+                  ).withOpacity(isDarkMode ? 0.76 : 0.9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.border(isDarkMode).withOpacity(0.5),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,7 +578,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       children: [
                         Text(
                           'Portion ${index + 1}',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary(isDarkMode)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary(isDarkMode),
+                          ),
                         ),
                         const Spacer(),
                         if (portions.length > 1)
@@ -503,8 +609,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           isDarkMode: isDarkMode,
                           onTap: () => setState(() {
                             _portionModes['$type:$index'] = 'page';
-                            portion.startPage = getPageForSurah(portion.startSurah);
-                            portion.endPage = getLastPageForSurah(portion.endSurah);
+                            portion.startPage = getPageForSurah(
+                              portion.startSurah,
+                            );
+                            portion.endPage = getLastPageForSurah(
+                              portion.endSurah,
+                            );
                             portion.startAyah = null;
                             portion.endAyah = null;
                           }),
@@ -545,7 +655,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                                   portion.startPage = v;
                                   if (v != null && v >= 1 && v <= totalPages) {
                                     portion.startSurah = pageStarts[v - 1][0];
-                                    if (portion.endPage != null && portion.endPage! < v) {
+                                    if (portion.endPage != null &&
+                                        portion.endPage! < v) {
                                       portion.endPage = v;
                                       portion.endSurah = pageStarts[v - 1][0];
                                     }
@@ -557,19 +668,16 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: _buildPageInput(
-                              'To Page',
-                              portion.endPage,
-                              (v) {
-                                setState(() {
-                                  portion.endPage = v;
-                                  if (v != null && v >= 1 && v <= totalPages) {
-                                    portion.endSurah = pageStarts[v - 1][0];
-                                  }
-                                });
-                              },
-                              isDarkMode,
-                            ),
+                            child: _buildPageInput('To Page', portion.endPage, (
+                              v,
+                            ) {
+                              setState(() {
+                                portion.endPage = v;
+                                if (v != null && v >= 1 && v <= totalPages) {
+                                  portion.endSurah = pageStarts[v - 1][0];
+                                }
+                              });
+                            }, isDarkMode),
                           ),
                         ],
                       ),
@@ -580,21 +688,34 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.surface(isDarkMode),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.textMuted(isDarkMode)),
+                          color: AppColors.softSurface(isDarkMode),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.textMuted(isDarkMode),
+                          ),
                         ),
                         child: DropdownButton<int>(
                           value: selectedJuz,
-                          hint: Text('Select Juz', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                          hint: Text(
+                            'Select Juz',
+                            style: TextStyle(
+                              color: AppColors.textMuted(isDarkMode),
+                            ),
+                          ),
                           isExpanded: true,
                           dropdownColor: AppColors.surface(isDarkMode),
                           underline: const SizedBox(),
-                          style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
-                          items: List.generate(30, (i) => DropdownMenuItem(
-                            value: i + 1,
-                            child: Text('Juz ${i + 1}'),
-                          )),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.text(isDarkMode),
+                          ),
+                          items: List.generate(
+                            30,
+                            (i) => DropdownMenuItem(
+                              value: i + 1,
+                              child: Text('Juz ${i + 1}'),
+                            ),
+                          ),
                           onChanged: (juz) {
                             if (juz == null) return;
                             final boundary = getJuzBoundary(juz);
@@ -619,12 +740,14 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'From Surah',
                             portion.startSurah,
                             surahs,
-                            (isJuzMode || isPageMode) ? null : (v) => setState(() {
-                              portion.startSurah = v;
-                              portion.endSurah = v;
-                              portion.startAyah = null;
-                              portion.endAyah = null;
-                            }),
+                            (isJuzMode || isPageMode)
+                                ? null
+                                : (v) => setState(() {
+                                    portion.startSurah = v;
+                                    portion.endSurah = v;
+                                    portion.startAyah = null;
+                                    portion.endAyah = null;
+                                  }),
                             isDarkMode,
                           ),
                         ),
@@ -634,10 +757,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             'To Surah',
                             portion.endSurah,
                             surahs,
-                            (isJuzMode || isPageMode) ? null : (v) => setState(() {
-                              portion.endSurah = v;
-                              portion.endAyah = null;
-                            }),
+                            (isJuzMode || isPageMode)
+                                ? null
+                                : (v) => setState(() {
+                                    portion.endSurah = v;
+                                    portion.endAyah = null;
+                                  }),
                             isDarkMode,
                           ),
                         ),
@@ -650,9 +775,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           child: _buildAyahInput(
                             'From Ayah',
                             portion.startAyah,
-                            (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.startAyah = v),
+                            (isJuzMode || isPageMode)
+                                ? null
+                                : (v) => setState(() => portion.startAyah = v),
                             isDarkMode,
-                            fieldKey: ValueKey('${type}_${index}_startAyah_${portion.startSurah}'),
+                            fieldKey: ValueKey(
+                              '${type}_${index}_startAyah_${portion.startSurah}',
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -660,9 +789,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           child: _buildAyahInput(
                             'To Ayah',
                             portion.endAyah,
-                            (isJuzMode || isPageMode) ? null : (v) => setState(() => portion.endAyah = v),
+                            (isJuzMode || isPageMode)
+                                ? null
+                                : (v) => setState(() => portion.endAyah = v),
                             isDarkMode,
-                            fieldKey: ValueKey('${type}_${index}_endAyah_${portion.endSurah}'),
+                            fieldKey: ValueKey(
+                              '${type}_${index}_endAyah_${portion.endSurah}',
+                            ),
                           ),
                         ),
                       ],
@@ -684,7 +817,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                   side: BorderSide(color: color.withOpacity(0.5)),
                 ),
                 icon: Icon(Icons.add_rounded, color: color, size: 18),
-                label: Text('Add Another Portion', style: TextStyle(color: color)),
+                label: Text(
+                  'Add Another Portion',
+                  style: TextStyle(color: color),
+                ),
               ),
             ),
           ],
@@ -693,12 +829,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildSurahDropdown(String label, int value, List surahs, Function(int)? onChanged, bool isDarkMode) {
+  Widget _buildSurahDropdown(
+    String label,
+    int value,
+    List surahs,
+    Function(int)? onChanged,
+    bool isDarkMode,
+  ) {
     final isReadOnly = onChanged == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted(isDarkMode),
+          ),
+        ),
         const SizedBox(height: 4),
         Opacity(
           opacity: isReadOnly ? 0.6 : 1.0,
@@ -716,11 +864,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 isExpanded: true,
                 dropdownColor: AppColors.surface(isDarkMode),
                 underline: const SizedBox(),
-                style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text(isDarkMode),
+                ),
                 items: surahs.map<DropdownMenuItem<int>>((s) {
                   return DropdownMenuItem(
                     value: s.number,
-                    child: Text('${s.number}. ${s.englishName}', overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      '${s.number}. ${s.englishName}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }).toList(),
                 onChanged: onChanged != null ? (v) => onChanged(v!) : null,
@@ -732,12 +886,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
   }
 
-  Widget _buildAyahInput(String label, int? value, Function(int?)? onChanged, bool isDarkMode, {Key? fieldKey}) {
+  Widget _buildAyahInput(
+    String label,
+    int? value,
+    Function(int?)? onChanged,
+    bool isDarkMode, {
+    Key? fieldKey,
+  }) {
     final isReadOnly = onChanged == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted(isDarkMode),
+          ),
+        ),
         const SizedBox(height: 4),
         TextFormField(
           key: fieldKey,
@@ -746,12 +912,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           readOnly: isReadOnly,
           style: TextStyle(
             fontSize: 13,
-            color: isReadOnly ? AppColors.textMuted(isDarkMode) : AppColors.text(isDarkMode),
+            color: isReadOnly
+                ? AppColors.textMuted(isDarkMode)
+                : AppColors.text(isDarkMode),
           ),
           decoration: InputDecoration(
             hintText: 'All',
             hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             filled: true,
             fillColor: AppColors.surface(isDarkMode),
             border: OutlineInputBorder(
@@ -763,17 +934,30 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               borderSide: BorderSide(color: AppColors.textMuted(isDarkMode)),
             ),
           ),
-          onChanged: onChanged != null ? (v) => onChanged(int.tryParse(v)) : null,
+          onChanged: onChanged != null
+              ? (v) => onChanged(int.tryParse(v))
+              : null,
         ),
       ],
     );
   }
 
-  Widget _buildPageInput(String label, int? value, Function(int?) onChanged, bool isDarkMode) {
+  Widget _buildPageInput(
+    String label,
+    int? value,
+    Function(int?) onChanged,
+    bool isDarkMode,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted(isDarkMode),
+          ),
+        ),
         const SizedBox(height: 4),
         TextFormField(
           initialValue: value?.toString() ?? '',
@@ -782,7 +966,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           decoration: InputDecoration(
             hintText: '1–604',
             hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             filled: true,
             fillColor: AppColors.surface(isDarkMode),
             border: OutlineInputBorder(
@@ -851,7 +1038,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           int? endAyah = portion.endAyah;
 
           // For "page" mode: convert page boundaries to exact surah:ayah
-          if (mode == 'page' && portion.startPage != null && portion.endPage != null) {
+          if (mode == 'page' &&
+              portion.startPage != null &&
+              portion.endPage != null) {
             final sp = portion.startPage!;
             final ep = portion.endPage!;
 
@@ -861,7 +1050,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
             // End: last ayah on endPage = one before first ayah on endPage+1
             if (ep < totalPages) {
-              final nextPageSurah = pageStarts[ep][0]; // ep is 0-indexed for next page
+              final nextPageSurah =
+                  pageStarts[ep][0]; // ep is 0-indexed for next page
               final nextPageAyah = pageStarts[ep][1];
               if (nextPageAyah > 1) {
                 // Same surah continues onto next page
@@ -871,7 +1061,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 // Next page starts a new surah at ayah 1
                 // So end page's last ayah is the last ayah of the previous surah
                 endSurah = nextPageSurah - 1;
-                endAyah = null; // null = last ayah of surah (handled by getPageRange)
+                endAyah =
+                    null; // null = last ayah of surah (handled by getPageRange)
               }
             } else {
               // Last page of the Quran
@@ -892,9 +1083,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     }
 
     if (_selectedStudentId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a reciter')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a reciter')));
       return;
     }
 
@@ -910,14 +1101,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
     try {
       final dayName = AppConstants.daysOfWeek[_selectedDate.weekday % 7];
-      final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+      final dateStr =
+          '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
-      final newClass = await ref.read(classesProvider.notifier).createClass(
-        date: dateStr,
-        day: dayName,
-        assignments: assignments,
-        studentIds: [_selectedStudentId!],
-      );
+      final newClass = await ref
+          .read(classesProvider.notifier)
+          .createClass(
+            date: dateStr,
+            day: dayName,
+            assignments: assignments,
+            studentIds: [_selectedStudentId!],
+          );
 
       // Refresh the report so the new class appears
       ref.invalidate(studentReportProvider);
@@ -936,16 +1130,14 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         navigator.pop();
         await Future<void>.delayed(Duration.zero);
         await navigator.push(
-          MaterialPageRoute(
-            builder: (_) => ClassroomScreen(classId: classId),
-          ),
+          MaterialPageRoute(builder: (_) => ClassroomScreen(classId: classId)),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) {
@@ -991,27 +1183,11 @@ class _ModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PremiumPill(
+      label: label,
+      color: color,
+      selected: isActive,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? color.withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isActive ? color.withOpacity(0.5) : AppColors.textMuted(isDarkMode),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            color: isActive ? color : AppColors.textSecondary(isDarkMode),
-          ),
-        ),
-      ),
     );
   }
 }
-

@@ -6,6 +6,8 @@ import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/report_provider.dart';
+import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/premium_scaffold.dart';
 import '../classroom/classroom_screen.dart';
 import 'create_class_screen.dart';
 import 'report/report_panel.dart';
@@ -29,76 +31,56 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
-      body: SafeArea(
+      body: PremiumScaffoldBackground(
+        useSafeArea: false,
         child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Sessions ',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.text(isDarkMode),
-                            ),
-                          ),
-                          TextSpan(
-                            text: '(جلسات)',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.textSecondary(isDarkMode),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_activeTab == 0)
-                    GestureDetector(
-                      onTap: () => _showCreateClassSheet(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            SafeArea(
+              bottom: false,
+              child: PremiumPageHeader(
+                icon: Icons.school_rounded,
+                title: 'Sessions',
+                subtitle: 'Listening (مستمع) and reciting (قارئ)',
+                trailing: _activeTab == 0
+                    ? Container(
                         decoration: BoxDecoration(
-                          color: AppColors.cyan500,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_rounded, size: 18, color: Colors.white),
-                            SizedBox(width: 6),
-                            Text(
-                              'New Session',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.cyan600.withOpacity(
+                                isDarkMode ? 0.30 : 0.22,
                               ),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                ],
+                        child: IconButton(
+                          onPressed: () => _showCreateClassSheet(context),
+                          icon: const Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                          ),
+                          tooltip: 'New Session',
+                        ),
+                      )
+                    : null,
               ),
             ),
 
-            // Listening / Reciting Tabs
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: isDarkMode ? AppColors.slate800 : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.surface(
+                    isDarkMode,
+                  ).withOpacity(isDarkMode ? 0.82 : 0.96),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.border(isDarkMode).withOpacity(0.75),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -107,10 +89,13 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                         onTap: () => setState(() => _activeTab = 0),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: _activeTab == 0 ? AppColors.cyan500 : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
+                            gradient: _activeTab == 0
+                                ? AppColors.primaryGradient
+                                : null,
+                            color: _activeTab == 0 ? null : Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -120,7 +105,9 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                               fontWeight: FontWeight.w600,
                               color: _activeTab == 0
                                   ? Colors.white
-                                  : isDarkMode ? AppColors.slate300 : AppColors.slate600,
+                                  : isDarkMode
+                                  ? AppColors.slate300
+                                  : AppColors.slate600,
                             ),
                           ),
                         ),
@@ -131,10 +118,20 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                         onTap: () => setState(() => _activeTab = 1),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: _activeTab == 1 ? AppColors.amber500 : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
+                            gradient: _activeTab == 1
+                                ? const LinearGradient(
+                                    colors: [
+                                      AppColors.gold,
+                                      AppColors.amber500,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                            color: _activeTab == 1 ? null : Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -144,7 +141,9 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                               fontWeight: FontWeight.w600,
                               color: _activeTab == 1
                                   ? Colors.white
-                                  : isDarkMode ? AppColors.slate300 : AppColors.slate600,
+                                  : isDarkMode
+                                  ? AppColors.slate300
+                                  : AppColors.slate600,
                             ),
                           ),
                         ),
@@ -174,11 +173,13 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     final studentsAsync = ref.watch(teacherStudentsProvider);
 
     return studentsAsync.when(
-      loading: () => Center(
-        child: CircularProgressIndicator(color: AppColors.cyan500),
-      ),
+      loading: () =>
+          Center(child: CircularProgressIndicator(color: AppColors.cyan500)),
       error: (e, _) => Center(
-        child: Text('Error: $e', style: const TextStyle(color: AppColors.error)),
+        child: Text(
+          'Error: $e',
+          style: const TextStyle(color: AppColors.error),
+        ),
       ),
       data: (students) {
         // Auto-select first student if none selected
@@ -208,14 +209,16 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                         child: ReportPanel(
                           key: ValueKey(_selectedStudentId),
                           studentId: _selectedStudentId!,
-                          onTapClass: (classId) => _navigateToClass(context, classId),
-                          onDeleteClass: (classId) => _confirmDeleteClass(context, ref, classId),
+                          onTapClass: (classId) =>
+                              _navigateToClass(context, classId),
+                          onDeleteClass: (classId) =>
+                              _confirmDeleteClass(context, ref, classId),
                         ),
                       ),
                     )
                   : students.isEmpty
-                      ? _buildNoStudentsState(isDarkMode)
-                      : const SizedBox.shrink(),
+                  ? _buildNoStudentsState(isDarkMode)
+                  : const SizedBox.shrink(),
             ),
           ],
         );
@@ -262,13 +265,20 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDarkMode
-            ? AppColors.slate800.withOpacity(0.5)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: isDarkMode
-            ? null
-            : Border.all(color: AppColors.slate200),
+        color: AppColors.surface(
+          isDarkMode,
+        ).withOpacity(isDarkMode ? 0.76 : 0.98),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.border(isDarkMode).withOpacity(0.72),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDarkMode ? 0.18 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -289,41 +299,12 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
                   final isActive = _selectedStudentId == s.id;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
+                    child: PremiumPill(
+                      label: _getFirstName(s.name),
+                      color: AppColors.cyan600,
+                      selected: isActive,
+                      icon: isActive ? Icons.person_rounded : null,
                       onTap: () => setState(() => _selectedStudentId = s.id),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? const Color(0xFF2563EB) // blue-600
-                              : isDarkMode
-                                  ? AppColors.slate700
-                                  : AppColors.slate200,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: isActive
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(0xFF2563EB).withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Text(
-                          _getFirstName(s.name),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isActive
-                                ? Colors.white
-                                : isDarkMode
-                                    ? AppColors.slate300
-                                    : AppColors.slate700,
-                          ),
-                        ),
-                      ),
                     ),
                   );
                 }).toList(),
@@ -338,45 +319,13 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
   // ============ EMPTY STATES ============
 
   Widget _buildNoStudentsState(bool isDarkMode) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.surface(isDarkMode),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.people_outline_rounded,
-                size: 40,
-                color: AppColors.textMuted(isDarkMode),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No reciters added yet',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text(isDarkMode),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Reciters will appear here after they are added as contacts.\nShare your user code to get started.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary(isDarkMode),
-              ),
-            ),
-          ],
-        ),
+    return const Center(
+      child: PremiumEmptyState(
+        icon: Icons.people_outline_rounded,
+        title: 'No reciters added yet',
+        body:
+            'Reciters will appear here after they are added as contacts. Share your user code to get started.',
+        color: AppColors.cyan500,
       ),
     );
   }
@@ -405,9 +354,7 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
   void _navigateToClass(BuildContext context, String classId) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ClassroomScreen(classId: classId),
-      ),
+      MaterialPageRoute(builder: (_) => ClassroomScreen(classId: classId)),
     );
   }
 
@@ -420,7 +367,11 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
     );
   }
 
-  void _confirmDeleteClass(BuildContext context, WidgetRef ref, String classId) {
+  void _confirmDeleteClass(
+    BuildContext context,
+    WidgetRef ref,
+    String classId,
+  ) {
     final isDarkMode = ref.read(themeProvider);
 
     showDialog(

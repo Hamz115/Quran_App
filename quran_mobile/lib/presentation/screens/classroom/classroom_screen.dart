@@ -15,6 +15,8 @@ import '../../providers/theme_provider.dart';
 import '../../providers/quran_page_provider.dart';
 import '../../widgets/mushaf_page_widget.dart';
 import '../../widgets/section_badge.dart';
+import '../../widgets/glassmorphic_card.dart';
+import '../../widgets/premium_scaffold.dart';
 import '../../../core/services/tour_service.dart';
 import 'word_popup.dart';
 
@@ -33,7 +35,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   int _currentPage = 0; // 0 = not yet initialized
   String? _selectedStudentId; // Supabase student UUID
   bool _studentInitialized = false;
-  bool _showPageOnly = true; // Toggle: true = show only this page's mistakes (default: Page)
+  bool _showPageOnly =
+      true; // Toggle: true = show only this page's mistakes (default: Page)
 
   // Overlay state (like QuranReaderScreen)
   bool _showOverlay = false;
@@ -111,7 +114,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final studentsAsync = isTeacher ? ref.watch(teacherStudentsProvider) : null;
 
     // Fetch CLASS-SPECIFIC students to auto-select the correct one
-    final classStudentsAsync = isTeacher ? ref.watch(classStudentsProvider(widget.classId)) : null;
+    final classStudentsAsync = isTeacher
+        ? ref.watch(classStudentsProvider(widget.classId))
+        : null;
 
     // Auto-select from class-enrolled students (not all teacher's students)
     if (!_studentInitialized && classStudentsAsync != null) {
@@ -120,26 +125,32 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           _selectedStudentId = classStudents.first.id;
           _studentInitialized = true;
           Future.microtask(() {
-            ref.read(mistakesProvider.notifier).setStudentId(_selectedStudentId);
+            ref
+                .read(mistakesProvider.notifier)
+                .setStudentId(_selectedStudentId);
           });
         }
       });
     }
     // Fallback: if class has no enrolled students yet, use all teacher's students
-    if (!_studentInitialized && studentsAsync != null && classStudentsAsync?.value?.isEmpty == true) {
+    if (!_studentInitialized &&
+        studentsAsync != null &&
+        classStudentsAsync?.value?.isEmpty == true) {
       studentsAsync.whenData((students) {
         if (students.isNotEmpty && _selectedStudentId == null) {
           _selectedStudentId = students.first.id;
           _studentInitialized = true;
           Future.microtask(() {
-            ref.read(mistakesProvider.notifier).setStudentId(_selectedStudentId);
+            ref
+                .read(mistakesProvider.notifier)
+                .setStudentId(_selectedStudentId);
           });
         }
       });
     }
 
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.black : const Color(0xFFFEF9E7),
+      backgroundColor: AppColors.readerBackground(isDarkMode),
       body: classAsync.when(
         data: (classData) {
           if (classData == null) {
@@ -153,7 +164,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           }
 
           // Set initial section if needed
-          if (!availableSections.contains(_activeSection) && availableSections.isNotEmpty) {
+          if (!availableSections.contains(_activeSection) &&
+              availableSections.isNotEmpty) {
             _activeSection = availableSections.first;
           }
 
@@ -161,10 +173,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           final sectionAssignments = classData.assignments.where((a) {
             if (a.type != _activeSection) return false;
             if (a.studentId == null) return true; // Class-wide
-            if (isTeacher && _selectedStudentId != null) return a.studentId == _selectedStudentId;
+            if (isTeacher && _selectedStudentId != null)
+              return a.studentId == _selectedStudentId;
             return false;
           }).toList();
-          final currentAssignment = sectionAssignments.isNotEmpty && _selectedPortionIndex < sectionAssignments.length
+          final currentAssignment =
+              sectionAssignments.isNotEmpty &&
+                  _selectedPortionIndex < sectionAssignments.length
               ? sectionAssignments[_selectedPortionIndex]
               : null;
 
@@ -190,35 +205,61 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
           final totalPagesInRange = lastPage - firstPage + 1;
           final mistakes = mistakesAsync.value ?? [];
-          final relevantMistakes = _getMistakesForAssignment(mistakes, currentAssignment);
+          final relevantMistakes = _getMistakesForAssignment(
+            mistakes,
+            currentAssignment,
+          );
 
-          return SafeArea(
-            child: Column(
-              children: [
-                // Solid top bar (NOT overlaying the Quran)
-                _buildTopBar(classData, availableSections.toList(), relevantMistakes.length, isDarkMode),
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppColors.readerGradient(isDarkMode),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  _buildTopBar(
+                    classData,
+                    availableSections.toList(),
+                    relevantMistakes.length,
+                    isDarkMode,
+                  ),
 
-                // Quran page (fills all space)
-                Expanded(
-                  key: TourService.quranPageKey,
-                  child: currentAssignment != null
-                      ? _buildSwipeableMushafPage(firstPage, lastPage, totalPagesInRange, mistakesAsync, currentAssignment, isDarkMode, ref)
-                      : Center(
-                          child: Text(
-                            'No portion selected',
-                            style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                  Expanded(
+                    key: TourService.quranPageKey,
+                    child: currentAssignment != null
+                        ? _buildSwipeableMushafPage(
+                            firstPage,
+                            lastPage,
+                            totalPagesInRange,
+                            mistakesAsync,
+                            currentAssignment,
+                            isDarkMode,
+                            ref,
+                          )
+                        : Center(
+                            child: Text(
+                              'No portion selected',
+                              style: TextStyle(
+                                color: AppColors.textSecondary(isDarkMode),
+                              ),
+                            ),
                           ),
-                        ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           );
         },
         loading: () => Center(
-          child: CircularProgressIndicator(color: AppColors.primary(isDarkMode)),
+          child: CircularProgressIndicator(
+            color: AppColors.primary(isDarkMode),
+          ),
         ),
         error: (e, _) => Center(
-          child: Text('Error: $e', style: TextStyle(color: AppColors.text(isDarkMode))),
+          child: Text(
+            'Error: $e',
+            style: TextStyle(color: AppColors.text(isDarkMode)),
+          ),
         ),
       ),
     );
@@ -226,20 +267,35 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   // ==================== TOP BAR ====================
 
-  Widget _buildTopBar(ClassSession classData, List<String> sections, int mistakeCount, bool isDarkMode) {
+  Widget _buildTopBar(
+    ClassSession classData,
+    List<String> sections,
+    int mistakeCount,
+    bool isDarkMode,
+  ) {
     final sectionColor = AppColors.getSectionColor(_activeSection);
-    final sectionLabel = AppConstants.sectionLabels[_activeSection] ?? _activeSection;
+    final sectionLabel =
+        AppConstants.sectionLabels[_activeSection] ?? _activeSection;
 
     return Container(
       key: TourService.sectionTabsKey,
-      padding: const EdgeInsets.only(left: 4, right: 8, top: 4, bottom: 6),
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+      padding: const EdgeInsets.only(left: 4, right: 8, top: 6, bottom: 6),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF1A1A2E) : AppColors.surface(false),
-        border: Border(
-          bottom: BorderSide(
-            color: isDarkMode ? Colors.white12 : AppColors.border(false),
-          ),
+        color: AppColors.surface(
+          isDarkMode,
+        ).withOpacity(isDarkMode ? 0.92 : 0.96),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.border(isDarkMode).withOpacity(0.74),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDarkMode ? 0.32 : 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -295,13 +351,22 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   ? AppColors.emerald500.withOpacity(0.2)
                   : AppColors.mistake1.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color:
+                    (mistakeCount == 0
+                            ? AppColors.emerald500
+                            : AppColors.mistake1)
+                        .withOpacity(0.22),
+              ),
             ),
             child: Text(
               '$mistakeCount',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: mistakeCount == 0 ? AppColors.emerald400 : AppColors.mistake1,
+                color: mistakeCount == 0
+                    ? AppColors.emerald400
+                    : AppColors.mistake1,
               ),
             ),
           ),
@@ -394,7 +459,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   ),
                   if (surahsOnPage.isNotEmpty)
                     Text(
-                      surahsOnPage.map((s) => surahNamesArabic[s] ?? '').join(' - '),
+                      surahsOnPage
+                          .map((s) => surahNamesArabic[s] ?? '')
+                          .join(' - '),
                       textDirection: TextDirection.rtl,
                       style: GoogleFonts.amiri(
                         fontSize: 14,
@@ -461,7 +528,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -472,7 +542,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               }
               Navigator.pop(context);
             },
-            child: Text('Go', style: TextStyle(color: AppColors.primary(isDarkMode))),
+            child: Text(
+              'Go',
+              style: TextStyle(color: AppColors.primary(isDarkMode)),
+            ),
           ),
         ],
       ),
@@ -489,7 +562,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
     final isTeacher = ref.read(authProvider).isTeacher;
     final studentsAsync = isTeacher ? ref.read(teacherStudentsProvider) : null;
-    final classStudentsAsync = isTeacher ? ref.watch(classStudentsProvider(widget.classId)) : null;
+    final classStudentsAsync = isTeacher
+        ? ref.watch(classStudentsProvider(widget.classId))
+        : null;
 
     showModalBottomSheet(
       context: context,
@@ -498,7 +573,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           // Re-read class data to stay in sync
-          final freshClassAsync = ref.watch(classFromStringIdProvider(widget.classId));
+          final freshClassAsync = ref.watch(
+            classFromStringIdProvider(widget.classId),
+          );
           final freshClassData = freshClassAsync.value ?? classData;
 
           final availableSections = <String>{};
@@ -506,17 +583,15 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             availableSections.add(a.type);
           }
 
-          final sectionAssignments = freshClassData.assignments.where((a) => a.type == _activeSection).toList();
+          final sectionAssignments = freshClassData.assignments
+              .where((a) => a.type == _activeSection)
+              .toList();
 
           return DraggableScrollableSheet(
             initialChildSize: 0.6,
             minChildSize: 0.3,
             maxChildSize: 0.85,
-            builder: (ctx, scrollController) => Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface(isDarkMode),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
+            builder: (ctx, scrollController) => PremiumSheetFrame(
               child: ListView(
                 controller: scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -525,7 +600,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   Center(
                     child: Container(
                       margin: const EdgeInsets.only(top: 12, bottom: 16),
-                      width: 40, height: 4,
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: AppColors.textMuted(isDarkMode),
                         borderRadius: BorderRadius.circular(2),
@@ -565,7 +641,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildSectionTabsInSheet(availableSections.toList(), freshClassData.assignments, isDarkMode, setSheetState),
+                  _buildSectionTabsInSheet(
+                    availableSections.toList(),
+                    freshClassData.assignments,
+                    isDarkMode,
+                    setSheetState,
+                  ),
                   const SizedBox(height: 16),
 
                   // Portion selector
@@ -578,7 +659,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildPortionSelectorInSheet(sectionAssignments, isDarkMode, isTeacher, setSheetState),
+                  _buildPortionSelectorInSheet(
+                    sectionAssignments,
+                    isDarkMode,
+                    isTeacher,
+                    setSheetState,
+                  ),
                   const SizedBox(height: 16),
 
                   // Performance & Notes (teacher only)
@@ -622,18 +708,33 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         if (classStudents.length == 1) {
           return Row(
             children: [
-              Text('Reciter: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+              Text(
+                'Reciter: ',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary(isDarkMode),
+                ),
+              ),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary(isDarkMode).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.primary(isDarkMode).withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppColors.primary(isDarkMode).withOpacity(0.3),
+                    ),
                   ),
                   child: Text(
                     classStudents.first.name,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary(isDarkMode)),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary(isDarkMode),
+                    ),
                   ),
                 ),
               ),
@@ -649,7 +750,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
         return Row(
           children: [
-            Text('Reciter: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(isDarkMode))),
+            Text(
+              'Reciter: ',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary(isDarkMode),
+              ),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: SingleChildScrollView(
@@ -660,36 +767,18 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                     final firstName = s.name.trim().split(' ').first;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
+                      child: PremiumPill(
+                        label: firstName,
+                        color: AppColors.cyan600,
+                        selected: isActive,
+                        icon: isActive ? Icons.person_rounded : null,
                         onTap: () {
                           setState(() => _selectedStudentId = s.id);
                           setSheetState(() {});
-                          ref.read(mistakesProvider.notifier).setStudentId(s.id);
+                          ref
+                              .read(mistakesProvider.notifier)
+                              .setStudentId(s.id);
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? const Color(0xFF3B82F6)
-                                : isDarkMode
-                                    ? AppColors.slate700
-                                    : AppColors.slate200,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            firstName,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: isActive
-                                  ? Colors.white
-                                  : isDarkMode
-                                      ? AppColors.slate300
-                                      : AppColors.slate700,
-                            ),
-                          ),
-                        ),
                       ),
                     );
                   }).toList(),
@@ -704,7 +793,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildSectionTabsInSheet(List<String> sections, List<Assignment> allAssignments, bool isDarkMode, StateSetter setSheetState) {
+  Widget _buildSectionTabsInSheet(
+    List<String> sections,
+    List<Assignment> allAssignments,
+    bool isDarkMode,
+    StateSetter setSheetState,
+  ) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -744,7 +838,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildPortionSelectorInSheet(List<Assignment> assignments, bool isDarkMode, bool isTeacher, StateSetter setSheetState) {
+  Widget _buildPortionSelectorInSheet(
+    List<Assignment> assignments,
+    bool isDarkMode,
+    bool isTeacher,
+    StateSetter setSheetState,
+  ) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -767,7 +866,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GestureDetector(
+                  PremiumPill(
+                    label: assignments.length > 1
+                        ? 'Portion ${index + 1}: $label'
+                        : label,
+                    color: color,
+                    selected: isSelected,
                     onTap: () {
                       setState(() {
                         _selectedPortionIndex = index;
@@ -775,47 +879,50 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                       });
                       setSheetState(() {});
                     },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? color.withOpacity(0.2) : AppColors.background(isDarkMode),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isSelected ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
-                        ),
-                      ),
-                      child: Text(
-                        assignments.length > 1 ? 'Portion ${index + 1}: $label' : label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isSelected ? color : AppColors.textSecondary(isDarkMode),
-                        ),
-                      ),
-                    ),
                   ),
                   if (isTeacher) ...[
                     const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () => _showEditPortionSheet(context, assignment),
                       child: Container(
-                        width: 32, height: 32,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
-                          color: AppColors.background(isDarkMode),
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.softSurface(isDarkMode),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.border(isDarkMode),
+                          ),
                         ),
-                        child: Icon(Icons.edit, size: 16, color: AppColors.textSecondary(isDarkMode)),
+                        child: Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: AppColors.textSecondary(isDarkMode),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: () => _confirmDeletePortion(context, assignment, assignments),
+                      onTap: () => _confirmDeletePortion(
+                        context,
+                        assignment,
+                        assignments,
+                      ),
                       child: Container(
-                        width: 32, height: 32,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
-                          color: AppColors.background(isDarkMode),
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.softSurface(isDarkMode),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.border(isDarkMode),
+                          ),
                         ),
-                        child: Icon(Icons.delete_outline, size: 16, color: Colors.red.withOpacity(0.6)),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 16,
+                          color: Colors.red.withOpacity(0.6),
+                        ),
                       ),
                     ),
                   ],
@@ -828,10 +935,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             GestureDetector(
               onTap: () => _showAddPortionSheet(context),
               child: Container(
-                width: 36, height: 36,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.cyan500.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.cyan500.withOpacity(0.3)),
                 ),
                 child: Icon(Icons.add, size: 20, color: AppColors.cyan500),
@@ -851,7 +959,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       decoration: BoxDecoration(
         color: _getPerformanceColor(performance).withOpacity(0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _getPerformanceColor(performance).withOpacity(0.3)),
+        border: Border.all(
+          color: _getPerformanceColor(performance).withOpacity(0.3),
+        ),
       ),
       child: DropdownButton<String?>(
         value: performance,
@@ -861,22 +971,32 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         dropdownColor: AppColors.surface(isDarkMode),
         hint: Text(
           'Rate performance...',
-          style: TextStyle(fontSize: 13, color: AppColors.textMuted(isDarkMode)),
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textMuted(isDarkMode),
+          ),
         ),
         style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
         items: [
           DropdownMenuItem<String?>(
             value: null,
-            child: Text('Not rated', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+            child: Text(
+              'Not rated',
+              style: TextStyle(color: AppColors.textMuted(isDarkMode)),
+            ),
           ),
-          ...['Excellent', 'Very Good', 'Good', 'Needs Work'].map((p) =>
-            DropdownMenuItem<String?>(
+          ...['Excellent', 'Very Good', 'Good', 'Needs Work'].map(
+            (p) => DropdownMenuItem<String?>(
               value: p,
               child: Row(
                 children: [
                   Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(color: _getPerformanceColor(p), shape: BoxShape.circle),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _getPerformanceColor(p),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Text(p),
@@ -888,7 +1008,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         onChanged: (value) {
           final classId = classData.id;
           if (classId != null) {
-            ref.read(classesProvider.notifier).updatePerformance(classId, value);
+            ref
+                .read(classesProvider.notifier)
+                .updatePerformance(classId, value);
           }
           if (TourService.isTourActive) {
             TourService.completeInteraction();
@@ -912,10 +1034,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: hasNotes ? AppColors.cyan500.withOpacity(0.12) : AppColors.background(isDarkMode),
+          color: hasNotes
+              ? AppColors.cyan500.withOpacity(0.12)
+              : AppColors.background(isDarkMode),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: hasNotes ? AppColors.cyan500.withOpacity(0.3) : AppColors.border(isDarkMode),
+            color: hasNotes
+                ? AppColors.cyan500.withOpacity(0.3)
+                : AppColors.border(isDarkMode),
           ),
         ),
         child: Row(
@@ -923,7 +1049,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             Icon(
               Icons.note_alt_outlined,
               size: 18,
-              color: hasNotes ? AppColors.cyan500 : AppColors.textSecondary(isDarkMode),
+              color: hasNotes
+                  ? AppColors.cyan500
+                  : AppColors.textSecondary(isDarkMode),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -931,7 +1059,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 hasNotes ? 'View/Edit Notes' : 'Add Notes',
                 style: TextStyle(
                   fontSize: 14,
-                  color: hasNotes ? AppColors.cyan500 : AppColors.textSecondary(isDarkMode),
+                  color: hasNotes
+                      ? AppColors.cyan500
+                      : AppColors.textSecondary(isDarkMode),
                 ),
               ),
             ),
@@ -966,7 +1096,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 16, height: 16,
+          width: 16,
+          height: 16,
           decoration: BoxDecoration(
             color: color.withOpacity(0.3),
             borderRadius: BorderRadius.circular(4),
@@ -974,18 +1105,29 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary(isDarkMode))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary(isDarkMode),
+          ),
+        ),
       ],
     );
   }
 
   Color _getPerformanceColor(String? performance) {
     switch (performance) {
-      case 'Excellent': return AppColors.cyan500;
-      case 'Very Good': return const Color(0xFF14B8A6); // teal-500
-      case 'Good': return const Color(0xFFF59E0B); // amber-500
-      case 'Needs Work': return const Color(0xFFEF4444); // red-500
-      default: return Colors.grey;
+      case 'Excellent':
+        return AppColors.cyan500;
+      case 'Very Good':
+        return const Color(0xFF14B8A6); // teal-500
+      case 'Good':
+        return const Color(0xFFF59E0B); // amber-500
+      case 'Needs Work':
+        return const Color(0xFFEF4444); // red-500
+      default:
+        return Colors.grey;
     }
   }
 
@@ -1010,7 +1152,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       },
       itemBuilder: (context, index) {
         final pageNum = firstPage + index;
-        return _buildScrollablePage(pageNum, mistakesAsync, assignment, isDarkMode, ref, firstPage: firstPage);
+        return _buildScrollablePage(
+          pageNum,
+          mistakesAsync,
+          assignment,
+          isDarkMode,
+          ref,
+          firstPage: firstPage,
+        );
       },
     );
   }
@@ -1033,12 +1182,24 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               // Mushaf page takes full available height
               SizedBox(
                 height: constraints.maxHeight,
-                child: _buildMushafPage(pageNum, mistakesAsync, isDarkMode, assignment),
+                child: _buildMushafPage(
+                  pageNum,
+                  mistakesAsync,
+                  isDarkMode,
+                  assignment,
+                ),
               ),
               // Mistakes summary below (scroll down to see)
               Container(
                 key: TourService.mistakesAreaKey,
-                child: _buildMistakesSummary(mistakesAsync, assignment, isDarkMode, ref, _currentPage, firstPage: firstPage),
+                child: _buildMistakesSummary(
+                  mistakesAsync,
+                  assignment,
+                  isDarkMode,
+                  ref,
+                  _currentPage,
+                  firstPage: firstPage,
+                ),
               ),
             ],
           ),
@@ -1047,7 +1208,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildMushafPage(int pageNum, AsyncValue<List<Mistake>> mistakesAsync, bool isDarkMode, [Assignment? assignment]) {
+  Widget _buildMushafPage(
+    int pageNum,
+    AsyncValue<List<Mistake>> mistakesAsync,
+    bool isDarkMode, [
+    Assignment? assignment,
+  ]) {
     final pageDataAsync = ref.watch(quranPageDataProvider(pageNum));
     final fontReadyAsync = ref.watch(fontReadyProvider(pageNum));
     final mistakes = mistakesAsync.value ?? [];
@@ -1074,7 +1240,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 24, height: 24,
+                  width: 24,
+                  height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: AppColors.primary(isDarkMode),
@@ -1083,7 +1250,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Loading fonts...',
-                  style: TextStyle(fontSize: 13, color: AppColors.textMuted(isDarkMode)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted(isDarkMode),
+                  ),
                 ),
               ],
             ),
@@ -1107,7 +1277,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                width: 24, height: 24,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: AppColors.primary(isDarkMode),
@@ -1116,7 +1287,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               const SizedBox(height: 8),
               Text(
                 'Loading page $pageNum...',
-                style: TextStyle(fontSize: 13, color: AppColors.textMuted(isDarkMode)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted(isDarkMode),
+                ),
               ),
             ],
           ),
@@ -1154,7 +1328,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final relevantMistakes = _getMistakesForAssignment(mistakes, assignment);
 
     // Get mistake IDs belonging to this session
-    final classMistakeIdsAsync = ref.watch(classMistakeIdsProvider(widget.classId));
+    final classMistakeIdsAsync = ref.watch(
+      classMistakeIdsProvider(widget.classId),
+    );
     final classMistakeIds = classMistakeIdsAsync.valueOrNull ?? <String>{};
 
     // This class mistakes
@@ -1168,18 +1344,30 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
     // Filter by current page if toggle is on
     final thisClassMistakes = _showPageOnly && currentPage > 0
-        ? allThisClassMistakes.where((m) => getPageNumber(m.surahNumber, m.ayahNumber) == currentPage).toList()
+        ? allThisClassMistakes
+              .where(
+                (m) =>
+                    getPageNumber(m.surahNumber, m.ayahNumber) == currentPage,
+              )
+              .toList()
         : allThisClassMistakes;
 
     // Previous class mistake groups
-    final prevGroupsAsync = ref.watch(previousClassMistakesProvider(widget.classId));
+    final prevGroupsAsync = ref.watch(
+      previousClassMistakesProvider(widget.classId),
+    );
     final allPrevGroups = prevGroupsAsync.valueOrNull ?? [];
     // Filter each group's mistakes to this assignment's range + page filter
     final prevGroups = allPrevGroups
         .map((g) {
-          var filtered = g.mistakes.where((m) => _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment));
+          var filtered = g.mistakes.where(
+            (m) =>
+                _isMistakeInAssignment(m.surahNumber, m.ayahNumber, assignment),
+          );
           if (_showPageOnly && currentPage > 0) {
-            filtered = filtered.where((m) => getPageNumber(m.surahNumber, m.ayahNumber) == currentPage);
+            filtered = filtered.where(
+              (m) => getPageNumber(m.surahNumber, m.ayahNumber) == currentPage,
+            );
           }
           return PreviousClassMistakeGroup(
             classDate: g.classDate,
@@ -1201,7 +1389,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface(isDarkMode),
-        border: Border(top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5))),
+        border: Border(
+          top: BorderSide(color: AppColors.border(isDarkMode).withOpacity(0.5)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1223,18 +1413,26 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               // Page / All toggle
               Container(
                 decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+                  color: isDarkMode
+                      ? Colors.white.withOpacity(0.06)
+                      : Colors.black.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildToggleChip('All', !_showPageOnly, isDarkMode, () {
-                      setState(() => _showPageOnly = false);
-                      if (TourService.isTourActive) {
-                        TourService.completeInteraction();
-                      }
-                    }, key: TourService.pageAllToggleKey),
+                    _buildToggleChip(
+                      'All',
+                      !_showPageOnly,
+                      isDarkMode,
+                      () {
+                        setState(() => _showPageOnly = false);
+                        if (TourService.isTourActive) {
+                          TourService.completeInteraction();
+                        }
+                      },
+                      key: TourService.pageAllToggleKey,
+                    ),
                     _buildToggleChip('Page', _showPageOnly, isDarkMode, () {
                       setState(() => _showPageOnly = true);
                       if (TourService.isTourActive) {
@@ -1249,19 +1447,33 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           const SizedBox(height: 10),
           if (thisClassMistakes.isEmpty)
             Text(
-              _showPageOnly ? 'No mistakes on this page' : 'No mistakes in this session',
-              style: TextStyle(fontSize: 12, color: AppColors.textMuted(isDarkMode)),
+              _showPageOnly
+                  ? 'No mistakes on this page'
+                  : 'No mistakes in this session',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textMuted(isDarkMode),
+              ),
             )
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: thisClassMistakes.map((m) => _MistakeBadgeWidget(
-                errorCount: m.errorCount,
-                wordText: m.wordText,
-                location: '${m.ayahNumber}:${m.wordIndex + 1}',
-                onTap: () => _flashWord(m.surahNumber, m.ayahNumber, m.wordIndex, firstPage: firstPage),
-              )).toList(),
+              children: thisClassMistakes
+                  .map(
+                    (m) => _MistakeBadgeWidget(
+                      errorCount: m.errorCount,
+                      wordText: m.wordText,
+                      location: '${m.ayahNumber}:${m.wordIndex + 1}',
+                      onTap: () => _flashWord(
+                        m.surahNumber,
+                        m.ayahNumber,
+                        m.wordIndex,
+                        firstPage: firstPage,
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
 
           // Previous class mistakes — grouped by class
@@ -1270,10 +1482,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             Container(
               padding: const EdgeInsets.only(left: 10),
               decoration: BoxDecoration(
-                border: Border(left: BorderSide(
-                  color: isDarkMode ? const Color(0x55F59E0B) : const Color(0xFFFDE68A),
-                  width: 2,
-                )),
+                border: Border(
+                  left: BorderSide(
+                    color: isDarkMode
+                        ? const Color(0x55F59E0B)
+                        : const Color(0xFFFDE68A),
+                    width: 2,
+                  ),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1284,67 +1500,87 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
-                      color: isDarkMode ? const Color(0xFFFCD34D).withOpacity(0.8) : const Color(0xFFD97706),
+                      color: isDarkMode
+                          ? const Color(0xFFFCD34D).withOpacity(0.8)
+                          : const Color(0xFFD97706),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: group.mistakes.map((m) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? const Color(0x1AF59E0B)
-                            : const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDarkMode
-                              ? const Color(0x33F59E0B)
-                              : const Color(0xFFFDE68A),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFBBF24).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(6),
+                    children: group.mistakes
+                        .map(
+                          (m) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
                             ),
-                            child: Text(
-                              '${m.errorCount}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFBBF24),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? const Color(0x1AF59E0B)
+                                  : const Color(0xFFFFFBEB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDarkMode
+                                    ? const Color(0x33F59E0B)
+                                    : const Color(0xFFFDE68A),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            m.wordText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontFamily: 'Uthmanic',
-                              color: isDarkMode ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFFBBF24,
+                                    ).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${m.errorCount}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFFBBF24),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  m.wordText,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontFamily: 'Uthmanic',
+                                    color: isDarkMode
+                                        ? const Color(0xFFFCD34D)
+                                        : const Color(0xFFD97706),
+                                  ),
+                                  textDirection: TextDirection.rtl,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${m.ayahNumber}:${m.wordIndex + 1}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDarkMode
+                                        ? const Color(
+                                            0xFFFCD34D,
+                                          ).withOpacity(0.7)
+                                        : const Color(
+                                            0xFFD97706,
+                                          ).withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
                             ),
-                            textDirection: TextDirection.rtl,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${m.ayahNumber}:${m.wordIndex + 1}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isDarkMode
-                                  ? const Color(0xFFFCD34D).withOpacity(0.7)
-                                  : const Color(0xFFD97706).withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )).toList(),
+                        )
+                        .toList(),
                   ),
                 ],
               ),
@@ -1355,7 +1591,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildToggleChip(String label, bool isActive, bool isDarkMode, VoidCallback onTap, {Key? key}) {
+  Widget _buildToggleChip(
+    String label,
+    bool isActive,
+    bool isDarkMode,
+    VoidCallback onTap, {
+    Key? key,
+  }) {
     return GestureDetector(
       key: key,
       onTap: onTap,
@@ -1363,7 +1605,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: isActive
-              ? (isDarkMode ? AppColors.cyan600.withOpacity(0.2) : AppColors.cyan600.withOpacity(0.1))
+              ? (isDarkMode
+                    ? AppColors.cyan600.withOpacity(0.2)
+                    : AppColors.cyan600.withOpacity(0.1))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -1383,12 +1627,19 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   // ==================== HELPER METHODS ====================
 
-  bool _isMistakeInAssignment(int surahNumber, int ayahNumber, Assignment assignment) {
-    if (surahNumber < assignment.startSurah || surahNumber > assignment.endSurah) {
+  bool _isMistakeInAssignment(
+    int surahNumber,
+    int ayahNumber,
+    Assignment assignment,
+  ) {
+    if (surahNumber < assignment.startSurah ||
+        surahNumber > assignment.endSurah) {
       return false;
     }
-    if (assignment.startSurah == assignment.endSurah && assignment.hasAyahRange) {
-      return ayahNumber >= assignment.startAyah! && ayahNumber <= assignment.endAyah!;
+    if (assignment.startSurah == assignment.endSurah &&
+        assignment.hasAyahRange) {
+      return ayahNumber >= assignment.startAyah! &&
+          ayahNumber <= assignment.endAyah!;
     }
     if (surahNumber == assignment.startSurah && assignment.startAyah != null) {
       if (ayahNumber < assignment.startAyah!) return false;
@@ -1406,7 +1657,21 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       if (parts.length < 3) return dateStr;
       final month = int.parse(parts[1]);
       final day = int.parse(parts[2]);
-      const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const months = [
+        '',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       final year = parts[0];
       return '${months[month]} $day, $year';
     } catch (_) {
@@ -1414,17 +1679,24 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     }
   }
 
-  List<Mistake> _getMistakesForAssignment(List<Mistake> allMistakes, Assignment? assignment) {
+  List<Mistake> _getMistakesForAssignment(
+    List<Mistake> allMistakes,
+    Assignment? assignment,
+  ) {
     if (assignment == null) return [];
 
     return allMistakes.where((m) {
-      if (m.surahNumber < assignment.startSurah || m.surahNumber > assignment.endSurah) {
+      if (m.surahNumber < assignment.startSurah ||
+          m.surahNumber > assignment.endSurah) {
         return false;
       }
-      if (assignment.startSurah == assignment.endSurah && assignment.hasAyahRange) {
-        return m.ayahNumber >= assignment.startAyah! && m.ayahNumber <= assignment.endAyah!;
+      if (assignment.startSurah == assignment.endSurah &&
+          assignment.hasAyahRange) {
+        return m.ayahNumber >= assignment.startAyah! &&
+            m.ayahNumber <= assignment.endAyah!;
       }
-      if (m.surahNumber == assignment.startSurah && assignment.startAyah != null) {
+      if (m.surahNumber == assignment.startSurah &&
+          assignment.startAyah != null) {
         if (m.ayahNumber < assignment.startAyah!) return false;
       }
       if (m.surahNumber == assignment.endSurah && assignment.endAyah != null) {
@@ -1449,31 +1721,35 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           if (TourService.isTourActive) {
             TourService.completeInteraction();
           }
-          ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: word.surah,
-            ayahNumber: word.ayah,
-            wordIndex: word.word - 1,
-            wordText: word.textUthmani,
-            classId: int.tryParse(widget.classId),
-            classIdString: widget.classId,
-            studentId: _selectedStudentId,
-          );
+          ref
+              .read(mistakesProvider.notifier)
+              .addMistake(
+                surahNumber: word.surah,
+                ayahNumber: word.ayah,
+                wordIndex: word.word - 1,
+                wordText: word.textUthmani,
+                classId: int.tryParse(widget.classId),
+                classIdString: widget.classId,
+                studentId: _selectedStudentId,
+              );
           Navigator.pop(ctx);
         },
         onSelectChar: (charIndex, charText) {
           if (TourService.isTourActive) {
             TourService.completeInteraction();
           }
-          ref.read(mistakesProvider.notifier).addMistake(
-            surahNumber: word.surah,
-            ayahNumber: word.ayah,
-            wordIndex: word.word - 1,
-            wordText: charText,
-            charIndex: charIndex,
-            classId: int.tryParse(widget.classId),
-            classIdString: widget.classId,
-            studentId: _selectedStudentId,
-          );
+          ref
+              .read(mistakesProvider.notifier)
+              .addMistake(
+                surahNumber: word.surah,
+                ayahNumber: word.ayah,
+                wordIndex: word.word - 1,
+                wordText: charText,
+                charIndex: charIndex,
+                classId: int.tryParse(widget.classId),
+                classIdString: widget.classId,
+                studentId: _selectedStudentId,
+              );
           Navigator.pop(ctx);
         },
       ),
@@ -1482,11 +1758,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   void _removeMistake(QuranPageWord word, List<Mistake> mistakes) {
     final wordIndex = word.word - 1;
-    final wordMistakes = mistakes.where((m) =>
-      m.surahNumber == word.surah &&
-      m.ayahNumber == word.ayah &&
-      m.wordIndex == wordIndex
-    ).toList();
+    final wordMistakes = mistakes
+        .where(
+          (m) =>
+              m.surahNumber == word.surah &&
+              m.ayahNumber == word.ayah &&
+              m.wordIndex == wordIndex,
+        )
+        .toList();
 
     if (wordMistakes.isEmpty) return;
 
@@ -1509,7 +1788,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.textMuted(isDarkMode),
                 borderRadius: BorderRadius.circular(2),
@@ -1534,10 +1814,16 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   m.isCharacterLevel ? Icons.text_fields : Icons.select_all,
                   color: AppColors.getMistakeColor(m.severityLevel),
                 ),
-                title: Text(label, style: TextStyle(color: AppColors.text(isDarkMode))),
+                title: Text(
+                  label,
+                  style: TextStyle(color: AppColors.text(isDarkMode)),
+                ),
                 subtitle: Text(
                   '${m.errorCount}x error',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary(isDarkMode)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary(isDarkMode),
+                  ),
                 ),
                 onTap: () {
                   ref.read(mistakesProvider.notifier).removeMistake(m.id!);
@@ -1565,7 +1851,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+              ),
             ),
             SizedBox(height: MediaQuery.of(ctx).padding.bottom),
           ],
@@ -1576,7 +1865,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
   // ==================== NOTES SHEET ====================
 
-  void _showNotesSheet(BuildContext context, ClassSession classData, bool isDarkMode) {
+  void _showNotesSheet(
+    BuildContext context,
+    ClassSession classData,
+    bool isDarkMode,
+  ) {
     final controller = TextEditingController(text: classData.notes ?? '');
 
     showModalBottomSheet(
@@ -1586,7 +1879,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       builder: (ctx) => Container(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          left: 20, right: 20, top: 20,
+          left: 20,
+          right: 20,
+          top: 20,
         ),
         decoration: BoxDecoration(
           color: AppColors.surface(isDarkMode),
@@ -1598,7 +1893,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           children: [
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.textMuted(isDarkMode),
                   borderRadius: BorderRadius.circular(2),
@@ -1650,7 +1946,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: BorderSide(color: AppColors.textMuted(isDarkMode)),
                     ),
-                    child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: AppColors.text(isDarkMode)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1664,10 +1963,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                       final classId = classData.id;
                       if (classId != null) {
                         final text = controller.text.trim();
-                        ref.read(classesProvider.notifier).updateNotes(
-                          classId,
-                          text.isEmpty ? null : text,
-                        );
+                        ref
+                            .read(classesProvider.notifier)
+                            .updateNotes(classId, text.isEmpty ? null : text);
                       }
                       Navigator.pop(ctx);
                     },
@@ -1725,14 +2023,16 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       setSelectedJuz: (v) => selectedJuz = v,
       actionLabel: 'Add Portion',
       onSubmit: () async {
-        await ref.read(classesProvider.notifier).addAssignment(
-          classId: widget.classId,
-          type: _activeSection,
-          startSurah: startSurah,
-          endSurah: endSurah,
-          startAyah: startAyah,
-          endAyah: endAyah,
-        );
+        await ref
+            .read(classesProvider.notifier)
+            .addAssignment(
+              classId: widget.classId,
+              type: _activeSection,
+              startSurah: startSurah,
+              endSurah: endSurah,
+              startAyah: startAyah,
+              endAyah: endAyah,
+            );
       },
     );
   }
@@ -1775,15 +2075,17 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       actionLabel: 'Update',
       onSubmit: () async {
         final assignmentId = assignment.supabaseId ?? assignment.id.toString();
-        await ref.read(classesProvider.notifier).updateAssignment(
-          assignmentId: assignmentId,
-          data: {
-            'start_surah': startSurah,
-            'end_surah': endSurah,
-            'start_ayah': startAyah,
-            'end_ayah': endAyah,
-          },
-        );
+        await ref
+            .read(classesProvider.notifier)
+            .updateAssignment(
+              assignmentId: assignmentId,
+              data: {
+                'start_surah': startSurah,
+                'end_surah': endSurah,
+                'start_ayah': startAyah,
+                'end_ayah': endAyah,
+              },
+            );
       },
     );
   }
@@ -1829,11 +2131,15 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           return Container(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-              left: 20, right: 20, top: 20,
+              left: 20,
+              right: 20,
+              top: 20,
             ),
             decoration: BoxDecoration(
               color: AppColors.surface(isDarkMode),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -1842,7 +2148,8 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 40, height: 4,
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: AppColors.textMuted(isDarkMode),
                         borderRadius: BorderRadius.circular(2),
@@ -1863,7 +2170,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   // Mode selector: By Page / By Surah / By Juz
                   Row(
                     children: [
-                      _buildModeChip('By Page', isPageMode, color, isDarkMode,
+                      _buildModeChip(
+                        'By Page',
+                        isPageMode,
+                        color,
+                        isDarkMode,
                         () => setSheetState(() {
                           setMode('page');
                           setStartPage(getPageForSurah(getStartSurah()));
@@ -1873,11 +2184,19 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                         }),
                       ),
                       const SizedBox(width: 8),
-                      _buildModeChip('By Surah', isSurahMode, color, isDarkMode,
+                      _buildModeChip(
+                        'By Surah',
+                        isSurahMode,
+                        color,
+                        isDarkMode,
                         () => setSheetState(() => setMode('surah')),
                       ),
                       const SizedBox(width: 8),
-                      _buildModeChip('By Juz', isJuzMode, color, isDarkMode,
+                      _buildModeChip(
+                        'By Juz',
+                        isJuzMode,
+                        color,
+                        isDarkMode,
                         () => setSheetState(() => setMode('juz')),
                       ),
                     ],
@@ -1890,7 +2209,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                       children: [
                         Expanded(
                           child: _buildSheetAyahInput(
-                            'From Page', getStartPage(), isDarkMode,
+                            'From Page',
+                            getStartPage(),
+                            isDarkMode,
                             (v) => setSheetState(() {
                               setStartPage(v);
                               if (v != null && v >= 1 && v <= totalPages) {
@@ -1906,7 +2227,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: _buildSheetAyahInput(
-                            'To Page', getEndPage(), isDarkMode,
+                            'To Page',
+                            getEndPage(),
+                            isDarkMode,
                             (v) => setSheetState(() {
                               setEndPage(v);
                               if (v != null && v >= 1 && v <= totalPages) {
@@ -1927,19 +2250,32 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.background(isDarkMode),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.textMuted(isDarkMode)),
+                        border: Border.all(
+                          color: AppColors.textMuted(isDarkMode),
+                        ),
                       ),
                       child: DropdownButton<int>(
                         value: getSelectedJuz(),
-                        hint: Text('Select Juz', style: TextStyle(color: AppColors.textMuted(isDarkMode))),
+                        hint: Text(
+                          'Select Juz',
+                          style: TextStyle(
+                            color: AppColors.textMuted(isDarkMode),
+                          ),
+                        ),
                         isExpanded: true,
                         dropdownColor: AppColors.surface(isDarkMode),
                         underline: const SizedBox(),
-                        style: TextStyle(fontSize: 13, color: AppColors.text(isDarkMode)),
-                        items: List.generate(30, (i) => DropdownMenuItem(
-                          value: i + 1,
-                          child: Text('Juz ${i + 1}'),
-                        )),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text(isDarkMode),
+                        ),
+                        items: List.generate(
+                          30,
+                          (i) => DropdownMenuItem(
+                            value: i + 1,
+                            child: Text('Juz ${i + 1}'),
+                          ),
+                        ),
                         onChanged: (juz) {
                           if (juz == null) return;
                           final boundary = getJuzBoundary(juz);
@@ -1963,18 +2299,28 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                     children: [
                       Expanded(
                         child: _buildSheetDropdown(
-                          'From Surah', getStartSurah(), surahs, isDarkMode,
-                          isSurahMode ? (v) => setSheetState(() {
-                            setStartSurah(v);
-                            if (getEndSurah() < v) setEndSurah(v);
-                          }) : null,
+                          'From Surah',
+                          getStartSurah(),
+                          surahs,
+                          isDarkMode,
+                          isSurahMode
+                              ? (v) => setSheetState(() {
+                                  setStartSurah(v);
+                                  if (getEndSurah() < v) setEndSurah(v);
+                                })
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildSheetDropdown(
-                          'To Surah', getEndSurah(), surahs, isDarkMode,
-                          isSurahMode ? (v) => setSheetState(() => setEndSurah(v)) : null,
+                          'To Surah',
+                          getEndSurah(),
+                          surahs,
+                          isDarkMode,
+                          isSurahMode
+                              ? (v) => setSheetState(() => setEndSurah(v))
+                              : null,
                         ),
                       ),
                     ],
@@ -1986,15 +2332,23 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                     children: [
                       Expanded(
                         child: _buildSheetAyahInput(
-                          'From Ayah', getStartAyah(), isDarkMode,
-                          isSurahMode ? (v) => setSheetState(() => setStartAyah(v)) : null,
+                          'From Ayah',
+                          getStartAyah(),
+                          isDarkMode,
+                          isSurahMode
+                              ? (v) => setSheetState(() => setStartAyah(v))
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildSheetAyahInput(
-                          'To Ayah', getEndAyah(), isDarkMode,
-                          isSurahMode ? (v) => setSheetState(() => setEndAyah(v)) : null,
+                          'To Ayah',
+                          getEndAyah(),
+                          isDarkMode,
+                          isSurahMode
+                              ? (v) => setSheetState(() => setEndAyah(v))
+                              : null,
                         ),
                       ),
                     ],
@@ -2009,9 +2363,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                           onPressed: () => Navigator.pop(ctx),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: AppColors.textMuted(isDarkMode)),
+                            side: BorderSide(
+                              color: AppColors.textMuted(isDarkMode),
+                            ),
                           ),
-                          child: Text('Cancel', style: TextStyle(color: AppColors.text(isDarkMode))),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(color: AppColors.text(isDarkMode)),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -2022,7 +2381,12 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                             if (isPageMode) {
                               final sp = getStartPage();
                               final ep = getEndPage();
-                              if (sp != null && ep != null && sp >= 1 && ep >= 1 && sp <= totalPages && ep <= totalPages) {
+                              if (sp != null &&
+                                  ep != null &&
+                                  sp >= 1 &&
+                                  ep >= 1 &&
+                                  sp <= totalPages &&
+                                  ep <= totalPages) {
                                 setStartSurah(pageStarts[sp - 1][0]);
                                 setStartAyah(pageStarts[sp - 1][1]);
                                 if (ep < totalPages) {
@@ -2062,16 +2426,26 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildModeChip(String label, bool isActive, Color color, bool isDarkMode, VoidCallback onTap) {
+  Widget _buildModeChip(
+    String label,
+    bool isActive,
+    Color color,
+    bool isDarkMode,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? color.withOpacity(0.2) : AppColors.background(isDarkMode),
+          color: isActive
+              ? color.withOpacity(0.2)
+              : AppColors.background(isDarkMode),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive ? color.withOpacity(0.5) : AppColors.border(isDarkMode),
+            color: isActive
+                ? color.withOpacity(0.5)
+                : AppColors.border(isDarkMode),
           ),
         ),
         child: Text(
@@ -2086,11 +2460,23 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildSheetDropdown(String label, int value, List surahs, bool isDarkMode, Function(int)? onChanged) {
+  Widget _buildSheetDropdown(
+    String label,
+    int value,
+    List surahs,
+    bool isDarkMode,
+    Function(int)? onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted(isDarkMode),
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -2108,7 +2494,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             items: surahs.map<DropdownMenuItem<int>>((s) {
               return DropdownMenuItem(
                 value: s.number,
-                child: Text('${s.number}. ${s.englishName}', overflow: TextOverflow.ellipsis),
+                child: Text(
+                  '${s.number}. ${s.englishName}',
+                  overflow: TextOverflow.ellipsis,
+                ),
               );
             }).toList(),
             onChanged: onChanged != null ? (v) => onChanged(v!) : null,
@@ -2118,11 +2507,22 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildSheetAyahInput(String label, int? value, bool isDarkMode, Function(int?)? onChanged) {
+  Widget _buildSheetAyahInput(
+    String label,
+    int? value,
+    bool isDarkMode,
+    Function(int?)? onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted(isDarkMode))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted(isDarkMode),
+          ),
+        ),
         const SizedBox(height: 4),
         TextFormField(
           initialValue: value?.toString() ?? '',
@@ -2131,7 +2531,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           decoration: InputDecoration(
             hintText: 'All',
             hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             filled: true,
             fillColor: AppColors.background(isDarkMode),
             border: OutlineInputBorder(
@@ -2144,18 +2547,26 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             ),
           ),
           enabled: onChanged != null,
-          onChanged: onChanged != null ? (v) => onChanged(int.tryParse(v)) : null,
+          onChanged: onChanged != null
+              ? (v) => onChanged(int.tryParse(v))
+              : null,
         ),
       ],
     );
   }
 
-  void _confirmDeletePortion(BuildContext context, Assignment assignment, List<Assignment> sectionAssignments) {
+  void _confirmDeletePortion(
+    BuildContext context,
+    Assignment assignment,
+    List<Assignment> sectionAssignments,
+  ) {
     final isDarkMode = ref.read(themeProvider);
 
     if (sectionAssignments.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot delete the last portion in a section')),
+        const SnackBar(
+          content: Text('Cannot delete the last portion in a section'),
+        ),
       );
       return;
     }
@@ -2164,7 +2575,10 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface(isDarkMode),
-        title: Text('Delete Portion', style: TextStyle(color: AppColors.text(isDarkMode))),
+        title: Text(
+          'Delete Portion',
+          style: TextStyle(color: AppColors.text(isDarkMode)),
+        ),
         content: Text(
           'Are you sure you want to delete this portion?',
           style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
@@ -2172,14 +2586,19 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+            ),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await ref.read(classesProvider.notifier).deleteAssignment(
-                assignment.supabaseId ?? assignment.id.toString(),
-              );
+              await ref
+                  .read(classesProvider.notifier)
+                  .deleteAssignment(
+                    assignment.supabaseId ?? assignment.id.toString(),
+                  );
               setState(() => _selectedPortionIndex = 0);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -2212,51 +2631,48 @@ class _MistakeBadgeWidget extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              '$errorCount',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$errorCount',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            wordText,
-            style: TextStyle(
-              fontSize: 14,
-              fontFamily: 'Uthmanic',
-              color: color,
+            const SizedBox(width: 6),
+            Text(
+              wordText,
+              style: TextStyle(
+                fontSize: 14,
+                fontFamily: 'Uthmanic',
+                color: color,
+              ),
+              textDirection: TextDirection.rtl,
             ),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            location,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withOpacity(0.7),
+            const SizedBox(width: 6),
+            Text(
+              location,
+              style: TextStyle(fontSize: 10, color: color.withOpacity(0.7)),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 }

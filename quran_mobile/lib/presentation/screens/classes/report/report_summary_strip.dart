@@ -20,16 +20,29 @@ class ReportSummaryStrip extends ConsumerWidget {
       _Stat('Sessions', summary.totalClasses.toString(), AppColors.cyan400),
       _Stat('Mistakes', summary.totalMistakes.toString(), null),
       _Stat('Unique', summary.uniqueMistakes.toString(), null),
-      _Stat('Repeated', summary.repeatedMistakes.toString(), const Color(0xFFF87171)),
+      _Stat(
+        'Repeated',
+        summary.repeatedMistakes.toString(),
+        const Color(0xFFF87171),
+      ),
       _Stat('Avg Perf', summary.avgPerformance, const Color(0xFF4ADE80)),
     ];
 
     return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.border(isDark)),
-        ),
+        color: AppColors.surface(isDark).withOpacity(isDark ? 0.78 : 0.98),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border(isDark).withOpacity(0.72)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.18 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: IntrinsicHeight(
         child: Row(
           children: stats.asMap().entries.map((entry) {
@@ -38,7 +51,7 @@ class ReportSummaryStrip extends ConsumerWidget {
             return Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.card(isDark),
+                  color: Colors.transparent,
                   border: i < stats.length - 1
                       ? Border(
                           right: BorderSide(
@@ -48,7 +61,10 @@ class ReportSummaryStrip extends ConsumerWidget {
                         )
                       : null,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 14,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -58,7 +74,7 @@ class ReportSummaryStrip extends ConsumerWidget {
                         stat.value,
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                           color: stat.color ?? AppColors.text(isDark),
                         ),
                       ),
@@ -69,7 +85,7 @@ class ReportSummaryStrip extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w500,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0,
                         color: AppColors.textMuted(isDark),
                       ),
                       maxLines: 1,

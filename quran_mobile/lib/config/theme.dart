@@ -52,6 +52,7 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: AppColors.cyan500,
         secondary: AppColors.teal500,
+        tertiary: AppColors.gold,
         surface: AppColors.darkSurface,
         error: AppColors.error,
         onPrimary: Colors.white,
@@ -62,6 +63,7 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: AppColors.darkTextSecondary),
         titleTextStyle: TextStyle(
@@ -74,12 +76,12 @@ class AppTheme {
         color: AppColors.darkCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.darkBorder.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.darkBorder.withOpacity(0.72)),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.darkSurface,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: AppColors.darkSurface.withOpacity(0.94),
         selectedItemColor: AppColors.cyan400,
         unselectedItemColor: AppColors.darkTextSecondary,
         type: BottomNavigationBarType.fixed,
@@ -114,31 +116,32 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(color: AppColors.darkTextSecondary),
         hintStyle: const TextStyle(color: AppColors.darkTextMuted),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.cyan500,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.cyan400,
-        ),
+        style: TextButton.styleFrom(foregroundColor: AppColors.cyan400),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.cyan400,
-          side: const BorderSide(color: AppColors.cyan500),
+          side: BorderSide(color: AppColors.cyan500.withOpacity(0.55)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -147,23 +150,19 @@ class AppTheme {
         thickness: 1,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.darkSurface,
+        backgroundColor: AppColors.nightCard,
         contentTextStyle: const TextStyle(color: AppColors.darkText),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         behavior: SnackBarBehavior.floating,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.darkSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        backgroundColor: AppColors.nightCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.darkSurface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       textTheme: _buildTextTheme(isDark: true),
@@ -182,6 +181,7 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: AppColors.cyan600,
         secondary: AppColors.teal600,
+        tertiary: AppColors.gold,
         surface: AppColors.lightSurface,
         error: AppColors.error,
         onPrimary: Colors.white,
@@ -192,6 +192,7 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: AppColors.lightTextSecondary),
         titleTextStyle: TextStyle(
@@ -204,7 +205,7 @@ class AppTheme {
         color: AppColors.lightCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: AppColors.lightBorder),
         ),
       ),
@@ -244,31 +245,32 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(color: AppColors.lightTextSecondary),
         hintStyle: const TextStyle(color: AppColors.lightTextMuted),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.cyan600,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.cyan600,
-        ),
+        style: TextButton.styleFrom(foregroundColor: AppColors.cyan600),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.cyan600,
-          side: const BorderSide(color: AppColors.cyan500),
+          side: const BorderSide(color: AppColors.lightBorder),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -279,21 +281,17 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.lightSurface,
         contentTextStyle: const TextStyle(color: AppColors.lightText),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         behavior: SnackBarBehavior.floating,
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.lightSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.lightSurface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       textTheme: _buildTextTheme(isDark: false),
@@ -305,24 +303,28 @@ class AppTheme {
   // ============================================
   static TextTheme _buildTextTheme({required bool isDark}) {
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final secondaryColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return GoogleFonts.interTextTheme(
       isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
     ).copyWith(
       headlineLarge: GoogleFonts.inter(
         fontSize: 32,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
         color: textColor,
+        height: 1.12,
       ),
       headlineMedium: GoogleFonts.inter(
         fontSize: 24,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
         color: textColor,
+        height: 1.16,
       ),
       titleLarge: GoogleFonts.inter(
         fontSize: 20,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: textColor,
       ),
       titleMedium: GoogleFonts.inter(
@@ -335,18 +337,9 @@ class AppTheme {
         fontWeight: FontWeight.w600,
         color: textColor,
       ),
-      bodyLarge: GoogleFonts.inter(
-        fontSize: 16,
-        color: secondaryColor,
-      ),
-      bodyMedium: GoogleFonts.inter(
-        fontSize: 14,
-        color: secondaryColor,
-      ),
-      bodySmall: GoogleFonts.inter(
-        fontSize: 12,
-        color: secondaryColor,
-      ),
+      bodyLarge: GoogleFonts.inter(fontSize: 16, color: secondaryColor),
+      bodyMedium: GoogleFonts.inter(fontSize: 14, color: secondaryColor),
+      bodySmall: GoogleFonts.inter(fontSize: 12, color: secondaryColor),
       labelLarge: GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w600,
@@ -394,4 +387,6 @@ extension ThemeExtensions on BuildContext {
   Color get textMutedColor => AppColors.textMuted(isDarkMode);
   Color get overlayColor => AppColors.overlay(isDarkMode);
   Color get primaryColor => AppColors.primary(isDarkMode);
+  Color get elevatedSurfaceColor => AppColors.elevatedSurface(isDarkMode);
+  Color get softSurfaceColor => AppColors.softSurface(isDarkMode);
 }

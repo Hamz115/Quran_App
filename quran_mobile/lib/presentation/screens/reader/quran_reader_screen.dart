@@ -66,42 +66,48 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
     final isDarkMode = ref.watch(themeProvider);
     // Always show mistakes — no role gating in v2.0.0
     final mistakes = ref.watch(mistakesProvider).value ?? <Mistake>[];
-    final mistakesWithOccurrences = ref.watch(readerMistakeOccurrencesProvider).value ?? <Mistake>[];
+    final mistakesWithOccurrences =
+        ref.watch(readerMistakeOccurrencesProvider).value ?? <Mistake>[];
 
     return Scaffold(
       key: TourService.readerPageKey,
-      backgroundColor: isDarkMode ? Colors.black : const Color(0xFFFEF9E7),
-      body: GestureDetector(
-        onTap: _toggleOverlay,
-        child: Stack(
-          children: [
-            // Full-screen PageView
-            PageView.builder(
-              controller: _pageController,
-              reverse: true, // RTL: swipe left = next page
-              itemCount: totalPages,
-              onPageChanged: (index) {
-                setState(() => _currentPage = index + 1);
-              },
-              itemBuilder: (context, index) {
-                final pageNum = index + 1;
-                return _PageLoader(
-                  pageNumber: pageNum,
-                  isDarkMode: isDarkMode,
-                  mistakes: mistakes,
-                  mistakesWithOccurrences: mistakesWithOccurrences,
-                );
-              },
-            ),
+      backgroundColor: AppColors.readerBackground(isDarkMode),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: AppColors.readerGradient(isDarkMode),
+        ),
+        child: GestureDetector(
+          onTap: _toggleOverlay,
+          child: Stack(
+            children: [
+              // Full-screen PageView
+              PageView.builder(
+                controller: _pageController,
+                reverse: true, // RTL: swipe left = next page
+                itemCount: totalPages,
+                onPageChanged: (index) {
+                  setState(() => _currentPage = index + 1);
+                },
+                itemBuilder: (context, index) {
+                  final pageNum = index + 1;
+                  return _PageLoader(
+                    pageNumber: pageNum,
+                    isDarkMode: isDarkMode,
+                    mistakes: mistakes,
+                    mistakesWithOccurrences: mistakesWithOccurrences,
+                  );
+                },
+              ),
 
-            // Overlay controls (appear on tap)
-            if (_showOverlay) ...[
-              // Top overlay
-              _buildTopOverlay(isDarkMode),
-              // Bottom overlay
-              _buildBottomOverlay(isDarkMode),
+              // Overlay controls (appear on tap)
+              if (_showOverlay) ...[
+                // Top overlay
+                _buildTopOverlay(isDarkMode),
+                // Bottom overlay
+                _buildBottomOverlay(isDarkMode),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -127,7 +133,8 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black.withOpacity(0.7),
+              Colors.black.withOpacity(isDarkMode ? 0.82 : 0.62),
+              AppColors.deepTeal.withOpacity(isDarkMode ? 0.36 : 0.18),
               Colors.black.withOpacity(0.0),
             ],
           ),
@@ -141,10 +148,14 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
                 _showJumpDialog(isDarkMode);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.16)),
                 ),
                 child: Text(
                   '$_currentPage / $totalPages',
@@ -178,7 +189,11 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
 
             // Surah list button — opens full-screen scrollable dialog
             IconButton(
-              icon: const Icon(Icons.list_rounded, color: Colors.white, size: 22),
+              icon: const Icon(
+                Icons.list_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
               tooltip: 'Jump to Surah',
               onPressed: () {
                 _overlayTimer?.cancel();
@@ -210,7 +225,8 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
             colors: [
-              Colors.black.withOpacity(0.7),
+              Colors.black.withOpacity(isDarkMode ? 0.82 : 0.66),
+              AppColors.deepTeal.withOpacity(isDarkMode ? 0.32 : 0.16),
               Colors.black.withOpacity(0.0),
             ],
           ),
@@ -231,10 +247,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
             Text(
               surahsOnPage.map((s) => surahNamesArabic[s] ?? '').join(' - '),
               textDirection: TextDirection.rtl,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.white70,
-              ),
+              style: const TextStyle(fontSize: 13, color: Colors.white70),
             ),
 
             // Next page (lower number in RTL)
@@ -269,9 +282,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
           decoration: InputDecoration(
             hintText: '1-$totalPages',
             hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
           style: TextStyle(color: AppColors.text(isDarkMode)),
           onSubmitted: (value) {
@@ -285,8 +296,10 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: TextStyle(color: AppColors.textSecondary(isDarkMode))),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -296,8 +309,10 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
               }
               Navigator.pop(context);
             },
-            child: Text('Go',
-                style: TextStyle(color: AppColors.primary(isDarkMode))),
+            child: Text(
+              'Go',
+              style: TextStyle(color: AppColors.primary(isDarkMode)),
+            ),
           ),
         ],
       ),
@@ -311,13 +326,14 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface(isDarkMode),
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
         final scrollController = ScrollController(
-          initialScrollOffset: (currentSurah - 1) * 48.0, // Approximate item height
+          initialScrollOffset:
+              (currentSurah - 1) * 48.0, // Approximate item height
         );
 
         return DraggableScrollableSheet(
@@ -326,92 +342,117 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
           maxChildSize: 0.9,
           expand: false,
           builder: (context, sheetScrollController) {
-            return Column(
-              children: [
-                // Handle bar
-                Container(
-                  margin: const EdgeInsets.only(top: 8, bottom: 4),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? Colors.white24 : Colors.black26,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDarkMode
+                      ? [AppColors.nightCard, AppColors.nightSurface]
+                      : [Colors.white, AppColors.porcelain],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-                // Title
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'Jump to Surah',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text(isDarkMode),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 4),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? Colors.white24 : Colors.black26,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                const Divider(height: 1),
-                // Scrollable list
-                Expanded(
-                  child: ListView.builder(
-                    controller: sheetScrollController,
-                    itemCount: 114,
-                    itemBuilder: (context, index) {
-                      final surahNum = index + 1;
-                      final isCurrentSurah = surahNum == currentSurah;
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'Jump to Surah',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text(isDarkMode),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Scrollable list
+                  Expanded(
+                    child: ListView.builder(
+                      controller: sheetScrollController,
+                      itemCount: 114,
+                      itemBuilder: (context, index) {
+                        final surahNum = index + 1;
+                        final isCurrentSurah = surahNum == currentSurah;
 
-                      return ListTile(
-                        dense: true,
-                        selected: isCurrentSurah,
-                        selectedTileColor: AppColors.cyan600.withOpacity(0.15),
-                        leading: Container(
-                          width: 32,
-                          height: 32,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isCurrentSurah
-                                ? AppColors.cyan600.withOpacity(0.2)
-                                : (isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.05)),
-                            borderRadius: BorderRadius.circular(8),
+                        return ListTile(
+                          dense: true,
+                          selected: isCurrentSurah,
+                          selectedTileColor: AppColors.cyan600.withOpacity(
+                            0.15,
                           ),
-                          child: Text(
-                            '$surahNum',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isCurrentSurah ? FontWeight.bold : FontWeight.normal,
+                          leading: Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
                               color: isCurrentSurah
-                                  ? AppColors.cyan600
-                                  : AppColors.textSecondary(isDarkMode),
+                                  ? AppColors.cyan600.withOpacity(0.2)
+                                  : (isDarkMode
+                                        ? Colors.white10
+                                        : Colors.black.withOpacity(0.05)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$surahNum',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isCurrentSurah
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isCurrentSurah
+                                    ? AppColors.cyan600
+                                    : AppColors.textSecondary(isDarkMode),
+                              ),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          surahNamesArabic[surahNum] ?? '',
-                          textDirection: TextDirection.rtl,
-                          style: GoogleFonts.amiri(
-                            fontSize: 18,
-                            fontWeight: isCurrentSurah ? FontWeight.bold : FontWeight.normal,
-                            color: isCurrentSurah
-                                ? AppColors.cyan600
-                                : AppColors.text(isDarkMode),
+                          title: Text(
+                            surahNamesArabic[surahNum] ?? '',
+                            textDirection: TextDirection.rtl,
+                            style: GoogleFonts.amiri(
+                              fontSize: 18,
+                              fontWeight: isCurrentSurah
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isCurrentSurah
+                                  ? AppColors.cyan600
+                                  : AppColors.text(isDarkMode),
+                            ),
                           ),
-                        ),
-                        trailing: Text(
-                          'p. ${getPageForSurah(surahNum)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted(isDarkMode),
+                          trailing: Text(
+                            'p. ${getPageForSurah(surahNum)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted(isDarkMode),
+                            ),
                           ),
-                        ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _jumpToSurah(surahNum);
-                        },
-                      );
-                    },
+                          onTap: () {
+                            Navigator.pop(context);
+                            _jumpToSurah(surahNum);
+                          },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         );
@@ -538,14 +579,12 @@ class _PageLoaderState extends ConsumerState<_PageLoader> {
       controller: _scrollController,
       child: Column(
         children: [
-          SizedBox(
-            height: screenHeight,
-            child: pageWidget,
-          ),
+          SizedBox(height: screenHeight, child: pageWidget),
           _MistakesByClassSection(
             mistakes: pageMistakes,
             isDarkMode: widget.isDarkMode,
-            onMistakeTap: (m) => _flashWord(m.surahNumber, m.ayahNumber, m.wordIndex),
+            onMistakeTap: (m) =>
+                _flashWord(m.surahNumber, m.ayahNumber, m.wordIndex),
           ),
           const SizedBox(height: 40),
         ],
@@ -622,11 +661,13 @@ class _MistakesByClassSection extends StatelessWidget {
         continue;
       }
       for (final occ in m.occurrences) {
-        final key = '${occ.classDay ?? ""}-${occ.classDate ?? ""}-${occ.classId}';
-        classBuckets.putIfAbsent(key, () => _ClassBucket(
-          day: occ.classDay ?? '',
-          date: occ.classDate ?? '',
-        ));
+        final key =
+            '${occ.classDay ?? ""}-${occ.classDate ?? ""}-${occ.classId}';
+        classBuckets.putIfAbsent(
+          key,
+          () =>
+              _ClassBucket(day: occ.classDay ?? '', date: occ.classDate ?? ''),
+        );
         // Avoid duplicates
         if (!classBuckets[key]!.mistakes.any((em) => em.id == m.id)) {
           classBuckets[key]!.mistakes.add(m);
@@ -648,7 +689,9 @@ class _MistakesByClassSection extends StatelessWidget {
           color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isDarkMode ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0),
+            color: isDarkMode
+                ? Colors.white.withOpacity(0.1)
+                : const Color(0xFFE2E8F0),
           ),
         ),
         padding: const EdgeInsets.all(16),
@@ -669,7 +712,9 @@ class _MistakesByClassSection extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: isDarkMode ? Colors.white70 : const Color(0xFF334155),
+                    color: isDarkMode
+                        ? Colors.white70
+                        : const Color(0xFF334155),
                   ),
                 ),
               ],
@@ -684,14 +729,24 @@ class _MistakesByClassSection extends StatelessWidget {
 
             // Unlinked mistakes
             if (noClassMistakes.isNotEmpty)
-              _buildClassGroup('Unlinked', '', noClassMistakes, isUnlinked: true),
+              _buildClassGroup(
+                'Unlinked',
+                '',
+                noClassMistakes,
+                isUnlinked: true,
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildClassGroup(String day, String date, List<Mistake> groupMistakes, {bool isUnlinked = false}) {
+  Widget _buildClassGroup(
+    String day,
+    String date,
+    List<Mistake> groupMistakes, {
+    bool isUnlinked = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -718,7 +773,9 @@ class _MistakesByClassSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: isDarkMode ? Colors.white60 : const Color(0xFF475569),
+                      color: isDarkMode
+                          ? Colors.white60
+                          : const Color(0xFF475569),
                     ),
                   ),
                   if (date.isNotEmpty)
@@ -726,7 +783,9 @@ class _MistakesByClassSection extends StatelessWidget {
                       text: ' ($date)',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDarkMode ? Colors.white38 : const Color(0xFF94A3B8),
+                        color: isDarkMode
+                            ? Colors.white38
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                 ],
@@ -738,7 +797,9 @@ class _MistakesByClassSection extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: groupMistakes.map((m) => _buildMistakeBadge(m)).toList(),
+              children: groupMistakes
+                  .map((m) => _buildMistakeBadge(m))
+                  .toList(),
             ),
           ],
         ),
@@ -765,7 +826,9 @@ class _MistakesByClassSection extends StatelessWidget {
               _stripQuranMarks(m.wordText),
               style: GoogleFonts.amiri(
                 fontSize: 16,
-                color: isDarkMode ? mistakeColor : mistakeColor.withOpacity(0.9),
+                color: isDarkMode
+                    ? mistakeColor
+                    : mistakeColor.withOpacity(0.9),
               ),
               textDirection: TextDirection.rtl,
             ),
@@ -789,7 +852,9 @@ class _MistakesByClassSection extends StatelessWidget {
                   '${m.errorCount}x',
                   style: TextStyle(
                     fontSize: 10,
-                    color: isDarkMode ? Colors.white54 : const Color(0xFF64748B),
+                    color: isDarkMode
+                        ? Colors.white54
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ),

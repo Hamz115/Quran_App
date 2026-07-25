@@ -15,6 +15,7 @@ import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/providers.dart';
 import 'presentation/widgets/tour_tooltip.dart';
+import 'presentation/widgets/premium_scaffold.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/classes/classes_screen.dart';
@@ -44,9 +45,15 @@ class QuranLogbookApp extends ConsumerWidget {
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: isDarkMode ? AppColors.darkBackground : AppColors.lightBackground,
-        systemNavigationBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: isDarkMode
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarColor: isDarkMode
+            ? AppColors.night
+            : AppColors.porcelain,
+        systemNavigationBarIconBrightness: isDarkMode
+            ? Brightness.light
+            : Brightness.dark,
       ),
     );
 
@@ -59,8 +66,8 @@ class QuranLogbookApp extends ConsumerWidget {
       home: authState.isLoading
           ? _SplashScreen(isDarkMode: isDarkMode)
           : authState.isAuthenticated
-              ? MainNavigation(key: ValueKey(authState.user?.id))
-              : const LoginScreen(),
+          ? MainNavigation(key: ValueKey(authState.user?.id))
+          : const LoginScreen(),
     );
   }
 }
@@ -75,45 +82,61 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background(isDarkMode),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App icon/logo placeholder
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.cyan500, AppColors.teal500],
+      body: PremiumScaffoldBackground(
+        useSafeArea: false,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white.withOpacity(0.18)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.cyan600.withOpacity(0.28),
+                      blurRadius: 28,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(20),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: Colors.white,
+                  size: 46,
+                ),
               ),
-              child: const Icon(
-                Icons.menu_book_rounded,
-                color: Colors.white,
-                size: 40,
+              const SizedBox(height: 24),
+              Text(
+                'QuranTrack',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text(isDarkMode),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'QuranTrack',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text(isDarkMode),
+              const SizedBox(height: 8),
+              Text(
+                'Memorization, recitation, and review',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary(isDarkMode),
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.cyan500),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.cyan500),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -320,8 +343,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             keyTarget: customTargetPosition != null
                 ? null
                 : (isFullOverlay ? null : step.targetKey),
-            targetPosition: customTargetPosition ??
-                (isFullOverlay ? TargetPosition(screenSize, Offset.zero) : null),
+            targetPosition:
+                customTargetPosition ??
+                (isFullOverlay
+                    ? TargetPosition(screenSize, Offset.zero)
+                    : null),
             shape: ShapeLightFocus.RRect,
             radius: isFullOverlay ? 0 : 8,
             paddingFocus: isFullOverlay ? 0 : 12,
@@ -411,10 +437,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       // at the very bottom (nav bar area) falls outside the spotlight.
       final width = screenSize.width;
       final height = screenSize.height * 0.82;
-      return TargetPosition(
-        Size(width, height),
-        Offset.zero,
-      );
+      return TargetPosition(Size(width, height), Offset.zero);
     }
 
     return null;
@@ -479,17 +502,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     // making the app feel blank.
     switch (step.position) {
       case ContentPosition.bottom:
-        return CustomTargetContentPosition(
-          left: 0,
-          right: 0,
-          bottom: 96,
-        );
+        return CustomTargetContentPosition(left: 0, right: 0, bottom: 96);
       case ContentPosition.top:
-        return CustomTargetContentPosition(
-          left: 0,
-          right: 0,
-          top: 96,
-        );
+        return CustomTargetContentPosition(left: 0, right: 0, top: 96);
       case ContentPosition.left:
       case ContentPosition.right:
         return null;
@@ -555,57 +570,87 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface(isDarkMode),
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border(isDarkMode).withOpacity(0.5),
-              width: 1,
+      body: IndexedStack(index: _currentIndex, children: screens),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.surface(
+              isDarkMode,
+            ).withOpacity(isDarkMode ? 0.94 : 0.98),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.border(
+                isDarkMode,
+              ).withOpacity(isDarkMode ? 0.72 : 0.9),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDarkMode ? 0.42 : 0.12),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: navItems.asMap().entries.map((entry) {
-                return _buildNavItem(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: navItems.asMap().entries.map((entry) {
+              return Expanded(
+                child: _buildNavItem(
                   entry.key,
                   entry.value.icon,
                   entry.value.label,
                   isDarkMode,
-                );
-              }).toList(),
-            ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label, bool isDarkMode) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    String label,
+    bool isDarkMode,
+  ) {
     final isSelected = _currentIndex == index;
 
-    final accentColor = AppColors.cyan500;
+    final accentColor = index == 1
+        ? AppColors.teal500
+        : index == 2
+        ? AppColors.gold
+        : AppColors.cyan500;
     final selectedColor = isDarkMode ? AppColors.cyan400 : AppColors.cyan600;
     final unselectedColor = AppColors.textMuted(isDarkMode);
-    final selectedBgColor = accentColor.withOpacity(0.15);
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? selectedBgColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    accentColor.withOpacity(isDarkMode ? 0.34 : 0.20),
+                    accentColor.withOpacity(isDarkMode ? 0.18 : 0.11),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          border: isSelected
+              ? Border.all(color: accentColor.withOpacity(0.22))
+              : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -613,14 +658,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             Icon(
               icon,
               color: isSelected ? selectedColor : unselectedColor,
-              size: 24,
+              size: isSelected ? 25 : 23,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                 color: isSelected ? selectedColor : unselectedColor,
               ),
             ),

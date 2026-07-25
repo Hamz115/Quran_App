@@ -8,3 +8,4 @@
 export 'gradient_button.dart';
 export 'icon_input_field.dart';
 export 'avatar_circle.dart';
+export '../premium_scaffold.dart';

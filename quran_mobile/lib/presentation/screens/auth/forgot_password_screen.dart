@@ -9,7 +9,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -34,9 +35,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     });
 
     try {
-      await ref.read(authProvider.notifier).resetPassword(
-        _emailController.text.trim(),
-      );
+      await ref
+          .read(authProvider.notifier)
+          .resetPassword(_emailController.text.trim());
       setState(() => _emailSent = true);
     } catch (e) {
       setState(() {
@@ -57,22 +58,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       backgroundColor: AppColors.background(isDarkMode),
       body: Stack(
         children: [
-          // Background gradient
           Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDarkMode
-                    ? [
-                        const Color(0xFF1A1F2E).withOpacity(0.95),
-                        const Color(0xFF0F172A),
-                      ]
-                    : [
-                        const Color(0xFFE0F2FE).withOpacity(0.9),
-                        const Color(0xFFF0F9FF),
-                      ],
-              ),
+              gradient: AppColors.appBackgroundGradient(isDarkMode),
             ),
           ),
 
@@ -108,10 +96,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     constraints: const BoxConstraints(maxWidth: 400),
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? const Color(0xFF1E293B).withOpacity(0.95)
-                          : Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(24),
+                      gradient: LinearGradient(
+                        colors: isDarkMode
+                            ? [
+                                AppColors.nightCard.withOpacity(0.98),
+                                AppColors.nightSurface.withOpacity(0.96),
+                              ]
+                            : [Colors.white, AppColors.porcelain],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(30),
                       border: Border.all(
                         color: isDarkMode
                             ? AppColors.cyan500.withOpacity(0.2)
@@ -120,8 +115,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+                          blurRadius: 30,
+                          offset: const Offset(0, 16),
                         ),
                       ],
                     ),
@@ -144,9 +139,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDarkMode
-              ? AppColors.cyan500.withOpacity(0.2)
-              : Colors.white,
+          color: isDarkMode ? AppColors.cyan500.withOpacity(0.2) : Colors.white,
           shape: BoxShape.circle,
           border: Border.all(
             color: isDarkMode
@@ -169,9 +162,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDarkMode
-              ? AppColors.cyan500.withOpacity(0.2)
-              : Colors.white,
+          color: isDarkMode ? AppColors.cyan500.withOpacity(0.2) : Colors.white,
           shape: BoxShape.circle,
           border: Border.all(
             color: isDarkMode
@@ -225,10 +216,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.cyan500, AppColors.teal500],
-                ),
-                borderRadius: BorderRadius.circular(16),
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(20),
               ),
               child: const Icon(
                 Icons.lock_reset_rounded,
@@ -313,15 +302,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               }
               return null;
             },
-            style: TextStyle(
-              fontSize: 15,
-              color: AppColors.text(isDarkMode),
-            ),
+            style: TextStyle(fontSize: 15, color: AppColors.text(isDarkMode)),
             decoration: InputDecoration(
               hintText: 'E-mail',
-              hintStyle: TextStyle(
-                color: AppColors.textMuted(isDarkMode),
-              ),
+              hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
               prefixIcon: Icon(
                 Icons.email_outlined,
                 color: AppColors.cyan500,
@@ -349,10 +333,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppColors.cyan500,
-                  width: 2,
-                ),
+                borderSide: BorderSide(color: AppColors.cyan500, width: 2),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),

@@ -20,7 +20,12 @@ class ReportPanel extends ConsumerStatefulWidget {
   final ValueChanged<String>? onTapClass;
   final ValueChanged<String>? onDeleteClass;
 
-  const ReportPanel({super.key, required this.studentId, this.onTapClass, this.onDeleteClass});
+  const ReportPanel({
+    super.key,
+    required this.studentId,
+    this.onTapClass,
+    this.onDeleteClass,
+  });
 
   @override
   ConsumerState<ReportPanel> createState() => _ReportPanelState();
@@ -99,7 +104,10 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                   ),
                   // Export button placeholder
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -112,7 +120,9 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                         Icon(
                           Icons.file_download_outlined,
                           size: 14,
-                          color: isDark ? AppColors.slate300 : AppColors.slate600,
+                          color: isDark
+                              ? AppColors.slate300
+                              : AppColors.slate600,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -120,7 +130,9 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: isDark ? AppColors.slate300 : AppColors.slate600,
+                            color: isDark
+                                ? AppColors.slate300
+                                : AppColors.slate600,
                           ),
                         ),
                       ],
@@ -143,8 +155,17 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
 
             // Tab navigation
             Container(
-              color: AppColors.card(isDark),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: AppColors.surface(
+                  isDark,
+                ).withOpacity(isDark ? 0.78 : 0.98),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.border(isDark).withOpacity(0.72),
+                ),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -155,7 +176,8 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                       countBgColor: const Color(0x33069291), // cyan-600/20
                       isActive: _activeTab == _ReportTab.classes,
                       isDark: isDark,
-                      onTap: () => setState(() => _activeTab = _ReportTab.classes),
+                      onTap: () =>
+                          setState(() => _activeTab = _ReportTab.classes),
                     ),
                   ),
                   Expanded(
@@ -166,7 +188,8 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                       countBgColor: const Color(0x33EF4444), // red-500/20
                       isActive: _activeTab == _ReportTab.mistakes,
                       isDark: isDark,
-                      onTap: () => setState(() => _activeTab = _ReportTab.mistakes),
+                      onTap: () =>
+                          setState(() => _activeTab = _ReportTab.mistakes),
                     ),
                   ),
                   Expanded(
@@ -177,7 +200,8 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
                       countBgColor: null,
                       isActive: _activeTab == _ReportTab.performance,
                       isDark: isDark,
-                      onTap: () => setState(() => _activeTab = _ReportTab.performance),
+                      onTap: () =>
+                          setState(() => _activeTab = _ReportTab.performance),
                     ),
                   ),
                 ],
@@ -195,7 +219,10 @@ class _ReportPanelState extends ConsumerState<ReportPanel> {
     );
   }
 
-  Widget _buildTabContent(StudentReport filteredReport, PerformanceStats perfStats) {
+  Widget _buildTabContent(
+    StudentReport filteredReport,
+    PerformanceStats perfStats,
+  ) {
     switch (_activeTab) {
       case _ReportTab.classes:
         return ReportClassesTab(
@@ -248,14 +275,11 @@ class _TabButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              width: 2,
-              color: isActive ? AppColors.cyan600 : Colors.transparent,
-            ),
-          ),
+          gradient: isActive ? AppColors.primaryGradient : null,
+          color: isActive ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
@@ -267,17 +291,20 @@ class _TabButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: isActive
-                      ? AppColors.cyan400
-                      : AppColors.textMuted(isDark),
+                  color: isActive ? Colors.white : AppColors.textMuted(isDark),
                 ),
               ),
               if (count != null) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
-                    color: countBgColor,
+                    color: isActive
+                        ? Colors.white.withOpacity(0.18)
+                        : countBgColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -285,7 +312,7 @@ class _TabButton extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: countColor,
+                      color: isActive ? Colors.white : countColor,
                     ),
                   ),
                 ),

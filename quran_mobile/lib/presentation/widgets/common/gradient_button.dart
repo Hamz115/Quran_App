@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../config/app_colors.dart';
+import '../../../config/theme.dart';
 
 /// A button with cyan-to-teal gradient styling.
 /// Used throughout the app for primary actions.
@@ -25,30 +26,29 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
     final gradient = useTeacherColors
-        ? const LinearGradient(
-            colors: [AppColors.cyan500, AppColors.teal500],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          )
+        ? AppColors.primaryGradient
         : const LinearGradient(
-            colors: [AppColors.teal500, AppColors.cyan500],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+            colors: [AppColors.gold, AppColors.teal500],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           );
 
     return Container(
       width: width,
       decoration: BoxDecoration(
         gradient: onPressed != null && !isLoading ? gradient : null,
-        color: onPressed == null || isLoading ? AppColors.slate500 : null,
-        borderRadius: BorderRadius.circular(12),
+        color: onPressed == null || isLoading
+            ? AppColors.textMuted(isDark).withOpacity(0.45)
+            : null,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: onPressed != null && !isLoading
             ? [
                 BoxShadow(
-                  color: AppColors.cyan500.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: AppColors.cyan600.withOpacity(isDark ? 0.34 : 0.24),
+                  blurRadius: 20,
+                  offset: const Offset(0, 9),
                 ),
               ]
             : null,
@@ -57,9 +57,11 @@ class GradientButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: isLoading ? null : onPressed,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: padding ?? const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            padding:
+                padding ??
+                const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             child: isLoading
                 ? const Center(
                     child: SizedBox(

@@ -39,10 +39,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref.read(authProvider.notifier).signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      await ref
+          .read(authProvider.notifier)
+          .signIn(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
       // Navigation happens automatically via auth state
     } catch (e) {
       setState(() {
@@ -69,11 +71,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/background.jpg'),
-            fit: BoxFit.cover,
-          ),
+        decoration: BoxDecoration(
+          gradient: AppColors.appBackgroundGradient(isDarkMode),
         ),
         child: Container(
           decoration: BoxDecoration(
@@ -81,8 +80,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.6),
-                Colors.black.withOpacity(0.8),
+                AppColors.deepTeal.withOpacity(isDarkMode ? 0.38 : 0.10),
+                Colors.black.withOpacity(isDarkMode ? 0.22 : 0.03),
               ],
             ),
           ),
@@ -116,10 +115,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             maxWidth: isLargeScreen ? 800 : double.infinity,
                           ),
                           decoration: BoxDecoration(
-                            color: isDarkMode
-                                ? const Color(0xFF1E293B).withOpacity(0.95)
-                                : Colors.white.withOpacity(0.95),
-                            borderRadius: BorderRadius.circular(24),
+                            gradient: LinearGradient(
+                              colors: isDarkMode
+                                  ? [
+                                      AppColors.nightCard.withOpacity(0.98),
+                                      AppColors.nightSurface.withOpacity(0.96),
+                                    ]
+                                  : [Colors.white, AppColors.porcelain],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
                             border: Border.all(
                               color: isDarkMode
                                   ? AppColors.cyan500.withOpacity(0.2)
@@ -128,8 +134,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
+                                blurRadius: 30,
+                                offset: const Offset(0, 16),
                               ),
                             ],
                           ),
@@ -155,9 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDarkMode
-              ? AppColors.cyan500.withOpacity(0.2)
-              : Colors.white,
+          color: isDarkMode ? AppColors.cyan500.withOpacity(0.2) : Colors.white,
           shape: BoxShape.circle,
           border: Border.all(
             color: isDarkMode
@@ -227,14 +231,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.cyan400, AppColors.teal500],
-              ),
+              gradient: AppColors.primaryGradient,
               borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(24),
+                topRight: Radius.circular(30),
+                bottomRight: Radius.circular(30),
               ),
             ),
             child: _buildDecorativePanel(),
@@ -252,14 +252,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 32),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.cyan400, AppColors.teal500],
-            ),
+            gradient: AppColors.primaryGradient,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
             ),
           ),
           child: _buildDecorativePanel(compact: true),
@@ -338,10 +334,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.cyan500, AppColors.teal500],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.menu_book_rounded,
@@ -354,7 +348,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 'QuranTrack',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.text(isDarkMode),
                 ),
               ),
@@ -366,7 +360,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             'Assalamu Alaikum!',
             style: TextStyle(
               fontSize: 24,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: AppColors.text(isDarkMode),
             ),
           ),
@@ -446,11 +440,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isDarkMode: isDarkMode,
             suffixIcon: IconButton(
               icon: Icon(
-                _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                _obscurePassword
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
                 color: AppColors.textMuted(isDarkMode),
                 size: 20,
               ),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -501,10 +498,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               child: Ink(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.cyan500, AppColors.teal500],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Container(
                   alignment: Alignment.center,
@@ -583,27 +578,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-      style: TextStyle(
-        fontSize: 15,
-        color: AppColors.text(isDarkMode),
-      ),
+      style: TextStyle(fontSize: 15, color: AppColors.text(isDarkMode)),
       decoration: InputDecoration(
         hintText: label,
-        hintStyle: TextStyle(
-          color: AppColors.textMuted(isDarkMode),
-        ),
-        prefixIcon: Icon(
-          icon,
-          color: AppColors.cyan500,
-          size: 22,
-        ),
+        hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
+        prefixIcon: Icon(icon, color: AppColors.cyan500, size: 22),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: isDarkMode
-            ? const Color(0xFF252D3D)
-            : AppColors.cyan50.withOpacity(0.5),
+        fillColor: isDarkMode ? AppColors.darkInputBg : AppColors.lightInputBg,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
             color: isDarkMode
                 ? AppColors.cyan500.withOpacity(0.2)
@@ -611,7 +595,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
             color: isDarkMode
                 ? AppColors.cyan500.withOpacity(0.2)
@@ -619,14 +603,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: AppColors.cyan500,
-            width: 2,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.cyan500, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.red),
         ),
         contentPadding: const EdgeInsets.symmetric(
@@ -636,5 +617,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-
 }
