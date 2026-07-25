@@ -121,10 +121,21 @@ Updated Flutter providers to invalidate contact and report caches after successf
 
 No Quran database, QPC database, QPC font, glyph, word, or page data was modified.
 
+## Release Artifacts
+
+Built the final artifacts from the post-v3 code:
+
+- Android release APK: `releases/QuranTrack-Android-v2.1.0-release.apk` (about 187 MB);
+- Windows NSIS installer: `releases/QuranTrack-Windows-2.0.0-x64-setup.exe` (about 196 MB);
+- Windows installer SHA-256: `8F076FE346D277F48A231C25DBD6D54CBE891E84E5B463D69EE08ADD3F52DCC2`.
+
+Rebuilt the PyInstaller backend before Tauri packaging and copied the fresh binary into the Tauri external sidecar path. The packaged backend passed `/api/health`, reporting 114 surahs and 6,236 ayahs.
+
+Tauri successfully emitted the NSIS installer, then returned a non-zero status because updater artifact signing is enabled but `TAURI_SIGNING_PRIVATE_KEY` was not available. This did not remove or invalidate the generated installer, but signed updater artifacts remain a release-distribution prerequisite.
+
 ## Remaining Release Work
 
-- build the final release APK;
-- build and test the updated Windows installer;
+- smoke-install the new NSIS package on a clean Windows environment;
+- configure the private updater signing key and produce signed updater artifacts;
 - update remaining legacy teacher/student UI copy in a separate terminology polish pass;
-- commit the migration-order and cache-invalidation follow-up;
 - push local commits only when approved.
