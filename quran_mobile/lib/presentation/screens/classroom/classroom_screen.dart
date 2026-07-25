@@ -310,7 +310,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
 
           // Settings gear icon
           IconButton(
+            key: TourService.classroomSettingsKey,
             onPressed: () {
+              if (TourService.isTourActive) {
+                TourService.completeInteraction();
+              }
               _overlayTimer?.cancel();
               _showSettingsSheet(context);
             },
@@ -842,6 +846,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final performance = classData.performance;
 
     return Container(
+      key: TourService.performanceDropdownKey,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: _getPerformanceColor(performance).withOpacity(0.12),
@@ -885,6 +890,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           if (classId != null) {
             ref.read(classesProvider.notifier).updatePerformance(classId, value);
           }
+          if (TourService.isTourActive) {
+            TourService.completeInteraction();
+          }
         },
       ),
     );
@@ -894,7 +902,13 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     final hasNotes = classData.notes?.isNotEmpty == true;
 
     return GestureDetector(
-      onTap: () => _showNotesSheet(context, classData, isDarkMode),
+      key: TourService.notesButtonKey,
+      onTap: () {
+        if (TourService.isTourActive) {
+          TourService.completeInteraction();
+        }
+        _showNotesSheet(context, classData, isDarkMode);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -1217,9 +1231,15 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                   children: [
                     _buildToggleChip('All', !_showPageOnly, isDarkMode, () {
                       setState(() => _showPageOnly = false);
-                    }),
+                      if (TourService.isTourActive) {
+                        TourService.completeInteraction();
+                      }
+                    }, key: TourService.pageAllToggleKey),
                     _buildToggleChip('Page', _showPageOnly, isDarkMode, () {
                       setState(() => _showPageOnly = true);
+                      if (TourService.isTourActive) {
+                        TourService.completeInteraction();
+                      }
                     }),
                   ],
                 ),
@@ -1335,8 +1355,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     );
   }
 
-  Widget _buildToggleChip(String label, bool isActive, bool isDarkMode, VoidCallback onTap) {
+  Widget _buildToggleChip(String label, bool isActive, bool isDarkMode, VoidCallback onTap, {Key? key}) {
     return GestureDetector(
+      key: key,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1416,12 +1437,18 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   // ==================== WORD POPUP / MISTAKES ====================
 
   void _showWordPopup(BuildContext context, QuranPageWord word) {
+    if (TourService.isTourActive) {
+      TourService.completeInteraction();
+    }
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => WordPopup(
         word: word.textUthmani,
         onSelectWhole: () {
+          if (TourService.isTourActive) {
+            TourService.completeInteraction();
+          }
           ref.read(mistakesProvider.notifier).addMistake(
             surahNumber: word.surah,
             ayahNumber: word.ayah,
@@ -1434,6 +1461,9 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
           Navigator.pop(ctx);
         },
         onSelectChar: (charIndex, charText) {
+          if (TourService.isTourActive) {
+            TourService.completeInteraction();
+          }
           ref.read(mistakesProvider.notifier).addMistake(
             surahNumber: word.surah,
             ayahNumber: word.ayah,
@@ -1586,8 +1616,14 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
             ),
             const SizedBox(height: 12),
             TextFormField(
+              key: TourService.notesTextareaKey,
               controller: controller,
               maxLines: 5,
+              onChanged: (_) {
+                if (TourService.isTourActive) {
+                  TourService.completeInteraction();
+                }
+              },
               style: TextStyle(fontSize: 14, color: AppColors.text(isDarkMode)),
               decoration: InputDecoration(
                 hintText: 'Add notes about this class session...',
@@ -1620,7 +1656,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    key: TourService.saveNotesKey,
                     onPressed: () {
+                      if (TourService.isTourActive) {
+                        TourService.completeInteraction();
+                      }
                       final classId = classData.id;
                       if (classId != null) {
                         final text = controller.text.trim();

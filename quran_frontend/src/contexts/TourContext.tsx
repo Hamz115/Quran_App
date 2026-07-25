@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { driver, type Driver } from 'driver.js';
+import { driver, type Driver, type AllowedButtons } from 'driver.js';
 import { useTheme } from './ThemeContext';
 import { useAuth } from './AuthContext';
 import {
@@ -65,12 +65,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const driverRef = useRef<Driver | null>(null);
   const interactiveListenerRef = useRef<(() => void) | null>(null);
 
-  // Auto-start tour on first visit (only once)
+  // Auto-start tour on first visit (only once per signed-in user)
   const autoStarted = useRef(false);
+
+  useEffect(() => {
+    autoStarted.current = false;
+  }, [user?.id]);
+
   useEffect(() => {
     if (
       user &&
-      !isTourCompleted() &&
+      !isTourCompleted(user.id) &&
       location.pathname === '/dashboard' &&
       !autoStarted.current &&
       !isActive
@@ -79,7 +84,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       const timer = setTimeout(() => startTour(), 800);
       return () => clearTimeout(timer);
     }
-  }, [user?.id]);
+  }, [user?.id, location.pathname, isActive]);
 
   // Cleanup interactive listeners
   const cleanupInteractiveListener = useCallback(() => {
@@ -98,8 +103,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setIsActive(false);
     setCurrentStep(-1);
     setPendingStep(null);
-    markTourCompleted();
-  }, [cleanupInteractiveListener]);
+    markTourCompleted(user?.id);
+  }, [cleanupInteractiveListener, user?.id]);
 
   const showStep = useCallback((stepIndex: number) => {
     if (stepIndex < 0 || stepIndex >= TOUR_STEPS.length) return;
@@ -123,12 +128,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
     const isLastStep = stepIndex === TOUR_STEPS.length - 1;
     const isInteractive = stepDef.type === 'interactive';
+    const showButtons: AllowedButtons[] = isInteractive
+      ? (stepIndex > 0 ? ['previous'] : [])
+      : (stepIndex > 0 ? ['previous', 'next'] : ['next']);
 
     const d = driver({
       ...config,
       steps: [driverStep],
-      showButtons: isInteractive ? [] : ['next'], // No buttons for interactive steps
+      showButtons,
       nextBtnText: isLastStep ? 'Finish' : 'Next →',
+      prevBtnText: '← Previous',
       // For interactive steps, clicking the highlighted area should pass through
       stagePadding: isInteractive ? 8 : 16,
       allowKeyboardControl: !isInteractive,
@@ -139,6 +148,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
           navigate('/dashboard');
         } else {
           advanceToStep(stepIndex + 1);
+        }
+      },
+      onPrevClick: () => {
+        d.destroy();
+        if (stepIndex > 0) {
+          advanceToStep(stepIndex - 1);
         }
       },
       onCloseClick: () => {
@@ -257,7 +272,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (match) {
         classId = match[1];
         setTourClassIdState(classId);
-        setTourClassId(classId); // persist for orphan cleanup
+        setTourClassId(classId, user?.id); // persist for orphan cleanup
       }
     }
 
@@ -335,7 +350,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (match && match[1] !== 'new' && !tourClassId) {
         const newClassId = match[1];
         setTourClassIdState(newClassId);
-        setTourClassId(newClassId);
+        setTourClassId(newClassId, user?.id);
       }
     }
   }, [location.pathname, isActive, tourClassId]);
@@ -344,7 +359,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setIsActive(true);
     setCurrentStep(0);
     setTourClassIdState(null);
-    clearTourClassId();
+    clearTourClassId(user?.id);
 
     if (location.pathname !== '/dashboard') {
       setPendingStep(0);
@@ -366,7 +381,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
         .driver-popover {
           border-radius: 16px !important;
           padding: 20px 24px !important;
-          max-width: 380px !important;
+          width: min(340px, calc(100vw - 32px)) !important;
+          max-width: min(340px, calc(100vw - 32px)) !important;
           font-family: inherit !important;
         }
         .driver-popover-description {

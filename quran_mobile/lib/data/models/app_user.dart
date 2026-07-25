@@ -68,7 +68,7 @@ class AppUser extends Equatable {
       lastName: lastName,
       role: UserRole.fromString(profile['role'] as String?),
       isVerified: true, // v2.0.0: always verified, no role-gating
-      studentId: profile['student_id'] as String?,
+      studentId: (profile['user_code'] ?? profile['student_id']) as String?,
       createdAt: DateTime.parse(
         profile['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),

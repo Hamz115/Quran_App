@@ -80,6 +80,7 @@ class ClassRepository {
 
     // Insert assignments
     for (final assignment in assignments) {
+      final reciterId = assignment['reciter_id'] ?? assignment['student_id'];
       await db.insert('assignments', {
         'class_id': classId,
         'type': assignment['type'],
@@ -87,6 +88,8 @@ class ClassRepository {
         'end_surah': assignment['end_surah'],
         'start_ayah': assignment['start_ayah'],
         'end_ayah': assignment['end_ayah'],
+        if (reciterId != null) 'student_id': reciterId,
+        if (reciterId != null) 'reciter_id': reciterId,
         'sync_status': 'pending',
         'is_deleted': 0,
       });
@@ -411,6 +414,7 @@ class ClassRepository {
 
     // Insert assignments
     for (final assignment in assignments) {
+      final reciterId = assignment['reciter_id'] ?? assignment['student_id'];
       await db.insert('assignments', {
         'class_id': classId,
         'type': assignment['type'],
@@ -418,7 +422,8 @@ class ClassRepository {
         'end_surah': assignment['end_surah'],
         'start_ayah': assignment['start_ayah'],
         'end_ayah': assignment['end_ayah'],
-        if (assignment['student_id'] != null) 'student_id': assignment['student_id'],
+        if (reciterId != null) 'student_id': reciterId,
+        if (reciterId != null) 'reciter_id': reciterId,
         'sync_status': 'synced',
         'is_deleted': 0,
       });
@@ -478,6 +483,7 @@ class ClassRepository {
 
     // Insert assignments
     for (final assignment in assignments) {
+      final reciterId = assignment['reciter_id'] ?? assignment['student_id'];
       await db.insert('assignments', {
         'class_id': classId,
         'supabase_id': assignment['id']?.toString(),
@@ -486,7 +492,8 @@ class ClassRepository {
         'end_surah': assignment['end_surah'],
         'start_ayah': assignment['start_ayah'],
         'end_ayah': assignment['end_ayah'],
-        if (assignment['student_id'] != null) 'student_id': assignment['student_id'],
+        if (reciterId != null) 'student_id': reciterId,
+        if (reciterId != null) 'reciter_id': reciterId,
         'sync_status': 'synced',
         'is_deleted': 0,
       });

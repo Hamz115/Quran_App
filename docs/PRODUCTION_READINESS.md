@@ -1,12 +1,17 @@
 # QuranTrack - Production Readiness Analysis
 
 **Generated:** 3 February 2026
-**Last Updated:** 23 February 2026
-**Status:** v1.0.0 Released — Desktop installer built and tested on clean VM
+**Last Updated:** 25 July 2026
+**Status:** v2.1.0 stabilization in progress — live contact/security migration verified; listener/reciter schema v3 drafted but not applied live
 
 ---
 
 ## What's Been Done Well
+
+### Current Stabilization Notes
+- The live contact lookup/security migration has been applied and verified on Supabase.
+- Listener/reciter schema terminology migration is staged locally in `docs/supabase_listener_reciter_schema_v3.sql`; it has been audited/corrected for `classes.teacher_id` compatibility but must not be applied live until the updated clients are validated.
+- React/Tauri and backend checks pass locally. Flutter validation was completed over SSH on Hamza's laptop: targeted migration analysis reports no issues and all 8 Flutter tests pass.
 
 ### Core Functionality (Strong)
 - **QPC Font Rendering** - Pixel-perfect Madani Mushaf display on web AND Flutter mobile (Phase 13.4)

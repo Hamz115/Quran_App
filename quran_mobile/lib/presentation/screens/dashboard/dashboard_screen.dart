@@ -111,6 +111,9 @@ class DashboardScreen extends ConsumerWidget {
                           ElevatedButton.icon(
                             key: TourService.startSessionKey,
                             onPressed: () {
+                              if (TourService.isTourActive) {
+                                TourService.completeInteraction();
+                              }
                               showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,

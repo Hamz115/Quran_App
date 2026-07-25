@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/constants.dart';
 import '../../../data/quran_data.dart' show getJuzBoundary, pageStarts, totalPages, getPageForSurah, getLastPageForSurah;
@@ -8,6 +7,7 @@ import '../../providers/providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/report_provider.dart';
 import '../classroom/classroom_screen.dart';
+import '../../../core/services/tour_service.dart';
 
 class CreateClassScreen extends ConsumerStatefulWidget {
   final String? studentId;
@@ -172,7 +172,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Student selector
-                    _buildStudentSelector(studentsAsync, isDarkMode),
+                    Container(
+                      key: TourService.studentSelectorKey,
+                      child: _buildStudentSelector(studentsAsync, isDarkMode),
+                    ),
                     const SizedBox(height: 16),
 
                     // Date selector
@@ -181,6 +184,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
                     // Sections
                     Text(
+                      key: TourService.portionsSectionKey,
                       'Portions',
                       style: TextStyle(
                         fontSize: 16,
@@ -227,6 +231,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    key: TourService.createSessionKey,
                     onPressed: _isCreating ? null : _createClass,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -900,6 +905,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       return;
     }
 
+    final navigator = Navigator.of(context);
     setState(() => _isCreating = true);
 
     try {
@@ -917,11 +923,19 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       ref.invalidate(studentReportProvider);
 
       if (mounted) {
-        // Close the bottom sheet, then navigate into the new class
         final classId = newClass.supabaseId ?? newClass.id.toString();
-        Navigator.pop(context);
-        Navigator.push(
-          context,
+
+        if (TourService.isTourActive) {
+          await TourService.saveTourClassId(classId);
+          TourService.completeInteraction();
+        }
+
+        // Keep the NavigatorState before the async creation call. Using this
+        // bottom-sheet BuildContext after popping it caused intermittent gray
+        // screens until a back/refresh cycle.
+        navigator.pop();
+        await Future<void>.delayed(Duration.zero);
+        await navigator.push(
           MaterialPageRoute(
             builder: (_) => ClassroomScreen(classId: classId),
           ),

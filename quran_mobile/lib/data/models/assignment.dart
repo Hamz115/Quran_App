@@ -44,7 +44,7 @@ class Assignment extends Equatable {
       endSurah: map['end_surah'] as int,
       startAyah: map['start_ayah'] as int?,
       endAyah: map['end_ayah'] as int?,
-      studentId: map['student_id'] as String?,
+      studentId: (map['reciter_id'] ?? map['student_id']) as String?,
       syncStatus: _parseSyncStatus(map['sync_status'] as String?),
       isDeleted: (map['is_deleted'] as int?) == 1,
     );
@@ -62,6 +62,7 @@ class Assignment extends Equatable {
       'start_ayah': startAyah,
       'end_ayah': endAyah,
       if (studentId != null) 'student_id': studentId,
+      if (studentId != null) 'reciter_id': studentId,
       'sync_status': syncStatus.name,
       'is_deleted': isDeleted ? 1 : 0,
     };

@@ -10,7 +10,7 @@ Sync Strategy:
 
 Tables synced:
 - profiles (users)
-- teacher_students (relationships)
+- listener_reciters (relationships; legacy teacher_students fallback)
 - classes
 - assignments
 - mistakes
@@ -63,6 +63,23 @@ def get_app_db():
     return conn
 
 
+def is_schema_compat_error(exc: Exception) -> bool:
+    message = str(exc)
+    return any(token in message for token in (
+        "listener_reciters", "class_reciters", "reciter_id", "user_code",
+        "listener_id", "relationship", "PGRST200", "PGRST204", "42P01", "42703",
+    ))
+
+
+def execute_with_legacy_fallback(primary, legacy):
+    try:
+        return primary()
+    except Exception as exc:
+        if not is_schema_compat_error(exc):
+            raise
+        return legacy()
+
+
 # ============ PROFILES: Supabase → Local (one-way) ============
 
 def pull_profiles() -> Dict[str, int]:
@@ -89,13 +106,14 @@ def pull_profiles() -> Dict[str, int]:
             # Update existing
             conn.execute("""
                 UPDATE profiles SET
-                    email = ?, name = ?, role = ?,
+                    email = ?, name = ?, role = ?, user_code = ?,
                     updated_at = ?, last_synced_at = ?
                 WHERE id = ?
             """, (
                 profile.get("email"),
                 profile.get("name"),
-                profile.get("role", "student"),
+                profile.get("role"),
+                profile.get("user_code") or profile.get("student_id"),
                 profile.get("updated_at"),
                 datetime.utcnow().isoformat(),
                 supabase_id
@@ -104,13 +122,15 @@ def pull_profiles() -> Dict[str, int]:
         else:
             # Create new local record
             conn.execute("""
-                INSERT INTO profiles (id, email, name, role, created_at, updated_at, last_synced_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO profiles (id, email, name, role, student_id, user_code, created_at, updated_at, last_synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 supabase_id,
                 profile.get("email"),
                 profile.get("name"),
-                profile.get("role", "student"),
+                profile.get("role"),
+                profile.get("student_id"),
+                profile.get("user_code") or profile.get("student_id"),
                 profile.get("created_at"),
                 profile.get("updated_at"),
                 datetime.utcnow().isoformat()
@@ -125,20 +145,22 @@ def pull_profiles() -> Dict[str, int]:
 
 def pull_teacher_students(teacher_id: str) -> Dict[str, int]:
     """
-    Pull teacher-student relationships from Supabase to app.db.
-    Only pulls relationships for the given teacher.
+    Pull listener-reciter relationships from Supabase to app.db.
+    Only pulls relationships for the given listener.
     """
     conn = get_app_db()
     supabase = get_supabase()
 
     results = {"created": 0, "updated": 0}
 
-    # Get teacher's students from Supabase
-    response = supabase.table("teacher_students").select("*").eq("teacher_id", teacher_id).execute()
+    response = execute_with_legacy_fallback(
+        lambda: supabase.table("listener_reciters").select("*").eq("listener_id", teacher_id).execute(),
+        lambda: supabase.table("teacher_students").select("*").eq("teacher_id", teacher_id).execute(),
+    )
 
     for rel in response.data:
-        teacher_id = rel["teacher_id"]
-        student_id = rel["student_id"]
+        teacher_id = rel.get("listener_id") or rel["teacher_id"]
+        student_id = rel.get("reciter_id") or rel["student_id"]
 
         # Check if exists locally
         cursor = conn.execute(
@@ -164,6 +186,27 @@ def pull_teacher_students(teacher_id: str) -> Dict[str, int]:
                 datetime.utcnow().isoformat()
             ))
             results["created"] += 1
+
+        cursor = conn.execute(
+            "SELECT id FROM listener_reciters WHERE listener_id = ? AND reciter_id = ?",
+            (teacher_id, student_id)
+        )
+        if cursor.fetchone():
+            conn.execute("""
+                UPDATE listener_reciters SET last_synced_at = ?
+                WHERE listener_id = ? AND reciter_id = ?
+            """, (datetime.utcnow().isoformat(), teacher_id, student_id))
+        else:
+            conn.execute("""
+                INSERT INTO listener_reciters (id, listener_id, reciter_id, created_at, last_synced_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                rel.get("id"),
+                teacher_id,
+                student_id,
+                rel.get("created_at"),
+                datetime.utcnow().isoformat()
+            ))
 
         conn.commit()
 
@@ -204,8 +247,8 @@ def push_pending_classes(supabase_user_id: str) -> Dict[str, int]:
 
         try:
             remote_data = {
-                "teacher_id": supabase_user_id,
-                "listener_id": supabase_user_id,  # Dual-write for v2.0
+                "listener_id": supabase_user_id,
+                "teacher_id": supabase_user_id,  # Compatibility dual-write
                 "date": class_data["date"],
                 "day": class_data["day"],
                 "notes": class_data.get("notes"),
@@ -289,7 +332,7 @@ def push_class_assignments(conn, supabase: Client, local_class_id: int, supabase
 
 
 def push_class_students(conn, supabase: Client, local_class_id: int, supabase_class_id: str):
-    """Push class_students enrollments for a class to Supabase."""
+    """Push class_reciters enrollments for a class to Supabase."""
     cursor = conn.execute("""
         SELECT student_id FROM class_students WHERE class_id = ?
     """, (local_class_id,))
@@ -298,14 +341,25 @@ def push_class_students(conn, supabase: Client, local_class_id: int, supabase_cl
         student_id = row["student_id"] if isinstance(row, dict) else row[0]
         try:
             # Check if already exists
-            existing = supabase.table("class_students").select("id").eq(
-                "class_id", supabase_class_id
-            ).eq("student_id", student_id).execute()
+            existing = execute_with_legacy_fallback(
+                lambda: supabase.table("class_reciters").select("id").eq(
+                    "class_id", supabase_class_id
+                ).eq("reciter_id", student_id).execute(),
+                lambda: supabase.table("class_students").select("id").eq(
+                    "class_id", supabase_class_id
+                ).eq("student_id", student_id).execute(),
+            )
             if not existing.data:
-                supabase.table("class_students").insert({
-                    "class_id": supabase_class_id,
-                    "student_id": student_id,
-                }).execute()
+                execute_with_legacy_fallback(
+                    lambda: supabase.table("class_reciters").insert({
+                        "class_id": supabase_class_id,
+                        "reciter_id": student_id,
+                    }).execute(),
+                    lambda: supabase.table("class_students").insert({
+                        "class_id": supabase_class_id,
+                        "student_id": student_id,
+                    }).execute(),
+                )
         except Exception as e:
             print(f"Error syncing class_student {local_class_id}/{student_id}: {e}")
 
@@ -341,7 +395,7 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
 
         try:
             remote_data = {
-                "student_id": supabase_user_id,
+                "reciter_id": supabase_user_id,
                 "surah_number": mistake["surah_number"],
                 "ayah_number": mistake["ayah_number"],
                 "word_index": mistake["word_index"],
@@ -351,10 +405,20 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
             }
 
             if supabase_id:
-                supabase.table("mistakes").update(remote_data).eq("id", supabase_id).execute()
+                legacy_remote_data = dict(remote_data)
+                legacy_remote_data["student_id"] = legacy_remote_data.pop("reciter_id")
+                execute_with_legacy_fallback(
+                    lambda: supabase.table("mistakes").update(remote_data).eq("id", supabase_id).execute(),
+                    lambda: supabase.table("mistakes").update(legacy_remote_data).eq("id", supabase_id).execute(),
+                )
                 results["updated"] += 1
             else:
-                response = supabase.table("mistakes").insert(remote_data).execute()
+                legacy_remote_data = dict(remote_data)
+                legacy_remote_data["student_id"] = legacy_remote_data.pop("reciter_id")
+                response = execute_with_legacy_fallback(
+                    lambda: supabase.table("mistakes").insert(remote_data).execute(),
+                    lambda: supabase.table("mistakes").insert(legacy_remote_data).execute(),
+                )
                 supabase_id = response.data[0]["id"]
                 results["created"] += 1
 
@@ -374,9 +438,10 @@ def push_pending_mistakes(supabase_user_id: str) -> Dict[str, int]:
                 SET sync_status = 'synced',
                     supabase_id = ?,
                     supabase_student_id = ?,
+                    supabase_reciter_id = ?,
                     last_synced_at = ?
                 WHERE id = ?
-            """, (supabase_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
+            """, (supabase_id, supabase_user_id, supabase_user_id, datetime.utcnow().isoformat(), local_id))
             # Sync mistake_occurrences for this mistake
             push_mistake_occurrences(conn, supabase, local_id, supabase_id)
         else:
@@ -425,11 +490,14 @@ def pull_classes(supabase_user_id: str, since: Optional[str] = None) -> Dict[str
     results = {"created": 0, "updated": 0}
 
     # Query Supabase for user's classes
-    query = supabase.table("classes").select("*").eq("teacher_id", supabase_user_id)
+    query = supabase.table("classes").select("*").eq("listener_id", supabase_user_id)
     if since:
         query = query.gte("updated_at", since)
 
-    response = query.execute()
+    response = execute_with_legacy_fallback(
+        lambda: query.execute(),
+        lambda: supabase.table("classes").select("*").eq("teacher_id", supabase_user_id).execute(),
+    )
 
     for remote_class in response.data:
         supabase_id = remote_class["id"]
@@ -490,11 +558,14 @@ def pull_mistakes(supabase_user_id: str, since: Optional[str] = None) -> Dict[st
 
     results = {"created": 0, "updated": 0}
 
-    query = supabase.table("mistakes").select("*").eq("student_id", supabase_user_id)
+    query = supabase.table("mistakes").select("*").eq("reciter_id", supabase_user_id)
     if since:
         query = query.gte("updated_at", since)
 
-    response = query.execute()
+    response = execute_with_legacy_fallback(
+        lambda: query.execute(),
+        lambda: supabase.table("mistakes").select("*").eq("student_id", supabase_user_id).execute(),
+    )
 
     for remote_mistake in response.data:
         supabase_id = remote_mistake["id"]
@@ -524,9 +595,9 @@ def pull_mistakes(supabase_user_id: str, since: Optional[str] = None) -> Dict[st
             conn.execute("""
                 INSERT INTO mistakes (
                     surah_number, ayah_number, word_index, word_text,
-                    char_index, error_count, supabase_id, supabase_student_id,
+                    char_index, error_count, supabase_id, supabase_student_id, supabase_reciter_id,
                     sync_status, last_synced_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
             """, (
                 remote_mistake["surah_number"],
                 remote_mistake["ayah_number"],
@@ -535,6 +606,7 @@ def pull_mistakes(supabase_user_id: str, since: Optional[str] = None) -> Dict[st
                 remote_mistake.get("char_index"),
                 remote_mistake.get("error_count", 1),
                 supabase_id,
+                supabase_user_id,
                 supabase_user_id,
                 datetime.utcnow().isoformat()
             ))

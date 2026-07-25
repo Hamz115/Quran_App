@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../config/theme.dart';
 import '../../../config/app_colors.dart';
 import '../../../core/services/arabic_text_utils.dart' as arabic_utils;
+import '../../../core/services/tour_service.dart';
 
 class WordPopup extends StatelessWidget {
   final String word;
@@ -57,6 +58,7 @@ class WordPopup extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                key: TourService.wholeWordKey,
                 onPressed: onSelectWhole,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.mistake1.withOpacity(0.2),
@@ -85,6 +87,7 @@ class WordPopup extends StatelessWidget {
               Directionality(
                 textDirection: TextDirection.rtl,
                 child: Wrap(
+                  key: TourService.letterMistakesKey,
                   spacing: 8,
                   runSpacing: 8,
                   children: parsed.letters.map((l) {
@@ -128,6 +131,7 @@ class WordPopup extends StatelessWidget {
               Directionality(
                 textDirection: TextDirection.rtl,
                 child: Wrap(
+                  key: TourService.harakaMistakesKey,
                   spacing: 8,
                   runSpacing: 8,
                   children: parsed.harakat.map((h) {

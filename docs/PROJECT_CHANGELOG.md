@@ -4,6 +4,20 @@ A chronological record of what has been built. This is the main reference guide 
 
 ---
 
+## Current Migration: Listener/Reciter Schema Terminology
+
+**Status:** In progress, not applied live
+
+- Drafted and corrected `docs/supabase_listener_reciter_schema_v3.sql` to canonicalize Supabase schema names: `teacher_students` → `listener_reciters`, `class_students` → `class_reciters`, role-bearing `teacher_id` → `listener_id`, role-bearing `student_id` → `reciter_id`, and `profiles.student_id` → `user_code`.
+- Kept `classes.teacher_id` as a compatibility column during rollout, with a trigger in the draft migration to keep it equal to `listener_id`.
+- Updated React/Tauri data access, Flutter Supabase access/sync, FastAPI local schema migrations, backend Supabase sync, and generated TypeScript schema types to prefer listener/reciter names while falling back to the live v2 schema until v3 is applied.
+- Added regression coverage for the SQL migration contract and Flutter schema compatibility helper.
+- Live Supabase has **not** had the v3 listener/reciter migration applied.
+
+See: `docs/Logs/2026-07-25-001-production-readiness-audit-v2.1.0.md`
+
+---
+
 ## Documentation Directory
 
 ```

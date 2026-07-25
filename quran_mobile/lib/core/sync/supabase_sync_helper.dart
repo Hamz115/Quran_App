@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/class_repository.dart';
 import '../../data/repositories/mistake_repository.dart';
 import '../database/database_helper.dart';
+import '../supabase/schema_compat.dart';
 
 /// Syncs local SQLite data with Supabase cloud.
 ///
@@ -81,21 +82,27 @@ class SupabaseSyncHelper {
             }
           } else {
             // Check if it already exists on Supabase by location
-            var query = _supabase
-                .from('mistakes')
-                .select('id, error_count')
-                .eq('student_id', studentId)
-                .eq('surah_number', mistake.surahNumber)
-                .eq('ayah_number', mistake.ayahNumber)
-                .eq('word_index', mistake.wordIndex);
+            Future<Map<String, dynamic>?> findExisting(String fieldName) {
+              var query = _supabase
+                  .from('mistakes')
+                  .select('id, error_count')
+                  .eq(fieldName, studentId)
+                  .eq('surah_number', mistake.surahNumber)
+                  .eq('ayah_number', mistake.ayahNumber)
+                  .eq('word_index', mistake.wordIndex);
 
-            if (mistake.charIndex != null) {
-              query = query.eq('char_index', mistake.charIndex!);
-            } else {
-              query = query.isFilter('char_index', null);
+              if (mistake.charIndex != null) {
+                query = query.eq('char_index', mistake.charIndex!);
+              } else {
+                query = query.isFilter('char_index', null);
+              }
+              return query.maybeSingle();
             }
 
-            final existing = await query.maybeSingle();
+            final existing = await withLegacySchemaFallback(
+              () => findExisting('reciter_id'),
+              () => findExisting('student_id'),
+            );
 
             if (existing != null) {
               // Update existing — take max count
@@ -115,15 +122,26 @@ class SupabaseSyncHelper {
               }
             } else {
               // Create new on Supabase
-              final response = await _supabase.from('mistakes').insert({
-                'student_id': studentId,
-                'surah_number': mistake.surahNumber,
-                'ayah_number': mistake.ayahNumber,
-                'word_index': mistake.wordIndex,
-                'word_text': mistake.wordText,
-                'char_index': mistake.charIndex,
-                'error_count': mistake.errorCount,
-              }).select('id').single();
+              final response = await withLegacySchemaFallback(
+                () => _supabase.from('mistakes').insert({
+                  'reciter_id': studentId,
+                  'surah_number': mistake.surahNumber,
+                  'ayah_number': mistake.ayahNumber,
+                  'word_index': mistake.wordIndex,
+                  'word_text': mistake.wordText,
+                  'char_index': mistake.charIndex,
+                  'error_count': mistake.errorCount,
+                }).select('id').single(),
+                () => _supabase.from('mistakes').insert({
+                  'student_id': studentId,
+                  'surah_number': mistake.surahNumber,
+                  'ayah_number': mistake.ayahNumber,
+                  'word_index': mistake.wordIndex,
+                  'word_text': mistake.wordText,
+                  'char_index': mistake.charIndex,
+                  'error_count': mistake.errorCount,
+                }).select('id').single(),
+              );
 
               if (mistake.id != null) {
                 await _mistakeRepo.markMistakeSyncedWithSupabaseId(
@@ -234,15 +252,26 @@ class SupabaseSyncHelper {
             // Push assignments for this class
             for (final assignment in cls.assignments) {
               try {
-                final aResponse = await _supabase.from('assignments').insert({
-                  'class_id': newSupabaseId,
-                  'type': assignment.type,
-                  'start_surah': assignment.startSurah,
-                  'end_surah': assignment.endSurah,
-                  'start_ayah': assignment.startAyah,
-                  'end_ayah': assignment.endAyah,
-                  if (assignment.studentId != null) 'student_id': assignment.studentId,
-                }).select('id').single();
+                final aResponse = await withLegacySchemaFallback(
+                  () => _supabase.from('assignments').insert({
+                    'class_id': newSupabaseId,
+                    'type': assignment.type,
+                    'start_surah': assignment.startSurah,
+                    'end_surah': assignment.endSurah,
+                    'start_ayah': assignment.startAyah,
+                    'end_ayah': assignment.endAyah,
+                    if (assignment.studentId != null) 'reciter_id': assignment.studentId,
+                  }).select('id').single(),
+                  () => _supabase.from('assignments').insert({
+                    'class_id': newSupabaseId,
+                    'type': assignment.type,
+                    'start_surah': assignment.startSurah,
+                    'end_surah': assignment.endSurah,
+                    'start_ayah': assignment.startAyah,
+                    'end_ayah': assignment.endAyah,
+                    if (assignment.studentId != null) 'student_id': assignment.studentId,
+                  }).select('id').single(),
+                );
 
                 if (assignment.id != null) {
                   await _classRepo.markAssignmentSyncedWithSupabaseId(
@@ -317,17 +346,23 @@ class SupabaseSyncHelper {
   /// Pull classes for a student (via class_students join).
   Future<void> _pullClassesForStudent(String studentId) async {
     try {
-      final response = await _supabase
-          .from('class_students')
-          .select('class_id, classes(*, assignments(*))')
-          .eq('student_id', studentId);
+      final response = await withLegacySchemaFallback(
+        () => _supabase
+            .from('class_reciters')
+            .select('class_id, classes(*, assignments(*))')
+            .eq('reciter_id', studentId),
+        () => _supabase
+            .from('class_students')
+            .select('class_id, classes(*, assignments(*))')
+            .eq('student_id', studentId),
+      );
 
       for (final row in (response as List)) {
         final classData = row['classes'];
         if (classData == null) continue;
 
         final supabaseId = classData['id'].toString();
-        final teacherId = classData['teacher_id']?.toString() ?? '';
+        final teacherId = (classData['listener_id'] ?? classData['teacher_id'])?.toString() ?? '';
         final assignmentsRaw = (classData['assignments'] as List?) ?? [];
 
         await _classRepo.upsertFromSupabase(
@@ -350,13 +385,19 @@ class SupabaseSyncHelper {
   Future<void> _pullMistakesForTeacher(String teacherId) async {
     try {
       // Get all student IDs for this teacher
-      final studentsResponse = await _supabase
-          .from('teacher_students')
-          .select('student_id')
-          .eq('teacher_id', teacherId);
+      final studentsResponse = await withLegacySchemaFallback(
+        () => _supabase
+            .from('listener_reciters')
+            .select('reciter_id')
+            .eq('listener_id', teacherId),
+        () => _supabase
+            .from('teacher_students')
+            .select('student_id')
+            .eq('teacher_id', teacherId),
+      );
 
       final studentIds = (studentsResponse as List)
-          .map((r) => r['student_id'].toString())
+          .map((r) => (r['reciter_id'] ?? r['student_id']).toString())
           .toList();
 
       // Also pull own mistakes if the teacher has any
@@ -376,10 +417,16 @@ class SupabaseSyncHelper {
   /// Pull mistakes for a specific student.
   Future<void> _pullMistakesForStudent(String studentId) async {
     try {
-      final response = await _supabase
-          .from('mistakes')
-          .select()
-          .eq('student_id', studentId);
+      final response = await withLegacySchemaFallback(
+        () => _supabase
+            .from('mistakes')
+            .select()
+            .eq('reciter_id', studentId),
+        () => _supabase
+            .from('mistakes')
+            .select()
+            .eq('student_id', studentId),
+      );
 
       for (final row in (response as List)) {
         await _mistakeRepo.upsertFromServer(

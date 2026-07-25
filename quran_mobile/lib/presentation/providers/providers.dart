@@ -7,6 +7,7 @@ import '../../core/network/api_client.dart';
 import '../../core/network/connectivity_service.dart';
 import '../../core/sync/sync_service.dart';
 import '../../core/sync/supabase_sync_helper.dart';
+import '../../core/supabase/schema_compat.dart';
 import '../../data/repositories/quran_repository.dart';
 import '../../data/repositories/class_repository.dart';
 import '../../data/repositories/mistake_repository.dart';
@@ -77,21 +78,27 @@ final surahWithAyahsProvider = FutureProvider.family<SurahWithAyahs?, int>((ref,
   return repo.getSurahWithAyahs(surahNumber);
 });
 
-// Teacher's students provider (STAYS ON SUPABASE — cross-device operation)
+// Listener's reciters provider (STAYS ON SUPABASE — cross-device operation)
 final teacherStudentsProvider = FutureProvider<List<({String id, String name})>>((ref) async {
   final user = ref.read(authProvider).user;
   if (user == null) return [];
 
   final supabase = Supabase.instance.client;
-  final response = await supabase
-      .from('teacher_students')
-      .select('student_id, student:profiles!student_id(id, name)')
-      .eq('teacher_id', user.id);
+  final response = await withLegacySchemaFallback(
+    () => supabase
+        .from('listener_reciters')
+        .select('reciter_id, reciter:profiles!reciter_id(id, name)')
+        .eq('listener_id', user.id),
+    () => supabase
+        .from('teacher_students')
+        .select('student_id, reciter:profiles!student_id(id, name)')
+        .eq('teacher_id', user.id),
+  );
 
   return (response as List).map((row) {
-    final student = row['student'] as Map<String, dynamic>?;
+    final student = row['reciter'] as Map<String, dynamic>?;
     return (
-      id: (student?['id'] ?? row['student_id']).toString(),
+      id: (student?['id'] ?? row['reciter_id'] ?? row['student_id']).toString(),
       name: (student?['name'] ?? 'Student').toString(),
     );
   }).toList();
@@ -104,37 +111,53 @@ Future<String> addStudentByEmail(WidgetRef ref, String email) async {
 
   final supabase = Supabase.instance.client;
 
-  // Find student by email
-  final studentData = await supabase
-      .from('profiles')
-      .select('id, name')
-      .eq('email', email.trim().toLowerCase())
-      .maybeSingle();
-
-  if (studentData == null) {
+  // Profiles RLS only exposes existing relationships, so a direct profiles
+  // query can never discover a brand-new contact. Use the same narrow,
+  // authenticated lookup RPC as the desktop app.
+  final lookupResponse = await supabase.rpc(
+    'lookup_profile_by_email',
+    params: {'p_email': email.trim().toLowerCase()},
+  );
+  final lookupRows = lookupResponse as List;
+  if (lookupRows.isEmpty) {
     throw Exception('No user found with that email');
   }
 
+  final studentData = lookupRows.first as Map<String, dynamic>;
   final studentId = studentData['id'].toString();
   final studentName = (studentData['name'] as String?) ?? 'Student';
 
   // Check if already added
-  final existing = await supabase
-      .from('teacher_students')
-      .select('id')
-      .eq('teacher_id', user.id)
-      .eq('student_id', studentId)
-      .maybeSingle();
+  final existing = await withLegacySchemaFallback(
+    () => supabase
+        .from('listener_reciters')
+        .select('id')
+        .eq('listener_id', user.id)
+        .eq('reciter_id', studentId)
+        .maybeSingle(),
+    () => supabase
+        .from('teacher_students')
+        .select('id')
+        .eq('teacher_id', user.id)
+        .eq('student_id', studentId)
+        .maybeSingle(),
+  );
 
   if (existing != null) {
     throw Exception('Student already added to your list');
   }
 
   // Add relationship
-  await supabase.from('teacher_students').insert({
-    'teacher_id': user.id,
-    'student_id': studentId,
-  });
+  await withLegacySchemaFallback(
+    () => supabase.from('listener_reciters').insert({
+      'listener_id': user.id,
+      'reciter_id': studentId,
+    }),
+    () => supabase.from('teacher_students').insert({
+      'teacher_id': user.id,
+      'student_id': studentId,
+    }),
+  );
 
   // Invalidate provider so list refreshes
   ref.invalidate(teacherStudentsProvider);
@@ -164,19 +187,33 @@ final classStudentNamesProvider = FutureProvider<Map<String, List<String>>>((ref
 
   final supabase = Supabase.instance.client;
 
-  // Get all class_students for this teacher's classes, with student name
-  final response = await supabase
-      .from('class_students')
-      .select('class_id, student:profiles!student_id(name)')
-      .inFilter('class_id', (await supabase
-          .from('classes')
-          .select('id')
-          .or('teacher_id.eq.${user.id},listener_id.eq.${user.id}')).map((r) => r['id'].toString()).toList());
+  // Get all class reciters for this listener's sessions, with reciter name.
+  // Resolve the session IDs before entering the fallback callbacks; callback
+  // bodies are intentionally synchronous functions returning Futures.
+  final classRows = await supabase
+      .from('classes')
+      .select('id')
+      .or('teacher_id.eq.${user.id},listener_id.eq.${user.id}');
+  final classIds = (classRows as List)
+      .map((row) => row['id'].toString())
+      .toList();
+  if (classIds.isEmpty) return {};
+
+  final response = await withLegacySchemaFallback(
+    () => supabase
+        .from('class_reciters')
+        .select('class_id, reciter:profiles!reciter_id(name)')
+        .inFilter('class_id', classIds),
+    () => supabase
+        .from('class_students')
+        .select('class_id, reciter:profiles!student_id(name)')
+        .inFilter('class_id', classIds),
+  );
 
   final map = <String, List<String>>{};
   for (final row in (response as List)) {
     final classId = row['class_id'].toString();
-    final studentName = (row['student'] as Map<String, dynamic>?)?['name'] as String? ?? 'Student';
+    final studentName = (row['reciter'] as Map<String, dynamic>?)?['name'] as String? ?? 'Student';
     map.putIfAbsent(classId, () => []).add(studentName);
   }
   return map;
@@ -185,16 +222,34 @@ final classStudentNamesProvider = FutureProvider<Map<String, List<String>>>((ref
 // ============ CLASS STUDENTS PROVIDER (fetches students enrolled in a specific class) ============
 
 final classStudentsProvider = FutureProvider.family<List<({String id, String name})>, String>((ref, classId) async {
+  // Newly-created local-first sessions initially have an integer SQLite ID.
+  // Resolve it to the UUID after sync, and never send the integer to a UUID
+  // Supabase column (which previously caused a gray/error screen).
+  var resolvedClassId = classId;
+  final localId = int.tryParse(classId);
+  if (localId != null) {
+    final classes = ref.watch(classesProvider).value ?? [];
+    final localClass = classes.where((c) => c.id == localId).firstOrNull;
+    resolvedClassId = localClass?.supabaseId ?? '';
+    if (resolvedClassId.isEmpty) return [];
+  }
+
   final supabase = Supabase.instance.client;
-  final response = await supabase
-      .from('class_students')
-      .select('student_id, student:profiles!student_id(id, name)')
-      .eq('class_id', classId);
+  final response = await withLegacySchemaFallback(
+    () => supabase
+        .from('class_reciters')
+        .select('reciter_id, reciter:profiles!reciter_id(id, name)')
+        .eq('class_id', resolvedClassId),
+    () => supabase
+        .from('class_students')
+        .select('student_id, reciter:profiles!student_id(id, name)')
+        .eq('class_id', resolvedClassId),
+  );
 
   return (response as List).map((row) {
-    final student = row['student'] as Map<String, dynamic>?;
+    final student = row['reciter'] as Map<String, dynamic>?;
     return (
-      id: (student?['id'] ?? row['student_id']).toString(),
+      id: (student?['id'] ?? row['reciter_id'] ?? row['student_id']).toString(),
       name: (student?['name'] ?? 'Student').toString(),
     );
   }).toList();
@@ -257,17 +312,30 @@ final readerMistakeOccurrencesProvider = FutureProvider<List<Mistake>>((ref) asy
   final user = supabase.auth.currentUser;
   if (user == null) return [];
 
-  final response = await supabase
-      .from('mistakes')
-      .select('''
-        *,
-        mistake_occurrences (
-          class_id,
-          classes (date, day)
-        )
-      ''')
-      .eq('student_id', user.id)
-      .order('error_count', ascending: false);
+  final response = await withLegacySchemaFallback(
+    () => supabase
+        .from('mistakes')
+        .select('''
+          *,
+          mistake_occurrences (
+            class_id,
+            classes (date, day)
+          )
+        ''')
+        .eq('reciter_id', user.id)
+        .order('error_count', ascending: false),
+    () => supabase
+        .from('mistakes')
+        .select('''
+          *,
+          mistake_occurrences (
+            class_id,
+            classes (date, day)
+          )
+        ''')
+        .eq('student_id', user.id)
+        .order('error_count', ascending: false),
+  );
 
   final data = response as List<dynamic>;
 
@@ -428,14 +496,23 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
     // 2. Reload from local (instant)
     await loadClasses();
 
-    // 3. Push to Supabase in background (non-blocking)
-    _backgroundPushClass(localClass, assignments, studentIds, user.id);
+    // 3. Complete the cloud insert before opening the classroom. The classroom
+    // immediately queries UUID-backed class_students, so navigating with only
+    // the temporary SQLite integer ID caused intermittent blank/gray screens.
+    final supabaseId = await _pushClassToSupabase(
+      localClass,
+      assignments,
+      studentIds,
+      user.id,
+    );
 
-    return localClass;
+    return supabaseId == null
+        ? localClass
+        : localClass.copyWith(supabaseId: supabaseId, syncStatus: SyncStatus.synced);
   }
 
-  /// Background push a class to Supabase.
-  Future<void> _backgroundPushClass(
+  /// Push a newly-created local class to Supabase and return its UUID.
+  Future<String?> _pushClassToSupabase(
     ClassSession localClass,
     List<Map<String, dynamic>> assignments,
     List<String> studentIds,
@@ -464,14 +541,27 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
       // Insert assignments to Supabase
       for (int i = 0; i < assignments.length; i++) {
-        final aResponse = await supabase.from('assignments').insert({
-          'class_id': supabaseClassId,
-          'type': assignments[i]['type'],
-          'start_surah': assignments[i]['start_surah'],
-          'end_surah': assignments[i]['end_surah'],
-          'start_ayah': assignments[i]['start_ayah'],
-          'end_ayah': assignments[i]['end_ayah'],
-        }).select('id').single();
+        final reciterId = assignments[i]['reciter_id'] ?? assignments[i]['student_id'];
+        final aResponse = await withLegacySchemaFallback(
+          () => supabase.from('assignments').insert({
+            'class_id': supabaseClassId,
+            'type': assignments[i]['type'],
+            'start_surah': assignments[i]['start_surah'],
+            'end_surah': assignments[i]['end_surah'],
+            'start_ayah': assignments[i]['start_ayah'],
+            'end_ayah': assignments[i]['end_ayah'],
+            if (reciterId != null) 'reciter_id': reciterId,
+          }).select('id').single(),
+          () => supabase.from('assignments').insert({
+            'class_id': supabaseClassId,
+            'type': assignments[i]['type'],
+            'start_surah': assignments[i]['start_surah'],
+            'end_surah': assignments[i]['end_surah'],
+            'start_ayah': assignments[i]['start_ayah'],
+            'end_ayah': assignments[i]['end_ayah'],
+            if (reciterId != null) 'student_id': reciterId,
+          }).select('id').single(),
+        );
 
         // Mark local assignment synced
         if (i < localClass.assignments.length && localClass.assignments[i].id != null) {
@@ -483,17 +573,25 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
       // Link students via class_students (Supabase only — cross-device)
       for (final studentId in studentIds) {
-        await supabase.from('class_students').insert({
-          'class_id': supabaseClassId,
-          'student_id': studentId,
-        });
+        await withLegacySchemaFallback(
+          () => supabase.from('class_reciters').insert({
+            'class_id': supabaseClassId,
+            'reciter_id': studentId,
+          }),
+          () => supabase.from('class_students').insert({
+            'class_id': supabaseClassId,
+            'student_id': studentId,
+          }),
+        );
       }
 
       // Reload to pick up supabase_id
       await loadClasses();
+      return supabaseClassId;
     } catch (e) {
-      debugPrint('[ClassesNotifier] background push failed: $e');
-      // Class is still saved locally — will sync on next periodic sync
+      debugPrint('[ClassesNotifier] class push failed: $e');
+      // Class is still saved locally and can sync on the next periodic sync.
+      return null;
     }
   }
 
@@ -875,21 +973,27 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
       final mistakeRepo = _ref.read(mistakeRepositoryProvider);
 
       // Check for existing mistake on Supabase
-      var query = supabase
-          .from('mistakes')
-          .select('id, error_count')
-          .eq('student_id', targetStudentId)
-          .eq('surah_number', localMistake.surahNumber)
-          .eq('ayah_number', localMistake.ayahNumber)
-          .eq('word_index', localMistake.wordIndex);
+      Future<Map<String, dynamic>?> findExisting(String fieldName) {
+        var query = supabase
+            .from('mistakes')
+            .select('id, error_count')
+            .eq(fieldName, targetStudentId)
+            .eq('surah_number', localMistake.surahNumber)
+            .eq('ayah_number', localMistake.ayahNumber)
+            .eq('word_index', localMistake.wordIndex);
 
-      if (localMistake.charIndex != null) {
-        query = query.eq('char_index', localMistake.charIndex!);
-      } else {
-        query = query.isFilter('char_index', null);
+        if (localMistake.charIndex != null) {
+          query = query.eq('char_index', localMistake.charIndex!);
+        } else {
+          query = query.isFilter('char_index', null);
+        }
+        return query.maybeSingle();
       }
 
-      final existing = await query.maybeSingle();
+      final existing = await withLegacySchemaFallback(
+        () => findExisting('reciter_id'),
+        () => findExisting('student_id'),
+      );
 
       String supabaseMistakeId;
 
@@ -901,15 +1005,26 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
             .eq('id', supabaseMistakeId);
       } else {
         // Create new on Supabase
-        final response = await supabase.from('mistakes').insert({
-          'student_id': targetStudentId,
-          'surah_number': localMistake.surahNumber,
-          'ayah_number': localMistake.ayahNumber,
-          'word_index': localMistake.wordIndex,
-          'word_text': localMistake.wordText,
-          'char_index': localMistake.charIndex,
-          'error_count': localMistake.errorCount,
-        }).select('id').single();
+        final response = await withLegacySchemaFallback(
+          () => supabase.from('mistakes').insert({
+            'reciter_id': targetStudentId,
+            'surah_number': localMistake.surahNumber,
+            'ayah_number': localMistake.ayahNumber,
+            'word_index': localMistake.wordIndex,
+            'word_text': localMistake.wordText,
+            'char_index': localMistake.charIndex,
+            'error_count': localMistake.errorCount,
+          }).select('id').single(),
+          () => supabase.from('mistakes').insert({
+            'student_id': targetStudentId,
+            'surah_number': localMistake.surahNumber,
+            'ayah_number': localMistake.ayahNumber,
+            'word_index': localMistake.wordIndex,
+            'word_text': localMistake.wordText,
+            'char_index': localMistake.charIndex,
+            'error_count': localMistake.errorCount,
+          }).select('id').single(),
+        );
         supabaseMistakeId = response['id'].toString();
       }
 
@@ -975,7 +1090,10 @@ class MistakesNotifier extends StateNotifier<AsyncValue<List<Mistake>>> {
     // Delete on Supabase (background)
     try {
       final supabase = Supabase.instance.client;
-      await supabase.from('mistakes').delete().eq('student_id', user.id);
+      await withLegacySchemaFallback(
+        () => supabase.from('mistakes').delete().eq('reciter_id', user.id),
+        () => supabase.from('mistakes').delete().eq('student_id', user.id),
+      );
     } catch (e) {
       debugPrint('[MistakesNotifier] background deleteAllMistakes failed: $e');
     }
@@ -989,16 +1107,28 @@ final enrolledClassesProvider = FutureProvider<List<ClassSession>>((ref) async {
   if (user == null) return [];
 
   final supabase = Supabase.instance.client;
-  final response = await supabase
-      .from('class_students')
-      .select('''
-        class_id,
-        classes (
-          id, date, day, notes, performance, created_at,
-          assignments (id, type, start_surah, end_surah, start_ayah, end_ayah)
-        )
-      ''')
-      .eq('student_id', user.id);
+  final response = await withLegacySchemaFallback(
+    () => supabase
+        .from('class_reciters')
+        .select('''
+          class_id,
+          classes (
+            id, date, day, notes, performance, created_at,
+            assignments (id, type, start_surah, end_surah, start_ayah, end_ayah, reciter_id)
+          )
+        ''')
+        .eq('reciter_id', user.id),
+    () => supabase
+        .from('class_students')
+        .select('''
+          class_id,
+          classes (
+            id, date, day, notes, performance, created_at,
+            assignments (id, type, start_surah, end_surah, start_ayah, end_ayah, student_id)
+          )
+        ''')
+        .eq('student_id', user.id),
+  );
 
   final rows = response as List;
   final classes = <ClassSession>[];
@@ -1087,17 +1217,30 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
   ({String id, String date, String day})? lastClass;
 
   // Find student's most recent class with assignments
-  final response = await supabase
-      .from('class_students')
-      .select('''
-        class_id,
-        classes (
-          id, date, day,
-          assignments (type, start_surah, end_surah, start_ayah, end_ayah)
-        )
-      ''')
-      .eq('student_id', studentId)
-      .limit(20);
+  final response = await withLegacySchemaFallback(
+    () => supabase
+        .from('class_reciters')
+        .select('''
+          class_id,
+          classes (
+            id, date, day,
+            assignments (type, start_surah, end_surah, start_ayah, end_ayah, reciter_id)
+          )
+        ''')
+        .eq('reciter_id', studentId)
+        .limit(20),
+    () => supabase
+        .from('class_students')
+        .select('''
+          class_id,
+          classes (
+            id, date, day,
+            assignments (type, start_surah, end_surah, start_ayah, end_ayah, student_id)
+          )
+        ''')
+        .eq('student_id', studentId)
+        .limit(20),
+  );
 
   final rows = response as List;
   if (rows.isEmpty) {
@@ -1142,9 +1285,13 @@ final suggestedPortionsProvider = FutureProvider.family<SuggestedPortions, Strin
       note: 'Same as last class — adjust as needed',
     );
 
-    if (type == 'hifz') hifz = portion;
-    else if (type == 'sabqi') sabqi = portion;
-    else if (type == 'revision' || type == 'manzil') manzil = portion;
+    if (type == 'hifz') {
+      hifz = portion;
+    } else if (type == 'sabqi') {
+      sabqi = portion;
+    } else if (type == 'revision' || type == 'manzil') {
+      manzil = portion;
+    }
   }
 
   return SuggestedPortions(

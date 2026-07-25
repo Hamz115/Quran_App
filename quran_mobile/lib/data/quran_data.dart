@@ -125,9 +125,9 @@ const List<List<int>> pageStarts = [
   [5, 58],   // Page 118
   [5, 65],   // Page 119
   [5, 71],   // Page 120
-  [5, 77],   // Page 121
-  [5, 83],   // Page 122
-  [5, 90],   // Page 123
+  [5, 78],   // Page 121
+  [5, 84],   // Page 122
+  [5, 91],   // Page 123
   [5, 96],   // Page 124
   [5, 104],  // Page 125
   [5, 109],  // Page 126
@@ -149,7 +149,7 @@ const List<List<int>> pageStarts = [
   [6, 111],  // Page 142
   [6, 119],  // Page 143
   [6, 125],  // Page 144
-  [6, 132],  // Page 145
+  [6, 131],  // Page 145
   [6, 138],  // Page 146
   [6, 143],  // Page 147
   [6, 147],  // Page 148
@@ -536,9 +536,9 @@ const List<List<int>> pageStarts = [
   [54, 7],   // Page 529
   [54, 28],  // Page 530
   [54, 50],  // Page 531
-  [55, 17],  // Page 532
-  [55, 41],  // Page 533
-  [55, 68],  // Page 534
+  [55, 19],  // Page 532
+  [55, 42],  // Page 533
+  [55, 70],  // Page 534
   [56, 17],  // Page 535
   [56, 51],  // Page 536
   [56, 77],  // Page 537
@@ -569,18 +569,18 @@ const List<List<int>> pageStarts = [
   [67, 1],   // Page 562
   [67, 13],  // Page 563
   [67, 27],  // Page 564
-  [68, 16],  // Page 565
+  [68, 17],  // Page 565
   [68, 43],  // Page 566
   [69, 9],   // Page 567
-  [69, 35],  // Page 568
+  [69, 36],  // Page 568
   [70, 11],  // Page 569
-  [70, 40],  // Page 570
+  [70, 41],  // Page 570
   [71, 11],  // Page 571
   [72, 1],   // Page 572
   [72, 14],  // Page 573
   [73, 1],   // Page 574
   [73, 20],  // Page 575
-  [74, 18],  // Page 576
+  [74, 19],  // Page 576
   [74, 48],  // Page 577
   [75, 20],  // Page 578
   [76, 6],   // Page 579
@@ -588,23 +588,23 @@ const List<List<int>> pageStarts = [
   [77, 20],  // Page 581
   [78, 1],   // Page 582
   [78, 31],  // Page 583
-  [79, 16],  // Page 584
+  [79, 17],  // Page 584
   [80, 1],   // Page 585
-  [81, 1],   // Page 586
+  [80, 41],  // Page 586
   [82, 1],   // Page 587
-  [83, 7],   // Page 588
-  [83, 35],  // Page 589
-  [85, 1],   // Page 590
+  [83, 5],   // Page 588
+  [83, 34],  // Page 589
+  [84, 25],  // Page 590
   [86, 1],   // Page 591
-  [87, 16],  // Page 592
-  [89, 1],   // Page 593
-  [89, 24],  // Page 594
-  [91, 1],   // Page 595
-  [92, 15],  // Page 596
-  [95, 1],   // Page 597
-  [97, 1],   // Page 598
-  [98, 8],   // Page 599
-  [100, 10], // Page 600
+  [87, 11],  // Page 592
+  [88, 23],  // Page 593
+  [89, 23],  // Page 594
+  [90, 19],  // Page 595
+  [92, 10],  // Page 596
+  [94, 3],   // Page 597
+  [96, 13],  // Page 598
+  [98, 6],   // Page 599
+  [100, 6],  // Page 600
   [103, 1],  // Page 601
   [106, 1],  // Page 602
   [109, 1],  // Page 603
@@ -638,15 +638,19 @@ const Map<int, String> surahNamesArabic = {
   111: 'المسد', 112: 'الإخلاص', 113: 'الفلق', 114: 'الناس',
 };
 
-/// Get the first page of a surah.
-int getPageForSurah(int surahNum) {
-  for (int i = 0; i < pageStarts.length; i++) {
-    if (pageStarts[i][0] == surahNum) {
-      return i + 1; // 1-indexed
-    }
-  }
-  return 1;
-}
+/// Ayah counts for all 114 surahs in Quran order.
+const List<int> surahAyahCounts = [
+  7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99,
+  128, 111, 110, 98, 135, 112, 78, 118, 64, 77, 227, 93, 88, 69, 60, 34,
+  30, 73, 54, 45, 83, 182, 88, 75, 85, 54, 53, 89, 59, 37, 35, 38, 29,
+  18, 45, 60, 49, 62, 55, 78, 96, 29, 22, 24, 13, 14, 11, 11, 18, 12,
+  12, 30, 52, 52, 44, 28, 28, 20, 56, 40, 31, 50, 40, 46, 42, 29, 19,
+  36, 25, 22, 17, 19, 26, 30, 20, 15, 21, 11, 8, 8, 19, 5, 8, 8, 11,
+  11, 8, 3, 9, 5, 4, 7, 3, 6, 3, 5, 4, 5, 6,
+];
+
+/// Get the first page of a surah, including surahs that begin mid-page.
+int getPageForSurah(int surahNum) => getPageNumber(surahNum, 1);
 
 /// Get the page number for a given surah and ayah.
 int getPageNumber(int surahNum, int ayahNum) {
@@ -660,10 +664,14 @@ int getPageNumber(int surahNum, int ayahNum) {
   return 1;
 }
 
-/// Get the last page of a surah.
+/// Get the last page of a surah using its real final ayah.
+///
+/// Subtracting one from the next surah's first page is incorrect when two
+/// surahs share a Mushaf page, and looking only for page-start entries misses
+/// surahs that begin mid-page.
 int getLastPageForSurah(int surahNum) {
-  if (surahNum >= 114) return totalPages;
-  return getPageForSurah(surahNum + 1) - 1;
+  if (surahNum < 1 || surahNum > surahAyahCounts.length) return 1;
+  return getPageNumber(surahNum, surahAyahCounts[surahNum - 1]);
 }
 
 /// Get the page range (first, last) for an assignment's surah/ayah range.

@@ -350,14 +350,25 @@ def init_app_db():
             id TEXT PRIMARY KEY,
             email TEXT,
             name TEXT,
-            role TEXT DEFAULT 'student',
+            role TEXT,
             student_id TEXT,
+            user_code TEXT,
             created_at TEXT,
             updated_at TEXT,
             last_synced_at TEXT
         );
 
-        -- Teacher-student relationships (synced from Supabase, TEXT UUIDs)
+        -- Listener-reciter relationships (synced from Supabase, TEXT UUIDs)
+        CREATE TABLE IF NOT EXISTS listener_reciters (
+            id TEXT PRIMARY KEY,
+            listener_id TEXT NOT NULL,
+            reciter_id TEXT NOT NULL,
+            created_at TEXT,
+            last_synced_at TEXT,
+            UNIQUE(listener_id, reciter_id)
+        );
+
+        -- Legacy compatibility table for older local code.
         CREATE TABLE IF NOT EXISTS teacher_students (
             id TEXT PRIMARY KEY,
             teacher_id TEXT NOT NULL,
@@ -368,6 +379,29 @@ def init_app_db():
         );
     """)
     conn.commit()
+
+    # v3 terminology migration: additive local aliases for listener/reciter naming.
+    v3_migrations = [
+        "ALTER TABLE profiles ADD COLUMN user_code TEXT",
+        "ALTER TABLE assignments ADD COLUMN reciter_id INTEGER REFERENCES users(id)",
+        "ALTER TABLE mistakes ADD COLUMN reciter_id INTEGER REFERENCES users(id)",
+        "ALTER TABLE mistakes ADD COLUMN supabase_reciter_id TEXT",
+    ]
+    for migration in v3_migrations:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except:
+            pass
+
+    try:
+        conn.execute("UPDATE profiles SET user_code = student_id WHERE user_code IS NULL AND student_id IS NOT NULL")
+        conn.execute("UPDATE assignments SET reciter_id = student_id WHERE reciter_id IS NULL AND student_id IS NOT NULL")
+        conn.execute("UPDATE mistakes SET reciter_id = student_id WHERE reciter_id IS NULL AND student_id IS NOT NULL")
+        conn.execute("UPDATE mistakes SET supabase_reciter_id = supabase_student_id WHERE supabase_reciter_id IS NULL AND supabase_student_id IS NOT NULL")
+        conn.commit()
+    except:
+        pass
 
     # Create test-related tables
     conn.executescript("""

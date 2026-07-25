@@ -8,6 +8,30 @@ import { cacheFirst, invalidateCache } from './cache';
 import { surahNames } from './quran-utils';
 import type { ContactListItem, ContactLookup } from '../types';
 
+type SupabaseResult<T> = { data: T | null; error: any };
+
+function isSchemaCompatibilityError(error: any): boolean {
+  const code = error?.code || '';
+  const message = `${error?.message || ''} ${error?.details || ''}`;
+  return ['42P01', '42703', 'PGRST200', 'PGRST204'].includes(code)
+    || /listener_reciters|class_reciters|reciter_id|user_code|listener_id|relationship/i.test(message);
+}
+
+async function runWithLegacyFallback<T>(
+  primary: () => Promise<SupabaseResult<T>>,
+  legacy: () => Promise<SupabaseResult<T>>,
+): Promise<T> {
+  const result = await primary();
+  if (!result.error) return result.data as T;
+  if (!isSchemaCompatibilityError(result.error)) {
+    throw new Error(result.error.message);
+  }
+
+  const legacyResult = await legacy();
+  if (legacyResult.error) throw new Error(legacyResult.error.message);
+  return legacyResult.data as T;
+}
+
 // Cache keys
 const CACHE_KEYS = {
   CONTACTS: 'contacts',
@@ -28,31 +52,44 @@ async function fetchContactsFromSupabase(): Promise<ContactListItem[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
-    .from('teacher_students')
-    .select(`
-      id,
-      created_at,
-      student:profiles!student_id (
+  const data = await runWithLegacyFallback<any[]>(
+    () => (supabase as any)
+      .from('listener_reciters')
+      .select(`
         id,
-        student_id,
-        name,
-        email
-      )
-    `)
-    .eq('teacher_id', user.id) as { data: Array<{ id: string; created_at: string; student: { id: string; student_id: string; name: string; email: string } }> | null; error: any };
-
-  if (error) throw new Error(error.message);
+        created_at,
+        reciter:profiles!reciter_id (
+          id,
+          user_code,
+          name,
+          email
+        )
+      `)
+      .eq('listener_id', user.id),
+    () => (supabase as any)
+      .from('teacher_students')
+      .select(`
+        id,
+        created_at,
+        reciter:profiles!student_id (
+          id,
+          student_id,
+          name,
+          email
+        )
+      `)
+      .eq('teacher_id', user.id),
+  );
 
   return (data ?? []).map(row => {
-    const student = row.student as { id: string; student_id: string; name: string; email: string };
-    const nameParts = student.name.split(' ');
+    const reciter = row.reciter as { id: string; user_code?: string; student_id?: string; name: string; email: string };
+    const nameParts = reciter.name.split(' ');
     return {
-      id: student.id,
-      student_id: student.student_id || '',
+      id: reciter.id,
+      student_id: userCode(reciter),
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
-      email: student.email || '',
+      email: reciter.email || '',
       added_at: row.created_at,
     };
   });
@@ -66,20 +103,39 @@ export async function getMyContacts(): Promise<ContactListItem[]> {
 // Legacy alias
 export const getMyStudents = getMyContacts;
 
-export async function lookupContact(email: string): Promise<ContactLookup> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, student_id, name, email')
-    .eq('email', email)
-    .single() as { data: { id: string; student_id: string | null; name: string; email: string } | null; error: any };
+type ContactLookupRow = {
+  id: string;
+  user_code?: string | null;
+  student_id?: string | null;
+  name: string;
+  email: string;
+};
 
-  if (error || !data) {
+function userCode(row: { user_code?: string | null; student_id?: string | null }): string {
+  return row.user_code || row.student_id || '';
+}
+
+async function lookupContactRow(email: string): Promise<ContactLookupRow> {
+  // Direct profile queries cannot discover a new contact because profiles RLS
+  // only exposes the current user and existing relationships. Use the narrow,
+  // authenticated SECURITY DEFINER RPC from supabase_contact_lookup_fix.sql.
+  const { data, error } = await (supabase as any).rpc(
+    'lookup_profile_by_email',
+    { p_email: email.trim().toLowerCase() },
+  ) as { data: ContactLookupRow[] | null; error: any };
+
+  const row = data?.[0];
+  if (error || !row) {
     throw new Error('No user found with that email');
   }
+  return row;
+}
 
+export async function lookupContact(email: string): Promise<ContactLookup> {
+  const data = await lookupContactRow(email);
   const nameParts = data.name.split(' ');
   return {
-    student_id: data.student_id || '',
+    student_id: userCode(data),
     email: data.email,
     first_name: nameParts[0] || '',
     last_name: nameParts.slice(1).join(' ') || '',
@@ -94,39 +150,44 @@ export async function addContact(email: string): Promise<{ message: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Find student by email
-  const { data: student, error: lookupError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .single() as { data: { id: string } | null; error: any };
-
-  if (lookupError || !student) {
-    throw new Error('No user found with that email');
-  }
+  // Resolve the new contact through the RLS-safe lookup RPC.
+  const reciter = await lookupContactRow(email);
 
   // Check if already added
-  const { data: existing } = await supabase
-    .from('teacher_students')
-    .select('id')
-    .eq('teacher_id', user.id)
-    .eq('student_id', student.id)
-    .maybeSingle() as { data: { id: string } | null; error: any };
+  const existing = await runWithLegacyFallback<{ id: string } | null>(
+    () => (supabase as any)
+      .from('listener_reciters')
+      .select('id')
+      .eq('listener_id', user.id)
+      .eq('reciter_id', reciter.id)
+      .maybeSingle(),
+    () => (supabase as any)
+      .from('teacher_students')
+      .select('id')
+      .eq('teacher_id', user.id)
+      .eq('student_id', reciter.id)
+      .maybeSingle(),
+  );
 
   if (existing) {
     throw new Error('This user is already in your list');
   }
 
   // Add relationship
-  const { error } = await supabase
-    .from('teacher_students' as any)
-    .insert({ teacher_id: user.id, student_id: student.id } as any);
-
-  if (error) {
-    if (error.code === '23505') {
+  try {
+    await runWithLegacyFallback<unknown>(
+      () => (supabase as any)
+        .from('listener_reciters')
+        .insert({ listener_id: user.id, reciter_id: reciter.id } as any),
+      () => (supabase as any)
+        .from('teacher_students')
+        .insert({ teacher_id: user.id, student_id: reciter.id } as any),
+    );
+  } catch (error: any) {
+    if (error?.code === '23505' || /duplicate key/i.test(error?.message || '')) {
       throw new Error('This user is already in your list');
     }
-    throw new Error(error.message);
+    throw error;
   }
 
   // Invalidate cache so next fetch gets fresh data
@@ -142,15 +203,18 @@ export async function removeContact(contactId: string): Promise<{ message: strin
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { error } = await supabase
-    .from('teacher_students')
-    .delete()
-    .eq('teacher_id', user.id)
-    .eq('student_id', contactId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await runWithLegacyFallback<unknown>(
+    () => (supabase as any)
+      .from('listener_reciters')
+      .delete()
+      .eq('listener_id', user.id)
+      .eq('reciter_id', contactId),
+    () => (supabase as any)
+      .from('teacher_students')
+      .delete()
+      .eq('teacher_id', user.id)
+      .eq('student_id', contactId),
+  );
 
   // Invalidate cache
   invalidateCache(CACHE_KEYS.CONTACTS);
@@ -168,26 +232,37 @@ async function fetchListenersFromSupabase(): Promise<ContactListItem[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
-    .from('teacher_students')
-    .select(`
-      id,
-      created_at,
-      teacher:profiles!teacher_id (
+  const data = await runWithLegacyFallback<any[]>(
+    () => (supabase as any)
+      .from('listener_reciters')
+      .select(`
         id,
-        name
-      )
-    `)
-    .eq('student_id', user.id) as { data: Array<{ id: string; created_at: string; teacher: { id: string; name: string } }> | null; error: any };
-
-  if (error) throw new Error(error.message);
+        created_at,
+        listener:profiles!listener_id (
+          id,
+          name
+        )
+      `)
+      .eq('reciter_id', user.id),
+    () => (supabase as any)
+      .from('teacher_students')
+      .select(`
+        id,
+        created_at,
+        listener:profiles!teacher_id (
+          id,
+          name
+        )
+      `)
+      .eq('student_id', user.id),
+  );
 
   return (data ?? []).map(row => {
-    const teacher = row.teacher as { id: string; name: string };
-    const nameParts = teacher.name.split(' ');
+    const listener = row.listener as { id: string; name: string };
+    const nameParts = listener.name.split(' ');
     return {
-      id: teacher.id,
-      student_id: teacher.id,
+      id: listener.id,
+      student_id: listener.id,
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
       email: '',
@@ -209,6 +284,7 @@ export const getMyTeachers = getMyListeners;
 export interface ClassStudent {
   id: string;
   student_id: string;
+  reciter_id?: string;
   first_name: string;
   last_name: string;
   performance?: string;
@@ -227,6 +303,7 @@ export interface ClassAssignment {
   start_ayah?: number;
   end_ayah?: number;
   student_id?: string;
+  reciter_id?: string;
 }
 
 export interface ClassData {
@@ -255,43 +332,67 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
   if (!user) throw new Error('Not authenticated');
 
   if (view === 'listener') {
-    // Listener view: sessions I created (check both listener_id and teacher_id for backward compat)
-    const { data, error } = await supabase
-      .from('classes' as any)
-      .select(`
-        *,
-        assignments (*),
-        class_students (
-          student_id,
-          performance,
-          student:profiles!student_id (id, student_id, name)
-        )
-      `)
-      .or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`)
-      .order('date', { ascending: false });
-
-    if (error) throw new Error(error.message);
+    // Listener view: sessions I created.
+    const data = await runWithLegacyFallback<any[]>(
+      () => (supabase as any)
+        .from('classes')
+        .select(`
+          *,
+          assignments (*),
+          class_reciters (
+            reciter_id,
+            performance,
+            reciter:profiles!reciter_id (id, user_code, name)
+          )
+        `)
+        .eq('listener_id', user.id)
+        .order('date', { ascending: false }),
+      () => (supabase as any)
+        .from('classes')
+        .select(`
+          *,
+          assignments (*),
+          class_reciters:class_students (
+            reciter_id:student_id,
+            performance,
+            reciter:profiles!student_id (id, student_id, name)
+          )
+        `)
+        .or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`)
+        .order('date', { ascending: false }),
+    );
 
     // One-time fix: publish any unpublished classes (background, non-blocking)
     // @ts-ignore - Supabase type mismatch for dynamic table update
-    supabase.from('classes').update({ is_published: true }).or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`).or('is_published.is.null,is_published.eq.false').then(() => {});
+    supabase.from('classes').update({ is_published: true }).eq('listener_id', user.id).or('is_published.is.null,is_published.eq.false').then(() => {});
 
     return mapClassData(data ?? [], true);
   } else {
     // Reciter view: sessions I'm enrolled in as a reciter
-    const { data, error } = await supabase
-      .from('classes' as any)
-      .select(`
-        *,
-        assignments (*),
-        class_students!inner (student_id),
-        listener:profiles!teacher_id (name)
-      `)
-      .eq('class_students.student_id', user.id)
-      .eq('is_published', true)
-      .order('date', { ascending: false });
-
-    if (error) throw new Error(error.message);
+    const data = await runWithLegacyFallback<any[]>(
+      () => (supabase as any)
+        .from('classes')
+        .select(`
+          *,
+          assignments (*),
+          class_reciters!inner (reciter_id),
+          listener:profiles!listener_id (name)
+        `)
+        .eq('class_reciters.reciter_id', user.id)
+        .eq('is_published', true)
+        .order('date', { ascending: false }),
+      () => (supabase as any)
+        .from('classes')
+        .select(`
+          *,
+          assignments (*),
+          class_reciters:class_students!inner (reciter_id:student_id),
+          listener:profiles!teacher_id (name)
+        `)
+        .eq('class_students.student_id', user.id)
+        .eq('is_published', true)
+        .order('date', { ascending: false }),
+    );
     return ((data ?? []) as any[]).map(row => {
       return {
         id: row.id,
@@ -299,7 +400,7 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
         day: row.day || '',
         notes: row.notes,
         performance: row.performance,
-        teacher_id: row.teacher_id,
+        teacher_id: row.listener_id || row.teacher_id,
         listener_id: row.listener_id,
         listener_name: row.listener?.name,
         is_published: row.is_published,
@@ -310,6 +411,8 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
           end_surah: a.end_surah,
           start_ayah: a.start_ayah,
           end_ayah: a.end_ayah,
+          student_id: a.reciter_id ?? a.student_id ?? null,
+          reciter_id: a.reciter_id ?? a.student_id ?? null,
         })),
       };
     });
@@ -335,21 +438,34 @@ export async function getClass(classId: string): Promise<ClassData> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
-    .from('classes' as any)
-    .select(`
-      *,
-      assignments (*),
-      class_students (
-        student_id,
-        performance,
-        student:profiles!student_id (id, student_id, name)
-      )
-    `)
-    .eq('id', classId)
-    .single();
-
-  if (error) throw new Error(error.message);
+  const data = await runWithLegacyFallback<any>(
+    () => (supabase as any)
+      .from('classes')
+      .select(`
+        *,
+        assignments (*),
+        class_reciters (
+          reciter_id,
+          performance,
+          reciter:profiles!reciter_id (id, user_code, name)
+        )
+      `)
+      .eq('id', classId)
+      .single(),
+    () => (supabase as any)
+      .from('classes')
+      .select(`
+        *,
+        assignments (*),
+        class_reciters:class_students (
+          reciter_id:student_id,
+          performance,
+          reciter:profiles!student_id (id, student_id, name)
+        )
+      `)
+      .eq('id', classId)
+      .single(),
+  );
 
   const mapped = mapClassData([data], true);
   return mapped[0];
@@ -373,17 +489,19 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
         end_surah: a.end_surah,
         start_ayah: a.start_ayah,
         end_ayah: a.end_ayah,
-        student_id: a.student_id || null,
+        student_id: a.reciter_id ?? a.student_id ?? null,
+        reciter_id: a.reciter_id ?? a.student_id ?? null,
       })),
     };
 
-    if (includeStudents && row.class_students) {
-      classData.students = row.class_students.map((cs: any) => {
-        const student = cs.student as { id: string; student_id: string; name: string };
-        const nameParts = student.name.split(' ');
+    if (includeStudents && row.class_reciters) {
+      classData.students = row.class_reciters.map((cs: any) => {
+        const reciter = cs.reciter as { id: string; user_code?: string; student_id?: string; name: string };
+        const nameParts = reciter.name.split(' ');
         return {
-          id: student.id,
-          student_id: student.student_id || '',
+          id: reciter.id,
+          student_id: userCode(reciter),
+          reciter_id: reciter.id,
           first_name: nameParts[0] || '',
           last_name: nameParts.slice(1).join(' ') || '',
           performance: cs.performance || row.performance,
@@ -407,30 +525,41 @@ export async function createClass(classData: {
     start_ayah?: number;
     end_ayah?: number;
     student_id?: string;
+    reciter_id?: string;
   }[];
 }): Promise<{ id: string; message: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Create the session (dual-write teacher_id + listener_id for backward compat)
-  const { data: newClass, error: classError } = await supabase
-    .from('classes' as any)
-    .insert({ teacher_id: user.id, listener_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, is_published: true } as any).select().single() as { data: { id: string } | null; error: any };
+  // Create the session. Keep teacher_id dual-write while v2/v3 clients overlap.
+  const newClass = await runWithLegacyFallback<{ id: string }>(
+    () => (supabase as any)
+      .from('classes')
+      .insert({ listener_id: user.id, teacher_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, is_published: true } as any)
+      .select()
+      .single(),
+    () => (supabase as any)
+      .from('classes')
+      .insert({ teacher_id: user.id, listener_id: user.id, date: classData.date, day: classData.day, notes: classData.notes, is_published: true } as any)
+      .select()
+      .single(),
+  );
+  if (!newClass) throw new Error("Failed to create class");
 
-  if (classError || !newClass) throw new Error(classError?.message || "Failed to create class");
-
-  // Add students to class
+  // Add reciters to class
   if (classData.student_ids.length > 0) {
-    const classStudents = classData.student_ids.map(studentId => ({
+    const classReciters = classData.student_ids.map(studentId => ({
       class_id: newClass.id,
-      student_id: studentId,
+      reciter_id: studentId,
     }));
 
-    const { error: studentsError } = await supabase
-      .from('class_students' as any)
-      .insert(classStudents as any);
-
-    if (studentsError) throw new Error(studentsError.message);
+    await runWithLegacyFallback<unknown>(
+      () => (supabase as any).from('class_reciters').insert(classReciters as any),
+      () => (supabase as any).from('class_students').insert(classReciters.map(row => ({
+        class_id: row.class_id,
+        student_id: row.reciter_id,
+      })) as any),
+    );
   }
 
   // Add assignments
@@ -442,14 +571,17 @@ export async function createClass(classData: {
       end_surah: a.end_surah,
       start_ayah: a.start_ayah,
       end_ayah: a.end_ayah,
-      student_id: a.student_id || null,
+      reciter_id: a.reciter_id || a.student_id || null,
     }));
 
-    const { error: assignmentsError } = await supabase
-      .from('assignments' as any)
-      .insert(assignments as any);
-
-    if (assignmentsError) throw new Error(assignmentsError.message);
+    await runWithLegacyFallback<unknown>(
+      () => (supabase as any).from('assignments').insert(assignments as any),
+      () => (supabase as any).from('assignments').insert(assignments.map(a => ({
+        ...a,
+        student_id: a.reciter_id,
+        reciter_id: undefined,
+      })) as any),
+    );
   }
 
   // Invalidate classes cache
@@ -531,6 +663,7 @@ export async function addClassAssignments(classId: string, assignments: Array<{
   start_ayah?: number | null;
   end_ayah?: number | null;
   student_id?: string | null;
+  reciter_id?: string | null;
 }>): Promise<{ message: string }> {
   const rows = assignments.map(a => ({
     class_id: classId,
@@ -539,14 +672,17 @@ export async function addClassAssignments(classId: string, assignments: Array<{
     end_surah: a.end_surah,
     start_ayah: a.start_ayah,
     end_ayah: a.end_ayah,
-    student_id: a.student_id || null,
+    reciter_id: a.reciter_id || a.student_id || null,
   }));
 
-  const { error } = await supabase
-    .from('assignments' as any)
-    .insert(rows as any);
-
-  if (error) throw new Error(error.message);
+  await runWithLegacyFallback<unknown>(
+    () => (supabase as any).from('assignments').insert(rows as any),
+    () => (supabase as any).from('assignments').insert(rows.map(row => ({
+      ...row,
+      student_id: row.reciter_id,
+      reciter_id: undefined,
+    })) as any),
+  );
 
   invalidateCache('classes');
 
@@ -585,13 +721,19 @@ export async function updateClassPublish(classId: string, isPublished: boolean):
 }
 
 export async function updateStudentPerformance(classId: string, studentId: string, performance: string): Promise<{ message: string }> {
-  // Update per-student performance on class_students
-  const { error } = await (supabase as any)
-    .from('class_students')
-    .update({ performance })
-    .eq('class_id', classId)
-    .eq('student_id', studentId);
-  if (error) throw new Error(error.message);
+  // Update per-reciter performance on class_reciters.
+  await runWithLegacyFallback<unknown>(
+    () => (supabase as any)
+      .from('class_reciters')
+      .update({ performance })
+      .eq('class_id', classId)
+      .eq('reciter_id', studentId),
+    () => (supabase as any)
+      .from('class_students')
+      .update({ performance })
+      .eq('class_id', classId)
+      .eq('student_id', studentId),
+  );
 
   // Also update class-level performance for backward compatibility
   await (supabase as any).from('classes').update({ performance }).eq('id', classId);
@@ -600,27 +742,34 @@ export async function updateStudentPerformance(classId: string, studentId: strin
 }
 
 export async function addClassStudents(classId: string, studentIds: string[]): Promise<{ message: string }> {
-  const classStudents = studentIds.map(studentId => ({
+  const classReciters = studentIds.map(studentId => ({
     class_id: classId,
-    student_id: studentId,
+    reciter_id: studentId,
   }));
 
-  const { error } = await supabase
-    .from('class_students')
-    .insert(classStudents as any);
-
-  if (error) throw new Error(error.message);
+  await runWithLegacyFallback<unknown>(
+    () => (supabase as any).from('class_reciters').insert(classReciters as any),
+    () => (supabase as any).from('class_students').insert(classReciters.map(row => ({
+      class_id: row.class_id,
+      student_id: row.reciter_id,
+    })) as any),
+  );
   return { message: 'Students added successfully' };
 }
 
 export async function removeClassStudent(classId: string, studentId: string): Promise<{ message: string }> {
-  const { error } = await supabase
-    .from('class_students')
-    .delete()
-    .eq('class_id', classId)
-    .eq('student_id', studentId);
-
-  if (error) throw new Error(error.message);
+  await runWithLegacyFallback<unknown>(
+    () => (supabase as any)
+      .from('class_reciters')
+      .delete()
+      .eq('class_id', classId)
+      .eq('reciter_id', studentId),
+    () => (supabase as any)
+      .from('class_students')
+      .delete()
+      .eq('class_id', classId)
+      .eq('student_id', studentId),
+  );
   return { message: 'Student removed from class' };
 }
 
@@ -629,6 +778,7 @@ export async function removeClassStudent(classId: string, studentId: string): Pr
 export interface MistakeData {
   id: string;
   student_id: string;
+  reciter_id?: string;
   surah_number: number;
   ayah_number: number;
   word_index: number;
@@ -641,22 +791,26 @@ export async function getMistakes(surahNumber?: number, studentId?: string): Pro
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  let query = supabase.from('mistakes').select('*');
+  const data = await runWithLegacyFallback<any[]>(
+    () => {
+      let query = (supabase as any).from('mistakes').select('*');
+      if (studentId) query = query.eq('reciter_id', studentId);
+      if (surahNumber) query = query.eq('surah_number', surahNumber);
+      return query.order('error_count', { ascending: false });
+    },
+    () => {
+      let query = (supabase as any).from('mistakes').select('*');
+      if (studentId) query = query.eq('student_id', studentId);
+      if (surahNumber) query = query.eq('surah_number', surahNumber);
+      return query.order('error_count', { ascending: false });
+    },
+  );
 
-  // If studentId is provided, filter by it (teacher viewing student's mistakes)
-  // Otherwise, the RLS policy will restrict to user's own mistakes
-  if (studentId) {
-    query = query.eq('student_id', studentId);
-  }
-
-  if (surahNumber) {
-    query = query.eq('surah_number', surahNumber);
-  }
-
-  const { data, error } = await query.order('error_count', { ascending: false });
-
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).map((m: any) => ({
+    ...m,
+    student_id: m.reciter_id ?? m.student_id,
+    reciter_id: m.reciter_id ?? m.student_id,
+  }));
 }
 
 export interface MistakeWithOccurrences extends MistakeData {
@@ -671,37 +825,42 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Build query with occurrences join
-  let query = supabase
-    .from('mistakes')
-    .select(`
-      *,
-      mistake_occurrences (
-        class_id,
-        classes (date, day)
-      )
-    `);
-
-  // If studentId is provided, filter by it (teacher viewing student's mistakes)
-  if (studentId) {
-    query = query.eq('student_id', studentId);
-  }
-
-  if (surahNumber) {
-    query = query.eq('surah_number', surahNumber);
-  }
-
-  const { data, error } = await query.order('error_count', { ascending: false });
-
-  if (error) {
-    console.error('getMistakesWithOccurrences error:', error);
-    throw new Error(error.message);
-  }
+  const data = await runWithLegacyFallback<any[]>(
+    () => {
+      let query = (supabase as any)
+        .from('mistakes')
+        .select(`
+          *,
+          mistake_occurrences (
+            class_id,
+            classes (date, day)
+          )
+        `);
+      if (studentId) query = query.eq('reciter_id', studentId);
+      if (surahNumber) query = query.eq('surah_number', surahNumber);
+      return query.order('error_count', { ascending: false });
+    },
+    () => {
+      let query = (supabase as any)
+        .from('mistakes')
+        .select(`
+          *,
+          mistake_occurrences (
+            class_id,
+            classes (date, day)
+          )
+        `);
+      if (studentId) query = query.eq('student_id', studentId);
+      if (surahNumber) query = query.eq('surah_number', surahNumber);
+      return query.order('error_count', { ascending: false });
+    },
+  );
 
   // Transform the data to match expected format
   return (data ?? []).map((mistake: any) => ({
     id: mistake.id,
-    student_id: mistake.student_id,
+    student_id: mistake.reciter_id ?? mistake.student_id,
+    reciter_id: mistake.reciter_id ?? mistake.student_id,
     surah_number: mistake.surah_number,
     ayah_number: mistake.ayah_number,
     word_index: mistake.word_index,
@@ -734,7 +893,7 @@ export async function addMistake(mistake: {
   let query = supabase
     .from('mistakes' as any)
     .select('id, error_count')
-    .eq('student_id', studentId)
+    .eq('reciter_id', studentId)
     .eq('surah_number', mistake.surah_number)
     .eq('ayah_number', mistake.ayah_number)
     .eq('word_index', mistake.word_index);
@@ -745,7 +904,21 @@ export async function addMistake(mistake: {
     query = query.is('char_index', null);
   }
 
-  const { data: existing } = await query.single() as { data: { id: string; error_count: number } | null };
+  let existingResult = await query.single() as { data: { id: string; error_count: number } | null; error: any };
+  if (existingResult.error && isSchemaCompatibilityError(existingResult.error)) {
+    query = (supabase as any)
+      .from('mistakes')
+      .select('id, error_count')
+      .eq('student_id', studentId)
+      .eq('surah_number', mistake.surah_number)
+      .eq('ayah_number', mistake.ayah_number)
+      .eq('word_index', mistake.word_index);
+    query = mistake.char_index !== undefined
+      ? query.eq('char_index', mistake.char_index)
+      : query.is('char_index', null);
+    existingResult = await query.single() as { data: { id: string; error_count: number } | null; error: any };
+  }
+  const existing = existingResult.data;
 
   if (existing) {
     // Update existing mistake - increment error count
@@ -763,11 +936,19 @@ export async function addMistake(mistake: {
     return { id: existing.id, error_count: newCount };
   } else {
     // Create new mistake
-    const { data: newMistake, error } = await supabase
-      .from('mistakes' as any)
-      .insert({ student_id: studentId, surah_number: mistake.surah_number, ayah_number: mistake.ayah_number, word_index: mistake.word_index, word_text: mistake.word_text, char_index: mistake.char_index, error_count: 1 } as any).select().single() as { data: { id: string } | null; error: any };
-
-    if (error || !newMistake) throw new Error(error?.message || "Failed to create mistake");
+    const newMistake = await runWithLegacyFallback<{ id: string }>(
+      () => (supabase as any)
+        .from('mistakes')
+        .insert({ reciter_id: studentId, surah_number: mistake.surah_number, ayah_number: mistake.ayah_number, word_index: mistake.word_index, word_text: mistake.word_text, char_index: mistake.char_index, error_count: 1 } as any)
+        .select()
+        .single(),
+      () => (supabase as any)
+        .from('mistakes')
+        .insert({ student_id: studentId, surah_number: mistake.surah_number, ayah_number: mistake.ayah_number, word_index: mistake.word_index, word_text: mistake.word_text, char_index: mistake.char_index, error_count: 1 } as any)
+        .select()
+        .single(),
+    );
+    if (!newMistake) throw new Error("Failed to create mistake");
 
     // Add occurrence if class_id provided
     if (mistake.class_id) {
@@ -801,27 +982,57 @@ export async function getStats(view?: 'listener' | 'reciter' | 'teacher' | 'stud
 
   if (resolvedView === 'listener') {
     // Listener stats: contacts + sessions I created
-    const [contactsResult, classesResult] = await Promise.all([
-      supabase.from('teacher_students').select('id', { count: 'exact' }).eq('teacher_id', user.id),
-      supabase.from('classes').select('id', { count: 'exact' }).or(`listener_id.eq.${user.id},teacher_id.eq.${user.id}`),
+    const [contactsCount, classesResult] = await Promise.all([
+      runWithLegacyFallback<number>(
+        async () => {
+          const result = await (supabase as any).from('listener_reciters').select('id', { count: 'exact', head: true }).eq('listener_id', user.id);
+          return { data: result.count ?? 0, error: result.error };
+        },
+        async () => {
+          const result = await (supabase as any).from('teacher_students').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id);
+          return { data: result.count ?? 0, error: result.error };
+        },
+      ),
+      (supabase as any).from('classes').select('id', { count: 'exact' }).eq('listener_id', user.id),
     ]);
 
     return {
-      total_students: contactsResult.count ?? 0,
+      total_students: contactsCount ?? 0,
       total_classes: classesResult.count ?? 0,
     };
   } else {
     // Reciter stats: sessions I'm enrolled in + my mistakes
-    const [classesResult, mistakesResult, repeatedResult, allMistakesResult, topRepeatedResult] = await Promise.all([
-      supabase.from('class_students').select('id', { count: 'exact' }).eq('student_id', user.id),
-      supabase.from('mistakes').select('id', { count: 'exact' }).eq('student_id', user.id),
-      supabase.from('mistakes').select('id', { count: 'exact' }).eq('student_id', user.id).gt('error_count', 1),
-      supabase.from('mistakes').select('surah_number').eq('student_id', user.id),
-      supabase.from('mistakes').select('id, surah_number, ayah_number, word_text, error_count').eq('student_id', user.id).gt('error_count', 1).order('error_count', { ascending: false }).limit(5),
+    const [classesCount, mistakes, repeatedMistakes, allMistakes, topRepeatedMistakes] = await Promise.all([
+      runWithLegacyFallback<number>(
+        async () => {
+          const result = await (supabase as any).from('class_reciters').select('id', { count: 'exact', head: true }).eq('reciter_id', user.id);
+          return { data: result.count ?? 0, error: result.error };
+        },
+        async () => {
+          const result = await (supabase as any).from('class_students').select('id', { count: 'exact', head: true }).eq('student_id', user.id);
+          return { data: result.count ?? 0, error: result.error };
+        },
+      ),
+      getMistakes(undefined, user.id),
+      runWithLegacyFallback<number>(
+        async () => {
+          const result = await (supabase as any).from('mistakes').select('id', { count: 'exact', head: true }).eq('reciter_id', user.id).gt('error_count', 1);
+          return { data: result.count ?? 0, error: result.error };
+        },
+        async () => {
+          const result = await (supabase as any).from('mistakes').select('id', { count: 'exact', head: true }).eq('student_id', user.id).gt('error_count', 1);
+          return { data: result.count ?? 0, error: result.error };
+        },
+      ),
+      getMistakes(undefined, user.id),
+      runWithLegacyFallback<any[]>(
+        () => (supabase as any).from('mistakes').select('id, surah_number, ayah_number, word_text, error_count').eq('reciter_id', user.id).gt('error_count', 1).order('error_count', { ascending: false }).limit(5),
+        () => (supabase as any).from('mistakes').select('id, surah_number, ayah_number, word_text, error_count').eq('student_id', user.id).gt('error_count', 1).order('error_count', { ascending: false }).limit(5),
+      ),
     ]);
 
     const surahCounts = new Map<number, number>();
-    for (const row of (allMistakesResult.data ?? []) as { surah_number: number }[]) {
+    for (const row of (allMistakes ?? []) as { surah_number: number }[]) {
       surahCounts.set(row.surah_number, (surahCounts.get(row.surah_number) || 0) + 1);
     }
     const mistakes_by_surah = Array.from(surahCounts.entries())
@@ -830,11 +1041,11 @@ export async function getStats(view?: 'listener' | 'reciter' | 'teacher' | 'stud
       .slice(0, 5);
 
     return {
-      total_classes: classesResult.count ?? 0,
-      total_mistakes: mistakesResult.count ?? 0,
-      repeated_mistakes: repeatedResult.count ?? 0,
+      total_classes: classesCount ?? 0,
+      total_mistakes: mistakes.length,
+      repeated_mistakes: repeatedMistakes ?? 0,
       mistakes_by_surah,
-      top_repeated_mistakes: (topRepeatedResult.data ?? []) as { id: string; surah_number: number; ayah_number: number; word_text: string; error_count: number }[],
+      top_repeated_mistakes: (topRepeatedMistakes ?? []) as { id: string; surah_number: number; ayah_number: number; word_text: string; error_count: number }[],
     };
   }
 }
@@ -874,30 +1085,48 @@ export async function getSuggestedPortions(studentId: string): Promise<Suggested
   };
 
   // Find student's classes with assignments
-  const { data: classStudentsData, error: csError } = await supabase
-    .from('class_students' as any)
-    .select(`
-      class_id,
-      classes (
-        id,
-        date,
-        day,
-        assignments (
-          type,
-          start_surah,
-          end_surah,
-          start_ayah,
-          end_ayah
+  const classStudentsData = await runWithLegacyFallback<any[]>(
+    () => (supabase as any)
+      .from('class_reciters')
+      .select(`
+        class_id,
+        classes (
+          id,
+          date,
+          day,
+          assignments (
+            type,
+            start_surah,
+            end_surah,
+            start_ayah,
+            end_ayah,
+            reciter_id
+          )
         )
-      )
-    `)
-    .eq('student_id', studentId)
-    .limit(20);
-
-  if (csError) {
-    console.error('getSuggestedPortions error:', csError);
-    throw new Error(csError.message);
-  }
+      `)
+      .eq('reciter_id', studentId)
+      .limit(20),
+    () => (supabase as any)
+      .from('class_students')
+      .select(`
+        class_id,
+        classes (
+          id,
+          date,
+          day,
+          assignments (
+            type,
+            start_surah,
+            end_surah,
+            start_ayah,
+            end_ayah,
+            student_id
+          )
+        )
+      `)
+      .eq('student_id', studentId)
+      .limit(20),
+  );
 
   const classStudents = (classStudentsData as any[]) || [];
 
@@ -1001,37 +1230,55 @@ export async function getStudentReport(studentId: string): Promise<any> {
   const profileData = profile as any;
 
   // Get student's classes (as teacher)
-  const { data: classStudentsRaw, error: csError } = await supabase
-    .from('class_students' as any)
-    .select(`
-      class_id,
-      classes (
-        id,
-        date,
-        day,
-        notes,
-        performance,
-        teacher_id,
-        is_published,
-        assignments (*)
-      )
-    `)
-    .eq('student_id', studentId);
-
-  if (csError) {
-    console.error('Error fetching classes:', csError);
-  }
+  const classStudentsRaw = await runWithLegacyFallback<any[]>(
+    () => (supabase as any)
+      .from('class_reciters')
+      .select(`
+        class_id,
+        classes (
+          id,
+          date,
+          day,
+          notes,
+          performance,
+          listener_id,
+          teacher_id,
+          is_published,
+          assignments (*)
+        )
+      `)
+      .eq('reciter_id', studentId),
+    () => (supabase as any)
+      .from('class_students')
+      .select(`
+        class_id,
+        classes (
+          id,
+          date,
+          day,
+          notes,
+          performance,
+          listener_id,
+          teacher_id,
+          is_published,
+          assignments (*)
+        )
+      `)
+      .eq('student_id', studentId),
+  );
   const classStudents = (classStudentsRaw ?? []) as any[];
 
   // Get student's mistakes WITH occurrences (links mistakes to classes)
-  const { data: mistakesRaw, error: mistakesError } = await supabase
-    .from('mistakes' as any)
-    .select('*, mistake_occurrences(id, class_id, occurred_at)')
-    .eq('student_id', studentId);
-
-  if (mistakesError) {
-    console.error('Error fetching mistakes:', mistakesError);
-  }
+  const mistakesRaw = await runWithLegacyFallback<any[]>(
+    () => (supabase as any)
+      .from('mistakes')
+      .select('*, mistake_occurrences(id, class_id, occurred_at)')
+      .eq('reciter_id', studentId),
+    () => (supabase as any)
+      .from('mistakes')
+      .select('*, mistake_occurrences(id, class_id, occurred_at)')
+      .eq('student_id', studentId),
+  );
   const mistakes = (mistakesRaw ?? []) as any[];
 
   // Build per-class mistake mapping
@@ -1058,7 +1305,7 @@ export async function getStudentReport(studentId: string): Promise<any> {
     id: profileData.id,
     name: profileData.name,
     email: profileData.email,
-    student_id: profileData.student_id || '',
+    student_id: profileData.user_code || profileData.student_id || '',
     added_at: profileData.created_at
   };
 
@@ -1073,14 +1320,15 @@ export async function getStudentReport(studentId: string): Promise<any> {
       notes: cs.classes?.notes || '',
       performance: cs.classes?.performance || '',
       assignments: (cs.classes?.assignments || [])
-        .filter((a: any) => !a.student_id || a.student_id === studentId)
+        .filter((a: any) => !(a.reciter_id ?? a.student_id) || (a.reciter_id ?? a.student_id) === studentId)
         .map((a: any) => ({
           type: a.type,
           start_surah: a.start_surah,
           end_surah: a.end_surah,
           start_ayah: a.start_ayah,
           end_ayah: a.end_ayah,
-          student_id: a.student_id || null,
+          student_id: a.reciter_id ?? a.student_id ?? null,
+          reciter_id: a.reciter_id ?? a.student_id ?? null,
         })),
       mistakes: classMistakes,
       mistake_count: classMistakes.length

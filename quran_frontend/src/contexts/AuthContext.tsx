@@ -84,7 +84,7 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
 
   return {
     id: data.id,
-    student_id: data.student_id || '',
+    student_id: data.user_code || data.student_id || '',
     username: data.email.split('@')[0],
     email: data.email,
     first_name: firstName,
@@ -153,10 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (isMounted) {
               setUser(profile);
               console.log('AuthContext: Profile loaded:', profile?.email);
-              // Trigger sync on app start (non-blocking)
-              if (profile?.role) {
-                triggerLocalSync();
-              }
+              // Trigger sync on app start (non-blocking). Access is no longer role-gated.
+              if (profile) triggerLocalSync();
             }
           } catch (profileError) {
             console.error('AuthContext: Profile fetch failed:', profileError);
@@ -304,9 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { session: newSession } } = await supabase.auth.getSession();
       if (newSession?.user) {
         const profile = await fetchUserProfile(newSession.user.id);
-        if (profile?.role) {
-          triggerLocalSync(); // Don't await - background operation
-        }
+        if (profile) triggerLocalSync(); // Don't await - background operation
       }
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('TIMEOUT')) {

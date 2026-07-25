@@ -132,7 +132,6 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   SupabaseSyncHelper? _syncHelper;
   bool _initialSyncDone = false;
   bool _tourRunning = false;
-  int? _demoClassId;
 
   @override
   void initState() {
@@ -143,8 +142,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     Future.delayed(const Duration(seconds: 2), _checkForUpdates);
     // Initialize local database and perform initial sync
     _initLocalFirst();
-    // Cleanup any orphaned demo class from a previous interrupted tour
-    TourService.cleanupOrphanedDemoClass();
+    // Cleanup any orphaned tour state from a previous interrupted tour
+    TourService.cleanupOrphanedTourData();
   }
 
   @override
@@ -225,7 +224,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   Future<void> _startTour() async {
     if (_tourRunning || !mounted) return;
     _tourRunning = true;
-    _demoClassId = null;
+    TourService.isTourActive = true;
+    await TourService.clearTourClassId();
 
     // Ensure we start on Dashboard
     _switchTab(0);
@@ -235,144 +235,265 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     final isDarkMode = ref.read(themeProvider);
     final steps = TourService.steps;
 
-    // Phase 1: Dashboard steps (0-2)
+    // Phase 1: Dashboard — welcome, add contacts, start session (interactive)
+    // Step 2 is interactive: user must tap "New Session" which opens the
+    // create-session modal and calls TourService.completeInteraction().
     await _showTourSteps(steps, 0, 2, isDarkMode);
     if (!_tourRunning || !mounted) return;
 
-    // Phase 2: Create demo class and navigate to Classroom (steps 3-5)
-    final authState = ref.read(authProvider);
-    final userId = authState.user?.id;
-    if (userId != null) {
-      _demoClassId = await TourService.createDemoClass(userId);
-    }
+    // Phase 2: Create-session modal (opened by the dashboard button tap)
+    // Wait for the modal to render, then show steps inside it.
+    // Step 5 is interactive: user must tap "Create Class" which creates
+    // the session, stores its UUID via TourService.saveTourClassId(),
+    // pops the modal, and pushes ClassroomScreen.
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!_tourRunning || !mounted) return;
+    await _showTourSteps(steps, 3, 5, isDarkMode);
+    if (!_tourRunning || !mounted) return;
 
-    if (_demoClassId != null && mounted) {
-      // Push Classroom screen (don't await — we need to show tour ON it)
-      final classroomRoute = MaterialPageRoute(
-        builder: (_) => ClassroomScreen(classId: _demoClassId.toString()),
-      );
-      Navigator.of(context).push(classroomRoute);
+    // Phase 3: Classroom — section tabs, Quran page, word tapping, mistakes,
+    // notes, performance.  The ClassroomScreen was pushed by create_class_screen
+    // after session creation, so it's already on top of the navigator stack.
+    await Future.delayed(const Duration(milliseconds: 900));
+    if (!_tourRunning || !mounted) return;
+    await _showTourSteps(steps, 6, 20, isDarkMode);
+    if (!_tourRunning || !mounted) return;
 
-      // Wait for Classroom to mount and render
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (!_tourRunning || !mounted) return;
-
-      // Show Classroom steps (3-5)
-      await _showTourSteps(steps, 3, 5, isDarkMode);
-      if (!_tourRunning || !mounted) return;
-
-      // Pop the Classroom screen
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+    // Pop ClassroomScreen to return to the MainNavigation tabs
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    if (!_tourRunning || !mounted) return;
-
-    // Phase 3: Reader step (6)
+    // Phase 4: Reader
     _switchTab(2);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    await _showTourSteps(steps, 6, 6, isDarkMode);
+    await _showTourSteps(steps, 21, 21, isDarkMode);
     if (!_tourRunning || !mounted) return;
 
-    // Phase 4: Settings step (7)
+    // Phase 5: Settings
     _switchTab(3);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    await _showTourSteps(steps, 7, 7, isDarkMode);
+    await _showTourSteps(steps, 22, 22, isDarkMode);
     if (!_tourRunning || !mounted) return;
 
-    // Phase 5: Farewell on Dashboard (8)
+    // Phase 6: Farewell on Dashboard
     _switchTab(0);
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    await _showTourSteps(steps, 8, 8, isDarkMode);
+    await _showTourSteps(steps, 23, 23, isDarkMode);
 
-    // Tour complete — cleanup
     await _cleanupTour();
   }
 
-  /// Show tour steps [fromIndex..toIndex] using tutorial_coach_mark.
-  /// For Classroom steps (3-5), this is called FROM the ClassroomScreen.
+  /// Show tour steps [fromIndex..toIndex] one at a time using tutorial_coach_mark.
+  /// Interactive steps wait for TourService.waitForInteraction() before advancing.
   Future<void> _showTourSteps(
     List<TourStepDef> allSteps,
     int fromIndex,
     int toIndex,
     bool isDarkMode,
   ) async {
-    final targets = <TargetFocus>[];
     final totalSteps = allSteps.length;
-
     final screenSize = MediaQuery.of(context).size;
 
     for (int i = fromIndex; i <= toIndex; i++) {
+      if (!_tourRunning || !mounted) return;
+
       final step = allSteps[i];
       final isFullOverlay = step.targetKey == null;
+      final customTargetPosition = _getCustomTargetPosition(
+        step: step,
+        isFullOverlay: isFullOverlay,
+        screenSize: screenSize,
+      );
 
-      targets.add(
-        TargetFocus(
-          identify: 'step_$i',
-          keyTarget: isFullOverlay ? null : step.targetKey,
-          // For full-overlay steps (welcome/farewell), make the "spotlight"
-          // span the entire screen so nothing is dimmed — the tooltip card
-          // stands out via its own styling and the user keeps context of
-          // the app UI behind it.
-          targetPosition: isFullOverlay
-              ? TargetPosition(screenSize, Offset.zero)
-              : null,
-          shape: ShapeLightFocus.RRect,
-          radius: isFullOverlay ? 0 : 8,
-          paddingFocus: isFullOverlay ? 0 : 8,
-          contents: [
-            TargetContent(
-              align: _getContentAlign(step.position),
-              builder: (context, controller) {
-                return TourTooltip(
-                  title: step.title,
-                  description: step.description,
-                  currentStep: i,
-                  totalSteps: totalSteps,
-                  isDarkMode: isDarkMode,
-                  isLastStep: i == totalSteps - 1,
-                  onNext: () => controller.next(),
-                  onSkip: () {
-                    controller.skip();
-                  },
-                );
-              },
-            ),
-          ],
-        ),
+      final completer = Completer<void>();
+      dynamic coachController;
+
+      final tutorial = TutorialCoachMark(
+        targets: [
+          TargetFocus(
+            identify: 'step_$i',
+            keyTarget: customTargetPosition != null
+                ? null
+                : (isFullOverlay ? null : step.targetKey),
+            targetPosition: customTargetPosition ??
+                (isFullOverlay ? TargetPosition(screenSize, Offset.zero) : null),
+            shape: ShapeLightFocus.RRect,
+            radius: isFullOverlay ? 0 : 8,
+            paddingFocus: isFullOverlay ? 0 : 12,
+            contents: [
+              _buildTargetContent(
+                step: step,
+                stepIndex: i,
+                totalSteps: totalSteps,
+                isDarkMode: isDarkMode,
+                isFullOverlay: isFullOverlay,
+                screenSize: screenSize,
+                onNext: () {
+                  if (!completer.isCompleted) completer.complete();
+                  coachController?.next();
+                },
+                onSkip: () {
+                  _tourRunning = false;
+                  if (!completer.isCompleted) completer.complete();
+                  _cleanupTour();
+                  // Pop any pushed routes (classroom, modals) to return to main tabs
+                  if (mounted) {
+                    while (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                    _switchTab(0);
+                  }
+                  coachController?.skip();
+                },
+                onControllerReady: (controller) {
+                  coachController = controller;
+                },
+              ),
+            ],
+          ),
+        ],
+        colorShadow: isDarkMode
+            ? const Color(0x80000000)
+            : const Color(0x73000000),
+        opacityShadow: 1.0,
+        hideSkip: true,
+        onFinish: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+        onSkip: () {
+          _tourRunning = false;
+          if (!completer.isCompleted) completer.complete();
+          _cleanupTour();
+          if (mounted) {
+            while (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+            _switchTab(0);
+          }
+          return true;
+        },
+      );
+
+      tutorial.show(context: context);
+
+      if (step.isInteractive) {
+        await TourService.waitForInteraction();
+        if (!_tourRunning || !mounted) return;
+        if (!completer.isCompleted) completer.complete();
+        coachController?.next();
+      }
+
+      await completer.future;
+      await Future.delayed(const Duration(milliseconds: 180));
+    }
+  }
+
+  TargetPosition? _getCustomTargetPosition({
+    required TourStepDef step,
+    required bool isFullOverlay,
+    required Size screenSize,
+  }) {
+    if (isFullOverlay) return null;
+
+    final isDashboardActionStep =
+        step.screen == 'dashboard' &&
+        (step.targetKey == TourService.addContactKey ||
+            step.targetKey == TourService.startSessionKey);
+
+    if (isDashboardActionStep) {
+      // Cover most of the screen so the dashboard stays visible behind the
+      // spotlight instead of being dimmed to near-black.  Only a thin strip
+      // at the very bottom (nav bar area) falls outside the spotlight.
+      final width = screenSize.width;
+      final height = screenSize.height * 0.82;
+      return TargetPosition(
+        Size(width, height),
+        Offset.zero,
       );
     }
 
-    final completer = Completer<void>();
+    return null;
+  }
 
-    TutorialCoachMark(
-      targets: targets,
-      // Lighter overlay so surrounding app context stays visible behind
-      // the spotlight — a "blank dark screen" is bad UX.
-      colorShadow: isDarkMode
-          ? const Color(0x80000000) // 50% opacity black
-          : const Color(0x73000000), // ~45% opacity black
-      opacityShadow: 1.0,
-      hideSkip: true, // We use our own skip button in the tooltip
-      onFinish: () {
-        if (!completer.isCompleted) completer.complete();
-      },
-      onSkip: () {
-        _tourRunning = false;
-        if (!completer.isCompleted) completer.complete();
-        _cleanupTour();
-        // Return to dashboard
-        if (mounted) _switchTab(0);
-        return true;
-      },
-    ).show(context: context);
+  TargetContent _buildTargetContent({
+    required TourStepDef step,
+    required int stepIndex,
+    required int totalSteps,
+    required bool isDarkMode,
+    required bool isFullOverlay,
+    required Size screenSize,
+    required VoidCallback onNext,
+    required VoidCallback onSkip,
+    required void Function(dynamic controller) onControllerReady,
+  }) {
+    final customPosition = _getCustomContentPosition(
+      step: step,
+      isFullOverlay: isFullOverlay,
+      screenSize: screenSize,
+    );
 
-    await completer.future;
+    return TargetContent(
+      align: customPosition != null
+          ? ContentAlign.custom
+          : _getContentAlign(step.position),
+      customPosition: customPosition,
+      padding: EdgeInsets.zero,
+      builder: (context, controller) {
+        onControllerReady(controller);
+        return TourTooltip(
+          title: step.title,
+          description: step.description,
+          currentStep: stepIndex,
+          totalSteps: totalSteps,
+          isDarkMode: isDarkMode,
+          isLastStep: stepIndex == totalSteps - 1,
+          isInteractive: step.isInteractive,
+          onNext: onNext,
+          onSkip: onSkip,
+        );
+      },
+    );
+  }
+
+  CustomTargetContentPosition? _getCustomContentPosition({
+    required TourStepDef step,
+    required bool isFullOverlay,
+    required Size screenSize,
+  }) {
+    if (isFullOverlay) {
+      return CustomTargetContentPosition(
+        left: 0,
+        right: 0,
+        bottom: screenSize.height * 0.12,
+      );
+    }
+
+    // For normal spotlight steps, pin the tooltip to the screen edge instead of
+    // placing it directly next to the target. That keeps the surrounding screen
+    // context visible instead of letting the tooltip cover the whole viewport and
+    // making the app feel blank.
+    switch (step.position) {
+      case ContentPosition.bottom:
+        return CustomTargetContentPosition(
+          left: 0,
+          right: 0,
+          bottom: 96,
+        );
+      case ContentPosition.top:
+        return CustomTargetContentPosition(
+          left: 0,
+          right: 0,
+          top: 96,
+        );
+      case ContentPosition.left:
+      case ContentPosition.right:
+        return null;
+    }
   }
 
   ContentAlign _getContentAlign(ContentPosition position) {
@@ -390,9 +511,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   Future<void> _cleanupTour() async {
     _tourRunning = false;
-    await TourService.cleanupDemoClass();
+    TourService.isTourActive = false;
+    await TourService.clearTourClassId();
     await TourService.markTourCompleted();
-    _demoClassId = null;
   }
 
   Future<void> _checkForUpdates() async {

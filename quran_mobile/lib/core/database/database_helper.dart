@@ -80,7 +80,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createAppDatabase,
       onUpgrade: _upgradeAppDatabase,
     );
@@ -121,6 +121,7 @@ class DatabaseHelper {
         start_ayah INTEGER,
         end_ayah INTEGER,
         student_id TEXT,
+        reciter_id TEXT,
         sync_status TEXT DEFAULT 'pending',
         is_deleted INTEGER DEFAULT 0,
         FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
@@ -134,6 +135,7 @@ class DatabaseHelper {
         server_id INTEGER,
         supabase_id TEXT,
         student_id TEXT,
+        reciter_id TEXT,
         surah_number INTEGER NOT NULL,
         ayah_number INTEGER NOT NULL,
         word_index INTEGER NOT NULL,
@@ -200,6 +202,8 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_sync ON mistakes(sync_status)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_supabase_id ON mistakes(supabase_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_student_id ON mistakes(student_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_assignments_reciter_id ON assignments(reciter_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_reciter_id ON mistakes(reciter_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_mistake ON mistake_occurrences(mistake_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_class ON mistake_occurrences(class_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_occurrences_supabase_class ON mistake_occurrences(supabase_class_id)');
@@ -232,6 +236,29 @@ class DatabaseHelper {
         await db.execute('UPDATE classes SET listener_id = teacher_id WHERE listener_id IS NULL');
       }
     }
+    // Version 6: Add canonical reciter_id aliases for listener/reciter schema v3.
+    if (oldVersion < 6) {
+      await _migrateToVersion6(db);
+    }
+  }
+
+  Future<void> _migrateToVersion6(Database db) async {
+    final assignmentColumns = await db.rawQuery("PRAGMA table_info('assignments')");
+    final assignmentColNames = assignmentColumns.map((c) => c['name'] as String).toSet();
+    if (!assignmentColNames.contains('reciter_id')) {
+      await db.execute('ALTER TABLE assignments ADD COLUMN reciter_id TEXT');
+    }
+    await db.execute('UPDATE assignments SET reciter_id = student_id WHERE reciter_id IS NULL AND student_id IS NOT NULL');
+
+    final mistakeColumns = await db.rawQuery("PRAGMA table_info('mistakes')");
+    final mistakeColNames = mistakeColumns.map((c) => c['name'] as String).toSet();
+    if (!mistakeColNames.contains('reciter_id')) {
+      await db.execute('ALTER TABLE mistakes ADD COLUMN reciter_id TEXT');
+    }
+    await db.execute('UPDATE mistakes SET reciter_id = student_id WHERE reciter_id IS NULL AND student_id IS NOT NULL');
+
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_assignments_reciter_id ON assignments(reciter_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_mistakes_reciter_id ON mistakes(reciter_id)');
   }
 
   Future<void> _migrateToVersion3(Database db) async {

@@ -1,10 +1,11 @@
-/// Student report Riverpod providers.
-/// Fetches report data from Supabase and applies filters.
+// Student report Riverpod providers.
+// Fetches report data from Supabase and applies filters.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/constants.dart';
+import '../../core/supabase/schema_compat.dart';
 import '../../data/models/student_report.dart';
 import '../../core/services/report_helpers.dart';
 
@@ -21,23 +22,41 @@ final studentReportProvider = FutureProvider.family<StudentReport, String>((ref,
       .single();
 
   // 2. Fetch classes via class_students join
-  final classStudentsRaw = await supabase
-      .from('class_students')
-      .select('''
-        class_id,
-        classes (
-          id, date, day, notes, performance, teacher_id, is_published,
-          assignments (*)
-        )
-      ''')
-      .eq('student_id', studentId);
+  final classStudentsRaw = await withLegacySchemaFallback(
+    () => supabase
+        .from('class_reciters')
+        .select('''
+          class_id,
+          classes (
+            id, date, day, notes, performance, listener_id, teacher_id, is_published,
+            assignments (*)
+          )
+        ''')
+        .eq('reciter_id', studentId),
+    () => supabase
+        .from('class_students')
+        .select('''
+          class_id,
+          classes (
+            id, date, day, notes, performance, listener_id, teacher_id, is_published,
+            assignments (*)
+          )
+        ''')
+        .eq('student_id', studentId),
+  );
   final classStudents = (classStudentsRaw as List?) ?? [];
 
   // 3. Fetch mistakes with occurrences
-  final mistakesRaw = await supabase
-      .from('mistakes')
-      .select('*, mistake_occurrences(id, class_id, occurred_at)')
-      .eq('student_id', studentId);
+  final mistakesRaw = await withLegacySchemaFallback(
+    () => supabase
+        .from('mistakes')
+        .select('*, mistake_occurrences(id, class_id, occurred_at)')
+        .eq('reciter_id', studentId),
+    () => supabase
+        .from('mistakes')
+        .select('*, mistake_occurrences(id, class_id, occurred_at)')
+        .eq('student_id', studentId),
+  );
   final mistakes = (mistakesRaw as List?) ?? [];
 
   // 4. Build per-class mistake mapping
@@ -82,14 +101,17 @@ final studentReportProvider = FutureProvider.family<StudentReport, String>((ref,
       notes: classData?['notes'] as String?,
       performance: classData?['performance'] as String?,
       assignments: assignmentsRaw
-        .where((a) => a['student_id'] == null || a['student_id'].toString() == studentId)
+        .where((a) {
+          final reciterId = a['reciter_id'] ?? a['student_id'];
+          return reciterId == null || reciterId.toString() == studentId;
+        })
         .map<ClassAssignment>((a) => ClassAssignment(
           type: (a['type'] as String?) ?? '',
           startSurah: a['start_surah'] as int? ?? 0,
           endSurah: a['end_surah'] as int? ?? 0,
           startAyah: a['start_ayah'] as int?,
           endAyah: a['end_ayah'] as int?,
-          studentId: a['student_id'] as String?,
+          studentId: (a['reciter_id'] ?? a['student_id'])?.toString(),
         )).toList(),
       mistakes: classMistakes,
       mistakeCount: classMistakes.length,

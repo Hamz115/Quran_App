@@ -559,7 +559,7 @@ export default function Settings() {
         </div>
         <button
           onClick={() => {
-            resetTourCompleted();
+            resetTourCompleted(user?.id);
             startTour();
           }}
           className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-cyan-500/30"
