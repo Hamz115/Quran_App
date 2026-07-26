@@ -266,7 +266,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
     // Phase 2: Create-session modal (opened by the dashboard button tap)
     // Wait for the modal to render, then show steps inside it.
-    // Step 5 is interactive: user must tap "Create Class" which creates
+    // Step 5 is interactive: user must tap "Create Session" which creates
     // the session, stores its UUID via TourService.saveTourClassId(),
     // pops the modal, and pushes ClassroomScreen.
     await Future.delayed(const Duration(milliseconds: 600));
@@ -282,9 +282,13 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     await _showTourSteps(steps, 6, 20, isDarkMode);
     if (!_tourRunning || !mounted) return;
 
-    // Pop ClassroomScreen to return to the MainNavigation tabs
-    if (mounted && Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+    // Close the session-controls sheet left open by the performance step,
+    // then pop ClassroomScreen to return to the MainNavigation tabs.
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    for (var popCount = 0; popCount < 2 && mounted; popCount++) {
+      if (!navigator.canPop()) break;
+      navigator.pop();
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
@@ -326,6 +330,19 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       if (!_tourRunning || !mounted) return;
 
       final step = allSteps[i];
+      final targetContext = step.targetKey?.currentContext;
+      if (targetContext != null) {
+        if (!targetContext.mounted) continue;
+        await Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: 0.5,
+        );
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (!_tourRunning || !mounted) return;
+      }
+
       final isFullOverlay = step.targetKey == null;
       final customTargetPosition = _getCustomTargetPosition(
         step: step,
@@ -334,6 +351,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       );
 
       final completer = Completer<void>();
+      final interactionFuture = step.isInteractive
+          ? TourService.waitForInteraction()
+          : null;
       dynamic coachController;
 
       final tutorial = TutorialCoachMark(
@@ -351,6 +371,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             shape: ShapeLightFocus.RRect,
             radius: isFullOverlay ? 0 : 8,
             paddingFocus: isFullOverlay ? 0 : 12,
+            enableTargetTab: !step.isInteractive,
             contents: [
               _buildTargetContent(
                 step: step,
@@ -407,14 +428,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
       tutorial.show(context: context);
 
-      if (step.isInteractive) {
-        await TourService.waitForInteraction();
+      await completer.future;
+      if (!_tourRunning || !mounted) return;
+
+      if (interactionFuture != null) {
+        await interactionFuture;
         if (!_tourRunning || !mounted) return;
-        if (!completer.isCompleted) completer.complete();
-        coachController?.next();
       }
 
-      await completer.future;
       await Future.delayed(const Duration(milliseconds: 180));
     }
   }
@@ -438,6 +459,20 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       final width = screenSize.width;
       final height = screenSize.height * 0.82;
       return TargetPosition(Size(width, height), Offset.zero);
+    }
+
+    final isMistakeContextStep =
+        step.targetKey == TourService.mistakesAreaKey ||
+        step.targetKey == TourService.pageAllToggleKey;
+
+    if (isMistakeContextStep) {
+      // These controls sit at the end of a tall Mushaf scroll view. Keep the
+      // entire mistakes panel visible so the toggle is not an isolated sliver.
+      final height = screenSize.height * 0.32;
+      return TargetPosition(
+        Size(screenSize.width, height),
+        Offset(0, screenSize.height - height),
+      );
     }
 
     return null;

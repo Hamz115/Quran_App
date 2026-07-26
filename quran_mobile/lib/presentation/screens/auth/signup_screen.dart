@@ -97,20 +97,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           child: Stack(
             children: [
-              // Theme toggle
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                right: 16,
-                child: _buildThemeToggle(isDarkMode),
-              ),
-
-              // Back button
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                left: 16,
-                child: _buildBackButton(isDarkMode),
-              ),
-
               // Main content
               SafeArea(
                 child: SingleChildScrollView(
@@ -161,6 +147,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ],
                   ),
                 ),
+              ),
+
+              // Keep floating controls above the full-screen scroll view so
+              // they remain reachable during hit testing.
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 16,
+                child: _buildThemeToggle(isDarkMode),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                left: 16,
+                child: _buildBackButton(isDarkMode),
               ),
             ],
           ),

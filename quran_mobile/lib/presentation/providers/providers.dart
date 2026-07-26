@@ -429,11 +429,14 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
 
   /// Load classes from local SQLite (instant).
   Future<void> loadClasses() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
     try {
       final user = _ref.read(authProvider).user;
       if (user == null) {
-        state = const AsyncValue.data([]);
+        if (mounted) {
+          state = const AsyncValue.data([]);
+        }
         return;
       }
 
@@ -449,12 +452,15 @@ class ClassesNotifier extends StateNotifier<AsyncValue<List<ClassSession>>> {
         );
       }).toList();
 
+      if (!mounted) return;
       state = AsyncValue.data(classes);
 
       // One-time fix: publish any unpublished classes on Supabase (background)
       _fixUnpublishedClasses(user.id);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 

@@ -46,6 +46,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
   // Flash highlight state for mistake badge tap
   String? _highlightedWordKey;
   Timer? _flashTimer;
+  Timer? _tourNotesDebounce;
 
   PageController? _pageController;
 
@@ -54,6 +55,7 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     _pageController?.dispose();
     _overlayTimer?.cancel();
     _flashTimer?.cancel();
+    _tourNotesDebounce?.cancel();
     _jumpController.dispose();
     super.dispose();
   }
@@ -1917,7 +1919,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
               maxLines: 5,
               onChanged: (_) {
                 if (TourService.isTourActive) {
-                  TourService.completeInteraction();
+                  _tourNotesDebounce?.cancel();
+                  _tourNotesDebounce = Timer(
+                    const Duration(milliseconds: 600),
+                    TourService.completeInteraction,
+                  );
                 }
               },
               style: TextStyle(fontSize: 14, color: AppColors.text(isDarkMode)),

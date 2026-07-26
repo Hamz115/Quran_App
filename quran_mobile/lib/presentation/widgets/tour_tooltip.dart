@@ -103,32 +103,36 @@ class TourTooltip extends StatelessWidget {
                     else
                       const SizedBox.shrink(),
                     if (isInteractive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? AppColors.slate700.withOpacity(0.5)
-                              : AppColors.slate100,
+                      Material(
+                        color: isDarkMode
+                            ? AppColors.slate700.withOpacity(0.5)
+                            : AppColors.slate100,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          onTap: onNext,
                           borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.touch_app_rounded,
-                              size: 16,
-                              color: AppColors.cyan500,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.touch_app_rounded,
+                                  size: 16,
+                                  color: AppColors.cyan500,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Try it',
+                                  style: TextStyle(
+                                    color: isDarkMode ? AppColors.slate300 : AppColors.slate600,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Tap to continue',
-                              style: TextStyle(
-                                color: isDarkMode ? AppColors.slate300 : AppColors.slate600,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       )
                     else

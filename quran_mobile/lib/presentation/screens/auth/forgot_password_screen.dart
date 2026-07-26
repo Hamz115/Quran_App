@@ -64,20 +64,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
           ),
 
-          // Theme toggle
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 16,
-            child: _buildThemeToggle(isDarkMode),
-          ),
-
-          // Back button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            child: _buildBackButton(isDarkMode),
-          ),
-
           // Main content
           SafeArea(
             child: SingleChildScrollView(
@@ -127,6 +113,19 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 ],
               ),
             ),
+          ),
+
+          // Keep floating controls above the full-screen scroll view so they
+          // remain reachable during hit testing.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 16,
+            child: _buildThemeToggle(isDarkMode),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 16,
+            child: _buildBackButton(isDarkMode),
           ),
         ],
       ),

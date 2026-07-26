@@ -10,9 +10,10 @@ class TourStepDef {
   final String title;
   final String description;
   final ContentPosition position;
-  /// When true, the tooltip hides the "Next" button — the user must interact
-  /// with the highlighted target to advance.  The tour orchestrator waits on
-  /// [TourService.waitForInteraction] which the target widget completes.
+
+  /// When true, the tooltip offers a "Try it" action, then waits for the user
+  /// to interact with the highlighted target. The target widget completes
+  /// [TourService.waitForInteraction].
   final bool isInteractive;
 
   const TourStepDef({
@@ -128,16 +129,16 @@ class TourService {
 
     // ── Phase 2: Session creation modal ──
 
-    // 3 — Student selector (info)
+    // 3 — Student selector (INTERACTIVE)
     TourStepDef(
       screen: 'create-session',
       targetKey: studentSelectorKey,
       title: 'Select a Contact',
       description:
-          'Choose a reciter from your contacts list. '
-          'If you haven\'t added anyone yet, you can skip this for now — '
-          'but a contact is required to create a session.',
+          'Choose a reciter from your contacts list. A contact is required '
+          'before you can create the session.',
       position: ContentPosition.bottom,
+      isInteractive: true,
     ),
 
     // 4 — Portions section (info)
@@ -158,7 +159,7 @@ class TourService {
       title: 'Create the Session',
       description:
           'Once you\'ve selected a contact and configured portions, '
-          'tap "Create Class" to start the session.',
+          'tap "Create Session" to start the session.',
       position: ContentPosition.top,
       isInteractive: true,
     ),

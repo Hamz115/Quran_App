@@ -393,6 +393,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                   if (value != null) {
                     setState(() => _selectedStudentId = value);
                     _prefillFromPreviousClass();
+                    if (TourService.isTourActive) {
+                      TourService.completeInteraction();
+                    }
                   }
                 },
               ),

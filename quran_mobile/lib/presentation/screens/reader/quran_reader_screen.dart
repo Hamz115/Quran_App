@@ -80,23 +80,28 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
           onTap: _toggleOverlay,
           child: Stack(
             children: [
-              // Full-screen PageView
-              PageView.builder(
-                controller: _pageController,
-                reverse: true, // RTL: swipe left = next page
-                itemCount: totalPages,
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index + 1);
-                },
-                itemBuilder: (context, index) {
-                  final pageNum = index + 1;
-                  return _PageLoader(
-                    pageNumber: pageNum,
-                    isDarkMode: isDarkMode,
-                    mistakes: mistakes,
-                    mistakesWithOccurrences: mistakesWithOccurrences,
-                  );
-                },
+              // Keep Mushaf glyphs below the system status bar.
+              Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.paddingOf(context).top,
+                ),
+                child: PageView.builder(
+                  controller: _pageController,
+                  reverse: true, // RTL: swipe left = next page
+                  itemCount: totalPages,
+                  onPageChanged: (index) {
+                    setState(() => _currentPage = index + 1);
+                  },
+                  itemBuilder: (context, index) {
+                    final pageNum = index + 1;
+                    return _PageLoader(
+                      pageNumber: pageNum,
+                      isDarkMode: isDarkMode,
+                      mistakes: mistakes,
+                      mistakesWithOccurrences: mistakesWithOccurrences,
+                    );
+                  },
+                ),
               ),
 
               // Overlay controls (appear on tap)
@@ -331,10 +336,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
-        final scrollController = ScrollController(
-          initialScrollOffset:
-              (currentSurah - 1) * 48.0, // Approximate item height
-        );
+        var didApplyInitialScroll = false;
 
         return DraggableScrollableSheet(
           initialChildSize: 0.7,
@@ -342,6 +344,22 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
           maxChildSize: 0.9,
           expand: false,
           builder: (context, sheetScrollController) {
+            if (!didApplyInitialScroll) {
+              didApplyInitialScroll = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!sheetScrollController.hasClients) return;
+                final desiredOffset = (currentSurah - 1) * 48.0;
+                sheetScrollController.jumpTo(
+                  desiredOffset
+                      .clamp(
+                        0.0,
+                        sheetScrollController.position.maxScrollExtent,
+                      )
+                      .toDouble(),
+                );
+              });
+            }
+
             return Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(

@@ -41,4 +41,35 @@ void main() {
     await tester.pump();
     expect(skipTapped, isTrue);
   });
+
+  testWidgets('interactive TourTooltip exposes a working Try it action', (
+    WidgetTester tester,
+  ) async {
+    var tryItTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TourTooltip(
+            title: 'Start a Session',
+            description: 'Open the session form.',
+            currentStep: 2,
+            totalSteps: 24,
+            isDarkMode: false,
+            isLastStep: false,
+            isInteractive: true,
+            onNext: () => tryItTapped = true,
+            onSkip: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Try it'), findsOneWidget);
+    expect(find.text('Next'), findsNothing);
+
+    await tester.tap(find.text('Try it'));
+    await tester.pump();
+    expect(tryItTapped, isTrue);
+  });
 }
