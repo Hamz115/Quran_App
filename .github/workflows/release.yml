@@ -45,11 +45,14 @@ jobs:
           aws s3 cp s3://qurantrack.hamzas.world/ci-data/qpc-v2.db quran_backend/qpc-v2.db
           aws s3 cp s3://qurantrack.hamzas.world/ci-data/qpc-v2-15-lines.db quran_backend/qpc-v2-15-lines.db
 
-      - name: Write backend .env
+      # Public client configuration is bundled into the desktop sidecar.
+      # Never write or bundle BACKEND_ENV: it contains privileged server secrets.
+      - name: Write public frontend environment
         shell: bash
         run: |
-          cat > quran_backend/.env << 'ENVEOF'
-          ${{ secrets.BACKEND_ENV }}
+          cat > quran_frontend/.env.local << 'ENVEOF'
+          VITE_SUPABASE_URL=https://qwfnbkkegbhwxxjvyhzl.supabase.co
+          VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3Zm5ia2tlZ2Jod3h4anZ5aHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTUyNTcsImV4cCI6MjA4NDM5MTI1N30.Cjl0l5IteO9mpTQ_GV8cfYsd_fEAYOgpSt0LJJQ1jfE
           ENVEOF
 
       # --- Build Python sidecar ---
@@ -85,14 +88,6 @@ jobs:
           }
 
       # --- Build Tauri ---
-      - name: Write frontend .env
-        shell: bash
-        run: |
-          cat > quran_frontend/.env << 'ENVEOF'
-          VITE_SUPABASE_URL=https://qwfnbkkegbhwxxjvyhzl.supabase.co
-          VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3Zm5ia2tlZ2Jod3h4anZ5aHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTUyNTcsImV4cCI6MjA4NDM5MTI1N30.Cjl0l5IteO9mpTQ_GV8cfYsd_fEAYOgpSt0LJJQ1jfE
-          ENVEOF
-
       - name: Install frontend dependencies
         run: |
           cd quran_frontend
