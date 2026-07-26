@@ -149,6 +149,25 @@ export async function getLocalClass(classId: string): Promise<ClassData> {
 }
 
 /**
+ * Mirror a canonical assignment update into the packaged local snapshot.
+ */
+export async function updateLocalAssignment(
+  assignmentId: string,
+  data: {
+    type: string;
+    start_surah: number;
+    end_surah: number;
+    start_ayah: number | null;
+    end_ayah: number | null;
+  },
+): Promise<{ message: string }> {
+  return apiCall(`/api/local/assignments/${assignmentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
  * Update class notes via local FastAPI sidecar.
  * Returns same shape as Supabase updateClassNotes.
  */

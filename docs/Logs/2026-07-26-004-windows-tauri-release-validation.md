@@ -3,7 +3,7 @@
 **Date:** 2026-07-26
 **Session:** 004
 **Start:** 2026-07-26 04:56 AST
-**Duration:** 3 hours 10 minutes (completed 08:06 AST)
+**Duration:** 8 hours 38 minutes (completed 13:34 AST after focused portion-edit follow-up)
 **Author:** Codex
 
 ## Objective
@@ -12,7 +12,7 @@ Own and execute the complete Windows release validation defined by `2026-07-26-0
 
 ## Summary
 
-Complete packaged-Windows validation was executed through repeated real NSIS maintenance installs of the `2.0.0` Tauri application. Installer, native lifecycle, sidecar, window/theme/resizing, canonical synchronization, session creation, page-590 classroom, mistake/note/performance persistence, reports, PDF/CSV/Word exports, all 31 tutorial steps, Reader, Settings/updater, contacts, signed-out auth, normal persistence, offline behavior, invalid routes, missing-sidecar recovery, port collision, and final diagnostics were exercised. Verified runtime defects were repaired minimally and rerun. Runtime behavior is release-quality, but the final combined verdict is **NOT SAFE TO BUILD/PUBLISH FINAL WINDOWS RELEASE** because neither the installer nor executable is Authenticode signed and the configured updater public key has no available private key, so signed updater artifacts cannot be produced.
+Complete packaged-Windows validation was executed through repeated real NSIS maintenance installs of the `2.0.0` Tauri application. Installer, native lifecycle, sidecar, window/theme/resizing, canonical synchronization, session creation, post-creation portion editing, page-590 classroom, mistake/note/performance persistence, reports, PDF/CSV/Word exports, all 31 tutorial steps, Reader, Settings/updater, contacts, signed-out auth, normal persistence, offline behavior, invalid routes, missing-sidecar recovery, port collision, and final diagnostics were exercised. Verified runtime defects were repaired minimally and rerun. Runtime behavior is release-quality, but the final combined verdict is **NOT SAFE TO BUILD/PUBLISH FINAL WINDOWS RELEASE** because neither the installer nor executable is Authenticode signed and the configured updater public key has no available private key, so signed updater artifacts cannot be produced.
 
 ## Work Completed
 
@@ -29,7 +29,7 @@ Complete packaged-Windows validation was executed through repeated real NSIS mai
 - Remote relationship: seven commits ahead of `origin/main`, zero behind.
 - `git diff --check`: pass.
 - Existing untracked Windows handoff and Syncthing temporary files are preserved and excluded from build inputs.
-- No reset, rebase, commit, push, migration, updater-key change, or release-artifact replacement was performed.
+- No reset, rebase, commit, push, migration, updater-key change, or release-artifact replacement was performed by this validation agent. While the follow-up was running, HEAD advanced externally at 12:55 AST to `41ce695` (`fix: harden packaged Windows release runtime`); the post-creation portion fixes remain uncommitted and nothing was pushed by this validation.
 
 ### Windows and Toolchain Preflight
 
@@ -202,6 +202,28 @@ Minimal repairs:
 - The final installed package completed all 31 tutorial steps with normal clicks and no forced interaction. Evidence records every title, counter, route, canonical tutorial class UUID, completion key, safe delete cancellation, representative screenshots, and final Dashboard return in `071-guided-tour-evidence.json`.
 - One disposable session created solely during validation was unintentionally deleted while exercising the browser-confirm path; no pre-existing or production data was deleted. A replacement canonical validation session was created and retained. Further destructive coverage uses cancellation only.
 
+### Post-Creation Portion Edit Follow-up
+
+- The initial packaged matrix proved that configured portions survive the creation wizard's Back/Next flow, but it did not independently prove the separate Edit Portion action after session creation. Focused follow-up was therefore executed against the installed package and canonical validation session.
+- Reproduced three related packaged defects:
+  1. the canonical Supabase assignment changed, but the classroom could continue displaying the old label/page because the confirmed edit was not applied to in-memory class state;
+  2. clearing a previously populated ayah bound produced `undefined`, which Supabase omitted, leaving the old bound in place;
+  3. assignment edits wrote directly to Supabase while packaged `getClass` reads prefer local SQLite, so immediate reload could resurrect the pre-edit local assignment until a later full sync.
+- Minimal repairs:
+  - apply the confirmed assignment update optimistically to `classData`, immediately recalculating the portion label, allowed word range, and starting page;
+  - serialize cleared ayah bounds as explicit `null`;
+  - after the canonical RLS write succeeds, call a new authenticated ownership-checked local mirror endpoint so the packaged SQLite snapshot matches before reload.
+- The provisional theory that WebView HTTP caching caused the stale reload was disproved and its temporary no-cache client change was removed; the final source contains only the local-first consistency repair.
+- Rebuilt the PyInstaller sidecar, copied its exact binary into the Tauri external-bin input, rebuilt Tauri/NSIS, and completed another visible NSIS `Add/Reinstall components` installation.
+- Final actual-package scenario:
+  - original Hifz: Surah 84:25 through Surah 85 with no ending ayah, rendered on page 590;
+  - edited Hifz: Surah 86:1-5, immediately relabeled `At-Taariq (1-5)` and moved the reader to page 591;
+  - the cloud row and local SQLite row matched before the harness issued any manual sync;
+  - a normal native close/reopen retained Surah 86:1-5/page 591;
+  - editing back to the original range cleared `end_ayah` to SQL/JSON null, immediately returned to page 590, matched cloud/local before sync, and survived an immediate reload.
+- All focused checks are true in `108-post-creation-portion-edit-evidence.json`; before/edit/reopen/restored screenshots are `105`-`108`, and final NSIS screenshots are `118`-`119`.
+- During the first draft of the focused harness, an unordered active-section assumption caused the disposable validation session's Sabqi assignment to receive the Hifz restore values. The canonical session evidence in `038-created-canonical-session.json` was used to restore Hifz 84:25-85, Sabqi 93-96, and Revision Juz 30 exactly in both cloud and local SQLite before the repaired rerun. No pre-existing or non-validation record was changed.
+
 ### Reader, Settings, Contacts, and Authentication
 
 - Standalone Reader:
@@ -245,11 +267,11 @@ Minimal repairs:
 
 ### Exact Final Validation Candidate
 
-- Evidence copy: `screenshots/2026-07-26-codex-desktop-windows-tauri-validation/packages/final-validation-candidate`.
-- Release executable: 118,141,440 bytes, SHA-256 `AEDCE063B5F0BF5A1925406FEDF10F08AB63CF9312C2CDD4A95E946522E5D6F8`, version `2.0.0`, Authenticode `NotSigned`.
-- NSIS installer: 204,719,139 bytes, SHA-256 `016AAEAC1C3AA0CBD930FE206825D4CBCFFDE38080E7F5017C7E4F97AB2BCA92`, version `2.0.0`, Authenticode `NotSigned`.
-- Frozen sidecar: 97,471,998 bytes, SHA-256 `3BE502FADCAC2054A93DB477175055375F29A0C2E759FEF03CE0638282C423BA`, Authenticode `NotSigned`.
-- Installed application: 118,141,440 bytes, SHA-256 `7EE8E9CF9CB13267F2D38CC3708C58049D1B85253E0DDDC06A07763C0CC0944F`, version `2.0.0`, Authenticode `NotSigned`. The installed executable differs from the post-bundle target because of Tauri's updater-artifact transform; the installed JS asset and behavior match the final NSIS candidate.
+- Evidence copy: `screenshots/2026-07-26-codex-desktop-windows-tauri-validation/packages/post-creation-portion-edit-candidate`.
+- Release executable: 118,141,440 bytes, SHA-256 `10EFD563F0F680C9A8269D413A36FE606E26E7B15147132853ACE6BCF160C059`, version `2.0.0`, Authenticode `NotSigned`.
+- NSIS installer: 204,719,714 bytes, SHA-256 `EE49D566DEB19A199F79E2D38008109E682EA61B06D008FD1C90ACC1FC123574`, version `2.0.0`, Authenticode `NotSigned`.
+- Frozen sidecar: 97,475,322 bytes, SHA-256 `6F306960FF34A7AC0223B5F80F04B25E669718A8B6671E67621D0A5405B505E9`, Authenticode `NotSigned`.
+- Installed application: 118,141,440 bytes, SHA-256 `8225FB7F543C2FB4E88D10B082BEE1DBB600E7E4AEB74DD3C3B56B4BE0CBF46A`, version `2.0.0`, Authenticode `NotSigned`. The installed executable differs from the post-bundle target because of Tauri's updater-artifact transform; the installed JS asset and behavior match the final NSIS candidate.
 - Installed sidecar is byte-identical to the tested frozen sidecar.
 - PyInstaller inventory contains only `.env.public\.env.local`; final key-name inspection contains the public Supabase URL/anon key and local API base only. No service-role key, JWT secret, updater private key, or signing private key is bundled.
 - Preserved release artifact `releases/QuranTrack-Windows-2.0.0-x64-setup.exe` remains byte-identical at SHA-256 `8F076FE346D277F48A231C25DBD6D54CBE891E84E5B463D69EE08ADD3F52DCC2`.
@@ -269,15 +291,16 @@ Minimal repairs:
 | `docs/Logs/2026-07-26-004-windows-tauri-release-validation.md` | Created/updated | Live Windows packaged-release validation record |
 | `quran_frontend/src-tauri/Cargo.toml` / `Cargo.lock` | Updated | Align native executable version to 2.0.0 |
 | `quran_backend/QuranTrackBackend.spec` | Updated | Exclude privileged backend environment; bundle public frontend configuration |
-| `quran_backend/main.py` | Updated | Verified user-token auth, valid migrations, canonical session/mistake handling, local performance mirror |
+| `quran_backend/main.py` | Updated | Verified user-token auth, valid migrations, canonical session/mistake handling, local performance and assignment mirrors |
 | `quran_backend/sync_service.py` | Updated | RLS-bound complete pull/push, SQLite contention control, canonical occurrence reconciliation |
-| `quran_backend/tests/test_listener_reciter_schema_sql.py` | Updated | Release regression coverage |
+| `quran_backend/tests/test_listener_reciter_schema_sql.py` | Updated | Release regression coverage, including post-creation portion consistency |
 | `quran_frontend/.env.production` | Updated | Package local API base at port 8000 |
 | `quran_frontend/src/contexts/TourContext.tsx` | Updated | Canonical Dashboard tour routing |
 | `quran_frontend/src/contexts/AuthContext.tsx` | Updated | Session-bound route protection, stale-result guard, deferred lock-safe profile load |
 | `quran_frontend/src/lib/tour.ts` | Updated | Async target readiness and unobstructed interactive popover geometry |
 | `quran_frontend/src/pages/TeacherClasses.tsx` | Updated | Preserve edited portions across Back/Next |
-| `quran_frontend/src/lib/local-api.ts` / `src/api.ts` | Updated | Mirror canonical per-reciter performance locally |
+| `quran_frontend/src/pages/Classroom.tsx` | Updated | Immediate confirmed portion state, explicit-null ayah clearing |
+| `quran_frontend/src/lib/local-api.ts` / `src/api.ts` | Updated | Mirror canonical per-reciter performance and confirmed assignment edits locally |
 | `quran_frontend/src/lib/updater.ts` | Updated | Keep automatic updater connectivity failure non-blocking |
 
 ## Tests Run
@@ -306,10 +329,12 @@ Minimal repairs:
 | Default/minimum/intermediate/maximized viewport matrix | Pass |
 | Installed dark/light theme rendering | Pass |
 | Installed local-first read/full-sync probe | Pass — HTTP 200 throughout |
-| Final repair regression suite | Pass — 18/18 |
+| Final repair regression suite | Pass — 19/19 |
 | Isolated empty-DB live-v3/RLS sync smoke | Pass — complete UUID child snapshots, zero pending/errors |
 | Canonical packaged session wizard | Pass — UUID route and Back/Next portion preservation |
 | Packaged page-590 classroom/mistake workflow | Pass — QPC font, 84:25, whole/character/haraka, notes/performance persistence |
+| Packaged existing-portion edit | Pass — immediate page 590→591 change, pre-sync cloud/local match, native restart persistence |
+| Packaged portion ayah-bound clearing/restoration | Pass — explicit null, immediate page 591→590 restoration, reload persistence |
 | Packaged report/filter workflow | Pass |
 | Packaged PDF/CSV/DOCX exports | Pass — valid non-empty formats |
 | Packaged 31-step tutorial first run | Fail at step 3 — Dashboard target rendered asynchronously; repaired |
@@ -333,7 +358,7 @@ Minimal repairs:
 | Final backend `py_compile` | Pass |
 | Final `git diff --check` | Pass — line-ending warnings only |
 | Normal close after repaired-package checks | Pass — no orphan process/listener |
-| Sidecar PyInstaller build | Pass — 188.59 seconds |
+| Final sidecar PyInstaller build | Pass — 165.64 seconds, 97,475,322 bytes |
 | Standalone sidecar health | Pass — 114 surahs, 6,236 ayahs |
 | Baseline `npm run tauri:build` | Functional bundle emitted; updater signing exit 1 due missing private key |
 | Baseline NSIS uninstall/install walkthrough | Pass |

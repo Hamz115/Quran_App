@@ -684,16 +684,32 @@ export default function Classroom() {
     if (!classData || !id || !editAssignmentId) return;
 
     try {
-      await updateAssignment(editAssignmentId, {
+      const updates = {
         type: editPortionType,
         start_surah: editPortionStart,
         end_surah: editPortionEnd,
         start_ayah: editPortionStartAyah,
         end_ayah: editPortionEndAyah,
+      };
+      await updateAssignment(editAssignmentId, {
+        ...updates,
+        // Supabase omits `undefined` properties. Send null explicitly so a
+        // teacher can clear previously configured ayah bounds.
+        start_ayah: editPortionStartAyah ?? null,
+        end_ayah: editPortionEndAyah ?? null,
       });
 
-      const updatedClass = await getClass(id);
-      setClassData(updatedClass);
+      // Reflect the confirmed update immediately. A read directly after the
+      // PATCH can briefly return the previous nested assignment representation,
+      // leaving the reader on the old page until a full reload.
+      setClassData(current => current ? {
+        ...current,
+        assignments: current.assignments.map(assignment =>
+          assignment.id === editAssignmentId
+            ? { ...assignment, ...updates }
+            : assignment
+        ),
+      } : current);
       setShowEditPortionModal(false);
       setEditAssignmentId(null);
     } catch (err) {

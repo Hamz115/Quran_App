@@ -35,6 +35,7 @@ import {
   updateClassPerformance as updateSupabaseClassPerformance,
   updateClassPublish as updateSupabaseClassPublish,
   updateStudentPerformance as updateSupabaseStudentPerformance,
+  updateAssignment as updateSupabaseAssignment,
   addClassStudents as addSupabaseClassStudents,
   removeClassStudent as removeSupabaseClassStudent,
   getMistakes as getSupabaseMistakes,
@@ -49,6 +50,7 @@ import {
   createLocalClass,
   getLocalClasses,
   getLocalClass,
+  updateLocalAssignment,
   deleteLocalClass,
   updateLocalClassNotes,
   updateLocalClassPerformance,
@@ -301,8 +303,34 @@ export async function removeMistake(mistakeId: string) {
   return removeSupabaseMistake(mistakeId);
 }
 
-// ============ ASSIGNMENTS (always Supabase for now) ============
-export { updateAssignment, addClassAssignments, deleteAssignment } from './lib/supabase-api';
+// ============ ASSIGNMENTS ============
+
+/**
+ * Confirm the assignment update in Supabase, then mirror it into the packaged
+ * local snapshot so an immediate reload cannot resurrect the previous portion.
+ */
+export async function updateAssignment(
+  assignmentId: string,
+  data: {
+    type: string;
+    start_surah: number;
+    end_surah: number;
+    start_ayah: number | null;
+    end_ayah: number | null;
+  },
+) {
+  const result = await updateSupabaseAssignment(assignmentId, data);
+  if (await isLocalApiAvailable()) {
+    try {
+      await updateLocalAssignment(assignmentId, data);
+    } catch (err) {
+      console.warn('[local-first] assignment mirror failed:', err);
+    }
+  }
+  return result;
+}
+
+export { addClassAssignments, deleteAssignment } from './lib/supabase-api';
 
 // Re-export Quran API functions (local FastAPI for Quran data)
 export {

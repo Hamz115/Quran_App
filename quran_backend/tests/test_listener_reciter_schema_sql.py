@@ -14,6 +14,8 @@ TOUR_CONTEXT_PATH = ROOT / "quran_frontend" / "src" / "contexts" / "TourContext.
 TOUR_PATH = ROOT / "quran_frontend" / "src" / "lib" / "tour.ts"
 TEACHER_CLASSES_PATH = ROOT / "quran_frontend" / "src" / "pages" / "TeacherClasses.tsx"
 FRONTEND_API_PATH = ROOT / "quran_frontend" / "src" / "api.ts"
+LOCAL_API_PATH = ROOT / "quran_frontend" / "src" / "lib" / "local-api.ts"
+CLASSROOM_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Classroom.tsx"
 UPDATER_PATH = ROOT / "quran_frontend" / "src" / "lib" / "updater.ts"
 
 
@@ -234,6 +236,26 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         )
         self.assertIn("updateLocalStudentPerformance", frontend_api)
         self.assertIn('enrollment.get("performance")', sync_service)
+
+    def test_confirmed_portion_edits_are_mirrored_and_clear_ayah_bounds(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+        frontend_api = FRONTEND_API_PATH.read_text(encoding="utf-8")
+        local_api = LOCAL_API_PATH.read_text(encoding="utf-8")
+        classroom = CLASSROOM_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '@app.put("/api/local/assignments/{assignment_id}")',
+            backend_main,
+        )
+        self.assertIn("c.supabase_listener_id = ?", backend_main)
+        self.assertIn("updateLocalAssignment", frontend_api)
+        self.assertIn(
+            "await updateLocalAssignment(assignmentId, data)",
+            frontend_api,
+        )
+        self.assertIn("/api/local/assignments/${assignmentId}", local_api)
+        self.assertIn("start_ayah: editPortionStartAyah ?? null", classroom)
+        self.assertIn("assignments: current.assignments.map", classroom)
 
     def test_automatic_updater_failure_does_not_block_application(self):
         updater = UPDATER_PATH.read_text(encoding="utf-8")

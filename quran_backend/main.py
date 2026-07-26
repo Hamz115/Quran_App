@@ -2569,6 +2569,61 @@ def get_local_class(
     return result
 
 
+@app.put("/api/local/assignments/{assignment_id}")
+def mirror_local_assignment(
+    assignment_id: str,
+    data: LocalAssignmentCreate,
+    user: dict = Depends(require_supabase_user),
+):
+    """Mirror an already-confirmed canonical assignment update into app.db."""
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+    row = conn.execute(
+        """
+        SELECT a.id
+        FROM assignments a
+        JOIN classes c ON c.id = a.class_id
+        WHERE (a.supabase_id = ? OR CAST(a.id AS TEXT) = ?)
+          AND (
+            c.supabase_listener_id = ?
+            OR c.supabase_teacher_id = ?
+          )
+        """,
+        (
+            assignment_id,
+            assignment_id,
+            supabase_user_id,
+            supabase_user_id,
+        ),
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    conn.execute(
+        """
+        UPDATE assignments
+        SET type = ?, start_surah = ?, end_surah = ?,
+            start_ayah = ?, end_ayah = ?,
+            sync_status = 'synced', updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            data.type,
+            data.start_surah,
+            data.end_surah,
+            data.start_ayah,
+            data.end_ayah,
+            datetime.utcnow().isoformat(),
+            row["id"],
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Assignment mirrored locally"}
+
+
 @app.put("/api/local/classes/{class_id}/notes")
 def update_local_class_notes(
     class_id: str,
