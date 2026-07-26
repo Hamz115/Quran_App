@@ -52,6 +52,7 @@ import {
   deleteLocalClass,
   updateLocalClassNotes,
   updateLocalClassPerformance,
+  updateLocalStudentPerformance,
   addLocalMistake,
   getLocalMistakes,
   getLocalMistakesWithOccurrences,
@@ -200,7 +201,15 @@ export async function updateClassPublish(classId: string, isPublished: boolean) 
  * Update student performance — always Supabase
  */
 export async function updateStudentPerformance(classId: string, studentId: string, performance: string) {
-  return updateSupabaseStudentPerformance(classId, studentId, performance);
+  const result = await updateSupabaseStudentPerformance(classId, studentId, performance);
+  if (await isLocalApiAvailable()) {
+    try {
+      await updateLocalStudentPerformance(classId, studentId, performance);
+    } catch (err) {
+      console.warn('[local-first] Failed to mirror reciter performance locally:', err);
+    }
+  }
+  return result;
 }
 
 /**

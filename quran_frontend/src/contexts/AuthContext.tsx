@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, clearSupabaseStorage, resetSupabaseAndReload } from '../lib/supabase';
@@ -99,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const latestAuthUserIdRef = useRef<string | null>(null);
 
   // Emergency reset - use when everything is stuck
   const emergencyReset = useCallback(() => {
@@ -141,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         console.log('AuthContext: Session retrieved', { hasSession: !!session });
+        latestAuthUserIdRef.current = session?.user?.id ?? null;
         setSession(session);
 
         if (session?.user) {
@@ -150,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               PROFILE_TIMEOUT_MS,
               'fetchProfile'
             );
-            if (isMounted) {
+            if (isMounted && latestAuthUserIdRef.current === session.user.id) {
               setUser(profile);
               console.log('AuthContext: Profile loaded:', profile?.email);
               // Trigger sync on app start (non-blocking). Access is no longer role-gated.
@@ -183,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log('AuthContext: Auth state changed:', event, { hasSession: !!newSession, hasUser: !!newSession?.user });
 
         if (!isMounted) {
@@ -192,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setSession(newSession);
+        latestAuthUserIdRef.current = newSession?.user?.id ?? null;
 
         if (newSession?.user) {
           // Handle email confirmation - user is now verified
@@ -199,42 +202,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.log('AuthContext: Email confirmed! User is now verified.');
           }
 
-          // Fetch profile with timeout - don't block on failure
-          try {
-            const profile = await withTimeout(
-              fetchUserProfile(newSession.user.id),
-              PROFILE_TIMEOUT_MS,
-              'fetchProfile-onChange'
-            );
-            if (isMounted) {
-              setUser(profile);
-              console.log('AuthContext: Profile loaded for event:', event);
-            }
-          } catch (err) {
-            console.error('AuthContext: Profile fetch in onChange failed:', err);
-            // IMPORTANT: Keep existing user if we have one - don't lose auth state
-            // Only log, don't set user to null or undefined
-            setUser(prev => {
-              if (prev) {
-                console.log('AuthContext: Keeping existing user state despite profile fetch failure');
-                return prev;
+          // Supabase auth callbacks run under the auth client's internal lock.
+          // Defer profile I/O so the callback returns before another Supabase
+          // request tries to acquire that lock.
+          setTimeout(() => {
+            void (async () => {
+              try {
+                const profile = await withTimeout(
+                  fetchUserProfile(newSession.user.id),
+                  PROFILE_TIMEOUT_MS,
+                  'fetchProfile-onChange'
+                );
+                if (
+                  isMounted
+                  && latestAuthUserIdRef.current === newSession.user.id
+                ) {
+                  setUser(profile);
+                  console.log('AuthContext: Profile loaded for event:', event);
+                }
+              } catch (err) {
+                console.error('AuthContext: Profile fetch in onChange failed:', err);
+                // IMPORTANT: Keep existing user if we have one - don't lose auth state
+                // Only log, don't set user to null or undefined
+                setUser(prev => {
+                  if (latestAuthUserIdRef.current !== newSession.user.id) {
+                    return null;
+                  }
+                  if (prev) {
+                    console.log('AuthContext: Keeping existing user state despite profile fetch failure');
+                    return prev;
+                  }
+                  // If no previous user, create minimal user from session
+                  console.log('AuthContext: Creating minimal user from session');
+                  const sessionUser = newSession.user;
+                  return {
+                    id: sessionUser.id,
+                    student_id: '',
+                    username: sessionUser.email?.split('@')[0] || '',
+                    email: sessionUser.email || '',
+                    first_name: sessionUser.user_metadata?.name?.split(' ')[0] || '',
+                    last_name: sessionUser.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+                    role: sessionUser.user_metadata?.role || 'student',
+                    is_verified: sessionUser.email_confirmed_at ? true : false,
+                    created_at: sessionUser.created_at || new Date().toISOString(),
+                  };
+                });
+              } finally {
+                if (
+                  isMounted
+                  && latestAuthUserIdRef.current === newSession.user.id
+                ) {
+                  setIsLoading(false);
+                }
               }
-              // If no previous user, create minimal user from session
-              console.log('AuthContext: Creating minimal user from session');
-              const sessionUser = newSession.user;
-              return {
-                id: sessionUser.id,
-                student_id: '',
-                username: sessionUser.email?.split('@')[0] || '',
-                email: sessionUser.email || '',
-                first_name: sessionUser.user_metadata?.name?.split(' ')[0] || '',
-                last_name: sessionUser.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
-                role: sessionUser.user_metadata?.role || 'student',
-                is_verified: sessionUser.email_confirmed_at ? true : false,
-                created_at: sessionUser.created_at || new Date().toISOString(),
-              };
-            });
-          }
+            })();
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           // Only clear user on explicit sign out
           console.log('AuthContext: Clearing user on SIGNED_OUT');
@@ -255,7 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }, 1000);
         }
 
-        if (isMounted) {
+        if (isMounted && !newSession?.user) {
           setIsLoading(false);
         }
       }
@@ -376,6 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAllCache();
 
     // Clear state immediately (optimistic)
+    latestAuthUserIdRef.current = null;
     setUser(null);
     setSession(null);
 
@@ -490,7 +513,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!session,
         isVerified: user?.is_verified ?? false,
         login,
         signup,

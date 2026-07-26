@@ -41,7 +41,9 @@ datas = [
     ('quran.db', '.'),
     ('qpc-v2-15-lines.db', '.'),
     ('qpc-v2.db', '.'),
-    ('.env', '.'),
+    # The packaged client may contain only the public Supabase URL/anon key.
+    # Never bundle quran_backend/.env: it contains privileged server credentials.
+    ('../quran_frontend/.env.local', '.env.public'),
     # NOTE: app.db is NOT bundled — it's read-write and lives next to the exe
     # NOTE: QPC fonts are NOT bundled here — they're in the frontend public/ dir
     # NOTE: quran-pages/ (v1 JSON) no longer needed — replaced by v2 SQLite DBs

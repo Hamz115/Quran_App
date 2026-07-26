@@ -171,6 +171,20 @@ export async function updateLocalClassPerformance(classId: string, performance: 
 }
 
 /**
+ * Mirror a canonical per-reciter performance update into local app.db.
+ */
+export async function updateLocalStudentPerformance(
+  classId: string,
+  studentId: string,
+  performance: string,
+): Promise<{ message: string }> {
+  return apiCall(`/api/local/classes/${classId}/student-performance`, {
+    method: 'PUT',
+    body: JSON.stringify({ student_id: studentId, performance }),
+  });
+}
+
+/**
  * Delete class via local FastAPI sidecar.
  * Returns same shape as Supabase deleteClass: { message: string }
  */

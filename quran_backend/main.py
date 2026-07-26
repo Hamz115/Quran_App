@@ -7,7 +7,6 @@ import sqlite3
 import sys
 import shutil
 import os
-import jwt
 import tempfile
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -34,13 +33,9 @@ from sync_service import (
     pull_classes, pull_mistakes, mark_for_sync, get_supabase
 )
 
-# Supabase JWT settings
-SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
-
-
 def get_supabase_user(authorization: str = Header(None)) -> Optional[dict]:
     """
-    Extract user info from Supabase JWT token.
+    Verify the Supabase access token and return the authenticated user.
     Returns None if no token or invalid token.
     """
     if not authorization or not authorization.startswith("Bearer "):
@@ -49,20 +44,23 @@ def get_supabase_user(authorization: str = Header(None)) -> Optional[dict]:
     token = authorization.replace("Bearer ", "")
 
     try:
-        # Decode Supabase JWT (without verification for now - Supabase handles auth)
-        # In production, verify with SUPABASE_JWT_SECRET
-        payload = jwt.decode(token, options={"verify_signature": False})
+        response = get_supabase(token).auth.get_user(token)
+        verified_user = response.user if response else None
+        if not verified_user:
+            return None
+        metadata = verified_user.user_metadata or {}
         return {
-            "id": payload.get("sub"),  # Supabase user UUID
-            "email": payload.get("email"),
-            "role": payload.get("user_metadata", {}).get("role"),  # No default role
+            "id": str(verified_user.id),
+            "email": verified_user.email,
+            "role": metadata.get("role"),
+            "access_token": token,
         }
     except Exception as e:
-        print(f"JWT decode error: {e}")
+        print(f"Supabase token verification failed: {type(e).__name__}")
         return None
 
 
-def require_supabase_user(authorization: str = Header(...)) -> dict:
+def require_supabase_user(authorization: Optional[str] = Header(None)) -> dict:
     """Require valid Supabase JWT - raises 401 if invalid"""
     user = get_supabase_user(authorization)
     if not user:
@@ -285,10 +283,12 @@ def init_app_db():
     # Migration: Add Supabase sync columns
     sync_migrations = [
         # Supabase ID columns (UUID from Supabase)
-        "ALTER TABLE classes ADD COLUMN supabase_id TEXT UNIQUE",
-        "ALTER TABLE assignments ADD COLUMN supabase_id TEXT UNIQUE",
-        "ALTER TABLE mistakes ADD COLUMN supabase_id TEXT UNIQUE",
-        "ALTER TABLE mistake_occurrences ADD COLUMN supabase_id TEXT UNIQUE",
+        # SQLite does not allow ALTER TABLE ADD COLUMN with UNIQUE. Add the
+        # nullable columns first, then enforce uniqueness with indexes below.
+        "ALTER TABLE classes ADD COLUMN supabase_id TEXT",
+        "ALTER TABLE assignments ADD COLUMN supabase_id TEXT",
+        "ALTER TABLE mistakes ADD COLUMN supabase_id TEXT",
+        "ALTER TABLE mistake_occurrences ADD COLUMN supabase_id TEXT",
         # Sync status: 'pending', 'synced', 'error'
         "ALTER TABLE classes ADD COLUMN sync_status TEXT DEFAULT 'pending'",
         "ALTER TABLE assignments ADD COLUMN sync_status TEXT DEFAULT 'pending'",
@@ -308,6 +308,18 @@ def init_app_db():
             conn.commit()
         except:
             pass  # Column already exists
+
+    conn.executescript("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_classes_supabase_id
+            ON classes(supabase_id) WHERE supabase_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_supabase_id
+            ON assignments(supabase_id) WHERE supabase_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mistakes_supabase_id
+            ON mistakes(supabase_id) WHERE supabase_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_occurrences_supabase_id
+            ON mistake_occurrences(supabase_id) WHERE supabase_id IS NOT NULL;
+    """)
+    conn.commit()
 
     # v2.0.0 migration: Add listener_id column (mirrors teacher_id, no role distinction)
     v2_migrations = [
@@ -1073,6 +1085,11 @@ def delete_class(class_id: int, current_user: dict = Depends(get_current_user)):
 
 class PerformanceUpdate(BaseModel):
     performance: str  # "Excellent", "Good", "Needs Work"
+
+
+class LocalStudentPerformanceUpdate(BaseModel):
+    student_id: str
+    performance: str
 
 
 class PublishUpdate(BaseModel):
@@ -2179,10 +2196,11 @@ def trigger_sync(
     Runs in background and returns immediately.
     """
     supabase_user_id = user["id"]
+    access_token = user["access_token"]
     user_role = role or user.get("role", "student")
 
     # Run sync in background
-    background_tasks.add_task(full_sync, supabase_user_id, user_role)
+    background_tasks.add_task(full_sync, supabase_user_id, access_token, user_role)
 
     return {"message": "Sync started", "user_id": supabase_user_id, "role": user_role}
 
@@ -2191,10 +2209,11 @@ def trigger_sync(
 def push_to_cloud(user: dict = Depends(require_supabase_user)):
     """Push pending local changes to Supabase"""
     supabase_user_id = user["id"]
+    access_token = user["access_token"]
 
     results = {
-        "classes": push_pending_classes(supabase_user_id),
-        "mistakes": push_pending_mistakes(supabase_user_id),
+        "classes": push_pending_classes(supabase_user_id, access_token),
+        "mistakes": push_pending_mistakes(supabase_user_id, access_token),
     }
 
     return {"message": "Push complete", "results": results}
@@ -2207,10 +2226,11 @@ def pull_from_cloud(
 ):
     """Pull changes from Supabase to local app.db"""
     supabase_user_id = user["id"]
+    access_token = user["access_token"]
 
     results = {
-        "classes": pull_classes(supabase_user_id, since),
-        "mistakes": pull_mistakes(supabase_user_id, since),
+        "classes": pull_classes(supabase_user_id, access_token, since),
+        "mistakes": pull_mistakes(supabase_user_id, access_token, since),
     }
 
     return {"message": "Pull complete", "results": results}
@@ -2263,7 +2283,7 @@ def get_sync_status(user: dict = Depends(require_supabase_user)):
 
 
 # ============ LOCAL-FIRST CLASS ENDPOINTS ============
-# These endpoints write to local app.db first (instant) then sync to Supabase in background.
+# These endpoints write to local app.db first and synchronize with Supabase.
 # Return shapes MUST match Supabase API responses so the UI can't tell the difference.
 
 @app.post("/api/local/classes")
@@ -2273,8 +2293,10 @@ def create_local_class(
     user: dict = Depends(require_supabase_user)
 ):
     """
-    Create class in local app.db first (instant response).
-    Syncs to Supabase in background.
+    Create class in local app.db first.
+    When online, complete the initial sync before returning so callers receive
+    the canonical Supabase UUID used by navigation and related records.
+    If sync is unavailable, retain the local ID and queue a retry.
     Returns same shape as Supabase createClass: { id, message }
     """
     conn = get_app_db()
@@ -2320,11 +2342,28 @@ def create_local_class(
     conn.commit()
     conn.close()
 
-    # Trigger sync in background
-    background_tasks.add_task(push_pending_classes, supabase_user_id)
+    canonical_id: Optional[str] = None
+    try:
+        push_pending_classes(supabase_user_id, user["access_token"])
+        conn = get_app_db()
+        synced_row = conn.execute(
+            "SELECT supabase_id FROM classes WHERE id = ?", (class_id,)
+        ).fetchone()
+        canonical_id = synced_row["supabase_id"] if synced_row else None
+        conn.close()
+    except Exception as e:
+        print(f"Initial class sync failed: {type(e).__name__}")
+
+    if not canonical_id:
+        background_tasks.add_task(
+            push_pending_classes, supabase_user_id, user["access_token"]
+        )
 
     # Return same shape as Supabase: { id: string, message: string }
-    return {"id": str(class_id), "message": "Class created successfully"}
+    return {
+        "id": canonical_id or str(class_id),
+        "message": "Class created successfully",
+    }
 
 
 @app.get("/api/local/classes")
@@ -2559,7 +2598,9 @@ def update_local_class_notes(
     conn.commit()
     conn.close()
 
-    background_tasks.add_task(push_pending_classes, supabase_user_id)
+    background_tasks.add_task(
+        push_pending_classes, supabase_user_id, user["access_token"]
+    )
 
     return {"message": "Notes updated successfully"}
 
@@ -2593,9 +2634,51 @@ def update_local_class_performance(
     conn.commit()
     conn.close()
 
-    background_tasks.add_task(push_pending_classes, supabase_user_id)
+    background_tasks.add_task(
+        push_pending_classes, supabase_user_id, user["access_token"]
+    )
 
     return {"message": "Performance updated successfully"}
+
+
+@app.put("/api/local/classes/{class_id}/student-performance")
+def update_local_student_performance(
+    class_id: str,
+    data: LocalStudentPerformanceUpdate,
+    user: dict = Depends(require_supabase_user)
+):
+    """Mirror an already-canonical per-reciter performance write into app.db."""
+    conn = get_app_db()
+    supabase_user_id = user["id"]
+    row = conn.execute(
+        "SELECT id FROM classes WHERE supabase_id = ? AND supabase_teacher_id = ?",
+        (class_id, supabase_user_id),
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    local_id = row["id"]
+    enrollment = conn.execute(
+        "SELECT 1 FROM class_students WHERE class_id = ? AND student_id = ?",
+        (local_id, data.student_id),
+    ).fetchone()
+    if not enrollment:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Reciter not in this class")
+
+    conn.execute(
+        "UPDATE class_students SET performance = ? WHERE class_id = ? AND student_id = ?",
+        (data.performance, local_id, data.student_id),
+    )
+    conn.execute(
+        "UPDATE classes SET performance = ? WHERE id = ?",
+        (data.performance, local_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Reciter performance mirrored locally"}
 
 
 @app.delete("/api/local/classes/{class_id}")
@@ -2652,15 +2735,19 @@ def delete_local_class(
     conn.close()
 
     # Fire Supabase cascade cleanup in background (non-blocking)
-    background_tasks.add_task(_background_delete_class_on_supabase, supabase_class_id)
+    background_tasks.add_task(
+        _background_delete_class_on_supabase,
+        supabase_class_id,
+        user["access_token"],
+    )
 
     return {"message": "Class deleted"}
 
 
-def _background_delete_class_on_supabase(class_id: str):
+def _background_delete_class_on_supabase(class_id: str, access_token: str):
     """Background task: cascade-delete class on Supabase (mirrors supabase-api.ts deleteClass)."""
     try:
-        sb = get_supabase()
+        sb = get_supabase(access_token)
 
         # 1. Find mistake_occurrences linked to this class
         occ_resp = sb.table("mistake_occurrences").select("id, mistake_id").eq("class_id", class_id).execute()
@@ -2732,7 +2819,7 @@ def add_local_mistake(
             WHERE id = ?
         """, (new_count, datetime.utcnow().isoformat(), existing["id"]))
         mistake_id = existing["id"]
-        mistake_supabase_id = existing.get("supabase_id")
+        mistake_supabase_id = existing["supabase_id"]
     else:
         # Create new mistake
         cursor = conn.execute("""
@@ -2763,16 +2850,23 @@ def add_local_mistake(
         ).fetchone()
         local_class_id = class_row["id"] if class_row else mistake.class_id
 
-        conn.execute("""
-            INSERT INTO mistake_occurrences (mistake_id, class_id, occurred_at)
-            VALUES (?, ?, ?)
-        """, (mistake_id, local_class_id, datetime.utcnow().isoformat()))
+        existing_occurrence = conn.execute("""
+            SELECT 1 FROM mistake_occurrences
+            WHERE mistake_id = ? AND class_id = ?
+        """, (mistake_id, local_class_id)).fetchone()
+        if not existing_occurrence:
+            conn.execute("""
+                INSERT INTO mistake_occurrences (mistake_id, class_id, occurred_at)
+                VALUES (?, ?, ?)
+            """, (mistake_id, local_class_id, datetime.utcnow().isoformat()))
 
     conn.commit()
     conn.close()
 
     # Trigger sync in background
-    background_tasks.add_task(push_pending_mistakes, target_student_id)
+    background_tasks.add_task(
+        push_pending_mistakes, target_student_id, user["access_token"]
+    )
 
     # Return same shape as Supabase addMistake: { id: string, error_count: number }
     return {
@@ -2923,7 +3017,28 @@ def delete_local_mistake(
 
     local_id = row["id"]
 
-    # Delete the most recent occurrence
+    # Keep the canonical record consistent before mutating the local snapshot.
+    # An unsynced local-only mistake has no remote record to update.
+    if row["supabase_id"]:
+        try:
+            sb = get_supabase(user["access_token"])
+            if row["error_count"] <= 1:
+                sb.table("mistakes").delete().eq(
+                    "id", row["supabase_id"]
+                ).execute()
+            else:
+                sb.table("mistakes").update({
+                    "error_count": row["error_count"] - 1,
+                }).eq("id", row["supabase_id"]).execute()
+        except Exception as e:
+            conn.close()
+            print(f"Canonical mistake removal failed: {type(e).__name__}")
+            raise HTTPException(
+                status_code=503,
+                detail="Mistake could not be synchronized; no local change was made",
+            )
+
+    # Delete the most recent local occurrence
     conn.execute("""
         DELETE FROM mistake_occurrences WHERE id = (
             SELECT id FROM mistake_occurrences WHERE mistake_id = ?
@@ -2938,14 +3053,21 @@ def delete_local_mistake(
     else:
         # Decrement
         conn.execute(
-            "UPDATE mistakes SET error_count = error_count - 1, sync_status = 'pending', updated_at = ? WHERE id = ?",
-            (datetime.utcnow().isoformat(), local_id)
+            "UPDATE mistakes SET error_count = error_count - 1, sync_status = ?, updated_at = ? WHERE id = ?",
+            (
+                "synced" if row["supabase_id"] else "pending",
+                datetime.utcnow().isoformat(),
+                local_id,
+            )
         )
 
     conn.commit()
     conn.close()
 
-    background_tasks.add_task(push_pending_mistakes, supabase_user_id)
+    if not row["supabase_id"]:
+        background_tasks.add_task(
+            push_pending_mistakes, supabase_user_id, user["access_token"]
+        )
 
     return {"message": "Mistake removed successfully"}
 

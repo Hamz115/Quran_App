@@ -33,6 +33,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     side: 'left',
     align: 'start',
     type: 'info',
+    waitForElement: '[data-tour="add-student-btn"]',
   },
   {
     screen: 'dashboard',
@@ -43,6 +44,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     align: 'start',
     type: 'interactive',
     interactiveTarget: '[data-tour="start-class-btn"]',
+    waitForElement: '[data-tour="start-class-btn"]',
   },
 
   // ── PHASE 2: SESSION CREATION (Sessions modal) ──
@@ -84,11 +86,11 @@ export const TOUR_STEPS: TourStepDef[] = [
   },
   {
     screen: 'sessions',
-    element: '[data-tour="portion-mode"]',
+    element: '[data-tour="mode-by-surah"]',
     title: 'Selection Mode',
     description: 'Switch to <strong>By Surah</strong> so you can choose a surah and ayah range for this test session.',
     side: 'right',
-    align: 'start',
+    align: 'center',
     type: 'interactive',
     interactiveTarget: '[data-tour="mode-by-surah"]',
     waitForElement: '[data-tour="surah-selector"]',
@@ -132,7 +134,8 @@ export const TOUR_STEPS: TourStepDef[] = [
     element: '[data-tour="create-class-btn"]',
     title: 'Create the Session',
     description: "You're ready! <strong>Click Create Session</strong> to start.",
-    side: 'top',
+    side: 'left',
+    align: 'center',
     type: 'interactive',
     interactiveTarget: '[data-tour="create-class-btn"]',
   },

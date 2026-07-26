@@ -38,17 +38,17 @@ function screenToRoute(screen: string, classId?: string): string {
   switch (screen) {
     case 'dashboard':
     case 'dashboard-final':
-      return '/dashboard';
+      return '/';
     case 'sessions':
       return '/sessions?new=1';
     case 'classroom':
-      return classId ? `/sessions/${classId}` : '/dashboard';
+      return classId ? `/sessions/${classId}` : '/';
     case 'reader':
       return '/reader';
     case 'settings':
       return '/settings';
     default:
-      return '/dashboard';
+      return '/';
   }
 }
 
@@ -76,7 +76,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     if (
       user &&
       !isTourCompleted(user.id) &&
-      location.pathname === '/dashboard' &&
+      location.pathname === '/' &&
       !autoStarted.current &&
       !isActive
     ) {
@@ -145,7 +145,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
         d.destroy();
         if (isLastStep) {
           await cleanup();
-          navigate('/dashboard');
+          navigate('/');
         } else {
           advanceToStep(stepIndex + 1);
         }
@@ -158,7 +158,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       },
       onCloseClick: () => {
         d.destroy();
-        cleanup().then(() => navigate('/dashboard'));
+        cleanup().then(() => navigate('/'));
       },
     });
 
@@ -179,7 +179,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
             skipBtn.onclick = () => {
               d.destroy();
               cleanupInteractiveListener();
-              cleanup().then(() => navigate('/dashboard'));
+              cleanup().then(() => navigate('/'));
             };
             popover.appendChild(skipBtn);
           }
@@ -257,7 +257,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const advanceToStep = useCallback(async (nextStep: number) => {
     if (nextStep >= TOUR_STEPS.length) {
       await cleanup();
-      navigate('/dashboard');
+      navigate('/');
       return;
     }
 
@@ -361,9 +361,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setTourClassIdState(null);
     clearTourClassId(user?.id);
 
-    if (location.pathname !== '/dashboard') {
+    if (location.pathname !== '/') {
       setPendingStep(0);
-      navigate('/dashboard');
+      navigate('/');
     } else {
       setTimeout(() => showStep(0), 300);
     }

@@ -471,6 +471,7 @@ export default function TeacherClasses() {
 
   // Cache of previously fetched portions per student (for auto pre-fill)
   const previousPortionsCache = useRef<Record<string, SuggestedPortions>>({});
+  const suggestedPortionsAppliedFor = useRef<string | null>(null);
 
   // Portion configuration - shared (for 'same' mode) or per-student (for 'per-student' mode)
   // Default to page mode with page 560 (Surah Al-Mulk starts on page 560)
@@ -577,6 +578,7 @@ export default function TeacherClasses() {
     setClassDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
     // Clear cache so next modal open re-fetches fresh data
     previousPortionsCache.current = {};
+    suggestedPortionsAppliedFor.current = null;
   };
 
   // Initialize per-student configs when switching to per-student mode
@@ -631,6 +633,10 @@ export default function TeacherClasses() {
   // Auto pre-fill portions from previous class when entering step 2
   useEffect(() => {
     if (modalStep !== 2 || selectedStudents.length === 0) return;
+
+    const selectionKey = [...selectedStudents].sort().join(',');
+    if (suggestedPortionsAppliedFor.current === selectionKey) return;
+    suggestedPortionsAppliedFor.current = selectionKey;
 
     let cancelled = false;
 

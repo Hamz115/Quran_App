@@ -138,8 +138,14 @@ export async function checkForAppUpdates(onEvent?: (status: UpdateStatus) => voi
     await relaunch();
   } catch (err) {
     if (!cancelRequested) {
-      console.error('[updater] Failed to check for updates:', err);
-      emit({ stage: 'error', error: String(err) });
+      if (onEvent) {
+        console.error('[updater] Failed to check for updates:', err);
+        emit({ stage: 'error', error: String(err) });
+      } else {
+        // A launch-time update check is opportunistic. A network/GitHub failure
+        // must not cover the application with a blocking error screen.
+        console.warn('[updater] Automatic update check failed:', err);
+      }
     }
   } finally {
     isChecking = false;

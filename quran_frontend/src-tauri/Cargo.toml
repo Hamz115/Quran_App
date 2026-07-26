@@ -1,6 +1,6 @@
 [package]
 name = "quran-track"
-version = "1.0.0"
+version = "2.0.0"
 description = "QuranTrack Desktop App"
 authors = ["Hamza"]
 license = ""

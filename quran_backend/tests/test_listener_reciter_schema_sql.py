@@ -6,6 +6,15 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SQL_PATH = ROOT / "docs" / "supabase_listener_reciter_schema_v3.sql"
 SUPABASE_API_PATH = ROOT / "quran_frontend" / "src" / "lib" / "supabase-api.ts"
+BACKEND_MAIN_PATH = ROOT / "quran_backend" / "main.py"
+SYNC_SERVICE_PATH = ROOT / "quran_backend" / "sync_service.py"
+BACKEND_SPEC_PATH = ROOT / "quran_backend" / "QuranTrackBackend.spec"
+TAURI_CARGO_PATH = ROOT / "quran_frontend" / "src-tauri" / "Cargo.toml"
+TOUR_CONTEXT_PATH = ROOT / "quran_frontend" / "src" / "contexts" / "TourContext.tsx"
+TOUR_PATH = ROOT / "quran_frontend" / "src" / "lib" / "tour.ts"
+TEACHER_CLASSES_PATH = ROOT / "quran_frontend" / "src" / "pages" / "TeacherClasses.tsx"
+FRONTEND_API_PATH = ROOT / "quran_frontend" / "src" / "api.ts"
+UPDATER_PATH = ROOT / "quran_frontend" / "src" / "lib" / "updater.ts"
 
 
 class ListenerReciterSchemaSqlTest(unittest.TestCase):
@@ -102,6 +111,153 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             "'Class'",
         ):
             self.assertNotIn(legacy_copy, ui_source)
+
+    def test_packaged_sidecar_uses_rls_user_token_without_privileged_env(self):
+        spec = BACKEND_SPEC_PATH.read_text(encoding="utf-8")
+        sync_service = SYNC_SERVICE_PATH.read_text(encoding="utf-8")
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn("('.env', '.')", spec)
+        self.assertIn("'.env.public'", spec)
+        self.assertNotIn("SUPABASE_SERVICE_KEY", sync_service)
+        self.assertNotIn("verify_signature", backend_main)
+        self.assertIn(".auth.get_user(token)", backend_main)
+        self.assertIn("client.postgrest.auth(access_token)", sync_service)
+
+    def test_sqlite_sync_ids_use_partial_unique_indexes(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+
+        for table in (
+            "classes",
+            "assignments",
+            "mistakes",
+            "mistake_occurrences",
+        ):
+            self.assertNotIn(
+                f'"ALTER TABLE {table} ADD COLUMN supabase_id TEXT UNIQUE"',
+                backend_main,
+            )
+            self.assertIn(f"ALTER TABLE {table} ADD COLUMN supabase_id TEXT", backend_main)
+        self.assertIn(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_classes_supabase_id",
+            backend_main,
+        )
+
+    def test_tauri_executable_version_matches_release(self):
+        cargo = TAURI_CARGO_PATH.read_text(encoding="utf-8")
+        self.assertIn('version = "2.0.0"', cargo)
+
+    def test_local_session_creation_returns_canonical_id_when_online(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'push_pending_classes(supabase_user_id, user["access_token"])',
+            backend_main,
+        )
+        self.assertIn(
+            '"SELECT supabase_id FROM classes WHERE id = ?"',
+            backend_main,
+        )
+        self.assertIn('"id": canonical_id or str(class_id)', backend_main)
+
+    def test_local_sync_pulls_child_records_and_avoids_sqlite_row_get(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+        sync_service = SYNC_SERVICE_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn('existing.get("supabase_id")', backend_main)
+        self.assertIn('table("class_reciters").select("*")', sync_service)
+        self.assertIn('table("assignments").select("*")', sync_service)
+        self.assertIn('table("mistake_occurrences").select("*")', sync_service)
+        self.assertIn('"reciter_id", list(target_ids)', sync_service)
+
+    def test_desktop_tour_uses_canonical_dashboard_route(self):
+        tour_context = TOUR_CONTEXT_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn("navigate('/dashboard')", tour_context)
+        self.assertNotIn("location.pathname === '/dashboard'", tour_context)
+        self.assertIn("location.pathname === '/'", tour_context)
+
+    def test_dashboard_tour_waits_for_async_targets(self):
+        tour = TOUR_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "waitForElement: '[data-tour=\"add-student-btn\"]'",
+            tour,
+        )
+        self.assertIn(
+            "waitForElement: '[data-tour=\"start-class-btn\"]'",
+            tour,
+        )
+        self.assertIn(
+            "element: '[data-tour=\"mode-by-surah\"]'",
+            tour,
+        )
+
+    def test_session_portion_suggestions_do_not_overwrite_back_navigation(self):
+        teacher_classes = TEACHER_CLASSES_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "suggestedPortionsAppliedFor.current === selectionKey",
+            teacher_classes,
+        )
+        self.assertIn("suggestedPortionsAppliedFor.current = null", teacher_classes)
+
+    def test_mistake_sync_is_serialized_without_long_sqlite_write_lock(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+        sync_service = SYNC_SERVICE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("with _mistake_sync_lock:", sync_service)
+        self.assertIn("PRAGMA busy_timeout = 15000", sync_service)
+        commit_index = sync_service.index(
+            "conn.commit()\n\n    for local_id, supabase_id, success in sync_results:"
+        )
+        occurrence_index = sync_service.index(
+            "push_mistake_occurrences(conn, supabase, local_id, supabase_id)",
+            commit_index,
+        )
+        self.assertLess(commit_index, occurrence_index)
+        self.assertIn("existing_occurrence = conn.execute", backend_main)
+        self.assertIn(
+            "SET supabase_id = ?, sync_status = 'synced'",
+            sync_service,
+        )
+        self.assertIn("Remove only non-canonical duplicates", sync_service)
+
+    def test_per_reciter_performance_is_mirrored_into_local_snapshot(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+        sync_service = SYNC_SERVICE_PATH.read_text(encoding="utf-8")
+        frontend_api = FRONTEND_API_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '@app.put("/api/local/classes/{class_id}/student-performance")',
+            backend_main,
+        )
+        self.assertIn("updateLocalStudentPerformance", frontend_api)
+        self.assertIn('enrollment.get("performance")', sync_service)
+
+    def test_automatic_updater_failure_does_not_block_application(self):
+        updater = UPDATER_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("if (onEvent)", updater)
+        self.assertIn("Automatic update check failed", updater)
+
+    def test_signed_out_session_cannot_be_reauthenticated_by_stale_profile_fetch(self):
+        auth_context = TOUR_CONTEXT_PATH.parent.joinpath(
+            "AuthContext.tsx"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("latestAuthUserIdRef.current = null", auth_context)
+        self.assertIn(
+            "latestAuthUserIdRef.current === newSession.user.id",
+            auth_context,
+        )
+        self.assertIn("isAuthenticated: !!user && !!session", auth_context)
+        self.assertIn("Supabase auth callbacks run under", auth_context)
+        self.assertNotIn(
+            "async (event, newSession) =>",
+            auth_context,
+        )
+        self.assertIn("isMounted && !newSession?.user", auth_context)
 
 
 if __name__ == "__main__":
