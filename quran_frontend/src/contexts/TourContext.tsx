@@ -425,6 +425,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
     advanceToStepRef.current = advanceToStep;
   }, [advanceToStep]);
 
+  // Route completion is also observed independently of the initiating button.
+  // This guarantees that a network-backed Create/Delete action can finish after
+  // its Driver overlay has been removed without losing the next tutorial step.
+  useEffect(() => {
+    if (!isActive || currentStep < 0) return;
+    const stepDef = TOUR_STEPS[currentStep];
+    const pathReady =
+      (!stepDef.waitForPath || location.pathname === stepDef.waitForPath) &&
+      (!stepDef.waitForPathPrefix || location.pathname.startsWith(stepDef.waitForPathPrefix));
+    if ((!stepDef.waitForPath && !stepDef.waitForPathPrefix) || !pathReady) return;
+
+    const timer = window.setTimeout(() => {
+      if (currentStep === TOUR_STEPS.length - 1) return;
+      advanceToStepRef.current(currentStep + 1);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [currentStep, isActive, location.pathname]);
+
   // When pendingStep is set and we detect a route change, show the step
   useEffect(() => {
     if (pendingStep !== null && isActive) {

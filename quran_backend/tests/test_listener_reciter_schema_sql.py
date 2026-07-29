@@ -207,6 +207,8 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn("document.addEventListener(eventType, handler, true)", tour_context)
         self.assertIn("eventTarget?.closest(target)", tour_context)
         self.assertIn("if (stepDef.waitForPath || stepDef.waitForPathPrefix)", tour_context)
+        self.assertIn("location.pathname === stepDef.waitForPath", tour_context)
+        self.assertIn("advanceToStepRef.current(currentStep + 1)", tour_context)
         self.assertNotIn("const delay = waitSelector ? 200 : 600", tour_context)
         self.assertNotIn("setTimeout(() => showStep(0), 300)", tour_context)
         self.assertEqual(
