@@ -135,8 +135,8 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     screen: 'sessions',
     element: '[data-tour="create-class-btn"]',
-    title: 'Create the Session',
-    description: "You're ready! <strong>Click Create Session</strong> to start.",
+    title: 'Start the Session',
+    description: "You're ready! <strong>Click Start Session</strong> to begin.",
     side: 'left',
     align: 'center',
     type: 'interactive',

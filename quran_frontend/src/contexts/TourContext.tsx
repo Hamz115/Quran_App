@@ -269,6 +269,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       steps: [driverStep],
       showButtons,
       nextBtnText: isLastStep ? 'Finish' : 'Next →',
+      doneBtnText: isLastStep ? 'Finish' : 'Next →',
       prevBtnText: '← Previous',
       // For interactive steps, clicking the highlighted area should pass through
       stagePadding: isInteractive ? 8 : 16,
@@ -319,39 +320,38 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setCurrentStep(stepIndex);
 
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Route changes and earlier tutorial steps can leave the document or a
-        // modal scrolled elsewhere. Put the current target in view first so
-        // Driver.js never describes an off-screen control (notably Notes).
-        if (stepDef.element) {
-          document.querySelector(stepDef.element)?.scrollIntoView({
+      // Route changes and earlier tutorial steps can leave the document or a
+      // modal scrolled elsewhere. Put the current target in view first so
+      // Driver.js never describes an off-screen control (notably Notes).
+      if (stepDef.element) {
+        document.querySelector(stepDef.element)?.scrollIntoView({
+          behavior: 'auto',
+          block: 'center',
+          inline: 'nearest',
+        });
+      }
+      d.drive();
+
+      // Bind immediately after rendering so a fast click cannot beat the
+      // interactive listener during the transition between steps.
+      if (isInteractive && stepDef.interactiveTarget) {
+        setupInteractiveListener(stepIndex, stepDef, d);
+      }
+
+      // WebView2 may apply scroll anchoring after conditional UI is inserted
+      // (the Notes editor appears above the current viewport). Re-center once
+      // that layout shift settles and refresh Driver's stage measurement.
+      if (stepDef.element) {
+        window.setTimeout(() => {
+          if (driverRef.current !== d || !d.isActive()) return;
+          document.querySelector(stepDef.element!)?.scrollIntoView({
             behavior: 'auto',
             block: 'center',
             inline: 'nearest',
           });
-        }
-        d.drive();
-
-        // WebView2 may apply scroll anchoring after conditional UI is inserted
-        // (the Notes editor appears above the current viewport). Re-center once
-        // that layout shift settles and refresh Driver's stage measurement.
-        if (stepDef.element) {
-          window.setTimeout(() => {
-            if (driverRef.current !== d || !d.isActive()) return;
-            document.querySelector(stepDef.element!)?.scrollIntoView({
-              behavior: 'auto',
-              block: 'center',
-              inline: 'nearest',
-            });
-            window.requestAnimationFrame(() => d.refresh());
-          }, 300);
-        }
-
-        // For interactive steps: listen for click on the target, then auto-advance
-        if (isInteractive && stepDef.interactiveTarget) {
-          setupInteractiveListener(stepIndex, stepDef, d);
-        }
-      });
+          window.requestAnimationFrame(() => d.refresh());
+        }, 300);
+      }
     });
   }, [darkMode, cleanup, navigate, cleanupInteractiveListener, setupInteractiveListener]);
 

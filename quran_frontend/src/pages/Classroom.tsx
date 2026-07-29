@@ -537,7 +537,10 @@ export default function Classroom() {
 
   const handleAddMistake = async (mistakeText: string, charIndex?: number) => {
     if (!wordPopup) return;
-    if (isTeacher && !selectedStudentId) return;
+    // The guided tour deliberately supports a brand-new listener with no
+    // contacts yet. Keep its mistakes local/disposable instead of blocking the
+    // word, letter, and haraka demonstrations on an empty reciter selection.
+    if (isTeacher && !selectedStudentId && !isTourActive) return;
 
     const wordIndex = wordPopup.word.word - 1; // Convert to 0-based
     const surahNumber = wordPopup.word.surah;
@@ -1269,7 +1272,7 @@ export default function Classroom() {
             </section>
 
           {/* Mistakes Summary */}
-          {(summaryMistakes.length > 0 || allAssignmentMistakes.length > 0) && (() => {
+          {(isTourActive || summaryMistakes.length > 0 || allAssignmentMistakes.length > 0) && (() => {
             const currentClassId = classData?.id;
 
             const mistakesInThisClass = summaryMistakes.filter(m =>

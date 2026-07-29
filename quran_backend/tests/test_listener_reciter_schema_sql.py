@@ -213,6 +213,8 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
 
         self.assertIn("const { isActive: isTourActive } = useTour()", classroom)
         self.assertIn("if (isTourActive) return", classroom)
+        self.assertIn("if (isTeacher && !selectedStudentId && !isTourActive) return", classroom)
+        self.assertIn("(isTourActive || summaryMistakes.length > 0", classroom)
         self.assertGreaterEqual(supabase_api.count("query.maybeSingle()"), 2)
 
     def test_local_mistake_identity_is_scoped_per_reciter(self):
