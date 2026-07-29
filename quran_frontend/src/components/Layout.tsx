@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import PwaInstallButton from './PwaInstallButton';
 
@@ -18,6 +18,8 @@ const icons = {
   sun: 'M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4L17 17m-10-10L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
   moon: 'M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5a8.5 8.5 0 1 0 12 12Z',
   chevron: 'm9 18 6-6-6-6',
+  menu: 'M4 7h16M4 12h16M4 17h16',
+  close: 'M6 6l12 12M18 6 6 18',
 };
 
 function Icon({ path, className = 'h-5 w-5' }: IconProps & { path: string }) {
@@ -63,6 +65,16 @@ export default function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
 
   const initials = `${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}` || 'QT';
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'QuranTrack User';
@@ -74,8 +86,27 @@ export default function Layout() {
 
   return (
     <div className="desktop-app-shell">
-      <aside className="desktop-sidebar">
+      <button
+        type="button"
+        className={`mobile-sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
+        aria-label="Close navigation"
+        tabIndex={sidebarOpen ? 0 : -1}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <aside
+        className={`desktop-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}
+        onClick={(event) => {
+          if ((event.target as Element).closest('a')) {
+            setSidebarOpen(false);
+            setShowUserMenu(false);
+          }
+        }}
+      >
         <div className="desktop-brand">
+          <button type="button" className="mobile-sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation">
+            <Icon path={icons.close} />
+          </button>
           <img className="desktop-brand-mark" src="/qurantrack-icon.png" alt="QuranTrack" />
           <div className="desktop-brand-name">QuranTrack</div>
           <div className="desktop-brand-tagline">RECITE · LISTEN · IMPROVE</div>
@@ -124,10 +155,21 @@ export default function Layout() {
 
       <div className="desktop-app-body">
         <header className="desktop-mobile-header">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <img src="/logo.png" alt="" className="h-8 w-8" />
-            QuranTrack
-          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              className="mobile-menu-button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={sidebarOpen}
+            >
+              <Icon path={icons.menu} />
+            </button>
+            <Link to="/" className="flex min-w-0 items-center gap-2 font-semibold">
+              <img src="/logo.png" alt="" className="h-8 w-8" />
+              <span className="truncate">QuranTrack</span>
+            </Link>
+          </div>
           <div className="flex items-center gap-2">
             <PwaInstallButton compact />
             <span className="desktop-avatar">{initials}</span>
@@ -146,14 +188,6 @@ export default function Layout() {
         </footer>
       </div>
 
-      <nav className="desktop-mobile-nav" aria-label="Mobile navigation">
-        {mainNav.slice(0, 3).map((item) => (
-          <NavLink key={item.label} to={item.to} end={item.end} className={({ isActive }) => isActive ? 'active' : ''}>
-            <Icon path={item.icon} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
     </div>
   );
 }

@@ -18,6 +18,8 @@ FRONTEND_API_PATH = ROOT / "quran_frontend" / "src" / "api.ts"
 LOCAL_API_PATH = ROOT / "quran_frontend" / "src" / "lib" / "local-api.ts"
 CLASSROOM_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Classroom.tsx"
 UPDATER_PATH = ROOT / "quran_frontend" / "src" / "lib" / "updater.ts"
+LAYOUT_PATH = ROOT / "quran_frontend" / "src" / "components" / "Layout.tsx"
+FRONTEND_CSS_PATH = ROOT / "quran_frontend" / "src" / "index.css"
 
 
 class ListenerReciterSchemaSqlTest(unittest.TestCase):
@@ -219,6 +221,21 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             TOUR_PATH.read_text(encoding="utf-8").count("waitForElement: '[data-tour=\"word-popup\"]'"),
             1,
         )
+
+    def test_mobile_shell_uses_drawer_and_sessions_do_not_require_sideways_scroll(self):
+        layout = LAYOUT_PATH.read_text(encoding="utf-8")
+        sessions = TEACHER_CLASSES_PATH.read_text(encoding="utf-8")
+        css = FRONTEND_CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("mobile-menu-button", layout)
+        self.assertIn("mobile-sidebar-backdrop", layout)
+        self.assertIn("desktop-sidebar ${sidebarOpen ? 'mobile-open' : ''}", layout)
+        self.assertNotIn('<nav className="desktop-mobile-nav"', layout)
+        self.assertIn('data-label="Portion"', sessions)
+        self.assertIn('data-label="Performance"', sessions)
+        self.assertIn(".approved-session-table-head {\n    display: none;", css)
+        self.assertIn(".approved-session-row {\n    position: relative;", css)
+        self.assertIn("zero document-level sideways scrolling.", css)
 
     def test_tutorial_mistakes_are_disposable_and_existing_lookup_is_optional(self):
         classroom = CLASSROOM_PATH.read_text(encoding="utf-8")

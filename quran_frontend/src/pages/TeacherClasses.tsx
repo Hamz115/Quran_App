@@ -1014,26 +1014,26 @@ export default function TeacherClasses() {
                   }
                 }}
               >
-                <span>
+                <span data-label="Date">
                   <strong>{new Date(`${session.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
                   <small>{session.day} · Time not recorded</small>
                 </span>
-                <span className="approved-session-contact">
+                <span className="approved-session-contact" data-label={activeTab === 'listening' ? 'Reciter' : 'Listener'}>
                   <span className="approved-avatar !h-8 !w-8 !text-[10px]">{initials || 'QT'}</span>
                   <strong title={contactNames}>{contactNames}</strong>
                 </span>
-                <span>
+                <span data-label="Portion">
                   <strong>{primaryAssignment ? formatPortionLabel(primaryAssignment) : 'No portion'}</strong>
                   {additionalAssignments > 0 && <small>+{additionalAssignments} more</small>}
                 </span>
-                <span className="approved-session-sections">
+                <span className="approved-session-sections" data-label="Section">
                   {sections.length > 0 ? sections.map((section) => (
                     <span key={section} className={`section-${section}`}>{section === 'revision' ? 'Manzil' : section}</span>
                   )) : <small>None</small>}
                 </span>
-                <span><span className="approved-performance-badge">{performance}</span></span>
-                <span><strong>{mistakeCount}</strong></span>
-                <span>
+                <span data-label="Performance"><span className="approved-performance-badge">{performance}</span></span>
+                <span data-label="Mistakes"><strong>{mistakeCount}</strong></span>
+                <span data-label="Note">
                   {activeTab === 'listening' ? (
                     <button
                       type="button"
@@ -1054,8 +1054,8 @@ export default function TeacherClasses() {
                     </span>
                   )}
                 </span>
-                <span><span className={`approved-status-badge ${session.is_published ? 'published' : 'draft'}`}>{session.is_published ? 'Published' : 'Draft'}</span></span>
-                <span>
+                <span data-label="Status"><span className={`approved-status-badge ${session.is_published ? 'published' : 'draft'}`}>{session.is_published ? 'Published' : 'Draft'}</span></span>
+                <span className="approved-session-open-cell">
                   <span className="approved-row-open" aria-hidden="true">›</span>
                 </span>
               </div>
