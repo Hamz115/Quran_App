@@ -13,6 +13,7 @@ TAURI_CARGO_PATH = ROOT / "quran_frontend" / "src-tauri" / "Cargo.toml"
 TOUR_CONTEXT_PATH = ROOT / "quran_frontend" / "src" / "contexts" / "TourContext.tsx"
 TOUR_PATH = ROOT / "quran_frontend" / "src" / "lib" / "tour.ts"
 TEACHER_CLASSES_PATH = ROOT / "quran_frontend" / "src" / "pages" / "TeacherClasses.tsx"
+DASHBOARD_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Dashboard.tsx"
 FRONTEND_API_PATH = ROOT / "quran_frontend" / "src" / "api.ts"
 LOCAL_API_PATH = ROOT / "quran_frontend" / "src" / "lib" / "local-api.ts"
 CLASSROOM_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Classroom.tsx"
@@ -181,6 +182,7 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
 
     def test_dashboard_tour_waits_for_async_targets(self):
         tour = TOUR_PATH.read_text(encoding="utf-8")
+        dashboard = DASHBOARD_PATH.read_text(encoding="utf-8")
 
         self.assertIn(
             "waitForElement: '[data-tour=\"add-student-btn\"]'",
@@ -190,10 +192,20 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             "waitForElement: '[data-tour=\"start-class-btn\"]'",
             tour,
         )
+        self.assertIn('data-tour="add-student-btn"', dashboard)
+        self.assertIn('data-tour="start-class-btn"', dashboard)
         self.assertIn(
             "element: '[data-tour=\"mode-by-surah\"]'",
             tour,
         )
+
+    def test_tour_transitions_do_not_use_legacy_fixed_delays(self):
+        tour_context = TOUR_CONTEXT_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("new MutationObserver", tour_context)
+        self.assertIn("maxWait = 1_500", tour_context)
+        self.assertNotIn("const delay = waitSelector ? 200 : 600", tour_context)
+        self.assertNotIn("setTimeout(() => showStep(0), 300)", tour_context)
 
     def test_tutorial_mistakes_are_disposable_and_existing_lookup_is_optional(self):
         classroom = CLASSROOM_PATH.read_text(encoding="utf-8")

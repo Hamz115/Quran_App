@@ -201,8 +201,8 @@ export default function Dashboard() {
           <button type="button" className="desktop-icon-button" onClick={handleRefresh} disabled={refreshing} title="Refresh data" aria-label="Refresh data">
             <svg className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M20 6v5h-5M4 18v-5h5m10.5-2a8 8 0 0 0-14-3M4.5 14a8 8 0 0 0 14 3" /></svg>
           </button>
-          <button type="button" className="approved-secondary-button" onClick={() => setShowAddContactModal(true)}>Add Contact</button>
-          <button type="button" className="approved-primary-button" onClick={() => navigate('/sessions?new=1')}><span className="text-lg">+</span> New Session</button>
+          <button data-tour="add-student-btn" type="button" className="approved-secondary-button" onClick={() => setShowAddContactModal(true)}>Add Contact</button>
+          <button data-tour="start-class-btn" type="button" className="approved-primary-button" onClick={() => navigate('/sessions?new=1')}><span className="text-lg">+</span> New Session</button>
         </div>
       </header>
 

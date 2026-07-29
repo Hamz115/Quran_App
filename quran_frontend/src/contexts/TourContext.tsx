@@ -94,26 +94,33 @@ export function TourProvider({ children }: { children: ReactNode }) {
     clearTourClassId();
   }, [cleanupInteractiveListener, user?.id]);
 
-  /** Wait for a DOM element to appear, then call callback. */
+  /** Wait for a DOM element without adding a fixed delay between tour steps. */
   const waitForElement = useCallback((
     selector: string,
     callback: () => void,
-    maxWait = 5_000,
+    maxWait = 1_500,
   ) => {
-    const start = Date.now();
-    const check = () => {
-      if (document.querySelector(selector)) {
-        callback();
-      } else if (Date.now() - start < maxWait) {
-        window.setTimeout(check, 100);
-      } else {
-        // Preserve navigation instead of leaving an undismissable overlay if a
-        // target is unavailable, while keeping the timeout visible in diagnostics.
-        console.warn(`Tutorial target did not appear: ${selector}`);
-        callback();
-      }
+    if (document.querySelector(selector)) {
+      callback();
+      return;
+    }
+
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      observer.disconnect();
+      window.clearTimeout(timeout);
+      callback();
     };
-    check();
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(selector)) finish();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    const timeout = window.setTimeout(() => {
+      console.warn(`Tutorial target did not appear: ${selector}`);
+      finish();
+    }, maxWait);
   }, []);
 
   /** Bind the current interactive target and advance only after its result is visible. */
@@ -244,11 +251,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const stepDef = TOUR_STEPS[stepIndex];
     const driverStep = createDriverStep(stepDef);
 
-    // Append step counter to description
-    if (driverStep.popover) {
-      driverStep.popover.description = `${driverStep.popover.description}<br/><span style="color:#64748b;font-size:12px;margin-top:8px;display:inline-block">Step ${stepIndex + 1} of ${TOUR_STEPS.length}</span>`;
-    }
-
     const config = getDriverConfig(darkMode);
 
     // Destroy previous driver instance
@@ -275,10 +277,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
       // popover. Adding it afterward makes the popover grow back over the
       // highlighted input, which is especially confusing in the portions modal.
       onPopoverRender: (popover) => {
-        if (popover.wrapper.querySelector('.tour-skip-btn')) return;
+        if (popover.wrapper.querySelector('.tour-progress')) return;
+
+        const progress = document.createElement('div');
+        progress.className = 'tour-progress';
+        progress.innerHTML = `<span>QURANTRACK GUIDE</span><strong>${stepIndex + 1} / ${TOUR_STEPS.length}</strong><i><b style="width:${((stepIndex + 1) / TOUR_STEPS.length) * 100}%"></b></i>`;
+        popover.wrapper.prepend(progress);
+
         const skipBtn = document.createElement('button');
         skipBtn.className = 'tour-skip-btn';
-        skipBtn.textContent = 'Skip Tour';
+        skipBtn.textContent = 'Exit guide';
         skipBtn.onclick = () => {
           d.destroy();
           cleanupInteractiveListener();
@@ -408,9 +416,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
     if (pendingStep !== null && isActive) {
       const stepDef = TOUR_STEPS[pendingStep];
       const waitSelector = stepDef?.waitForElement;
-      const delay = waitSelector ? 200 : 600;
 
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         if (waitSelector) {
           waitForElement(waitSelector, () => {
             showStep(pendingStep);
@@ -420,7 +427,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
           showStep(pendingStep);
           setPendingStep(null);
         }
-      }, delay);
+      }, 0);
       return () => clearTimeout(timer);
     }
   }, [pendingStep, location.pathname, location.search, isActive, showStep, waitForElement]);
@@ -437,7 +444,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setPendingStep(0);
       navigate('/');
     } else {
-      setTimeout(() => showStep(0), 300);
+      window.requestAnimationFrame(() => showStep(0));
     }
   }, [location.pathname, navigate, showStep, user?.id]);
 
@@ -454,7 +461,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       !isActive
     ) {
       autoStarted.current = true;
-      const timer = window.setTimeout(startTour, 800);
+      const timer = window.setTimeout(startTour, 250);
       return () => window.clearTimeout(timer);
     }
   }, [user, location.pathname, isActive, startTour]);
@@ -469,93 +476,111 @@ export function TourProvider({ children }: { children: ReactNode }) {
       {/* Tour CSS overrides */}
       <style>{`
         .driver-popover {
-          border-radius: 16px !important;
-          padding: 20px 24px !important;
-          width: min(340px, calc(100vw - 32px)) !important;
-          max-width: min(340px, calc(100vw - 32px)) !important;
+          overflow: hidden !important;
+          width: min(380px, calc(100vw - 28px)) !important;
+          max-width: min(380px, calc(100vw - 28px)) !important;
+          padding: 0 24px 18px !important;
+          border: 1px solid color-mix(in srgb, var(--gold-500) 42%, transparent) !important;
+          border-radius: 8px !important;
+          background: var(--bg-card) !important;
+          color: var(--text-primary) !important;
+          box-shadow: 0 24px 70px rgba(7, 21, 33, 0.28) !important;
           font-family: inherit !important;
         }
-        .driver-popover-description {
-          line-height: 1.6 !important;
-        }
         .tour-popover-dark {
-          background: #1e293b !important;
-          border: 1px solid #334155 !important;
-          color: #e2e8f0 !important;
+          border-color: rgba(214, 184, 111, 0.38) !important;
+          background: linear-gradient(155deg, var(--ink-900), var(--ink-950)) !important;
+          color: #f8f3e8 !important;
         }
-        .tour-popover-dark .driver-popover-title {
-          color: #f1f5f9 !important;
-          font-size: 18px !important;
-          font-weight: 700 !important;
+        .tour-progress {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          align-items: center;
+          gap: 7px 12px;
+          margin: 0 -24px 20px;
+          padding: 13px 24px 11px;
+          border-bottom: 1px solid color-mix(in srgb, var(--gold-500) 28%, transparent);
+          background: color-mix(in srgb, var(--ink-900) 96%, transparent);
+          color: var(--gold-400);
         }
-        .tour-popover-dark .driver-popover-description {
-          color: #94a3b8 !important;
-          font-size: 14px !important;
+        .tour-progress span {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: .15em;
         }
-        .tour-popover-dark .driver-popover-description strong {
-          color: #22d3ee !important;
+        .tour-progress strong {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .06em;
         }
-        .tour-popover-dark .driver-popover-next-btn {
-          background: linear-gradient(to right, #06b6d4, #14b8a6) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 10px !important;
-          padding: 8px 20px !important;
+        .tour-progress i {
+          grid-column: 1 / -1;
+          height: 2px;
+          overflow: hidden;
+          background: rgba(214, 184, 111, .2);
+        }
+        .tour-progress b {
+          display: block;
+          height: 100%;
+          background: linear-gradient(90deg, var(--accent-primary), var(--gold-400));
+          transition: width 140ms ease;
+        }
+        .driver-popover-title {
+          color: var(--text-primary) !important;
+          font-family: Georgia, 'Times New Roman', serif !important;
+          font-size: 21px !important;
           font-weight: 600 !important;
+          line-height: 1.25 !important;
+        }
+        .tour-popover-dark .driver-popover-title { color: #fffdf8 !important; }
+        .driver-popover-description {
+          margin-top: 8px !important;
+          color: var(--text-secondary) !important;
+          font-size: 14px !important;
+          line-height: 1.65 !important;
+        }
+        .tour-popover-dark .driver-popover-description { color: rgba(248, 243, 232, .72) !important; }
+        .driver-popover-description strong { color: var(--accent-primary) !important; font-weight: 700 !important; }
+        .tour-popover-dark .driver-popover-description strong { color: var(--gold-400) !important; }
+        .driver-popover-footer { margin-top: 18px !important; }
+        .driver-popover-navigation-btns { gap: 8px !important; }
+        .driver-popover-next-btn,
+        .driver-popover-prev-btn {
+          min-height: 36px !important;
+          padding: 8px 16px !important;
+          border-radius: 5px !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
           text-shadow: none !important;
         }
-        .tour-popover-dark .driver-popover-next-btn:hover {
-          background: linear-gradient(to right, #0891b2, #0d9488) !important;
+        .driver-popover-next-btn {
+          border: 1px solid var(--accent-primary) !important;
+          background: var(--accent-primary) !important;
+          color: #fff !important;
         }
-        .tour-popover-light {
-          background: #ffffff !important;
-          border: 1px solid #e2e8f0 !important;
-          color: #334155 !important;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+        .driver-popover-next-btn:hover { filter: brightness(1.08); }
+        .driver-popover-prev-btn {
+          border: 1px solid color-mix(in srgb, var(--gold-500) 45%, transparent) !important;
+          background: transparent !important;
+          color: var(--text-secondary) !important;
         }
-        .tour-popover-light .driver-popover-title {
-          color: #1e293b !important;
-          font-size: 18px !important;
-          font-weight: 700 !important;
-        }
-        .tour-popover-light .driver-popover-description {
-          color: #64748b !important;
-          font-size: 14px !important;
-        }
-        .tour-popover-light .driver-popover-description strong {
-          color: #0891b2 !important;
-        }
-        .tour-popover-light .driver-popover-next-btn {
-          background: linear-gradient(to right, #06b6d4, #14b8a6) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 10px !important;
-          padding: 8px 20px !important;
-          font-weight: 600 !important;
-          text-shadow: none !important;
-        }
-        .tour-popover-light .driver-popover-next-btn:hover {
-          background: linear-gradient(to right, #0891b2, #0d9488) !important;
-        }
+        .tour-popover-dark .driver-popover-prev-btn { color: rgba(248, 243, 232, .78) !important; }
         .tour-skip-btn {
           display: block;
-          margin-top: 12px;
-          padding: 6px 16px;
-          border: none;
-          background: none;
-          color: #64748b;
-          font-size: 13px;
+          width: 100%;
+          margin-top: 11px;
+          padding: 5px;
+          border: 0;
+          background: transparent;
+          color: var(--text-muted);
+          font-size: 12px;
+          letter-spacing: .03em;
           cursor: pointer;
           text-align: center;
-          width: 100%;
         }
-        .tour-skip-btn:hover {
-          color: #94a3b8;
-          text-decoration: underline;
-        }
-        .driver-popover-arrow {
-          display: none !important;
-        }
+        .tour-popover-dark .tour-skip-btn { color: rgba(248, 243, 232, .5); }
+        .tour-skip-btn:hover { color: var(--gold-500); }
+        .driver-popover-arrow { display: none !important; }
       `}</style>
     </TourContext.Provider>
   );
