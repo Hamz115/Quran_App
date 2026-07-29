@@ -25,12 +25,16 @@ The `inject.bundle.js` and `chrome-extension://invalid/` console messages were b
 
 - Local production TypeScript/Vite build: pass.
 - `git diff --check`: pass apart from line-ending notices.
-- GitHub Actions deployment and live BrowserOps validation are recorded after the corrective push.
+- Corrective deployment commit: `88896788240ceac112d8aabd19c4ccadd9ef95cd`.
+- GitHub Actions run `30467557753`: success; all environment validation, build, AWS account guard, upload, and CloudFront invalidation steps passed.
+- Live production Login renders successfully with the approved photograph, branding, form controls, and Supabase initialization; the startup exception is gone.
 
 ## BrowserOps Evidence
 
-- Task: `20260729-184552-qurantrack-missing-supabase-env`
-- Broken production state: `002-broken-production-state.png`
+- Broken-state task: `20260729-184552-qurantrack-missing-supabase-env`
+  - `002-broken-production-state.png`
+- Fixed-state task: `20260729-184858-qurantrack-missing-supabase-env-fixed`
+  - `002-fixed-production-login.png`
 
 ## Files Changed
 
