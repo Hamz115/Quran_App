@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTour } from '../contexts/TourContext';
 import PwaInstallButton from './PwaInstallButton';
 
 type IconProps = { className?: string };
@@ -64,6 +65,7 @@ function DesktopNavLink({ to, label, icon, end }: { to: string; label: string; i
 export default function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { startTour } = useTour();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -119,10 +121,17 @@ export default function Layout() {
         </nav>
 
         <div className="desktop-sidebar-footer">
-          <Link to="/settings?section=tutorial" className="desktop-nav-link">
+          <button
+            type="button"
+            className="desktop-nav-link w-full text-left"
+            onClick={() => {
+              setSidebarOpen(false);
+              startTour();
+            }}
+          >
             <Icon path={icons.tutorial} />
             <span>Tutorial</span>
-          </Link>
+          </button>
           <DesktopNavLink to="/settings" label="Settings" icon={icons.settings} />
           <PwaInstallButton />
 

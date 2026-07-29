@@ -230,12 +230,18 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn("mobile-menu-button", layout)
         self.assertIn("mobile-sidebar-backdrop", layout)
         self.assertIn("desktop-sidebar ${sidebarOpen ? 'mobile-open' : ''}", layout)
+        self.assertIn("const { startTour } = useTour()", layout)
+        self.assertIn("setSidebarOpen(false);\n              startTour();", layout)
+        self.assertNotIn('to="/settings?section=tutorial"', layout)
         self.assertNotIn('<nav className="desktop-mobile-nav"', layout)
         self.assertIn('data-label="Portion"', sessions)
         self.assertIn('data-label="Performance"', sessions)
         self.assertIn(".approved-session-table-head {\n    display: none;", css)
         self.assertIn(".approved-session-row {\n    position: relative;", css)
         self.assertIn("zero document-level sideways scrolling.", css)
+        tour_context = TOUR_CONTEXT_PATH.read_text(encoding="utf-8")
+        self.assertIn("max-height: calc(100dvh - 20px) !important", tour_context)
+        self.assertIn("overflow-y: auto !important", tour_context)
 
     def test_tutorial_mistakes_are_disposable_and_existing_lookup_is_optional(self):
         classroom = CLASSROOM_PATH.read_text(encoding="utf-8")

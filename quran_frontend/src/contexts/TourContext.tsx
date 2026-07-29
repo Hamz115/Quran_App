@@ -623,6 +623,34 @@ export function TourProvider({ children }: { children: ReactNode }) {
         .tour-popover-dark .tour-skip-btn { color: rgba(248, 243, 232, .5); }
         .tour-skip-btn:hover { color: var(--gold-500); }
         .driver-popover-arrow { display: none !important; }
+        @media (max-width: 640px) {
+          .driver-popover {
+            width: calc(100vw - 20px) !important;
+            max-width: calc(100vw - 20px) !important;
+            max-height: calc(100dvh - 20px) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            padding: 0 18px 14px !important;
+          }
+          .tour-progress {
+            gap: 6px 10px;
+            margin: 0 -18px 15px;
+            padding: 11px 18px 9px;
+          }
+          .driver-popover-title { font-size: 19px !important; }
+          .driver-popover-description {
+            margin-top: 6px !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+          }
+          .driver-popover-footer { margin-top: 14px !important; }
+          .driver-popover-next-btn,
+          .driver-popover-prev-btn {
+            min-height: 40px !important;
+            padding: 8px 13px !important;
+          }
+          .tour-skip-btn { margin-top: 7px; }
+        }
       `}</style>
     </TourContext.Provider>
   );
