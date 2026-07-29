@@ -136,6 +136,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     let consumed = false;
     let boundElement: Element | null = null;
     let eventType = 'click';
+    let listenerRegistered = false;
     const timers = new Set<number>();
 
     const schedule = (callback: () => void, delay: number) => {
@@ -151,8 +152,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
       disposed = true;
       timers.forEach(timer => window.clearTimeout(timer));
       timers.clear();
-      if (boundElement) {
-        boundElement.removeEventListener(eventType, handler);
+      if (listenerRegistered) {
+        document.removeEventListener(eventType, handler, true);
+        listenerRegistered = false;
       }
     };
 
@@ -175,8 +177,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
       return elementReady && pathReady;
     };
 
-    const handler: EventListener = () => {
+    const handler: EventListener = (event) => {
       if (disposed || consumed) return;
+      const eventTarget = event.target instanceof Element ? event.target : null;
+      if (!eventTarget?.closest(target)) return;
       consumed = true;
 
       if (
@@ -214,7 +218,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
           // The action did not produce its promised result (for example,
           // cancelling Delete). Keep this same step active and let the user retry.
           consumed = false;
-          boundElement?.addEventListener(eventType, handler, { once: true });
         }
       };
       schedule(waitForResult, 0);
@@ -234,7 +237,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
           : element.tagName === 'TEXTAREA'
             ? 'input'
             : 'click';
-      element.addEventListener(eventType, handler, { once: true });
+      // Delegate from document so React may replace a popup/target between
+      // tutorial steps without orphaning the listener on a detached element.
+      document.addEventListener(eventType, handler, true);
+      listenerRegistered = true;
     };
 
     // Register cancellation before the first lookup so route/step changes also
