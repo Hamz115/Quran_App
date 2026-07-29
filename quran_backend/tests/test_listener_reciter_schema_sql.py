@@ -208,6 +208,10 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn("eventTarget?.closest(target)", tour_context)
         self.assertNotIn("const delay = waitSelector ? 200 : 600", tour_context)
         self.assertNotIn("setTimeout(() => showStep(0), 300)", tour_context)
+        self.assertEqual(
+            TOUR_PATH.read_text(encoding="utf-8").count("waitForElement: '[data-tour=\"word-popup\"]'"),
+            1,
+        )
 
     def test_tutorial_mistakes_are_disposable_and_existing_lookup_is_optional(self):
         classroom = CLASSROOM_PATH.read_text(encoding="utf-8")
@@ -217,6 +221,8 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn("if (isTourActive) return", classroom)
         self.assertIn("if (isTeacher && !selectedStudentId && !isTourActive) return", classroom)
         self.assertIn("(isTourActive || summaryMistakes.length > 0", classroom)
+        self.assertIn("((selectedStudentId && classData.students) || isTourActive)", classroom)
+        self.assertIn("if (isTourActive || !selectedStudentId) return", classroom)
         self.assertGreaterEqual(supabase_api.count("query.maybeSingle()"), 2)
 
     def test_local_mistake_identity_is_scoped_per_reciter(self):

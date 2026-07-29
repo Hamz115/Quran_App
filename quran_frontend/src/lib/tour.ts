@@ -96,7 +96,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     align: 'center',
     type: 'interactive',
     interactiveTarget: '[data-tour="mode-by-surah"]',
-    waitForElement: '[data-tour="surah-selector"]',
+    waitForElement: '[data-tour="mode-by-surah"]',
   },
   {
     screen: 'sessions',
@@ -172,7 +172,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     side: 'left',
     type: 'interactive',
     interactiveTarget: '[data-tour="quran-page"]',
-    waitForElement: '[data-tour="word-popup"]',
+    waitForElement: '[data-tour="quran-page"]',
     resultElement: '[data-tour="word-popup"]',
   },
   {
@@ -193,7 +193,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     side: 'left',
     type: 'interactive',
     interactiveTarget: '[data-tour="quran-page"]',
-    waitForElement: '[data-tour="word-popup"]',
+    waitForElement: '[data-tour="quran-page"]',
     resultElement: '[data-tour="word-popup"]',
   },
   {
@@ -214,7 +214,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     side: 'left',
     type: 'interactive',
     interactiveTarget: '[data-tour="quran-page"]',
-    waitForElement: '[data-tour="word-popup"]',
+    waitForElement: '[data-tour="quran-page"]',
     resultElement: '[data-tour="word-popup"]',
   },
   {

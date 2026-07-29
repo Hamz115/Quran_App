@@ -858,8 +858,8 @@ export default function Classroom() {
         </div>
 
         {/* Performance Dropdown */}
-        {isTeacher && selectedStudentId && classData.students && (() => {
-          const selectedStudent = classData.students.find(s => s.id === selectedStudentId);
+        {isTeacher && ((selectedStudentId && classData.students) || isTourActive) && (() => {
+          const selectedStudent = classData.students?.find(s => s.id === selectedStudentId);
           const studentPerf = selectedStudent?.performance;
 
           return (
@@ -878,6 +878,9 @@ export default function Classroom() {
                         s.id === selectedStudentId ? { ...s, performance: newPerf } : s
                       )
                     });
+                    // A contact-free tutorial uses this as a disposable UI
+                    // demonstration and must never write a fake reciter rating.
+                    if (isTourActive || !selectedStudentId) return;
                     // Save in background
                     try {
                       await updateStudentPerformance(classData.id, selectedStudentId, e.target.value);
