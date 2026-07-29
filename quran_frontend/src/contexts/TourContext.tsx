@@ -338,11 +338,18 @@ export function TourProvider({ children }: { children: ReactNode }) {
       // modal scrolled elsewhere. Put the current target in view first so
       // Driver.js never describes an off-screen control (notably Notes).
       if (stepDef.element) {
-        document.querySelector(stepDef.element)?.scrollIntoView({
-          behavior: 'auto',
-          block: 'center',
-          inline: 'nearest',
-        });
+        const targetElement = document.querySelector(stepDef.element);
+        // The word mistake menu is position:fixed and already visible. Calling
+        // scrollIntoView on one of its letter/haraka controls emits a scroll
+        // event, and Classroom intentionally closes the menu on any scroll.
+        // That left the tour overlay pointing at a popup it had just removed.
+        if (!targetElement?.closest('[data-tour="word-popup"]')) {
+          targetElement?.scrollIntoView({
+            behavior: 'auto',
+            block: 'center',
+            inline: 'nearest',
+          });
+        }
       }
       d.drive();
 
@@ -358,11 +365,14 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (stepDef.element) {
         window.setTimeout(() => {
           if (driverRef.current !== d || !d.isActive()) return;
-          document.querySelector(stepDef.element!)?.scrollIntoView({
-            behavior: 'auto',
-            block: 'center',
-            inline: 'nearest',
-          });
+          const targetElement = document.querySelector(stepDef.element!);
+          if (!targetElement?.closest('[data-tour="word-popup"]')) {
+            targetElement?.scrollIntoView({
+              behavior: 'auto',
+              block: 'center',
+              inline: 'nearest',
+            });
+          }
           window.requestAnimationFrame(() => d.refresh());
         }, 300);
       }
