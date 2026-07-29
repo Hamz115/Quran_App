@@ -15,8 +15,15 @@
 import { supabase } from './supabase';
 import type { ClassData, MistakeData, MistakeWithOccurrences } from './supabase-api';
 
-// FastAPI backend URL
-const API_BASE = 'http://localhost:8000';
+// The localhost sidecar is strictly opt-in for packaged Tauri builds. A normal
+// browser/PWA must never probe its user's localhost or rely on the Mini PC.
+const IS_TAURI_RUNTIME = typeof window !== 'undefined' && Boolean((window as any).__TAURI_INTERNALS__);
+const LOCAL_SIDECAR_ENABLED = import.meta.env.VITE_ENABLE_LOCAL_SIDECAR === 'true' || IS_TAURI_RUNTIME;
+const API_BASE = (import.meta.env.VITE_LOCAL_API_BASE || 'http://localhost:8000').replace(/\/$/, '');
+
+export function isLocalSidecarEnabled(): boolean {
+  return LOCAL_SIDECAR_ENABLED;
+}
 
 // ============ HEALTH CHECK (with caching) ============
 
@@ -29,6 +36,8 @@ const CHECK_INTERVAL_MS = 30_000; // Re-check every 30 seconds
  * Result is cached for 30 seconds to avoid checking on every call.
  */
 export async function isLocalApiAvailable(): Promise<boolean> {
+  if (!LOCAL_SIDECAR_ENABLED) return false;
+
   const now = Date.now();
   if (_localApiAvailable !== null && now - _lastCheck < CHECK_INTERVAL_MS) {
     return _localApiAvailable;

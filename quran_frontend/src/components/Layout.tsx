@@ -1,218 +1,158 @@
-import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import PwaInstallButton from './PwaInstallButton';
+
+type IconProps = { className?: string };
+
+const icons = {
+  overview: 'M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z',
+  sessions: 'M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z',
+  reader: 'M12 6.5v14m0-14C10.8 5.5 9.2 5 7.5 5S4.2 5.5 3 6.5v13c1.2-1 2.8-1.5 4.5-1.5s3.3.5 4.5 1.5m0-13c1.2-1 2.8-1.5 4.5-1.5s3.3.5 4.5 1.5v13c-1.2-1-2.8-1.5-4.5-1.5s-3.3.5-4.5 1.5',
+  reports: 'M5 20V10m5 10V4m5 16v-7m5 7V7',
+  contacts: 'M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-4A4.5 4.5 0 0 0 3 18.5V20m6.5-9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7.5 1a3.5 3.5 0 0 1 4 3.5V20m-4-17a3.5 3.5 0 0 1 0 7',
+  mistakes: 'M12 9v4m0 4h.01M10.3 4.7 2.8 18a1.3 1.3 0 0 0 1.1 2h16.2a1.3 1.3 0 0 0 1.1-2L13.7 4.7a2 2 0 0 0-3.4 0Z',
+  tutorial: 'M3 10.5 12 5l9 5.5-9 5.5-9-5.5Zm3 2.5v4.5c3.5 2.7 8.5 2.7 12 0V13',
+  settings: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5c0-.5 0-.9-.1-1.3l2-1.6-2-3.5-2.5 1a8.5 8.5 0 0 0-2.2-1.3L14.2 3h-4.1l-.4 2.3c-.8.3-1.5.7-2.2 1.3l-2.5-1-2 3.5 2 1.6c-.1.4-.1.8-.1 1.3s0 .9.1 1.3l-2 1.6 2 3.5 2.5-1c.7.6 1.4 1 2.2 1.3l.4 2.3h4.1l.4-2.3c.8-.3 1.5-.7 2.2-1.3l2.5 1 2-3.5-2-1.6c.1-.4.1-.8.1-1.3Z',
+  refresh: 'M20 6v5h-5M4 18v-5h5m10.5-2a8 8 0 0 0-14-3M4.5 14a8 8 0 0 0 14 3',
+  sun: 'M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4L17 17m-10-10L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+  moon: 'M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5a8.5 8.5 0 1 0 12 12Z',
+  chevron: 'm9 18 6-6-6-6',
+};
+
+function Icon({ path, className = 'h-5 w-5' }: IconProps & { path: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+    </svg>
+  );
+}
+
+const mainNav = [
+  { to: '/', label: 'Overview', icon: icons.overview, end: true },
+  { to: '/sessions', label: 'Sessions', icon: icons.sessions },
+  { to: '/reader', label: 'Quran Reader', icon: icons.reader },
+];
+
+const secondaryNav = [
+  { to: '/contacts', label: 'Contacts', icon: icons.contacts },
+  { to: '/mistakes', label: 'Mistakes', icon: icons.mistakes },
+];
+
+function DesktopNavLink({ to, label, icon, end }: { to: string; label: string; icon: string; end?: boolean }) {
+  const location = useLocation();
+  const [path, query] = to.split('?');
+  const queryMatches = query ? location.search.includes(query) : !location.search;
+  const active = path === '/'
+    ? location.pathname === '/' && queryMatches
+    : location.pathname === path && queryMatches;
+
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={() => `desktop-nav-link ${active ? 'desktop-nav-link-active' : ''}`}
+    >
+      <Icon path={icon} />
+      <span>{label}</span>
+    </NavLink>
+  );
+}
 
 export default function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const initials = `${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}` || 'QT';
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'QuranTrack User';
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  // Unified tabs — same for everyone
-  const tabs = [
-    { path: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-    { path: '/sessions', label: 'Sessions (جلسات)', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { path: '/reader', label: 'Quran Reader', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-  ];
-
   return (
-    <div className="min-h-screen flex flex-col transition-colors duration-300">
-      {/* Navbar */}
-      <header className={`sticky top-0 z-40 border-b transition-colors duration-300 ${
-        darkMode
-          ? 'bg-[rgb(26,31,46)]/90 backdrop-blur-md border-cyan-900/30'
-          : 'border-cyan-300/50'
-      }`} style={darkMode ? undefined : { background: 'linear-gradient(135deg, rgb(186, 230, 253) 0%, rgb(165, 243, 252) 50%, rgb(207, 250, 254) 100%)' }}>
-        <div className="flex items-center justify-between h-14 sm:h-16 lg:h-[60px] px-3 sm:px-6 lg:px-8">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="QuranTrack" className="w-8 h-8 sm:w-10 sm:h-10" />
-            <span className={`text-base sm:text-xl font-bold transition-colors duration-300 hidden sm:inline ${
-              darkMode ? 'text-slate-100' : 'text-slate-800'
-            }`}>QuranTrack</span>
-          </div>
+    <div className="desktop-app-shell">
+      <aside className="desktop-sidebar">
+        <div className="desktop-brand">
+          <img className="desktop-brand-mark" src="/qurantrack-icon.png" alt="QuranTrack" />
+          <div className="desktop-brand-name">QuranTrack</div>
+          <div className="desktop-brand-tagline">RECITE · LISTEN · IMPROVE</div>
+        </div>
 
-          {/* Tab Navigation - hidden below lg (shown in bottom nav instead) */}
-          <nav className={`hidden lg:flex items-center gap-2 p-1.5 rounded-xl border transition-colors duration-300 ${
-            darkMode
-              ? 'bg-[rgb(30,41,59)]/50 border-cyan-900/30'
-              : 'bg-white/50 border-cyan-200/50'
-          }`}>
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.path}
-                to={tab.path}
-                end={tab.path === '/'}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? darkMode
-                        ? 'bg-cyan-500/20 text-cyan-500 shadow-sm border border-cyan-500/30'
-                        : 'bg-white text-cyan-700 shadow-sm border border-white/80'
-                      : darkMode
-                        ? 'text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10'
-                        : 'text-slate-700 hover:text-cyan-800 hover:bg-white/40'
-                  }`
-                }
-              >
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={tab.icon} />
-                </svg>
-                <span>{tab.label}</span>
-              </NavLink>
-            ))}
-          </nav>
+        <nav className="desktop-sidebar-nav" aria-label="Primary navigation">
+          {mainNav.map((item) => <DesktopNavLink key={item.label} {...item} />)}
+          <div className="desktop-nav-divider" />
+          {secondaryNav.map((item) => <DesktopNavLink key={item.label} {...item} />)}
+        </nav>
 
-          {/* Right side: Theme toggle + User menu */}
-          <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleDarkMode}
-              className={`p-2 rounded-lg transition-all duration-300 ${
-                darkMode
-                  ? 'text-cyan-400 hover:bg-cyan-500/20'
-                  : 'text-slate-600 hover:bg-white/60'
-              }`}
-              aria-label="Toggle dark mode"
-            >
-              {darkMode ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
+        <div className="desktop-sidebar-footer">
+          <Link to="/settings?section=tutorial" className="desktop-nav-link">
+            <Icon path={icons.tutorial} />
+            <span>Tutorial</span>
+          </Link>
+          <DesktopNavLink to="/settings" label="Settings" icon={icons.settings} />
+          <PwaInstallButton />
 
-            {/* User Profile Menu */}
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl transition-colors ${
-                  darkMode
-                    ? 'hover:bg-cyan-500/10'
-                    : 'hover:bg-white/60'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
-                  {user?.first_name?.[0]}{user?.last_name?.[0]}
-                </div>
-                <div className="text-left hidden sm:block">
-                  <p className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{user?.first_name} {user?.last_name}</p>
-                </div>
-                <svg className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+          <button type="button" className="desktop-account" onClick={() => setShowUserMenu(!showUserMenu)}>
+            <span className="desktop-avatar">{initials}</span>
+            <span className="min-w-0 text-left">
+              <span className="block truncate text-sm font-medium">{fullName}</span>
+              <span className="block text-xs text-white/55">Listener · Reciter</span>
+            </span>
+            <Icon path={icons.chevron} className="ml-auto h-4 w-4" />
+          </button>
 
-              {/* Dropdown Menu */}
-              {showUserMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-                  <div className={`absolute right-0 mt-2 w-64 rounded-xl shadow-xl z-50 overflow-hidden border transition-colors duration-300 ${
-                    darkMode
-                      ? 'bg-[rgb(30,41,59)] border-cyan-900/30'
-                      : 'bg-white border-cyan-200'
-                  }`}>
-                    {/* User Info */}
-                    <div className={`p-4 border-b ${darkMode ? 'border-cyan-900/30' : 'border-cyan-200'}`}>
-                      <p className={`font-medium ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{user?.first_name} {user?.last_name}</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(user?.email || '');
-                          }}
-                          className={`text-sm flex items-center gap-1.5 transition-colors ${
-                            darkMode ? 'text-slate-400 hover:text-cyan-400' : 'text-slate-500 hover:text-cyan-600'
-                          }`}
-                          title="Click to copy email"
-                        >
-                          {user?.email}
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Menu Items */}
-                    <div className="p-2">
-                      <Link
-                        to="/settings"
-                        onClick={() => setShowUserMenu(false)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm rounded-lg transition-colors ${
-                          darkMode
-                            ? 'text-slate-300 hover:bg-cyan-500/10'
-                            : 'text-slate-600 hover:bg-cyan-50'
-                        }`}
-                      >
-                        <svg className="w-4 h-4 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Settings
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
+          {showUserMenu && (
+            <div className="desktop-account-menu">
+              <div className="border-b border-white/10 px-3 py-2">
+                <p className="truncate text-xs text-white/60">{user?.email}</p>
+              </div>
+              <Link to="/settings" onClick={() => setShowUserMenu(false)}>Account settings</Link>
+              <button type="button" onClick={handleLogout}>Sign out</button>
             </div>
+          )}
+
+          <div className="desktop-version-row">
+            <span>v2.0.0</span>
+            <span>Web · PWA</span>
+            <span className="desktop-status-dot" />
           </div>
         </div>
-      </header>
+      </aside>
 
+      <div className="desktop-app-body">
+        <header className="desktop-mobile-header">
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <img src="/logo.png" alt="" className="h-8 w-8" />
+            QuranTrack
+          </Link>
+          <div className="flex items-center gap-2">
+            <PwaInstallButton compact />
+            <span className="desktop-avatar">{initials}</span>
+          </div>
+        </header>
 
-      {/* Main Content */}
-      <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-12 lg:py-10 pb-20 lg:pb-4 max-w-7xl mx-auto w-full">
-        <Outlet />
-      </main>
+        <main className="desktop-main-content">
+          <Outlet />
+        </main>
 
-      {/* Bottom Navigation - shown below lg (phones, tablets, small laptops) */}
-      <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t transition-colors duration-300 ${
-        darkMode
-          ? 'bg-[rgb(26,31,46)] border-cyan-900/30'
-          : 'border-cyan-300/50'
-      }`} style={darkMode ? undefined : { background: 'linear-gradient(135deg, rgb(186, 230, 253) 0%, rgb(165, 243, 252) 50%, rgb(207, 250, 254) 100%)' }}>
-        <div className="flex items-center justify-around h-14">
-          {tabs.map((tab) => (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              end={tab.path === '/'}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all min-w-[60px] ${
-                  isActive
-                    ? darkMode ? 'text-cyan-500' : 'text-cyan-700 font-bold'
-                    : darkMode
-                      ? 'text-slate-500 hover:text-cyan-400'
-                      : 'text-slate-600 hover:text-cyan-700'
-                }`
-              }
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={tab.icon} />
-              </svg>
-              <span>{tab.label}</span>
-            </NavLink>
-          ))}
-        </div>
+        <footer className="desktop-status-bar">
+          <span className="desktop-status-product">QuranTrack</span>
+          <span>Supabase cloud workspace</span>
+          <span className="desktop-status-dot" />
+          <span className="ml-auto hidden xl:inline">“And recite the Qur’an with measured recitation.”</span>
+        </footer>
+      </div>
+
+      <nav className="desktop-mobile-nav" aria-label="Mobile navigation">
+        {mainNav.slice(0, 3).map((item) => (
+          <NavLink key={item.label} to={item.to} end={item.end} className={({ isActive }) => isActive ? 'active' : ''}>
+            <Icon path={item.icon} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
       </nav>
     </div>
   );

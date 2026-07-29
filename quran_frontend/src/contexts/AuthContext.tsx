@@ -324,7 +324,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { session: newSession } } = await supabase.auth.getSession();
       if (newSession?.user) {
         const profile = await fetchUserProfile(newSession.user.id);
-        if (profile) triggerLocalSync(); // Don't await - background operation
+        latestAuthUserIdRef.current = newSession.user.id;
+        setSession(newSession);
+        if (profile) {
+          // Set authenticated state before Login navigates. Without this, slower
+          // clients can briefly hit ProtectedRoute with a null user and get sent
+          // straight back to /login even though Supabase login succeeded.
+          setUser(profile);
+          triggerLocalSync(); // Don't await - background operation
+        }
       }
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('TIMEOUT')) {

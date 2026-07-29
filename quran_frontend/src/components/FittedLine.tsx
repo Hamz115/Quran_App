@@ -17,28 +17,51 @@ export default function FittedLine({ children, className = '' }: { children: Rea
   useLayoutEffect(() => {
     const container = containerRef.current;
     const content = contentRef.current;
-    if (container && content) {
-      const containerWidth = container.clientWidth;
-      const contentWidth = content.scrollWidth;
-      if (contentWidth > 0 && containerWidth > 0) {
-        // KEY: Math.min(1.0, ...) — only scale DOWN, never up
-        // This matches Flutter's FittedBox(fit: BoxFit.scaleDown)
-        const scale = Math.min(1.0, containerWidth / contentWidth);
+    if (!container || !content) return;
 
-        if (scale < 1.0) {
-          // Line is wider than container — shrink uniformly to fit
+    let frame = 0;
+    let disposed = false;
+
+    const fit = () => {
+      if (disposed) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const containerWidth = container.clientWidth;
+        const contentWidth = content.scrollWidth;
+        if (contentWidth <= 0 || containerWidth <= 0) return;
+
+        // Leave a one-pixel safety inset for glyph overhang/rounding. QPC fonts
+        // can finish swapping after React's first layout pass, so this function
+        // is also rerun by observers and document.fonts.ready below.
+        const scale = Math.min(1, Math.max(0, (containerWidth - 2) / contentWidth));
+
+        if (scale < 1) {
           content.style.transform = `scale(${scale})`;
           content.style.transformOrigin = 'right center';
           content.style.margin = '';
         } else {
-          // Line fits naturally (or is short) — center it, no transform
           content.style.transform = '';
           content.style.transformOrigin = '';
           content.style.margin = '0 auto';
         }
-      }
-    }
-  });
+      });
+    };
+
+    fit();
+
+    const resizeObserver = new ResizeObserver(fit);
+    resizeObserver.observe(container);
+    resizeObserver.observe(content);
+    window.addEventListener('resize', fit);
+    document.fonts?.ready.then(fit).catch(() => undefined);
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, []);
 
   return (
     <div ref={containerRef} className={className} style={{ width: '100%', overflow: 'hidden' }}>

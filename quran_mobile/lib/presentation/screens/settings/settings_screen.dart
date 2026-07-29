@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+
 import '../../../config/app_colors.dart';
-import '../../../core/services/update_service.dart';
-import '../../providers/theme_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../widgets/glassmorphic_card.dart';
-import '../../widgets/premium_scaffold.dart';
-import '../../widgets/update_dialog.dart';
 import '../../../core/services/tour_service.dart';
+import '../../../core/services/update_service.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../widgets/approved_ui.dart';
+import '../../widgets/update_dialog.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -18,659 +18,508 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String _appVersion = '';
-  String _updateStatusText = '';
-  bool _isCheckingUpdate = false;
-  final UpdateService _updateService = UpdateService();
-
-  // Change password state
-  bool _showPasswordForm = false;
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  bool _passwordLoading = false;
-  String? _passwordError;
-  bool _passwordSuccess = false;
+  final _updateService = UpdateService();
+  String _version = '';
+  bool _checkingUpdate = false;
+  bool _keepAwake = true;
+  bool _readerControls = true;
+  bool _sessionReminders = true;
+  bool _weeklySummary = true;
 
   @override
   void initState() {
     super.initState();
-    _loadVersion();
-  }
-
-  @override
-  void dispose() {
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() => _appVersion = info.version);
-    }
-  }
-
-  Future<void> _checkForUpdates() async {
-    setState(() {
-      _isCheckingUpdate = true;
-      _updateStatusText = 'Checking...';
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
     });
-
-    try {
-      final updateInfo = await _updateService.checkForUpdate();
-
-      if (!mounted) return;
-
-      if (updateInfo.updateAvailable) {
-        setState(() {
-          _isCheckingUpdate = false;
-          _updateStatusText = '';
-        });
-        final isDarkMode = ref.read(themeProvider);
-        await UpdateDialog.show(
-          context,
-          updateInfo: updateInfo,
-          updateService: _updateService,
-          isDarkMode: isDarkMode,
-        );
-      } else {
-        setState(() {
-          _isCheckingUpdate = false;
-          _updateStatusText = 'Up to date!';
-        });
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) setState(() => _updateStatusText = '');
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isCheckingUpdate = false;
-          _updateStatusText = 'Check failed';
-        });
-      }
-    }
-  }
-
-  Future<void> _handlePasswordChange() async {
-    final newPassword = _newPasswordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
-
-    setState(() {
-      _passwordError = null;
-      _passwordSuccess = false;
-    });
-
-    if (newPassword != confirmPassword) {
-      setState(() => _passwordError = 'Passwords do not match');
-      return;
-    }
-    if (newPassword.length < 8) {
-      setState(() => _passwordError = 'Password must be at least 8 characters');
-      return;
-    }
-
-    setState(() => _passwordLoading = true);
-
-    try {
-      await ref.read(authProvider.notifier).updatePassword(newPassword);
-      if (mounted) {
-        setState(() {
-          _passwordSuccess = true;
-          _newPasswordController.clear();
-          _confirmPasswordController.clear();
-        });
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() {
-              _passwordSuccess = false;
-              _showPasswordForm = false;
-            });
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _passwordError = e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _passwordLoading = false);
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = ref.watch(themeProvider);
-
+    final auth = ref.watch(authProvider);
+    final user = auth.user;
+    final dark = ref.watch(themeProvider);
+    final name = user?.fullName ?? 'QuranTrack User';
     return Scaffold(
-      backgroundColor: AppColors.background(isDarkMode),
-      body: PremiumScaffoldBackground(
-        useSafeArea: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: MediaQuery.of(context).padding.top,
-            bottom: 20,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              PremiumPageHeader(
-                icon: Icons.settings_rounded,
-                title: 'Settings',
-                subtitle: 'Account, appearance, updates, and tutorial',
-              ),
-              const SizedBox(height: 12),
-
-              // ── Appearance Section ──
-              Container(
-                key: TourService.settingsSectionKey,
-                child: _sectionHeader('APPEARANCE', isDarkMode),
-              ),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: ListTile(
-                  leading: _iconBox(
-                    isDarkMode
-                        ? Icons.dark_mode_rounded
-                        : Icons.light_mode_rounded,
-                    AppColors.cyan500,
-                    isDarkMode,
-                  ),
-                  title: Text(
-                    'Theme',
-                    style: TextStyle(color: AppColors.text(isDarkMode)),
-                  ),
-                  subtitle: Text(
-                    isDarkMode ? 'Dark mode' : 'Light mode',
-                    style: TextStyle(
-                      color: AppColors.textSecondary(isDarkMode),
-                    ),
-                  ),
-                  trailing: Switch(
-                    value: isDarkMode,
-                    onChanged: (_) =>
-                        ref.read(themeProvider.notifier).toggleTheme(),
-                    activeColor: AppColors.cyan500,
-                    activeTrackColor: AppColors.cyan500.withOpacity(0.5),
-                  ),
+      backgroundColor: AppColors.ivory,
+      body: Column(
+        children: [
+          ApprovedBrandHeader(initials: _initials(name)),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              children: [
+                Text(
+                  'Settings',
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // ── About Section ──
-              _sectionHeader('ABOUT', isDarkMode),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: _iconBox(
-                        Icons.menu_book_rounded,
-                        AppColors.teal500,
-                        isDarkMode,
-                      ),
-                      title: Text(
-                        'QuranTrack',
-                        style: TextStyle(color: AppColors.text(isDarkMode)),
-                      ),
-                      subtitle: Text(
-                        _appVersion.isNotEmpty
-                            ? 'Version $_appVersion'
-                            : 'Loading...',
-                        style: TextStyle(
-                          color: AppColors.textSecondary(isDarkMode),
-                        ),
-                      ),
-                    ),
-                    const PremiumDivider(),
-                    ListTile(
-                      leading: _isCheckingUpdate
-                          ? _loadingIconBox(AppColors.cyan500, isDarkMode)
-                          : _iconBox(
-                              Icons.system_update_rounded,
-                              AppColors.cyan500,
-                              isDarkMode,
-                            ),
-                      title: Text(
-                        'Check for Updates',
-                        style: TextStyle(color: AppColors.text(isDarkMode)),
-                      ),
-                      subtitle: Text(
-                        _updateStatusText.isNotEmpty
-                            ? _updateStatusText
-                            : 'Tap to check for new versions',
-                        style: TextStyle(
-                          color: _updateStatusText == 'Up to date!'
-                              ? AppColors.teal500
-                              : _updateStatusText == 'Check failed'
-                              ? AppColors.error
-                              : AppColors.textSecondary(isDarkMode),
-                        ),
-                      ),
-                      trailing: SizedBox(
-                        width: 100,
-                        child: ElevatedButton(
-                          onPressed: _isCheckingUpdate
-                              ? null
-                              : _checkForUpdates,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.cyan500,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          child: Text(_isCheckingUpdate ? 'Checking' : 'Check'),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // ── Help & Tutorial Section ──
-              _sectionHeader('HELP & TUTORIAL', isDarkMode),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: ListTile(
-                  leading: _iconBox(
-                    Icons.help_rounded,
-                    AppColors.cyan500,
-                    isDarkMode,
-                  ),
-                  title: Text(
-                    'Show Tutorial',
-                    style: TextStyle(color: AppColors.text(isDarkMode)),
-                  ),
-                  subtitle: Text(
-                    'Learn how to use QuranTrack',
-                    style: TextStyle(
-                      color: AppColors.textSecondary(isDarkMode),
-                    ),
-                  ),
-                  trailing: SizedBox(
-                    width: 80,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await TourService.resetTourCompleted();
-                        TourService.onStartTour?.call();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.cyan500,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                      ),
-                      child: const Text('Start'),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // ── Account Section ──
-              _sectionHeader('ACCOUNT', isDarkMode),
-              const SizedBox(height: 12),
-
-              GlassmorphicCard(
-                padding: const EdgeInsets.all(0),
-                child: Column(
-                  children: [
-                    // User info
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final authState = ref.watch(authProvider);
-                        final user = authState.user;
-                        return ListTile(
-                          leading: _iconBox(
-                            Icons.person_rounded,
-                            AppColors.cyan500,
-                            isDarkMode,
-                          ),
-                          title: Text(
-                            user?.email ?? 'Not signed in',
-                            style: TextStyle(color: AppColors.text(isDarkMode)),
-                          ),
-                          subtitle: Text(
-                            user?.fullName ?? '',
-                            style: TextStyle(
-                              color: AppColors.textSecondary(isDarkMode),
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const PremiumDivider(),
-
-                    // Change Password toggle
-                    ListTile(
-                      leading: _iconBox(
-                        Icons.lock_rounded,
-                        Colors.purple,
-                        isDarkMode,
-                      ),
-                      title: Text(
-                        'Change Password',
-                        style: TextStyle(color: AppColors.text(isDarkMode)),
-                      ),
-                      subtitle: Text(
-                        _showPasswordForm
-                            ? 'Enter your new password below'
-                            : 'Tap to change your password',
-                        style: TextStyle(
-                          color: AppColors.textSecondary(isDarkMode),
-                        ),
-                      ),
-                      trailing: Icon(
-                        _showPasswordForm
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textSecondary(isDarkMode),
-                      ),
-                      onTap: () {
-                        setState(() {
-                          _showPasswordForm = !_showPasswordForm;
-                          if (!_showPasswordForm) {
-                            _newPasswordController.clear();
-                            _confirmPasswordController.clear();
-                            _passwordError = null;
-                            _passwordSuccess = false;
-                          }
-                        });
-                      },
-                    ),
-
-                    // Collapsible password form
-                    if (_showPasswordForm) ...[
-                      const PremiumDivider(),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
+                const SizedBox(height: 14),
+                ApprovedCard(
+                  child: Row(
+                    children: [
+                      ApprovedInitialsAvatar(name: name, size: 62),
+                      const SizedBox(width: 14),
+                      Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (_passwordError != null)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppColors.error.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Text(
-                                  _passwordError!,
-                                  style: TextStyle(
-                                    color: AppColors.error,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            if (_passwordSuccess)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.teal500.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppColors.teal500.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Password changed successfully!',
-                                  style: TextStyle(
-                                    color: AppColors.teal500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            TextField(
-                              controller: _newPasswordController,
-                              obscureText: true,
-                              style: TextStyle(
-                                color: AppColors.text(isDarkMode),
-                              ),
-                              decoration: InputDecoration(
-                                labelText: 'New Password',
-                                hintText: 'Enter new password (8+ characters)',
-                                labelStyle: TextStyle(
-                                  color: AppColors.textSecondary(isDarkMode),
-                                ),
-                                hintStyle: TextStyle(
-                                  color: AppColors.textMuted(isDarkMode),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColors.border(isDarkMode),
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColors.cyan500,
-                                  ),
-                                ),
-                              ),
+                            Text(
+                              name,
+                              style: Theme.of(context).textTheme.titleLarge,
                             ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _confirmPasswordController,
-                              obscureText: true,
-                              style: TextStyle(
-                                color: AppColors.text(isDarkMode),
-                              ),
-                              decoration: InputDecoration(
-                                labelText: 'Confirm New Password',
-                                hintText: 'Confirm new password',
-                                labelStyle: TextStyle(
-                                  color: AppColors.textSecondary(isDarkMode),
-                                ),
-                                hintStyle: TextStyle(
-                                  color: AppColors.textMuted(isDarkMode),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColors.border(isDarkMode),
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColors.cyan500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: _passwordLoading
-                                        ? null
-                                        : _handlePasswordChange,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.cyan500,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: _passwordLoading
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Text('Update Password'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showPasswordForm = false;
-                                      _newPasswordController.clear();
-                                      _confirmPasswordController.clear();
-                                      _passwordError = null;
-                                      _passwordSuccess = false;
-                                    });
-                                  },
-                                  child: Text(
-                                    'Cancel',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary(
-                                        isDarkMode,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            Text(user?.email ?? 'Signed in'),
+                            const Text('North Halaqah'),
                           ],
                         ),
                       ),
+                      OutlinedButton.icon(
+                        onPressed: _showEditProfile,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('Edit'),
+                      ),
                     ],
-
-                    const PremiumDivider(),
-
-                    // Sign out
-                    ListTile(
-                      leading: _iconBox(
-                        Icons.logout_rounded,
-                        AppColors.error,
-                        isDarkMode,
-                      ),
-                      title: Text(
-                        'Sign Out',
-                        style: TextStyle(color: AppColors.text(isDarkMode)),
-                      ),
-                      subtitle: Text(
-                        'Sign out of your account',
-                        style: TextStyle(
-                          color: AppColors.textSecondary(isDarkMode),
-                        ),
-                      ),
-                      trailing: SizedBox(
-                        width: 100,
-                        child: ElevatedButton(
-                          onPressed: () => _showSignOutDialog(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.error,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          child: const Text('Sign Out'),
-                        ),
-                      ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _SettingsGroup(
+                  icon: Icons.palette_outlined,
+                  title: 'Appearance',
+                  children: [
+                    _ChoiceRow(
+                      label: 'Theme',
+                      choices: const ['Light', 'Dark'],
+                      selected: dark ? 1 : 0,
+                      onChanged: (value) {
+                        if ((value == 1) != dark) {
+                          ref.read(themeProvider.notifier).toggleTheme();
+                        }
+                      },
+                    ),
+                    const _ValueRow(label: 'Text size', value: 'Normal'),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _SettingsGroup(
+                  icon: Icons.auto_stories_outlined,
+                  title: 'Quran Reader',
+                  children: [
+                    const _ValueRow(label: 'Page layout', value: 'Mushaf'),
+                    _SwitchRow(
+                      label: 'Keep screen awake',
+                      value: _keepAwake,
+                      onChanged: (value) => setState(() => _keepAwake = value),
+                    ),
+                    _SwitchRow(
+                      label: 'Show reading controls',
+                      value: _readerControls,
+                      onChanged: (value) =>
+                          setState(() => _readerControls = value),
                     ),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 14),
+                _SettingsGroup(
+                  icon: Icons.sync,
+                  title: 'Sync & Data',
+                  children: [
+                    _ActionRow(
+                      label: 'All data up to date',
+                      subtitle: 'Last synced just now',
+                      actionLabel: _checkingUpdate ? 'Checking' : 'Sync now',
+                      onPressed: _checkingUpdate ? null : _checkForUpdates,
+                    ),
+                    const _ValueRow(label: 'Offline Quran data', value: 'Ready'),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _SettingsGroup(
+                  icon: Icons.notifications_none,
+                  title: 'Notifications',
+                  children: [
+                    _SwitchRow(
+                      label: 'Session reminders',
+                      value: _sessionReminders,
+                      onChanged: (value) =>
+                          setState(() => _sessionReminders = value),
+                    ),
+                    _SwitchRow(
+                      label: 'Weekly summary',
+                      value: _weeklySummary,
+                      onChanged: (value) =>
+                          setState(() => _weeklySummary = value),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _SettingsGroup(
+                  icon: Icons.shield_outlined,
+                  title: 'Security',
+                  children: [
+                    _LinkRow(
+                      label: 'Change password',
+                      onTap: _showPasswordDialog,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _SettingsGroup(
+                  icon: Icons.help_outline,
+                  title: 'Help',
+                  children: [
+                    _LinkRow(label: 'Tutorial', onTap: _restartTutorial),
+                    _LinkRow(
+                      label: 'About QuranTrack',
+                      value: _version.isEmpty ? '' : 'v$_version',
+                      onTap: _showAbout,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: _confirmSignOut,
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Sign out'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // ── Helper widgets ──
-
-  Widget _sectionHeader(String title, bool isDarkMode) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textMuted(isDarkMode),
-        letterSpacing: 1,
-      ),
-    );
+  Future<void> _checkForUpdates() async {
+    setState(() => _checkingUpdate = true);
+    try {
+      final update = await _updateService.checkForUpdate();
+      if (!mounted) return;
+      if (update.updateAvailable) {
+        await UpdateDialog.show(
+          context,
+          updateInfo: update,
+          updateService: _updateService,
+          isDarkMode: ref.read(themeProvider),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QuranTrack is up to date.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Update check failed. Try again later.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
+    }
   }
 
-  Widget _iconBox(IconData icon, Color color, bool isDarkMode) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(isDarkMode ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(isDarkMode ? 0.22 : 0.16)),
-      ),
-      child: Icon(icon, color: color, size: 20),
+  Future<void> _showEditProfile() async {
+    final user = ref.read(authProvider).user;
+    final parts = (user?.fullName ?? '').split(' ');
+    final first = TextEditingController(text: parts.firstOrNull ?? '');
+    final last = TextEditingController(
+      text: parts.length > 1 ? parts.skip(1).join(' ') : '',
     );
-  }
-
-  Widget _loadingIconBox(Color color, bool isDarkMode) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(isDarkMode ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2, color: color),
-      ),
-    );
-  }
-
-  void _showSignOutDialog(BuildContext context) {
-    final isDarkMode = ref.read(themeProvider);
-    showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface(isDarkMode),
-        title: Text(
-          'Sign Out?',
-          style: TextStyle(color: AppColors.text(isDarkMode)),
-        ),
-        content: Text(
-          'Are you sure you want to sign out of your account?',
-          style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: first,
+              decoration: const InputDecoration(labelText: 'First name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: last,
+              decoration: const InputDecoration(labelText: 'Last name'),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await ref.read(authProvider.notifier).signOut();
+              await ref.read(authProvider.notifier).updateProfile(
+                    firstName: first.text.trim(),
+                    lastName: last.text.trim(),
+                  );
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Sign Out'),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    first.dispose();
+    last.dispose();
+  }
+
+  Future<void> _showPasswordDialog() async {
+    final password = TextEditingController();
+    final confirm = TextEditingController();
+    String? error;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'New password'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirm,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Confirm password',
+                  errorText: error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (password.text.length < 8 ||
+                    password.text != confirm.text) {
+                  setDialogState(
+                    () => error = password.text.length < 8
+                        ? 'Use at least 8 characters'
+                        : 'Passwords do not match',
+                  );
+                  return;
+                }
+                await ref
+                    .read(authProvider.notifier)
+                    .updatePassword(password.text);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+    password.dispose();
+    confirm.dispose();
+  }
+
+  Future<void> _restartTutorial() async {
+    await TourService.resetTourCompleted();
+    TourService.onStartTour?.call();
+  }
+
+  void _showAbout() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'QuranTrack',
+      applicationVersion: _version,
+      applicationLegalese: 'Teach • Track • Transform',
+    );
+  }
+
+  Future<void> _confirmSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('Your synced and offline Quran data will remain.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await ref.read(authProvider.notifier).signOut();
+  }
+
+  static String _initials(String value) => value
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .take(2)
+      .map((part) => part[0])
+      .join()
+      .toUpperCase();
+}
+
+class _SettingsGroup extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<Widget> children;
+
+  const _SettingsGroup({
+    required this.icon,
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ApprovedCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      child: Column(
+        children: [
+          ApprovedSectionTitle(icon: icon, title: title),
+          const SizedBox(height: 8),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _SwitchRow extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      trailing: Switch(value: value, onChanged: onChanged),
+    );
+  }
+}
+
+class _ValueRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ValueRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(value),
+          const SizedBox(width: 5),
+          const Icon(Icons.chevron_right, size: 19),
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkRow extends StatelessWidget {
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+
+  const _LinkRow({required this.label, this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (value != null) Text(value!),
+          const Icon(Icons.chevron_right, size: 19),
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback? onPressed;
+
+  const _ActionRow({
+    required this.label,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.check_circle, color: AppColors.emerald),
+      title: Text(label),
+      subtitle: Text(subtitle),
+      trailing: ElevatedButton(onPressed: onPressed, child: Text(actionLabel)),
+    );
+  }
+}
+
+class _ChoiceRow extends StatelessWidget {
+  final String label;
+  final List<String> choices;
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  const _ChoiceRow({
+    required this.label,
+    required this.choices,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          SegmentedButton<int>(
+            segments: List.generate(
+              choices.length,
+              (index) => ButtonSegment(
+                value: index,
+                label: Text(choices[index]),
+              ),
+            ),
+            selected: {selected},
+            onSelectionChanged: (value) => onChanged(value.first),
           ),
         ],
       ),

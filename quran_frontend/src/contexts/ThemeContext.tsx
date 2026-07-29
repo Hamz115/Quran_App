@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 
 interface ThemeContextType {
   darkMode: boolean;
@@ -8,24 +8,16 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved !== 'light'; // Default to dark mode
-  });
+  const darkMode = false;
 
   useEffect(() => {
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
-    // Add class to document for CSS theming
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.add('light');
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+    localStorage.setItem('theme', 'light');
+    document.documentElement.classList.add('light');
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
+  }, []);
 
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  const toggleDarkMode = () => undefined;
 
   return (
     <ThemeContext.Provider value={{ darkMode, toggleDarkMode }}>

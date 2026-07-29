@@ -15,7 +15,7 @@ export default function ReportPerformanceTab({ performanceTrend, performanceStat
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[5fr_2fr] gap-5">
+    <div className="report-performance-analysis grid grid-cols-1 lg:grid-cols-[5fr_2fr] gap-5">
       {/* Chart */}
       <div className={`rounded-xl border ${borderColor} ${cardBg} p-5`}>
         <h3 className={`text-sm font-semibold mb-4 ${textPrimary}`}>Performance Over Time</h3>

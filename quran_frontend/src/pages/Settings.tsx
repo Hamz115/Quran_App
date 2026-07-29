@@ -4,11 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { checkForAppUpdates, type UpdateStatus } from '../lib/updater';
 import { useTour } from '../contexts/TourContext';
-import { resetTourCompleted } from '../lib/tour';
 
 export default function Settings() {
   const { user, updateProfile, updatePassword, logout } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode } = useTheme();
   const navigate = useNavigate();
   const { startTour } = useTour();
 
@@ -102,9 +101,9 @@ export default function Settings() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="approved-page approved-settings-page">
       {/* Page Header */}
-      <div className="mb-8">
+      <div className="approved-settings-header">
         <button
           onClick={() => navigate(-1)}
           className={`flex items-center gap-2 mb-4 text-sm font-medium transition-colors ${
@@ -118,10 +117,10 @@ export default function Settings() {
           </svg>
           Back
         </button>
-        <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+        <h1 className="approved-page-title">
           Settings
         </h1>
-        <p className={`mt-2 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           Manage your profile and account settings
         </p>
       </div>
@@ -486,61 +485,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* 4. Appearance Section */}
-      <div className={`card p-6 rounded-2xl ${darkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-white border border-slate-200'}`}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`p-3 rounded-xl ${darkMode ? 'bg-indigo-500/20' : 'bg-indigo-100'}`}>
-            <svg className="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-            </svg>
-          </div>
-          <div>
-            <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-              Appearance
-            </h2>
-            <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Customize how the app looks
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {darkMode ? (
-              <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            )}
-            <div>
-              <span className={`font-medium ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-                {darkMode ? 'Dark Mode' : 'Light Mode'}
-              </span>
-              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                {darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={toggleDarkMode}
-            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-              darkMode ? 'bg-indigo-500' : 'bg-slate-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
-                darkMode ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* 5. Help & Tutorial Section */}
+      {/* 4. Help & Tutorial Section */}
       <div className={`card p-6 rounded-2xl ${darkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-white border border-slate-200'}`}>
         <div className="flex items-center gap-3 mb-4">
           <div className={`p-3 rounded-xl ${darkMode ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
@@ -558,10 +503,7 @@ export default function Settings() {
           </div>
         </div>
         <button
-          onClick={() => {
-            resetTourCompleted(user?.id);
-            startTour();
-          }}
+          onClick={startTour}
           className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-cyan-500/30"
         >
           Show Tutorial

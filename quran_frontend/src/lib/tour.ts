@@ -15,6 +15,9 @@ export interface TourStepDef {
   type: StepType; // 'info' = Next button, 'interactive' = must click target
   interactiveTarget?: string; // CSS selector for the clickable element (for interactive steps)
   waitForElement?: string; // Wait for this element to appear before showing step
+  resultElement?: string; // Advance only after this result appears
+  waitForPath?: string; // Wait for navigation to this path before advancing
+  waitForPathPrefix?: string; // Wait for navigation to a dynamic path before advancing
 }
 
 export const TOUR_STEPS: TourStepDef[] = [
@@ -97,13 +100,13 @@ export const TOUR_STEPS: TourStepDef[] = [
   },
   {
     screen: 'sessions',
-    element: '[data-tour="surah-selector"]',
-    title: 'Choose a Surah',
-    description: '<strong>Select any surah</strong> you\'d like to test with.',
+    element: '[data-tour="from-surah-selector"]',
+    title: 'Choose a Starting Surah',
+    description: 'Open <strong>From Surah</strong> and choose a different surah. The tour continues after the value changes.',
     side: 'bottom',
     type: 'interactive',
-    interactiveTarget: '[data-tour="surah-selector"]',
-    waitForElement: '[data-tour="surah-selector"]',
+    interactiveTarget: '[data-tour="from-surah-selector"]',
+    waitForElement: '[data-tour="from-surah-selector"]',
   },
   {
     screen: 'sessions',
@@ -117,7 +120,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'sessions',
     element: '[data-tour="sabqi-toggle"]',
     title: 'Recent Review (Sabqi)',
-    description: 'Toggle this ON to add a Recent Review section. Toggle OFF if not needed for this session.',
+    description: 'This section is optional and starts on. Leave it on for recent material, or use the switch to exclude it; then click Next.',
     side: 'bottom',
     type: 'info',
   },
@@ -125,7 +128,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     screen: 'sessions',
     element: '[data-tour="manzil-toggle"]',
     title: 'Revision (Manzil)',
-    description: 'Toggle this ON to add a Revision section.',
+    description: 'This optional section also starts on. Leave it on for older revision material, or switch it off; then click Next.',
     side: 'bottom',
     type: 'info',
   },
@@ -138,6 +141,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     align: 'center',
     type: 'interactive',
     interactiveTarget: '[data-tour="create-class-btn"]',
+    waitForPathPrefix: '/sessions/',
   },
 
   // ── PHASE 3: CLASSROOM — SECTION TABS ──
@@ -169,6 +173,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'interactive',
     interactiveTarget: '[data-tour="quran-page"]',
     waitForElement: '[data-tour="word-popup"]',
+    resultElement: '[data-tour="word-popup"]',
   },
   {
     screen: 'classroom',
@@ -189,6 +194,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'interactive',
     interactiveTarget: '[data-tour="quran-page"]',
     waitForElement: '[data-tour="word-popup"]',
+    resultElement: '[data-tour="word-popup"]',
   },
   {
     screen: 'classroom',
@@ -209,6 +215,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'interactive',
     interactiveTarget: '[data-tour="quran-page"]',
     waitForElement: '[data-tour="word-popup"]',
+    resultElement: '[data-tour="word-popup"]',
   },
   {
     screen: 'classroom',
@@ -307,14 +314,23 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     screen: 'classroom',
     element: '[data-tour="delete-btn"]',
-    title: 'Delete This Session',
-    description: "Let's clean up the session we just created. <strong>Click the Delete button.</strong>",
+    title: 'Delete Safely',
+    description: 'Deleting a session permanently removes its mistakes. Click Next, then use Delete and confirm the Windows prompt to remove this tutorial session.',
+    side: 'bottom',
+    type: 'info',
+    waitForElement: '[data-tour="delete-btn"]',
+  },
+  {
+    screen: 'classroom',
+    element: '[data-tour="delete-btn"]',
+    title: 'Clean Up the Tutorial Session',
+    description: '<strong>Click Delete, then confirm the prompt.</strong> The tour advances only after the session has actually closed.',
     side: 'bottom',
     type: 'interactive',
     interactiveTarget: '[data-tour="delete-btn"]',
     waitForElement: '[data-tour="delete-btn"]',
+    waitForPath: '/sessions',
   },
-  // Note: step 30 — the browser confirm() dialog is native; we show an info step BEFORE delete explaining it
   {
     screen: 'dashboard-final',
     title: "You're All Set!",
@@ -326,6 +342,7 @@ export const TOUR_STEPS: TourStepDef[] = [
 // ── Tour persistence ──
 
 const TOUR_COMPLETED_KEY = 'qurantrack:tour_completed';
+const TOUR_AUTO_SHOWN_KEY = 'qurantrack:tour_auto_shown';
 const TOUR_CLASS_ID_KEY = 'qurantrack:tour_class_id';
 
 function getScopedKey(baseKey: string, userId?: string | null): string {
@@ -338,6 +355,17 @@ export function isTourCompleted(userId?: string | null): boolean {
 
 export function markTourCompleted(userId?: string | null): void {
   localStorage.setItem(getScopedKey(TOUR_COMPLETED_KEY, userId), 'true');
+}
+
+export function hasTourBeenAutoShown(userId?: string | null): boolean {
+  return (
+    isTourCompleted(userId) ||
+    localStorage.getItem(getScopedKey(TOUR_AUTO_SHOWN_KEY, userId)) === 'true'
+  );
+}
+
+export function markTourAutoShown(userId?: string | null): void {
+  localStorage.setItem(getScopedKey(TOUR_AUTO_SHOWN_KEY, userId), 'true');
 }
 
 export function resetTourCompleted(userId?: string | null): void {

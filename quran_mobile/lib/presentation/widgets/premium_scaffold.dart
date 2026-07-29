@@ -20,35 +20,9 @@ class PremiumScaffoldBackground extends StatelessWidget {
     final isDark = context.isDarkMode;
     final content = Padding(padding: padding, child: child);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: AppColors.appBackgroundGradient(isDark),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -72,
-            right: -28,
-            child: _AccentBand(
-              width: 132,
-              height: 310,
-              color: AppColors.cyan500.withOpacity(isDark ? 0.10 : 0.08),
-              angle: -0.18,
-            ),
-          ),
-          Positioned(
-            bottom: 72,
-            left: -46,
-            child: _AccentBand(
-              width: 118,
-              height: 260,
-              color: AppColors.gold.withOpacity(isDark ? 0.08 : 0.10),
-              angle: 0.22,
-            ),
-          ),
-          useSafeArea ? SafeArea(child: content) : content,
-        ],
-      ),
+    return ColoredBox(
+      color: isDark ? AppColors.night : AppColors.ivory,
+      child: useSafeArea ? SafeArea(child: content) : content,
     );
   }
 }
@@ -72,34 +46,19 @@ class PremiumPageHeader extends StatelessWidget {
     final isDark = context.isDarkMode;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.cyan600.withOpacity(isDark ? 0.26 : 0.20),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 14),
+            Icon(icon, color: AppColors.gold, size: 26),
+            const SizedBox(width: 12),
           ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: Theme.of(context).textTheme.headlineMedium),
+                Text(title, style: Theme.of(context).textTheme.headlineLarge),
                 if (subtitle != null) ...[
                   const SizedBox(height: 5),
                   Text(

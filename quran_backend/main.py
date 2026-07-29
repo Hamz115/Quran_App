@@ -95,8 +95,12 @@ def get_quran_db():
 
 
 def get_app_db():
-    conn = sqlite3.connect(APP_DB)
+    # Foreground Tauri writes can overlap the background sync worker. Give the
+    # current transaction time to finish instead of failing a live recitation
+    # action when SQLite's shorter default wait expires.
+    conn = sqlite3.connect(APP_DB, timeout=15)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 15000")
     return conn
 
 
@@ -135,8 +139,7 @@ def init_app_db():
             char_index INTEGER,
             error_count INTEGER DEFAULT 1,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            device_id TEXT,
-            UNIQUE(surah_number, ayah_number, word_index, char_index)
+            device_id TEXT
         );
 
         CREATE TABLE IF NOT EXISTS mistake_occurrences (
@@ -414,6 +417,82 @@ def init_app_db():
         conn.commit()
     except:
         pass
+
+    # The original local table made Quran position globally unique, so the same
+    # word could not be recorded for two different reciters. Rebuild only legacy
+    # tables, preserve every ID used by mistake_occurrences, then enforce the
+    # correct reciter-scoped identity with an expression index.
+    mistakes_table_sql = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'mistakes'"
+    ).fetchone()
+    normalized_mistakes_sql = "".join(
+        (mistakes_table_sql["sql"] if mistakes_table_sql else "").lower().split()
+    )
+    legacy_mistake_identity = (
+        "unique(surah_number,ayah_number,word_index,char_index)"
+        in normalized_mistakes_sql
+    )
+    if legacy_mistake_identity:
+        conn.commit()
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.executescript("""
+            BEGIN IMMEDIATE;
+            CREATE TABLE mistakes_reciter_scoped (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                surah_number INTEGER NOT NULL,
+                ayah_number INTEGER NOT NULL,
+                word_index INTEGER NOT NULL,
+                word_text TEXT NOT NULL,
+                char_index INTEGER,
+                error_count INTEGER DEFAULT 1,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                device_id TEXT,
+                student_id INTEGER REFERENCES users(id),
+                sync_status TEXT DEFAULT 'pending',
+                supabase_student_id TEXT,
+                last_synced_at TEXT,
+                reciter_id INTEGER REFERENCES users(id),
+                supabase_reciter_id TEXT,
+                supabase_id TEXT
+            );
+            INSERT INTO mistakes_reciter_scoped (
+                id, surah_number, ayah_number, word_index, word_text,
+                char_index, error_count, updated_at, device_id, student_id,
+                sync_status, supabase_student_id, last_synced_at, reciter_id,
+                supabase_reciter_id, supabase_id
+            )
+            SELECT
+                id, surah_number, ayah_number, word_index, word_text,
+                char_index, error_count, updated_at, device_id, student_id,
+                sync_status, supabase_student_id, last_synced_at, reciter_id,
+                supabase_reciter_id, supabase_id
+            FROM mistakes;
+            DROP TABLE mistakes;
+            ALTER TABLE mistakes_reciter_scoped RENAME TO mistakes;
+            CREATE INDEX idx_mistakes_surah ON mistakes(surah_number);
+            CREATE UNIQUE INDEX idx_mistakes_supabase_id
+                ON mistakes(supabase_id) WHERE supabase_id IS NOT NULL;
+            COMMIT;
+        """)
+        conn.execute("PRAGMA foreign_keys = ON")
+
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mistakes_reciter_location
+        ON mistakes (
+            COALESCE(
+                supabase_reciter_id,
+                supabase_student_id,
+                CAST(reciter_id AS TEXT),
+                CAST(student_id AS TEXT),
+                ''
+            ),
+            surah_number,
+            ayah_number,
+            word_index,
+            COALESCE(char_index, -1)
+        )
+    """)
+    conn.commit()
 
     # Create test-related tables
     conn.executescript("""

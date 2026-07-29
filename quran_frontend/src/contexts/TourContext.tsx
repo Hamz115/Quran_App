@@ -7,8 +7,9 @@ import {
   TOUR_STEPS,
   createDriverStep,
   getDriverConfig,
-  isTourCompleted,
+  hasTourBeenAutoShown,
   markTourCompleted,
+  markTourAutoShown,
   setTourClassId,
   clearTourClassId,
 } from '../lib/tour';
@@ -29,6 +30,8 @@ const TourContext = createContext<TourContextType>({
   clearPending: () => {},
 });
 
+// Context and its hook intentionally live together as one public module.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTour() {
   return useContext(TourContext);
 }
@@ -64,27 +67,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [tourClassId, setTourClassIdState] = useState<string | null>(null);
   const driverRef = useRef<Driver | null>(null);
   const interactiveListenerRef = useRef<(() => void) | null>(null);
+  const advanceToStepRef = useRef<(nextStep: number) => void>(() => {});
 
   // Auto-start tour on first visit (only once per signed-in user)
   const autoStarted = useRef(false);
-
-  useEffect(() => {
-    autoStarted.current = false;
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (
-      user &&
-      !isTourCompleted(user.id) &&
-      location.pathname === '/' &&
-      !autoStarted.current &&
-      !isActive
-    ) {
-      autoStarted.current = true;
-      const timer = setTimeout(() => startTour(), 800);
-      return () => clearTimeout(timer);
-    }
-  }, [user?.id, location.pathname, isActive]);
 
   // Cleanup interactive listeners
   const cleanupInteractiveListener = useCallback(() => {
@@ -104,7 +90,151 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setCurrentStep(-1);
     setPendingStep(null);
     markTourCompleted(user?.id);
+    clearTourClassId(user?.id);
+    clearTourClassId();
   }, [cleanupInteractiveListener, user?.id]);
+
+  /** Wait for a DOM element to appear, then call callback. */
+  const waitForElement = useCallback((
+    selector: string,
+    callback: () => void,
+    maxWait = 5_000,
+  ) => {
+    const start = Date.now();
+    const check = () => {
+      if (document.querySelector(selector)) {
+        callback();
+      } else if (Date.now() - start < maxWait) {
+        window.setTimeout(check, 100);
+      } else {
+        // Preserve navigation instead of leaving an undismissable overlay if a
+        // target is unavailable, while keeping the timeout visible in diagnostics.
+        console.warn(`Tutorial target did not appear: ${selector}`);
+        callback();
+      }
+    };
+    check();
+  }, []);
+
+  /** Bind the current interactive target and advance only after its result is visible. */
+  const setupInteractiveListener = useCallback((
+    stepIndex: number,
+    stepDef: typeof TOUR_STEPS[0],
+    d: Driver,
+  ) => {
+    const target = stepDef.interactiveTarget;
+    if (!target) return;
+
+    let disposed = false;
+    let consumed = false;
+    let boundElement: Element | null = null;
+    let eventType = 'click';
+    const timers = new Set<number>();
+
+    const schedule = (callback: () => void, delay: number) => {
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        if (!disposed) callback();
+      }, delay);
+      timers.add(timer);
+    };
+
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      timers.forEach(timer => window.clearTimeout(timer));
+      timers.clear();
+      if (boundElement) {
+        boundElement.removeEventListener(eventType, handler);
+      }
+    };
+
+    const advance = () => {
+      if (disposed) return;
+      dispose();
+      d.destroy();
+      advanceToStepRef.current(stepIndex + 1);
+    };
+
+    const interactionResultIsReady = () => {
+      const elementReady =
+        !stepDef.resultElement ||
+        Boolean(document.querySelector(stepDef.resultElement));
+      const pathReady =
+        (!stepDef.waitForPath ||
+          window.location.pathname === stepDef.waitForPath) &&
+        (!stepDef.waitForPathPrefix ||
+          window.location.pathname.startsWith(stepDef.waitForPathPrefix));
+      return elementReady && pathReady;
+    };
+
+    const handler: EventListener = () => {
+      if (disposed || consumed) return;
+      consumed = true;
+
+      if (
+        !stepDef.resultElement &&
+        !stepDef.waitForPath &&
+        !stepDef.waitForPathPrefix
+      ) {
+        schedule(advance, 250);
+        return;
+      }
+
+      const deadline =
+        Date.now() +
+        (stepDef.waitForPathPrefix
+          ? 15_000
+          : stepDef.waitForPath
+            ? 2_500
+            : 5_000);
+      const waitForResult = () => {
+        if (interactionResultIsReady()) {
+          schedule(advance, 250);
+        } else if (Date.now() < deadline) {
+          schedule(waitForResult, 100);
+        } else {
+          const actionStillRunning =
+            stepDef.waitForPathPrefix &&
+            boundElement instanceof HTMLButtonElement &&
+            boundElement.disabled;
+          if (actionStillRunning) {
+            // A network-backed action may outlive the normal gate. Keep
+            // observing its route while the button still says it is working.
+            schedule(waitForResult, 100);
+            return;
+          }
+          // The action did not produce its promised result (for example,
+          // cancelling Delete). Keep this same step active and let the user retry.
+          consumed = false;
+          boundElement?.addEventListener(eventType, handler, { once: true });
+        }
+      };
+      schedule(waitForResult, 0);
+    };
+
+    const checkAndBind = () => {
+      const element = document.querySelector(target);
+      if (!element) {
+        schedule(checkAndBind, 100);
+        return;
+      }
+
+      boundElement = element;
+      eventType =
+        element.tagName === 'SELECT'
+          ? 'change'
+          : element.tagName === 'TEXTAREA'
+            ? 'input'
+            : 'click';
+      element.addEventListener(eventType, handler, { once: true });
+    };
+
+    // Register cancellation before the first lookup so route/step changes also
+    // cancel target retries and delayed advances.
+    interactiveListenerRef.current = dispose;
+    checkAndBind();
+  }, []);
 
   const showStep = useCallback((stepIndex: number) => {
     if (stepIndex < 0 || stepIndex >= TOUR_STEPS.length) return;
@@ -141,19 +271,34 @@ export function TourProvider({ children }: { children: ReactNode }) {
       // For interactive steps, clicking the highlighted area should pass through
       stagePadding: isInteractive ? 8 : 16,
       allowKeyboardControl: !isInteractive,
+      // Render the extra control before Driver.js measures and positions the
+      // popover. Adding it afterward makes the popover grow back over the
+      // highlighted input, which is especially confusing in the portions modal.
+      onPopoverRender: (popover) => {
+        if (popover.wrapper.querySelector('.tour-skip-btn')) return;
+        const skipBtn = document.createElement('button');
+        skipBtn.className = 'tour-skip-btn';
+        skipBtn.textContent = 'Skip Tour';
+        skipBtn.onclick = () => {
+          d.destroy();
+          cleanupInteractiveListener();
+          cleanup().then(() => navigate('/'));
+        };
+        popover.wrapper.appendChild(skipBtn);
+      },
       onNextClick: async () => {
         d.destroy();
         if (isLastStep) {
           await cleanup();
           navigate('/');
         } else {
-          advanceToStep(stepIndex + 1);
+          advanceToStepRef.current(stepIndex + 1);
         }
       },
       onPrevClick: () => {
         d.destroy();
         if (stepIndex > 0) {
-          advanceToStep(stepIndex - 1);
+          advanceToStepRef.current(stepIndex - 1);
         }
       },
       onCloseClick: () => {
@@ -167,23 +312,32 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        // Route changes and earlier tutorial steps can leave the document or a
+        // modal scrolled elsewhere. Put the current target in view first so
+        // Driver.js never describes an off-screen control (notably Notes).
+        if (stepDef.element) {
+          document.querySelector(stepDef.element)?.scrollIntoView({
+            behavior: 'auto',
+            block: 'center',
+            inline: 'nearest',
+          });
+        }
         d.drive();
 
-        // Add skip button to the popover
-        setTimeout(() => {
-          const popover = document.querySelector('.driver-popover');
-          if (popover && !popover.querySelector('.tour-skip-btn')) {
-            const skipBtn = document.createElement('button');
-            skipBtn.className = 'tour-skip-btn';
-            skipBtn.textContent = 'Skip Tour';
-            skipBtn.onclick = () => {
-              d.destroy();
-              cleanupInteractiveListener();
-              cleanup().then(() => navigate('/'));
-            };
-            popover.appendChild(skipBtn);
-          }
-        }, 100);
+        // WebView2 may apply scroll anchoring after conditional UI is inserted
+        // (the Notes editor appears above the current viewport). Re-center once
+        // that layout shift settles and refresh Driver's stage measurement.
+        if (stepDef.element) {
+          window.setTimeout(() => {
+            if (driverRef.current !== d || !d.isActive()) return;
+            document.querySelector(stepDef.element!)?.scrollIntoView({
+              behavior: 'auto',
+              block: 'center',
+              inline: 'nearest',
+            });
+            window.requestAnimationFrame(() => d.refresh());
+          }, 300);
+        }
 
         // For interactive steps: listen for click on the target, then auto-advance
         if (isInteractive && stepDef.interactiveTarget) {
@@ -191,68 +345,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
         }
       });
     });
-  }, [darkMode, cleanup, navigate, cleanupInteractiveListener]);
-
-  /** Set up a click/change listener on the interactive target that auto-advances the tour */
-  const setupInteractiveListener = useCallback((stepIndex: number, stepDef: typeof TOUR_STEPS[0], d: Driver) => {
-    const target = stepDef.interactiveTarget;
-    if (!target) return;
-
-    // For select elements (surah selector, performance dropdown), listen for 'change'
-    // For everything else, listen for 'click'
-    const checkAndBind = () => {
-      const el = document.querySelector(target);
-      if (!el) {
-        // Element not found yet, retry
-        const retryTimer = setTimeout(checkAndBind, 200);
-        interactiveListenerRef.current = () => clearTimeout(retryTimer);
-        return;
-      }
-
-      const isSelectEl = el.tagName === 'SELECT';
-      const isTextarea = el.tagName === 'TEXTAREA';
-      const eventType = isSelectEl ? 'change' : isTextarea ? 'input' : 'click';
-
-      // For steps that need to wait for a new element to appear (e.g., word popup)
-      const waitFor = stepDef.waitForElement;
-
-      const handler = () => {
-        if (waitFor) {
-          // Wait for the element to appear, then advance
-          const waitCheck = () => {
-            const waitEl = document.querySelector(waitFor);
-            if (waitEl) {
-              // Small delay to let animations finish
-              setTimeout(() => {
-                d.destroy();
-                advanceToStep(stepIndex + 1);
-              }, 300);
-            } else {
-              setTimeout(waitCheck, 100);
-            }
-          };
-          waitCheck();
-        } else {
-          // Advance after a small delay
-          setTimeout(() => {
-            d.destroy();
-            advanceToStep(stepIndex + 1);
-          }, 300);
-        }
-      };
-
-      // For interactive targets inside the driver stage (highlighted area),
-      // we need the click to pass through. driver.js allows this by default for the stage.
-      el.addEventListener(eventType, handler, { once: true });
-
-      interactiveListenerRef.current = () => {
-        el.removeEventListener(eventType, handler);
-      };
-    };
-
-    // Small delay to let the driver overlay render
-    setTimeout(checkAndBind, 200);
-  }, []);
+  }, [darkMode, cleanup, navigate, cleanupInteractiveListener, setupInteractiveListener]);
 
   const advanceToStep = useCallback(async (nextStep: number) => {
     if (nextStep >= TOUR_STEPS.length) {
@@ -302,23 +395,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
         showStep(nextStep);
       }
     }
-  }, [currentStep, tourClassId, cleanup, navigate, showStep]);
+  }, [tourClassId, cleanup, navigate, showStep, user?.id, waitForElement]);
 
-  /** Wait for a DOM element to appear, then call callback */
-  const waitForElement = (selector: string, callback: () => void, maxWait = 5000) => {
-    const start = Date.now();
-    const check = () => {
-      if (document.querySelector(selector)) {
-        callback();
-      } else if (Date.now() - start < maxWait) {
-        setTimeout(check, 100);
-      } else {
-        // Element never appeared, skip this step
-        callback();
-      }
-    };
-    check();
-  };
+  // Interactive listeners are intentionally stable; route them through the
+  // latest step callback so they never advance with first-render state.
+  useEffect(() => {
+    advanceToStepRef.current = advanceToStep;
+  }, [advanceToStep]);
 
   // When pendingStep is set and we detect a route change, show the step
   useEffect(() => {
@@ -340,26 +423,15 @@ export function TourProvider({ children }: { children: ReactNode }) {
       }, delay);
       return () => clearTimeout(timer);
     }
-  }, [pendingStep, location.pathname, location.search, isActive]);
-
-  // Listen for session creation: when URL changes to /sessions/<id>
-  // and we're in the tour, capture the session ID
-  useEffect(() => {
-    if (isActive) {
-      const match = location.pathname.match(/\/sessions\/(.+)/);
-      if (match && match[1] !== 'new' && !tourClassId) {
-        const newClassId = match[1];
-        setTourClassIdState(newClassId);
-        setTourClassId(newClassId, user?.id);
-      }
-    }
-  }, [location.pathname, isActive, tourClassId]);
+  }, [pendingStep, location.pathname, location.search, isActive, showStep, waitForElement]);
 
   const startTour = useCallback(() => {
+    markTourAutoShown(user?.id);
     setIsActive(true);
     setCurrentStep(0);
     setTourClassIdState(null);
     clearTourClassId(user?.id);
+    clearTourClassId();
 
     if (location.pathname !== '/') {
       setPendingStep(0);
@@ -367,7 +439,25 @@ export function TourProvider({ children }: { children: ReactNode }) {
     } else {
       setTimeout(() => showStep(0), 300);
     }
-  }, [location.pathname, navigate, showStep]);
+  }, [location.pathname, navigate, showStep, user?.id]);
+
+  useEffect(() => {
+    autoStarted.current = false;
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (
+      user &&
+      !hasTourBeenAutoShown(user.id) &&
+      location.pathname === '/' &&
+      !autoStarted.current &&
+      !isActive
+    ) {
+      autoStarted.current = true;
+      const timer = window.setTimeout(startTour, 800);
+      return () => window.clearTimeout(timer);
+    }
+  }, [user, location.pathname, isActive, startTour]);
 
   const clearPending = useCallback(() => {
     setPendingStep(null);

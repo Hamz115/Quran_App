@@ -17,7 +17,7 @@ export default function Signup() {
 
   const { signup } = useAuth();
   const navigate = useNavigate();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode } = useTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -65,7 +65,7 @@ export default function Signup() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-cover bg-center bg-no-repeat"
+      className="approved-auth-page min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage: 'url(/background.jpg)',
       }}
@@ -77,35 +77,14 @@ export default function Signup() {
           : 'bg-sky-100/70'
       }`} />
 
-      {/* Theme Toggle Button */}
-      <button
-        onClick={toggleDarkMode}
-        className={`fixed top-4 right-4 z-20 p-3 rounded-full transition-all duration-300 ${
-          darkMode
-            ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
-            : 'bg-white text-cyan-600 hover:bg-cyan-50 shadow-lg border border-cyan-200'
-        }`}
-        aria-label="Toggle dark mode"
-      >
-        {darkMode ? (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        )}
-      </button>
-
       {/* Quran Verse - Surah Al-Isra 17:9 */}
-      <div className="relative z-10 w-full max-w-4xl text-center mb-6">
-        <p className={`text-xl md:text-2xl font-arabic leading-loose transition-colors duration-300 ${
+      <div className="auth-verse relative z-10 w-full max-w-4xl text-center mb-6">
+        <p className={`auth-verse-arabic text-xl md:text-2xl font-arabic leading-loose transition-colors duration-300 ${
           darkMode ? 'text-slate-300' : 'text-slate-600'
         }`} dir="rtl">
           إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا
         </p>
-        <p className={`text-sm mt-2 transition-colors duration-300 ${
+        <p className={`auth-verse-translation text-sm mt-2 transition-colors duration-300 ${
           darkMode ? 'text-slate-400' : 'text-slate-500'
         }`}>
           "Indeed, this Quran guides to that which is most suitable and gives good tidings to the believers who do righteous deeds that they will have a great reward." - Al-Isra 17:9
@@ -113,7 +92,7 @@ export default function Signup() {
       </div>
 
       {/* Main Card */}
-      <div className={`relative z-10 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row lg:min-h-[600px] transition-colors duration-300 ${
+      <div className={`approved-auth-card relative z-10 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row lg:min-h-[600px] transition-colors duration-300 ${
         darkMode ? 'bg-[rgb(30,41,59)]/95 border border-cyan-900/30 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm border border-cyan-200/50'
       }`}>
           {/* Left Side - Decorative (shows on top on mobile) */}
@@ -135,7 +114,7 @@ export default function Signup() {
 
             {/* Content */}
             <div className="relative z-10 text-center px-8 lg:px-12">
-              <img src="/logo.png" alt="QuranTrack" className="w-16 h-16 lg:w-28 lg:h-28 mx-auto mb-4 lg:mb-8 drop-shadow-2xl" />
+              <img src="/qurantrack-icon.png" alt="QuranTrack logo" className="auth-hero-logo w-20 h-20 lg:w-32 lg:h-32 mx-auto mb-4 lg:mb-7 drop-shadow-2xl" />
               <h2 className="text-2xl lg:text-3xl font-bold text-white mb-2 lg:mb-4">Join Us!</h2>
               <p className="text-white/90 text-sm lg:text-lg leading-relaxed max-w-xs mx-auto">
                 Start your Quran memorization journey today
@@ -147,8 +126,8 @@ export default function Signup() {
           <div className="w-full lg:w-1/2 p-6 lg:p-10 flex flex-col justify-center overflow-y-auto">
             <div className="max-w-sm mx-auto w-full">
               {/* Logo - shows on all screens now since decorative has it */}
-              <div className="flex items-center gap-3 mb-6 lg:hidden">
-                <img src="/logo.png" alt="QuranTrack" className="w-10 h-10" />
+              <div className="flex items-center gap-3 mb-6">
+                <img src="/qurantrack-icon.png" alt="QuranTrack logo" className="auth-brand-logo w-11 h-11" />
                 <span className={`text-xl font-bold transition-colors duration-300 ${
                   darkMode ? 'text-white' : 'text-slate-800'
                 }`}>QuranTrack</span>

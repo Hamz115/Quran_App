@@ -1,7 +1,7 @@
-// Quran API functions - Local FastAPI endpoints
-// These stay local because Quran data is bundled with the app
-
-const QURAN_API_BASE = (import.meta.env.VITE_QURAN_API_BASE || 'http://localhost:8000/api').replace(/\/$/, '');
+// Quran reference data is exported as versioned static JSON. The same files are
+// served by Vite locally and S3/CloudFront in the hosted web/PWA build, so Quran
+// rendering never depends on a localhost backend or an always-on Mini PC service.
+const QURAN_DATA_BASE = (import.meta.env.VITE_QURAN_DATA_BASE || '/quran-data/v1').replace(/\/$/, '');
 
 // QPC v2 word data
 export interface QuranPageWord {
@@ -38,22 +38,27 @@ export interface Surah {
   revelationType: string;
 }
 
+async function fetchStaticJson<T>(path: string, label: string): Promise<T> {
+  const response = await fetch(`${QURAN_DATA_BASE}/${path}`, { cache: 'force-cache' });
+  if (!response.ok) throw new Error(`Failed to load ${label} (${response.status})`);
+  return response.json() as Promise<T>;
+}
+
 export async function getSurahs(): Promise<Surah[]> {
-  const res = await fetch(`${QURAN_API_BASE}/surahs`);
-  if (!res.ok) throw new Error('Failed to fetch surahs');
-  const data = await res.json();
-  return data.data;
+  const payload = await fetchStaticJson<{ data: Surah[] }>('surahs.json', 'surah metadata');
+  return payload.data;
 }
 
 export async function getSurah(surahNumber: number): Promise<Surah> {
-  const res = await fetch(`${QURAN_API_BASE}/surahs/${surahNumber}`);
-  if (!res.ok) throw new Error('Failed to fetch surah');
-  const data = await res.json();
-  return data.data;
+  const file = String(surahNumber).padStart(3, '0');
+  const payload = await fetchStaticJson<{ data: Surah }>(`surahs/${file}.json`, `Surah ${surahNumber}`);
+  return payload.data;
 }
 
 export async function getQuranPage(pageNumber: number): Promise<QuranPageData> {
-  const res = await fetch(`${QURAN_API_BASE}/quran/page/${pageNumber}`);
-  if (!res.ok) throw new Error('Failed to fetch page data');
-  return res.json();
+  if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > 604) {
+    throw new Error('Quran page must be between 1 and 604');
+  }
+  const file = String(pageNumber).padStart(3, '0');
+  return fetchStaticJson<QuranPageData>(`pages/${file}.json`, `Quran page ${pageNumber}`);
 }

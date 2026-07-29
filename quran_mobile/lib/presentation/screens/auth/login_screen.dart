@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthApiException;
-import '../../../config/app_colors.dart';
-import '../../providers/theme_provider.dart';
+
 import '../../providers/auth_provider.dart';
-import 'signup_screen.dart';
+import '../../widgets/approved_auth_shell.dart';
 import 'forgot_password_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,606 +14,140 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _loading = false;
+  bool _obscure = true;
   String? _error;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _email.dispose();
+    _password.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() {
-      _isLoading = true;
+      _loading = true;
       _error = null;
     });
-
     try {
-      await ref
-          .read(authProvider.notifier)
-          .signIn(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
+      await ref.read(authProvider.notifier).signIn(
+            email: _email.text.trim(),
+            password: _password.text,
           );
-      // Navigation happens automatically via auth state
-    } catch (e) {
-      setState(() {
-        if (e is AuthApiException) {
-          _error = e.message;
-        } else {
-          _error = e.toString().replaceAll('Exception: ', '');
-        }
-      });
-    } finally {
+    } catch (error) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(
+          () => _error = error.toString().replaceAll('Exception: ', ''),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = ref.watch(themeProvider);
-    final screenSize = MediaQuery.of(context).size;
-    final isLargeScreen = screenSize.width > 600;
-
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: AppColors.appBackgroundGradient(isDarkMode),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.deepTeal.withOpacity(isDarkMode ? 0.38 : 0.10),
-                Colors.black.withOpacity(isDarkMode ? 0.22 : 0.03),
-              ],
+    return ApprovedAuthShell(
+      title: 'Welcome back',
+      subtitle: 'Continue teaching, tracking, and reviewing recitation.',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_error != null) _AuthError(message: _error!),
+            TextFormField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(
+                labelText: 'Email address',
+                prefixIcon: Icon(Icons.mail_outline),
+              ),
+              validator: (value) =>
+                  value != null && value.contains('@')
+                      ? null
+                      : 'Enter a valid email',
             ),
-          ),
-          child: Stack(
-            children: [
-              // Main content
-              SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 20),
-
-                        // Quran verse header
-                        _buildQuranVerse(isDarkMode),
-
-                        const SizedBox(height: 24),
-
-                        // Main card
-                        Container(
-                          constraints: BoxConstraints(
-                            maxWidth: isLargeScreen ? 800 : double.infinity,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isDarkMode
-                                  ? [
-                                      AppColors.nightCard.withOpacity(0.98),
-                                      AppColors.nightSurface.withOpacity(0.96),
-                                    ]
-                                  : [Colors.white, AppColors.porcelain],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: isDarkMode
-                                  ? AppColors.cyan500.withOpacity(0.2)
-                                  : AppColors.cyan200.withOpacity(0.5),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 30,
-                                offset: const Offset(0, 16),
-                              ),
-                            ],
-                          ),
-                          child: isLargeScreen
-                              ? _buildLargeScreenLayout(isDarkMode)
-                              : _buildSmallScreenLayout(isDarkMode),
-                        ),
-                      ],
-                    ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _password,
+              obscureText: _obscure,
+              autofillHints: const [AutofillHints.password],
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure ? Icons.visibility_outlined : Icons.visibility_off,
                   ),
                 ),
               ),
-
-              // Keep floating controls above the full-screen scroll view so
-              // they remain reachable during hit testing.
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                right: 16,
-                child: _buildThemeToggle(isDarkMode),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildThemeToggle(bool isDarkMode) {
-    return GestureDetector(
-      onTap: () => ref.read(themeProvider.notifier).toggleTheme(),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isDarkMode ? AppColors.cyan500.withOpacity(0.2) : Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isDarkMode
-                ? AppColors.cyan500.withOpacity(0.3)
-                : AppColors.cyan200,
-          ),
-          boxShadow: isDarkMode
-              ? null
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-        ),
-        child: Icon(
-          isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-          color: isDarkMode ? AppColors.cyan400 : AppColors.cyan600,
-          size: 24,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuranVerse(bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          Text(
-            'إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا',
-            style: GoogleFonts.amiri(
-              fontSize: 20,
-              height: 1.8,
-              color: AppColors.slate300,
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Enter your password' : null,
+              onFieldSubmitted: (_) => _submit(),
             ),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '"Indeed, this Quran guides to that which is most suitable and gives good tidings to the believers who do righteous deeds that they will have a great reward." - Al-Isra 17:9',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.slate400,
-              fontStyle: FontStyle.italic,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLargeScreenLayout(bool isDarkMode) {
-    return Row(
-      children: [
-        // Form side
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(40),
-            child: _buildForm(isDarkMode),
-          ),
-        ),
-        // Decorative side
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-            child: _buildDecorativePanel(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSmallScreenLayout(bool isDarkMode) {
-    return Column(
-      children: [
-        // Decorative header
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30),
-            ),
-          ),
-          child: _buildDecorativePanel(compact: true),
-        ),
-        // Form
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: _buildForm(isDarkMode),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDecorativePanel({bool compact = false}) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: compact ? 60 : 100,
-          height: compact ? 60 : 100,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.cyan500, AppColors.teal500],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.menu_book_rounded,
-            color: Colors.white,
-            size: compact ? 30 : 50,
-          ),
-        ),
-        SizedBox(height: compact ? 12 : 24),
-        Text(
-          'Welcome Back!',
-          style: TextStyle(
-            fontSize: compact ? 20 : 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        if (!compact) ...[
-          const SizedBox(height: 12),
-          Text(
-            'Track your Quran memorization\njourney with ease',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.9),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildForm(bool isDarkMode) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Logo and title
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.menu_book_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'QuranTrack',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text(isDarkMode),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          Text(
-            'Assalamu Alaikum!',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: AppColors.text(isDarkMode),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Sign in to your account',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary(isDarkMode),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Error message
-          if (_error != null) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDarkMode
-                    ? Colors.red.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDarkMode
-                      ? Colors.red.withOpacity(0.3)
-                      : Colors.red.withOpacity(0.2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    color: isDarkMode ? Colors.red[400] : Colors.red[600],
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDarkMode ? Colors.red[400] : Colors.red[600],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Email field
-          _buildTextField(
-            controller: _emailController,
-            label: 'E-mail',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            isDarkMode: isDarkMode,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your email';
-              }
-              if (!value.contains('@')) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Password field
-          _buildTextField(
-            controller: _passwordController,
-            label: 'Password',
-            icon: Icons.lock_outline_rounded,
-            obscureText: _obscurePassword,
-            isDarkMode: isDarkMode,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword
-                    ? Icons.visibility_off_rounded
-                    : Icons.visibility_rounded,
-                color: AppColors.textMuted(isDarkMode),
-                size: 20,
-              ),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your password';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Forgot password
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => const ForgotPasswordScreen(),
                   ),
-                );
-              },
-              child: Text(
-                'Forgot Password?',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.cyan500,
                 ),
+                child: const Text('Forgot password?'),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Sign in button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.transparent,
-                shadowColor: AppColors.cyan500.withOpacity(0.3),
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Ink(
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'SIGN IN',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _submit,
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Sign in'),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Create account link
-          Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Don't have an account? ",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary(isDarkMode),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignupScreen()),
-                    );
-                  },
-                  child: Text(
-                    'Create',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.cyan500,
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SignupScreen()),
+              ),
+              child: const Text('Create a QuranTrack account'),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required bool isDarkMode,
-    bool obscureText = false,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-    Widget? suffixIcon,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      validator: validator,
-      style: TextStyle(fontSize: 15, color: AppColors.text(isDarkMode)),
-      decoration: InputDecoration(
-        hintText: label,
-        hintStyle: TextStyle(color: AppColors.textMuted(isDarkMode)),
-        prefixIcon: Icon(icon, color: AppColors.cyan500, size: 22),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: isDarkMode ? AppColors.darkInputBg : AppColors.lightInputBg,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: isDarkMode
-                ? AppColors.cyan500.withOpacity(0.2)
-                : AppColors.cyan200,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: isDarkMode
-                ? AppColors.cyan500.withOpacity(0.2)
-                : AppColors.cyan200,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: AppColors.cyan500, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
+class _AuthError extends StatelessWidget {
+  final String message;
+
+  const _AuthError({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error.withOpacity(.08),
+        borderRadius: BorderRadius.circular(8),
       ),
+      child: Text(message),
     );
   }
 }

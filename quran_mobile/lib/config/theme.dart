@@ -177,10 +177,10 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.lightBackground,
-      primaryColor: AppColors.cyan600,
+      primaryColor: AppColors.emerald,
       colorScheme: const ColorScheme.light(
-        primary: AppColors.cyan600,
-        secondary: AppColors.teal600,
+        primary: AppColors.emerald,
+        secondary: AppColors.navy,
         tertiary: AppColors.gold,
         surface: AppColors.lightSurface,
         error: AppColors.error,
@@ -205,35 +205,35 @@ class AppTheme {
         color: AppColors.lightCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
           side: const BorderSide(color: AppColors.lightBorder),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.lightSurface,
-        selectedItemColor: AppColors.cyan600,
+        selectedItemColor: AppColors.emerald,
         unselectedItemColor: AppColors.lightTextSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.cyan600,
+        backgroundColor: AppColors.emerald,
         foregroundColor: Colors.white,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.lightInputBg,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.slate200),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.goldBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.slate200),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.goldBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.cyan500, width: 2),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.emerald, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -252,26 +252,24 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.cyan600,
+          backgroundColor: AppColors.emerald,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.cyan600),
+        style: TextButton.styleFrom(foregroundColor: AppColors.emerald),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.cyan600,
+          foregroundColor: AppColors.emerald,
           side: const BorderSide(color: AppColors.lightBorder),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -310,21 +308,21 @@ class AppTheme {
     return GoogleFonts.interTextTheme(
       isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
     ).copyWith(
-      headlineLarge: GoogleFonts.inter(
-        fontSize: 32,
-        fontWeight: FontWeight.w800,
+      headlineLarge: GoogleFonts.cormorantGaramond(
+        fontSize: 38,
+        fontWeight: FontWeight.w600,
         color: textColor,
-        height: 1.12,
+        height: 1.05,
       ),
-      headlineMedium: GoogleFonts.inter(
+      headlineMedium: GoogleFonts.cormorantGaramond(
+        fontSize: 30,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+        height: 1.08,
+      ),
+      titleLarge: GoogleFonts.cormorantGaramond(
         fontSize: 24,
-        fontWeight: FontWeight.w800,
-        color: textColor,
-        height: 1.16,
-      ),
-      titleLarge: GoogleFonts.inter(
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         color: textColor,
       ),
       titleMedium: GoogleFonts.inter(

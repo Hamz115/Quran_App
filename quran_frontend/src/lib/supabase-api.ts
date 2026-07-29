@@ -318,6 +318,7 @@ export interface ClassData {
   is_published: boolean;
   assignments: ClassAssignment[];
   students?: ClassStudent[];
+  mistake_count?: number;
   mistake_counts?: {
     hifz: number;
     sabqi: number;
@@ -339,6 +340,7 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
         .select(`
           *,
           assignments (*),
+          mistake_occurrences (id),
           class_reciters (
             reciter_id,
             performance,
@@ -352,6 +354,7 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
         .select(`
           *,
           assignments (*),
+          mistake_occurrences (id),
           class_reciters:class_students (
             reciter_id:student_id,
             performance,
@@ -375,6 +378,7 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
         .select(`
           *,
           assignments (*),
+          mistake_occurrences (id),
           class_reciters!inner (reciter_id),
           listener:profiles!listener_id (name)
         `)
@@ -386,6 +390,7 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
         .select(`
           *,
           assignments (*),
+          mistake_occurrences (id),
           class_reciters:class_students!inner (reciter_id:student_id),
           listener:profiles!teacher_id (name)
         `)
@@ -404,6 +409,7 @@ async function fetchClassesFromSupabase(view: 'listener' | 'reciter'): Promise<C
         listener_id: row.listener_id,
         listener_name: row.listener?.name,
         is_published: row.is_published,
+        mistake_count: Array.isArray(row.mistake_occurrences) ? row.mistake_occurrences.length : 0,
         assignments: (row.assignments ?? []).map((a: any) => ({
           id: a.id,
           type: a.type,
@@ -482,6 +488,7 @@ function mapClassData(rows: any[], includeStudents: boolean): ClassData[] {
       teacher_id: row.teacher_id,
       listener_id: row.listener_id || row.teacher_id,
       is_published: row.is_published,
+      mistake_count: Array.isArray(row.mistake_occurrences) ? row.mistake_occurrences.length : 0,
       assignments: (row.assignments ?? []).map((a: any) => ({
         id: a.id,
         type: a.type,
@@ -902,7 +909,7 @@ export async function addMistake(mistake: {
     query = query.is('char_index', null);
   }
 
-  let existingResult = await query.single() as { data: { id: string; error_count: number } | null; error: any };
+  let existingResult = await query.maybeSingle() as { data: { id: string; error_count: number } | null; error: any };
   if (existingResult.error && isSchemaCompatibilityError(existingResult.error)) {
     query = (supabase as any)
       .from('mistakes')
@@ -914,7 +921,7 @@ export async function addMistake(mistake: {
     query = mistake.char_index !== undefined
       ? query.eq('char_index', mistake.char_index)
       : query.is('char_index', null);
-    existingResult = await query.single() as { data: { id: string; error_count: number } | null; error: any };
+    existingResult = await query.maybeSingle() as { data: { id: string; error_count: number } | null; error: any };
   }
   const existing = existingResult.data;
 

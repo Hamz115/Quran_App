@@ -247,6 +247,11 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
                             ),
                           ),
                   ),
+                  _buildApprovedSessionControls(
+                    classData,
+                    relevantMistakes,
+                    isDarkMode,
+                  ),
                 ],
               ),
             ),
@@ -275,124 +280,230 @@ class _ClassroomScreenState extends ConsumerState<ClassroomScreen> {
     int mistakeCount,
     bool isDarkMode,
   ) {
-    final sectionColor = AppColors.getSectionColor(_activeSection);
-    final sectionLabel =
-        AppConstants.sectionLabels[_activeSection] ?? _activeSection;
-
-    return Container(
+    return Column(
       key: TourService.sectionTabsKey,
-      margin: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-      padding: const EdgeInsets.only(left: 4, right: 8, top: 6, bottom: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface(
-          isDarkMode,
-        ).withOpacity(isDarkMode ? 0.92 : 0.96),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.border(isDarkMode).withOpacity(0.74),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDarkMode ? 0.32 : 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+      children: [
+        Container(
+          color: AppColors.navy,
+          padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_rounded, size: 22),
+                color: Colors.white,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${classData.day}, ${classData.date}',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Listening session • ${_activeSection.toUpperCase()}',
+                      style: const TextStyle(
+                        color: AppColors.goldSoft,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.emerald400,
+                size: 15,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '$mistakeCount mistakes',
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+              IconButton(
+                key: TourService.classroomSettingsKey,
+                onPressed: () => _showSettingsSheet(context),
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+              ),
+            ],
           ),
-        ],
+        ),
+        Container(
+          color: AppColors.lightSurface,
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            children: sections.map((section) {
+              final active = section == _activeSection;
+              final label = section == 'revision'
+                  ? 'Manzil'
+                  : '${section[0].toUpperCase()}${section.substring(1)}';
+              return Expanded(
+                child: InkWell(
+                  onTap: () => setState(() {
+                    _activeSection = section;
+                    _selectedPortionIndex = 0;
+                  }),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? AppColors.emerald : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: active
+                          ? null
+                          : Border.all(color: AppColors.goldBorder),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: active ? Colors.white : AppColors.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildApprovedSessionControls(
+    ClassSession classData,
+    List<Mistake> mistakes,
+    bool isDarkMode,
+  ) {
+    return Container(
+      color: AppColors.navyDeep,
+      padding: EdgeInsets.fromLTRB(
+        4,
+        6,
+        4,
+        MediaQuery.paddingOf(context).bottom + 6,
       ),
       child: Row(
         children: [
-          // Back arrow
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_rounded, size: 22),
-            color: AppColors.text(isDarkMode),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          _SessionControl(
+            icon: Icons.arrow_back,
+            label: 'Previous',
+            onTap: () => Navigator.pop(context),
           ),
-
-          // Date info
-          Expanded(
-            child: Text(
-              '${classData.day}, ${classData.date}',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.text(isDarkMode),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
+          _SessionControl(
+            icon: Icons.format_list_bulleted,
+            label: 'Mistakes',
+            badge: mistakes.length,
+            onTap: () => _showApprovedMistakesSheet(mistakes),
           ),
-
-          const SizedBox(width: 6),
-
-          // Active section pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: sectionColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: sectionColor.withOpacity(0.5)),
-            ),
-            child: Text(
-              sectionLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: sectionColor,
-              ),
-            ),
+          _SessionControl(
+            icon: Icons.notes_outlined,
+            label: 'Notes',
+            onTap: () => _showNotesSheet(context, classData, isDarkMode),
           ),
-
-          const SizedBox(width: 6),
-
-          // Mistake count badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: mistakeCount == 0
-                  ? AppColors.emerald500.withOpacity(0.2)
-                  : AppColors.mistake1.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color:
-                    (mistakeCount == 0
-                            ? AppColors.emerald500
-                            : AppColors.mistake1)
-                        .withOpacity(0.22),
-              ),
-            ),
-            child: Text(
-              '$mistakeCount',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: mistakeCount == 0
-                    ? AppColors.emerald400
-                    : AppColors.mistake1,
-              ),
-            ),
+          _SessionControl(
+            icon: Icons.bar_chart,
+            label: 'Performance',
+            onTap: () => _showSettingsSheet(context),
           ),
-
-          const SizedBox(width: 4),
-
-          // Settings gear icon
-          IconButton(
-            key: TourService.classroomSettingsKey,
-            onPressed: () {
-              if (TourService.isTourActive) {
-                TourService.completeInteraction();
-              }
-              _overlayTimer?.cancel();
-              _showSettingsSheet(context);
-            },
-            icon: const Icon(Icons.settings_rounded, size: 22),
-            color: AppColors.textSecondary(isDarkMode),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          _SessionControl(
+            icon: Icons.stop_outlined,
+            label: 'End',
+            danger: true,
+            onTap: () => _confirmEndSession(),
           ),
         ],
       ),
     );
+  }
+
+  void _showApprovedMistakesSheet(List<Mistake> mistakes) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.ivory,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mistake details',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 12),
+              if (mistakes.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No mistakes have been marked in this portion.'),
+                )
+              else
+                ...mistakes.take(5).map(
+                  (mistake) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.getMistakeColor(
+                        mistake.severityLevel,
+                      ).withOpacity(0.14),
+                      child: Text('${mistake.severityLevel}'),
+                    ),
+                    title: Text(
+                      'Surah ${mistake.surahNumber}:${mistake.ayahNumber}',
+                    ),
+                    subtitle: Text(
+                      mistake.isCharacterLevel
+                          ? 'Character-level mistake'
+                          : 'Whole-word mistake',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _flashWord(
+                        mistake.surahNumber,
+                        mistake.ayahNumber,
+                        mistake.wordIndex,
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmEndSession() async {
+    final shouldEnd = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('End session?'),
+        content: const Text(
+          'Mistakes, notes, and performance saved so far will be kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Continue session'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('End session'),
+          ),
+        ],
+      ),
+    );
+    if (shouldEnd == true && mounted) Navigator.pop(context);
   }
 
   // ==================== BOTTOM OVERLAY ====================
@@ -2677,6 +2788,67 @@ class _MistakeBadgeWidget extends StatelessWidget {
               style: TextStyle(fontSize: 10, color: color.withOpacity(0.7)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionControl extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final int? badge;
+  final bool danger;
+
+  const _SessionControl({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? const Color(0xFFFF8B7B) : Colors.white;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, color: color, size: 23),
+                  if (badge != null && badge! > 0)
+                    Positioned(
+                      top: -8,
+                      right: -10,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$badge',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(color: color, fontSize: 10)),
+            ],
+          ),
         ),
       ),
     );

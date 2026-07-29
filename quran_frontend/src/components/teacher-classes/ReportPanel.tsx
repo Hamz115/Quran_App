@@ -74,11 +74,6 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
     deleteClass(classId).catch(err => console.error('Failed to delete class:', err));
   }, [report]);
 
-  // Theme variables
-  const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
-  const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
-  const cardBg = darkMode ? 'bg-slate-800' : 'bg-white';
-
   const formatDate = (dateStr: string): string => {
     try {
       return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -115,68 +110,40 @@ export default function ReportPanel({ studentId, basePath, hideExport }: ReportP
   }
 
   return (
-    <div className="space-y-0">
-      {/* Student info + Export */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+    <div className="report-editorial-panel">
+      <div className="report-record-heading">
         <div>
-          <p className={`text-sm ${textMuted}`}>
-            {report.student.name} &middot; Reciter since {formatDate(report.student.added_at)}
-          </p>
+          <span>Recitation record</span>
+          <h2>{report.student.name}</h2>
+          <p>Tracking since {formatDate(report.student.added_at)}</p>
         </div>
         {!hideExport && (
-          <button
-            onClick={() => setShowExportModal(true)}
-            className={`px-3.5 py-1.5 rounded-lg border text-[13px] font-medium flex items-center gap-1.5 transition-colors ${
-              darkMode
-                ? 'border-slate-600 text-slate-300 hover:bg-slate-700 hover:border-slate-500'
-                : 'border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button onClick={() => setShowExportModal(true)} className="report-export-button">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Export
+            Export report
           </button>
         )}
       </div>
 
-      {/* Filter bar */}
-      <ReportFilterBar filters={filters} onFiltersChange={setFilters} darkMode={darkMode} />
+      <ReportFilterBar filters={filters} onFiltersChange={setFilters} darkMode={false} />
+      <ReportSummaryStrip summary={filteredReport.summary} darkMode={false} />
 
-      {/* Summary strip */}
-      <ReportSummaryStrip summary={filteredReport.summary} darkMode={darkMode} />
-
-      {/* Tab navigation */}
-      <div className={`flex ${cardBg} border-b ${borderColor} rounded-t-xl px-4 sm:px-6`}>
+      <nav className="report-section-tabs" aria-label="Report sections">
         {[
-          { id: 'classes' as const, label: 'Sessions (جلسات)', count: filteredReport.summary.total_classes, countColor: 'bg-cyan-600/20 text-cyan-400' },
-          { id: 'mistakes' as const, label: 'Mistakes (أخطاء)', count: filteredReport.summary.total_mistakes, countColor: 'bg-red-500/20 text-red-400' },
-          { id: 'performance' as const, label: 'Performance (أداء)', count: null, countColor: '' },
+          { id: 'classes' as const, label: 'Sessions', arabic: 'جلسات', count: filteredReport.summary.total_classes },
+          { id: 'mistakes' as const, label: 'Mistakes', arabic: 'أخطاء', count: filteredReport.summary.total_mistakes },
+          { id: 'performance' as const, label: 'Performance', arabic: 'أداء', count: null },
         ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-5 py-3 text-[13px] font-medium relative transition-colors ${
-              activeTab === tab.id
-                ? 'text-cyan-400'
-                : `${textMuted} hover:${darkMode ? 'text-slate-300' : 'text-slate-600'}`
-            }`}
-          >
-            {tab.label}
-            {tab.count !== null && (
-              <span className={`ml-1.5 inline-flex items-center justify-center min-w-[20px] h-[18px] px-1.5 rounded-full text-[10px] font-bold ${tab.countColor}`}>
-                {tab.count}
-              </span>
-            )}
-            {activeTab === tab.id && (
-              <div className="absolute left-0 bottom-0 w-full h-0.5 bg-cyan-600 rounded-t" />
-            )}
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? 'active' : ''}>
+            <span>{tab.label}<small>{tab.arabic}</small></span>
+            {tab.count !== null && <strong>{tab.count}</strong>}
           </button>
         ))}
-      </div>
+      </nav>
 
-      {/* Tab content */}
-      <div className="px-4 sm:px-6 py-6">
+      <div className="report-tab-content">
         {activeTab === 'classes' && (
           <ReportClassesTab
             classes={filteredReport.classes}

@@ -47,6 +47,7 @@ import {
 // Import local API functions
 import {
   isLocalApiAvailable,
+  isLocalSidecarEnabled,
   createLocalClass,
   getLocalClasses,
   getLocalClass,
@@ -343,7 +344,14 @@ export type { QuranPageWord, QuranPageLine, QuranPageData, Surah } from './lib/q
 
 // ============ LEGACY FastAPI functions (backward compatibility) ============
 
-const API_BASE = 'http://localhost:8000/api';
+const LEGACY_API_BASE = `${(import.meta.env.VITE_LOCAL_API_BASE || 'http://localhost:8000').replace(/\/$/, '')}/api`;
+
+function requireLegacySidecar(): string {
+  if (!isLocalSidecarEnabled()) {
+    throw new Error('This legacy desktop backup operation is unavailable in the hosted web app. QuranTrack data is stored in Supabase.');
+  }
+  return LEGACY_API_BASE;
+}
 
 // Token management is no longer needed (Supabase handles it)
 export function setTokens(_access: string, _refresh: string) {
@@ -393,7 +401,7 @@ export async function verifyEmail(_token: string) {
 // ============ BACKUP (still FastAPI) ============
 
 export async function createBackup() {
-  const res = await fetch(`${API_BASE}/backup/create`, {
+  const res = await fetch(`${requireLegacySidecar()}/backup/create`, {
     method: 'POST',
   });
   if (!res.ok) throw new Error('Failed to create backup');
@@ -401,13 +409,13 @@ export async function createBackup() {
 }
 
 export async function listBackups() {
-  const res = await fetch(`${API_BASE}/backup/list`);
+  const res = await fetch(`${requireLegacySidecar()}/backup/list`);
   if (!res.ok) throw new Error('Failed to list backups');
   return res.json();
 }
 
 export async function restoreBackup(filename: string) {
-  const res = await fetch(`${API_BASE}/backup/restore`, {
+  const res = await fetch(`${requireLegacySidecar()}/backup/restore`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filename }),

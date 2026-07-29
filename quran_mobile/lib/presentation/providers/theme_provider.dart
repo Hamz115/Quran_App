@@ -6,7 +6,7 @@ const String _themeKey = 'theme_mode';
 
 /// Theme state notifier that manages dark/light mode with persistence
 class ThemeNotifier extends StateNotifier<bool> {
-  ThemeNotifier() : super(true) {
+  ThemeNotifier() : super(false) {
     // Default to dark mode, then load saved preference
     _loadTheme();
   }
@@ -20,9 +20,9 @@ class ThemeNotifier extends StateNotifier<bool> {
       if (savedTheme != null) {
         state = savedTheme == 'dark';
       }
-      // If no saved preference, keep default (dark mode)
+      // If no saved preference, keep the approved warm-ivory light theme.
     } catch (e) {
-      // On error, keep default dark mode
+      // On error, keep the approved light-mode default.
       print('Error loading theme preference: $e');
     }
   }

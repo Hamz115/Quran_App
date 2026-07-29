@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,9 +6,9 @@ import { useTour } from '../contexts/TourContext';
 import { getClasses, getMyStudents, createClass, getSurahs, updateClassNotes, getSuggestedPortions } from '../api';
 import type { StudentListItem, ClassData, SuggestedPortions, SuggestedPortion } from '../api';
 import { getPageRange, TOTAL_PAGES } from '../data/quranPages';
-import { JUZ_BOUNDARIES } from '../lib/quran-utils';
-import { ReportPanel } from '../components/teacher-classes';
+import { formatPortionLabel, JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { invalidateCache } from '../lib/cache';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface SurahInfo {
   number: number;
@@ -35,20 +35,16 @@ interface PortionConfig {
 }
 
 // Toggle Switch - extracted to avoid focus loss from re-renders
-function ToggleSwitch({ enabled, onChange, color, darkMode }: { enabled: boolean; onChange: (v: boolean) => void; color: string; darkMode: boolean }) {
+function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void; color: string; darkMode: boolean }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-        enabled ? color : (darkMode ? 'bg-slate-600' : 'bg-slate-300')
-      }`}
+      className={`new-session-include-toggle ${enabled ? 'enabled' : ''}`}
+      aria-pressed={enabled}
     >
-      <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
-          enabled ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
+      <span className="new-session-include-indicator" aria-hidden="true">{enabled ? '✓' : '+'}</span>
+      <span>{enabled ? 'Included' : 'Add section'}</span>
     </button>
   );
 }
@@ -57,7 +53,6 @@ function ToggleSwitch({ enabled, onChange, color, darkMode }: { enabled: boolean
 function PortionSelector({
   label,
   description,
-  borderColor,
   toggleColor,
   config,
   setConfig,
@@ -135,22 +130,23 @@ function PortionSelector({
     : label.startsWith('Revision') ? 'manzil-toggle'
     : undefined;
 
+  const sectionKey = label.startsWith('Hifz') ? 'HIFZ' : label.startsWith('Sabqi') ? 'SABQI' : 'MANZIL';
+
   return (
-    <div data-tour={tourAttr} className={`p-4 rounded-xl border-2 transition-all ${
-      config.enabled ? borderColor : (darkMode ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50')
-    }`}>
-      <div className="flex items-start justify-between mb-1">
-        <div>
-          <h3 className={`font-semibold ${config.enabled ? (darkMode ? 'text-slate-100' : 'text-slate-800') : 'text-slate-400'}`}>
-            {label}
-          </h3>
-          <p className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>{description}</p>
+    <section data-tour={tourAttr} className={`new-session-portion-section ${config.enabled ? 'enabled' : ''}`}>
+      <header className="new-session-portion-section-header">
+        <div className="new-session-section-identity">
+          <span className="new-session-section-key">{sectionKey}</span>
+          <div>
+            <h3>{label}</h3>
+            <p>{description}</p>
+          </div>
         </div>
         <ToggleSwitch enabled={config.enabled} onChange={(v) => setConfig({ ...config, enabled: v })} color={toggleColor} darkMode={darkMode} />
-      </div>
+      </header>
 
       {config.enabled && (
-        <div className="mt-4 space-y-4">
+        <div className="new-session-portion-section-body">
           {config.portions.map((portion, index) => {
             const startSurahInfo = surahList.find(s => s.number === portion.startSurah);
             const endSurahInfo = surahList.find(s => s.number === portion.endSurah);
@@ -159,32 +155,20 @@ function PortionSelector({
             const maxEndAyahs = endSurahInfo?.numberOfAyahs || 286;
 
             return (
-              <div key={portion.id} className="space-y-3">
-                {index > 0 && <div className={`border-t pt-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`} />}
-
-                {config.portions.length > 1 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500">Portion {index + 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => removePortion(portion.id)}
-                      className="text-red-400 hover:text-red-300 text-xs"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
+              <div key={portion.id} className="new-session-portion-editor">
+                <div className="new-session-portion-editor-head">
+                  <span>{config.portions.length > 1 ? `Portion ${index + 1}` : 'Portion range'}</span>
+                  {config.portions.length > 1 && (
+                    <button type="button" onClick={() => removePortion(portion.id)}>Remove</button>
+                  )}
+                </div>
 
                 {/* Mode Toggle */}
-                <div data-tour="portion-mode" className="flex gap-2 mb-2">
+                <div data-tour="portion-mode" className="new-session-mode-segment">
                   <button
                     type="button"
                     onClick={() => updatePortion(portion.id, { mode: 'page' })}
-                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                      portion.mode === 'page'
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                        : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
-                    }`}
+                    className={portion.mode === 'page' ? 'active' : ''}
                   >
                     By Page
                   </button>
@@ -192,11 +176,7 @@ function PortionSelector({
                     type="button"
                     data-tour="mode-by-surah"
                     onClick={() => updatePortion(portion.id, { mode: 'surah' })}
-                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                      portion.mode === 'surah'
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                        : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
-                    }`}
+                    className={portion.mode === 'surah' ? 'active' : ''}
                   >
                     By Surah
                   </button>
@@ -214,11 +194,7 @@ function PortionSelector({
                         }),
                       });
                     }}
-                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                      portion.mode === 'juz'
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                        : (darkMode ? 'bg-slate-700/50 text-slate-400 border border-transparent hover:bg-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200')
-                    }`}
+                    className={portion.mode === 'juz' ? 'active' : ''}
                   >
                     By Juz
                   </button>
@@ -270,6 +246,7 @@ function PortionSelector({
                       <div>
                         <label className={`block text-xs mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>From Surah</label>
                         <select
+                          data-tour="from-surah-selector"
                           value={portion.startSurah}
                           onChange={(e) => {
                             const newStart = parseInt(e.target.value);
@@ -400,13 +377,13 @@ function PortionSelector({
           <button
             type="button"
             onClick={addPortion}
-            className={`w-full py-2 border border-dashed rounded-lg text-sm transition-colors ${darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400'}`}
+            className="new-session-add-portion"
           >
-            + Add Another Portion
+            <span aria-hidden="true">+</span> Add another range
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -416,8 +393,8 @@ export default function TeacherClasses() {
   const { darkMode } = useTheme();
   const { user } = useAuth();
   const { isActive: isTourActive } = useTour();
-  const [, setClasses] = useState<ClassData[]>([]);
-  const [, setRecitingClasses] = useState<ClassData[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [recitingClasses, setRecitingClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [surahList, setSurahList] = useState<SurahInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -432,6 +409,7 @@ export default function TeacherClasses() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   });
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Notes modal state
   const [showNotesModal, setShowNotesModal] = useState(false);
@@ -439,15 +417,14 @@ export default function TeacherClasses() {
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
 
-  // Selected student for report view
-  const [selectedStudentFilter, setSelectedStudentFilter] = useState<string | null>(null);
-
   // Auto-select student if ?report=ID, or open modal if ?new=1
   useEffect(() => {
+    if (searchParams.get('view') === 'reciting') setActiveTab('reciting');
+
     const reportStudentId = searchParams.get('report');
     if (reportStudentId) {
-      setSelectedStudentFilter(reportStudentId);
-      setSearchParams({});
+      navigate(`/reports?contact=${reportStudentId}`, { replace: true });
+      return;
     }
 
     if (searchParams.get('new') === '1') {
@@ -463,7 +440,7 @@ export default function TeacherClasses() {
       // Remove the query params from URL
       setSearchParams({});
     }
-  }, [searchParams, setSearchParams]);
+  }, [navigate, searchParams, setSearchParams]);
 
   // Portion configuration mode: 'same' for all students, 'per-student' for individual
   const [portionMode, setPortionMode] = useState<'same' | 'per-student'>('same');
@@ -522,8 +499,16 @@ export default function TeacherClasses() {
   const modalBodyRef = useRef<HTMLDivElement>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [studentFilter, setStudentFilter] = useState('all');
+  const [sectionFilter, setSectionFilter] = useState<'all' | 'hifz' | 'sabqi' | 'revision'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
 
-  async function refreshData() {
+  useEffect(() => setStudentFilter('all'), [activeTab]);
+
+  const refreshData = useCallback(async () => {
     // Load each independently so one failure doesn't break everything
     const [classesResult, reciterResult, studentsResult, surahsResult] = await Promise.allSettled([
       getClasses('listener'),
@@ -543,18 +528,11 @@ export default function TeacherClasses() {
 
     if (surahsResult.status === 'fulfilled') setSurahList(surahsResult.value);
     else console.error('Failed to load surahs:', surahsResult.reason);
-  }
+  }, []);
 
   useEffect(() => {
     refreshData().finally(() => setLoading(false));
-  }, [user?.id]);
-
-  // Auto-select first student when students load (if none selected)
-  useEffect(() => {
-    if (students.length > 0 && !selectedStudentFilter) {
-      setSelectedStudentFilter(students[0].id);
-    }
-  }, [students]);
+  }, [refreshData, user?.id]);
 
   const toggleStudent = (id: string) => {
     // Regular classes allow multiple students
@@ -630,13 +608,17 @@ export default function TeacherClasses() {
     }));
   };
 
+  const selectedStudentsKey = useMemo(
+    () => [...selectedStudents].sort().join(','),
+    [selectedStudents],
+  );
+
   // Auto pre-fill portions from previous class when entering step 2
   useEffect(() => {
     if (modalStep !== 2 || selectedStudents.length === 0) return;
 
-    const selectionKey = [...selectedStudents].sort().join(',');
-    if (suggestedPortionsAppliedFor.current === selectionKey) return;
-    suggestedPortionsAppliedFor.current = selectionKey;
+    if (suggestedPortionsAppliedFor.current === selectedStudentsKey) return;
+    suggestedPortionsAppliedFor.current = selectedStudentsKey;
 
     let cancelled = false;
 
@@ -669,7 +651,7 @@ export default function TeacherClasses() {
 
     prefill();
     return () => { cancelled = true; };
-  }, [modalStep, selectedStudents.join(',')]);
+  }, [modalStep, selectedStudents, selectedStudentsKey]);
 
   const handleCreateClass = async () => {
     setCreating(true);
@@ -730,11 +712,11 @@ export default function TeacherClasses() {
         resetModal();
         navigate(`/sessions/${result.id}`);
       } else if ('detail' in result) {
-        alert('Error: ' + (result as { detail: string }).detail);
+        setCreateError((result as { detail: string }).detail);
       }
     } catch (err) {
       console.error('Error creating class:', err);
-      alert('Error creating session: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setCreateError(err instanceof Error ? err.message : 'The session could not be created.');
     } finally {
       setCreating(false);
     }
@@ -746,6 +728,96 @@ export default function TeacherClasses() {
     .map(s => `${s!.first_name} ${s!.last_name}`)
     .join(', ');
 
+  const activeSessions = activeTab === 'listening' ? classes : recitingClasses;
+  const sessionPeople = useMemo(() => {
+    const people = new Map<string, string>();
+    activeSessions.forEach((session) => {
+      if (activeTab === 'listening') {
+        session.students?.forEach((student) => people.set(student.id, `${student.first_name} ${student.last_name}`));
+      } else if (session.listener_name) {
+        people.set(session.listener_name, session.listener_name);
+      }
+    });
+    return Array.from(people, ([id, name]) => ({ id, name }));
+  }, [activeSessions, activeTab]);
+
+  const getSessionMistakeCount = (session: ClassData) => {
+    if (typeof session.mistake_count === 'number') return session.mistake_count;
+    const counts = session.mistake_counts;
+    return counts ? counts.hifz + counts.sabqi + counts.revision : 0;
+  };
+
+  const filteredSessions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return activeSessions.filter((session) => {
+      if (dateFrom && session.date < dateFrom) return false;
+      if (dateTo && session.date > dateTo) return false;
+      if (studentFilter !== 'all') {
+        const matchesPerson = activeTab === 'listening'
+          ? session.students?.some((student) => student.id === studentFilter)
+          : session.listener_name === studentFilter;
+        if (!matchesPerson) return false;
+      }
+      if (sectionFilter !== 'all' && !session.assignments.some((assignment) => assignment.type === sectionFilter)) return false;
+      if (statusFilter === 'published' && !session.is_published) return false;
+      if (statusFilter === 'draft' && session.is_published) return false;
+      if (!query) return true;
+
+      const contactNames = session.students?.map((student) => `${student.first_name} ${student.last_name}`).join(' ')
+        || session.listener_name
+        || '';
+      const portions = session.assignments.map(formatPortionLabel).join(' ');
+      return `${contactNames} ${portions} ${session.notes || ''} ${session.performance || ''}`
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [activeSessions, activeTab, dateFrom, dateTo, searchQuery, sectionFilter, statusFilter, studentFilter]);
+
+  const sessionMetrics = useMemo(() => {
+    const mistakeTotal = activeSessions.reduce((sum, session) => sum + getSessionMistakeCount(session), 0);
+    const contacts = new Set<string>();
+    const performanceScores: number[] = [];
+    const performanceMap: Record<string, number> = {
+      'Needs Work': 1,
+      Good: 2,
+      'Very Good': 3,
+      Excellent: 4,
+    };
+
+    activeSessions.forEach((session) => {
+      session.students?.forEach((student) => {
+        contacts.add(student.id);
+        if (student.performance && performanceMap[student.performance]) {
+          performanceScores.push(performanceMap[student.performance]);
+        }
+      });
+      if (!session.students?.length && session.listener_name) contacts.add(session.listener_name);
+      if (session.performance && performanceMap[session.performance]) {
+        performanceScores.push(performanceMap[session.performance]);
+      }
+    });
+
+    const average = performanceScores.length
+      ? performanceScores.reduce((sum, score) => sum + score, 0) / performanceScores.length
+      : 0;
+    const averageLabel = average >= 3.5
+      ? 'Excellent'
+      : average >= 2.5
+        ? 'Very Good'
+        : average >= 1.5
+          ? 'Good'
+          : average > 0
+            ? 'Needs Work'
+            : 'Not rated';
+
+    return {
+      sessions: activeSessions.length,
+      mistakes: mistakeTotal,
+      contacts: contacts.size,
+      averageLabel,
+    };
+  }, [activeSessions]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -755,15 +827,22 @@ export default function TeacherClasses() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="approved-page approved-sessions-page">
+      <header className="approved-page-header">
         <div>
-          <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Sessions</h1>
-          <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>Manage your listening and reciting sessions</p>
+          <div className="flex flex-wrap items-center gap-4">
+            <h1 className="approved-page-title">Sessions</h1>
+            <span className="approved-sync">
+              <span className="desktop-status-dot" />
+              {refreshing ? 'Refreshing data' : 'Session data loaded'}
+            </span>
+            <span className="approved-eyebrow">Windows app</span>
+          </div>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Listening and reciting history with Quran portions and review notes.</p>
         </div>
-        <div className="flex items-center gap-3 self-start sm:self-auto flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <button
+            type="button"
             onClick={async () => {
               setRefreshing(true);
               invalidateCache('classes');
@@ -772,129 +851,259 @@ export default function TeacherClasses() {
               setRefreshing(false);
             }}
             disabled={refreshing}
-            className={`p-2.5 rounded-xl font-medium transition-colors ${
-              darkMode
-                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
-                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-            } ${refreshing ? 'animate-spin' : ''}`}
+            className="desktop-icon-button"
             title="Refresh data"
+            aria-label="Refresh session data"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
           {activeTab === 'listening' && (
             <button
+              type="button"
+              data-tour="start-class-btn"
               onClick={() => setShowNewClassModal(true)}
-              className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+              className="approved-primary-button"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
+              <span className="text-lg leading-none">+</span>
               New Session
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Listening / Reciting Tabs */}
-      <div className={`flex gap-2 p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+      <div className="approved-session-mode" role="tablist" aria-label="Session role">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'listening'}
           onClick={() => setActiveTab('listening')}
-          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'listening'
-              ? 'bg-cyan-600 text-white shadow-md'
-              : darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-200'
-          }`}
+          className={activeTab === 'listening' ? 'active' : ''}
         >
           Listening (مستمع)
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'reciting'}
           onClick={() => setActiveTab('reciting')}
-          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'reciting'
-              ? 'bg-amber-500 text-white shadow-md'
-              : darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-200'
-          }`}
+          className={activeTab === 'reciting' ? 'active' : ''}
         >
           Reciting (قارئ)
         </button>
       </div>
 
-      {/* Listening Tab: Student selector + Report */}
-      {activeTab === 'listening' && (
-        <>
-          {/* Student Selector */}
-          <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-slate-200'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`text-sm font-medium w-16 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>Contact</span>
-              <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
-                {students.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedStudentFilter(s.id)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                      selectedStudentFilter === s.id
-                        ? 'bg-cyan-600 text-white shadow-lg'
-                        : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    }`}
-                  >
-                    {s.first_name}
-                  </button>
-                ))}
-                {students.length === 0 && (
-                  <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-400'}`}>No contacts added yet</span>
-                )}
+      <section className="approved-card approved-session-metrics">
+        <div>
+          <span className="approved-session-metric-icon">▣</span>
+          <strong>{sessionMetrics.sessions}</strong>
+          <small>Sessions</small>
+        </div>
+        <div>
+          <span className="approved-session-metric-icon">◎</span>
+          <strong>{sessionMetrics.mistakes}</strong>
+          <small>Mistakes</small>
+        </div>
+        <div>
+          <span className="approved-session-metric-icon">♙</span>
+          <strong>{sessionMetrics.contacts}</strong>
+          <small>{activeTab === 'listening' ? 'Reciters' : 'Listeners'}</small>
+        </div>
+        <div>
+          <span className="approved-session-metric-icon">⌁</span>
+          <strong className="!text-lg">{sessionMetrics.averageLabel}</strong>
+          <small>Average performance</small>
+        </div>
+      </section>
+
+      <section className="approved-card approved-session-table">
+        <div className="approved-session-filters">
+          <label className="approved-session-search">
+            <span className="sr-only">Search sessions</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search contact, portion, or note" />
+          </label>
+          <label>
+            <span className="sr-only">{activeTab === 'listening' ? 'Reciter' : 'Listener'}</span>
+            <select className="approved-input" value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}>
+              <option value="all">All {activeTab === 'listening' ? 'reciters' : 'listeners'}</option>
+              {sessionPeople.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">From date</span>
+            <input className="approved-input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} title="From date" />
+          </label>
+          <label>
+            <span className="sr-only">To date</span>
+            <input className="approved-input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} title="To date" />
+          </label>
+          <label>
+            <span className="sr-only">Section</span>
+            <select className="approved-input" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value as typeof sectionFilter)}>
+              <option value="all">All sections</option>
+              <option value="hifz">Hifz</option>
+              <option value="sabqi">Sabqi</option>
+              <option value="revision">Manzil</option>
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">Status</span>
+            <select className="approved-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
+              <option value="all">All status</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="approved-filter-clear"
+            onClick={() => {
+              setSearchQuery('');
+              setDateFrom('');
+              setDateTo('');
+              setStudentFilter('all');
+              setSectionFilter('all');
+              setStatusFilter('all');
+            }}
+            disabled={!searchQuery && !dateFrom && !dateTo && studentFilter === 'all' && sectionFilter === 'all' && statusFilter === 'all'}
+          >
+            Clear
+          </button>
+        </div>
+
+        <div className="approved-session-table-head">
+          <span>Date &amp; time</span>
+          <span>{activeTab === 'listening' ? 'Contact' : 'Listener'}</span>
+          <span>Portion</span>
+          <span>Section</span>
+          <span>Performance</span>
+          <span>Mistakes</span>
+          <span>Note</span>
+          <span>Status</span>
+          <span aria-hidden="true" />
+        </div>
+
+        <div className="approved-session-table-body">
+          {filteredSessions.length > 0 ? filteredSessions.map((session) => {
+            const contactNames = session.students?.map((student) => `${student.first_name} ${student.last_name}`).join(', ')
+              || session.listener_name
+              || 'Contact unavailable';
+            const initials = session.students?.length
+              ? session.students.map((student) => `${student.first_name[0] || ''}${student.last_name[0] || ''}`).join('')
+              : contactNames.split(/\s+/).map((part) => part[0]).slice(0, 2).join('');
+            const primaryAssignment = session.assignments[0];
+            const additionalAssignments = Math.max(0, session.assignments.length - 1);
+            const sections = [...new Set(session.assignments.map((assignment) => assignment.type))];
+            const performance = session.students?.find((student) => student.performance)?.performance || session.performance || 'Not rated';
+            const mistakeCount = getSessionMistakeCount(session);
+
+            return (
+              <div
+                className="approved-session-row"
+                key={session.id}
+                role="link"
+                tabIndex={0}
+                aria-label={`Open ${contactNames} session from ${session.date}`}
+                onClick={() => navigate(`/sessions/${session.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate(`/sessions/${session.id}`);
+                  }
+                }}
+              >
+                <span>
+                  <strong>{new Date(`${session.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                  <small>{session.day} · Time not recorded</small>
+                </span>
+                <span className="approved-session-contact">
+                  <span className="approved-avatar !h-8 !w-8 !text-[10px]">{initials || 'QT'}</span>
+                  <strong title={contactNames}>{contactNames}</strong>
+                </span>
+                <span>
+                  <strong>{primaryAssignment ? formatPortionLabel(primaryAssignment) : 'No portion'}</strong>
+                  {additionalAssignments > 0 && <small>+{additionalAssignments} more</small>}
+                </span>
+                <span className="approved-session-sections">
+                  {sections.length > 0 ? sections.map((section) => (
+                    <span key={section} className={`section-${section}`}>{section === 'revision' ? 'Manzil' : section}</span>
+                  )) : <small>None</small>}
+                </span>
+                <span><span className="approved-performance-badge">{performance}</span></span>
+                <span><strong>{mistakeCount}</strong></span>
+                <span>
+                  {activeTab === 'listening' ? (
+                    <button
+                      type="button"
+                      className="approved-note-button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setNotesClassId(session.id);
+                        setNotesText(session.notes || '');
+                        setShowNotesModal(true);
+                      }}
+                      title={session.notes || 'Add session note'}
+                    >
+                      {session.notes || 'Add note'}
+                    </button>
+                  ) : (
+                    <span className="approved-note-button" title={session.notes || 'No note'}>
+                      {session.notes || 'No note'}
+                    </span>
+                  )}
+                </span>
+                <span><span className={`approved-status-badge ${session.is_published ? 'published' : 'draft'}`}>{session.is_published ? 'Published' : 'Draft'}</span></span>
+                <span>
+                  <span className="approved-row-open" aria-hidden="true">›</span>
+                </span>
               </div>
+            );
+          }) : (
+            <div className="approved-empty-state">
+              <strong className="text-[var(--text-primary)]">No sessions match these filters.</strong>
+              <span className="mt-1">{activeTab === 'listening' ? 'Adjust the filters or create a listening session.' : 'Adjust the filters; sessions where you recite will appear here.'}</span>
             </div>
-          </div>
-
-          {/* Report content for selected student */}
-          {selectedStudentFilter && (
-            <ReportPanel
-              key={selectedStudentFilter}
-              studentId={selectedStudentFilter}
-            />
           )}
-        </>
-      )}
+        </div>
 
-      {/* Reciting Tab: Full report for the current user (they are the reciter) */}
-      {activeTab === 'reciting' && user?.id && (
-        <ReportPanel
-          key={`reciter-${user.id}`}
-          studentId={user.id}
-        />
-      )}
+        <footer className="approved-session-table-footer">
+          <span>Showing {filteredSessions.length} of {activeSessions.length} sessions</span>
+          <span>{activeTab === 'listening' ? 'Sessions where you listen' : 'Sessions where you recite'}</span>
+        </footer>
+      </section>
 
       {/* New session modal */}
       {showNewClassModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`rounded-2xl border w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+        <div className="new-session-backdrop">
+          <div className="new-session-dialog">
             {/* Modal Header */}
-            <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <div className="new-session-dialog-header">
               <div>
-                <h2 className={`text-xl font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {modalStep === 1 ? 'Select Reciters' : 'Configure Portions'}
-                </h2>
-                <p className={`text-sm mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Step {modalStep} of 2
-                </p>
+                <span className="new-session-dialog-eyebrow">CREATE LISTENING SESSION</span>
+                <h2>{modalStep === 1 ? 'Choose your reciters' : 'Build the recitation plan'}</h2>
+                <p>{modalStep === 1 ? 'Select who will recite and set the session date.' : 'Choose only the Hifz, Sabqi, and Manzil ranges needed today.'}</p>
               </div>
-              <button onClick={resetModal} className={darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}>
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="new-session-dialog-header-actions">
+                <div className="new-session-step-track" aria-label={`Step ${modalStep} of 2`}>
+                  <span className="complete">1</span><i /><span className={modalStep === 2 ? 'complete' : ''}>2</span>
+                </div>
+                <button onClick={resetModal} className="new-session-close" aria-label="Close new session dialog">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
-            <div ref={modalBodyRef} className="p-6 overflow-y-auto flex-1">
+            <div ref={modalBodyRef} className="new-session-dialog-body">
               {modalStep === 1 ? (
                 /* Step 1: Select reciters */
-                <div className="space-y-4">
+                <div className="new-session-reciter-step">
                   {/* Date Picker */}
-                  <div data-tour="class-date">
+                  <div data-tour="class-date" className="new-session-date-card">
                     <label className={`block text-sm font-medium mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                       Session Date
                     </label>
@@ -915,17 +1124,18 @@ export default function TeacherClasses() {
                   </div>
 
                   {/* Student Selection */}
-                  <div data-tour="student-selector">
-                  <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Select reciters for this session
-                  </label>
+                  <div data-tour="student-selector" className="new-session-reciter-picker">
+                  <div className="new-session-reciter-picker-title">
+                    <span>RECITERS</span>
+                    <strong>Select one or more people</strong>
+                  </div>
                   {students.length === 0 ? (
                     <div className={`p-6 rounded-xl text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
                       <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>No reciters added yet</p>
                       <p className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Add contacts from the Dashboard first</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                    <div className="new-session-reciter-grid">
                       {students.map((student) => {
                         const isSelected = selectedStudents.includes(student.id);
                         return (
@@ -933,27 +1143,19 @@ export default function TeacherClasses() {
                             key={student.id}
                             type="button"
                             onClick={() => toggleStudent(student.id)}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                              isSelected
-                                ? (darkMode ? 'bg-blue-500/20 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-500')
-                                : (darkMode ? 'bg-slate-700/50 border-2 border-transparent hover:bg-slate-700' : 'bg-slate-50 border-2 border-transparent hover:bg-slate-100')
-                            }`}
+                            className={`new-session-reciter-card ${isSelected ? 'selected' : ''}`}
                           >
-                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                              isSelected
-                                ? 'bg-blue-500 border-blue-500'
-                                : (darkMode ? 'border-slate-500' : 'border-slate-300')
-                            }`}>
+                            <div className="new-session-reciter-check">
                               {isSelected && (
                                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                               )}
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-sm font-bold text-white">
+                            <div className="new-session-reciter-avatar">
                               {student.first_name[0]}{student.last_name[0]}
                             </div>
-                            <span className={`font-medium ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{student.first_name} {student.last_name}</span>
+                            <span>{student.first_name} {student.last_name}</span>
                           </button>
                         );
                       })}
@@ -964,27 +1166,21 @@ export default function TeacherClasses() {
               ) : (
                 /* Step 2: Configure Portions */
                 <div className="space-y-4">
-                  <div className={`p-3 rounded-lg flex items-center gap-2 ${darkMode ? 'bg-slate-700/50' : 'bg-slate-100'}`}>
-                    <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {'Session'} with: <span className={`font-medium ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{selectedStudentNames}</span>
-                    </p>
+                  <div className="new-session-plan-summary">
+                    <span>RECITATION PLAN FOR</span>
+                    <strong>{selectedStudentNames}</strong>
+                    <small>{new Date(`${classDate}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</small>
                   </div>
 
                   {/* Portion Mode Toggle - only show if multiple students selected */}
                   {selectedStudents.length > 1 && (
-                    <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                      <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                        How do you want to assign portions?
-                      </label>
-                      <div className="flex gap-2">
+                    <div className="new-session-assignment-mode">
+                      <div><span>ASSIGNMENT METHOD</span><strong>How should portions be shared?</strong></div>
+                      <div className="new-session-mode-segment">
                         <button
                           type="button"
                           onClick={() => setPortionMode('same')}
-                          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
-                            portionMode === 'same'
-                              ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-500'
-                              : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
-                          }`}
+                          className={portionMode === 'same' ? 'active' : ''}
                         >
                           Same for all reciters
                         </button>
@@ -994,11 +1190,7 @@ export default function TeacherClasses() {
                             setPortionMode('per-student');
                             initPerStudentConfigs();
                           }}
-                          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
-                            portionMode === 'per-student'
-                              ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                              : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
-                          }`}
+                          className={portionMode === 'per-student' ? 'active' : ''}
                         >
                           Different per reciter
                         </button>
@@ -1008,7 +1200,7 @@ export default function TeacherClasses() {
 
                   {/* Per-student tabs - show when in per-student mode (not for tests) */}
                   {portionMode === 'per-student' && selectedStudents.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto pb-2">
+                    <div className="new-session-student-tabs">
                       {selectedStudents.map(studentId => {
                         const student = students.find(s => s.id === studentId);
                         if (!student) return null;
@@ -1021,18 +1213,14 @@ export default function TeacherClasses() {
                             key={studentId}
                             type="button"
                             onClick={() => setActiveStudentId(studentId)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                              isActive
-                                ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                                : (darkMode ? 'bg-slate-700/50 text-slate-400 border-2 border-transparent hover:bg-slate-700' : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100')
-                            }`}
+                            className={isActive ? 'active' : ''}
                           >
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center text-xs font-bold text-white">
+                            <div className="new-session-student-tab-avatar">
                               {student.first_name[0]}
                             </div>
                             {student.first_name}
                             {hasPortions && (
-                              <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
                             )}
@@ -1042,13 +1230,15 @@ export default function TeacherClasses() {
                     </div>
                   )}
 
-                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    {portionMode === 'per-student' && selectedStudents.length > 1
-                      ? `Configure portions for ${students.find(s => s.id === activeStudentId)?.first_name || 'reciter'}:`
-                      : 'Select the Quran portions for this session (you can also add/edit later):'}
-                  </p>
+                  <div className="new-session-plan-instruction">
+                    <span>PORTION ASSIGNMENTS</span>
+                    <strong>{portionMode === 'per-student' && selectedStudents.length > 1
+                      ? `Configure ${students.find(s => s.id === activeStudentId)?.first_name || 'reciter'}’s ranges`
+                      : 'Use the existing plan or adjust today’s ranges'}</strong>
+                    <small>Sections may be left completely empty.</small>
+                  </div>
 
-                  <div className="space-y-3">
+                  <div className="new-session-portion-stack">
                     {portionMode === 'same' ? (
                       <>
                         <PortionSelector
@@ -1128,7 +1318,7 @@ export default function TeacherClasses() {
             </div>
 
             {/* Modal Footer */}
-            <div className={`px-6 py-4 border-t flex gap-3 flex-shrink-0 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <div className="new-session-dialog-footer">
               {modalStep === 1 ? (
                 <>
                   <button
@@ -1141,7 +1331,7 @@ export default function TeacherClasses() {
                     data-tour="next-portions-btn"
                     disabled={selectedStudents.length === 0 && !isTourActive}
                     onClick={() => setModalStep(2)}
-                    className={`flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors`}
+                    className="new-session-primary-action"
                   >
                     {'Next: Choose Portions'}
                   </button>
@@ -1158,7 +1348,7 @@ export default function TeacherClasses() {
                     data-tour="create-class-btn"
                     onClick={handleCreateClass}
                     disabled={creating}
-                    className={`flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2`}
+                    className="new-session-primary-action"
                   >
                     {creating ? (
                       <>
@@ -1181,48 +1371,36 @@ export default function TeacherClasses() {
 
       {/* Notes Modal */}
       {showNotesModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`rounded-2xl border w-full max-w-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-            {/* Modal Header */}
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-              <h2 className={`text-xl font-semibold flex items-center gap-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Session Notes
-              </h2>
+        <div className="new-session-backdrop">
+          <div className="session-notes-dialog">
+            <header>
+              <div><span className="approved-eyebrow">SESSION FOLLOW-UP</span><h2>Listener notes</h2><p>Keep observations and review instructions attached to this session.</p></div>
               <button
                 onClick={() => {
                   setShowNotesModal(false);
                   setNotesClassId(null);
                 }}
-                className={darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}
+                aria-label="Close notes"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </header>
+
+            <div className="session-notes-body">
+              <label htmlFor="session-notes-text">Notes</label>
+              <textarea id="session-notes-text" value={notesText} onChange={(e) => setNotesText(e.target.value)} placeholder="Add observations, feedback, or reminders for this session…" rows={6} />
+              <small>These notes appear in Sessions and the teaching Overview.</small>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6">
-              <textarea
-                value={notesText}
-                onChange={(e) => setNotesText(e.target.value)}
-                placeholder="Add observations, feedback, or reminders for this session..."
-                rows={5}
-                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-shadow ${darkMode ? 'border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'}`}
-              />
-            </div>
-
-            {/* Modal Footer */}
-            <div className={`px-6 py-4 border-t flex gap-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <footer>
               <button
                 onClick={() => {
                   setShowNotesModal(false);
                   setNotesClassId(null);
                 }}
-                className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                className="approved-secondary-button"
               >
                 Cancel
               </button>
@@ -1243,7 +1421,7 @@ export default function TeacherClasses() {
                   }
                 }}
                 disabled={notesSaving}
-                className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                className="approved-primary-button"
               >
                 {notesSaving ? (
                   <>
@@ -1257,10 +1435,22 @@ export default function TeacherClasses() {
                   'Save Notes'
                 )}
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(createError)}
+        eyebrow="Session not created"
+        title="Check the session details"
+        message={createError || ''}
+        confirmLabel="Close"
+        showCancel={false}
+        tone="primary"
+        onCancel={() => setCreateError(null)}
+        onConfirm={() => setCreateError(null)}
+      />
 
     </div>
   );

@@ -608,6 +608,9 @@ def pull_classes(
             "SELECT id FROM classes WHERE supabase_id = ?", (supabase_id,)
         ).fetchone()
         local_class_id = local_class_row["id"]
+        # Release the class-row write before fetching child records over the
+        # network so foreground session creation is never blocked by latency.
+        conn.commit()
 
         # Replace the synced assignment snapshot without touching pending local rows.
         assignment_response = supabase.table("assignments").select("*").eq(
@@ -636,6 +639,9 @@ def pull_classes(
                 assignment.get("updated_at") or datetime.utcnow().isoformat(),
             ))
             results["assignments"] += 1
+        # The enrollment request below is another network round-trip. Do not
+        # carry the assignment write transaction across it.
+        conn.commit()
 
         # Replace the class enrollment snapshot using canonical and legacy tables.
         class_reciters_response = execute_with_legacy_fallback(

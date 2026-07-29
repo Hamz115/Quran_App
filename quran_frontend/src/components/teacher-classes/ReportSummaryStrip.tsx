@@ -5,32 +5,23 @@ interface ReportSummaryStripProps {
   darkMode: boolean;
 }
 
-export default function ReportSummaryStrip({ summary, darkMode }: ReportSummaryStripProps) {
-  const cardBg = darkMode ? 'bg-slate-800' : 'bg-white';
-  const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
-  const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-800';
-  const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
-
+export default function ReportSummaryStrip({ summary }: ReportSummaryStripProps) {
   const stats = [
-    { label: 'Sessions', value: summary.total_classes, color: 'text-cyan-400' },
-    { label: 'Total Mistakes', value: summary.total_mistakes, color: '' },
-    { label: 'Unique', value: summary.unique_mistakes, color: '' },
-    { label: 'Repeated', value: summary.repeated_mistakes, color: 'text-red-400' },
-    { label: 'Avg Performance', value: summary.avg_performance, color: 'text-green-400' },
+    { label: 'Sessions held', value: summary.total_classes, tone: 'emerald' },
+    { label: 'Mistakes marked', value: summary.total_mistakes, tone: 'ink' },
+    { label: 'Unique words', value: summary.unique_mistakes, tone: 'gold' },
+    { label: 'Repeated words', value: summary.repeated_mistakes, tone: 'rose' },
+    { label: 'Average performance', value: summary.avg_performance, tone: 'emerald' },
   ];
 
   return (
-    <div className={`flex overflow-x-auto border-b ${borderColor}`} style={{ gap: '1px', background: darkMode ? '#334155' : '#e2e8f0' }}>
-      {stats.map((stat, i) => (
-        <div key={i} className={`flex-1 min-w-[80px] px-3 sm:px-5 py-3.5 text-center ${cardBg}`}>
-          <div className={`text-lg sm:text-[22px] font-bold ${stat.color || textPrimary}`}>
-            {stat.value}
-          </div>
-          <div className={`text-[10px] sm:text-[11px] uppercase tracking-wide mt-0.5 ${textMuted}`}>
-            {stat.label}
-          </div>
-        </div>
+    <section className="report-metric-grid" aria-label="Report summary">
+      {stats.map((stat) => (
+        <article key={stat.label} className={`report-metric-card ${stat.tone}`}>
+          <span>{stat.label}</span>
+          <strong>{stat.value}</strong>
+        </article>
       ))}
-    </div>
+    </section>
   );
 }

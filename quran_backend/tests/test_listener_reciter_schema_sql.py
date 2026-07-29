@@ -195,11 +195,31 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             tour,
         )
 
+    def test_tutorial_mistakes_are_disposable_and_existing_lookup_is_optional(self):
+        classroom = CLASSROOM_PATH.read_text(encoding="utf-8")
+        supabase_api = SUPABASE_API_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("const { isActive: isTourActive } = useTour()", classroom)
+        self.assertIn("if (isTourActive) return", classroom)
+        self.assertGreaterEqual(supabase_api.count("query.maybeSingle()"), 2)
+
+    def test_local_mistake_identity_is_scoped_per_reciter(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("legacy_mistake_identity", backend_main)
+        self.assertIn("CREATE TABLE mistakes_reciter_scoped", backend_main)
+        self.assertIn("idx_mistakes_reciter_location", backend_main)
+        self.assertIn("supabase_reciter_id", backend_main)
+        self.assertNotIn(
+            "UNIQUE(surah_number, ayah_number, word_index, char_index)",
+            backend_main,
+        )
+
     def test_session_portion_suggestions_do_not_overwrite_back_navigation(self):
         teacher_classes = TEACHER_CLASSES_PATH.read_text(encoding="utf-8")
 
         self.assertIn(
-            "suggestedPortionsAppliedFor.current === selectionKey",
+            "suggestedPortionsAppliedFor.current === selectedStudentsKey",
             teacher_classes,
         )
         self.assertIn("suggestedPortionsAppliedFor.current = null", teacher_classes)
@@ -224,6 +244,36 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             sync_service,
         )
         self.assertIn("Remove only non-canonical duplicates", sync_service)
+
+    def test_class_pull_releases_sqlite_writes_before_network_requests(self):
+        backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
+        sync_service = SYNC_SERVICE_PATH.read_text(encoding="utf-8")
+        class_pull = sync_service[sync_service.index("def pull_classes("):]
+
+        self.assertIn("sqlite3.connect(APP_DB, timeout=15)", backend_main)
+        self.assertIn('conn.execute("PRAGMA busy_timeout = 15000")', backend_main)
+
+        local_id_index = class_pull.index("local_class_id = local_class_row")
+        assignment_request_index = class_pull.index(
+            'supabase.table("assignments").select("*")',
+            local_id_index,
+        )
+        class_commit_index = class_pull.index("conn.commit()", local_id_index)
+        self.assertLess(class_commit_index, assignment_request_index)
+
+        assignment_write_index = class_pull.index(
+            'results["assignments"] += 1',
+            assignment_request_index,
+        )
+        enrollment_request_index = class_pull.index(
+            'supabase.table("class_reciters").select("*")',
+            assignment_write_index,
+        )
+        assignment_commit_index = class_pull.index(
+            "conn.commit()",
+            assignment_write_index,
+        )
+        self.assertLess(assignment_commit_index, enrollment_request_index)
 
     def test_per_reciter_performance_is_mirrored_into_local_snapshot(self):
         backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")

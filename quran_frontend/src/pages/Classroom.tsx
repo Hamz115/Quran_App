@@ -4,8 +4,10 @@ import FittedLine from '../components/FittedLine';
 import { getClass, getSurahs, getQuranPage, getMistakesWithOccurrences, addMistake, removeMistake, deleteClass, updateClassNotes, updateStudentPerformance, addClassAssignments, updateAssignment, deleteAssignment, type QuranPageWord, type QuranPageData } from '../api';
 import { JUZ_BOUNDARIES } from '../lib/quran-utils';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTour } from '../contexts/TourContext';
 import { getPageNumber, getSurahsOnPage } from '../data/quranPages';
+import { invalidateCache } from '../lib/cache';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface Assignment {
   id: string;
@@ -76,10 +78,10 @@ const SURAH_NAMES: Record<number, string> = {
   111: 'المسد', 112: 'الإخلاص', 113: 'الفلق', 114: 'الناس'
 };
 
-const SECTION_LABELS: Record<SectionType, { label: string; color: string; bgColor: string; borderColor: string }> = {
-  hifz: { label: 'Memorization (Hifz)', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', borderColor: 'border-cyan-600/50' },
-  sabqi: { label: 'Sabqi (Recent)', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', borderColor: 'border-cyan-600/50' },
-  revision: { label: 'Revision (Manzil)', color: 'text-purple-400', bgColor: 'bg-purple-500/20', borderColor: 'border-purple-600/50' },
+const SECTION_LABELS: Record<SectionType, { label: string; shortLabel: string; description: string }> = {
+  hifz: { label: 'Memorization (Hifz)', shortLabel: 'Hifz', description: 'New memorization' },
+  sabqi: { label: 'Sabqi (Recent)', shortLabel: 'Sabqi', description: 'Recent revision' },
+  revision: { label: 'Revision (Manzil)', shortLabel: 'Manzil', description: 'Long-term revision' },
 };
 
 // Arabic harakat
@@ -130,7 +132,7 @@ export default function Classroom() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { darkMode } = useTheme();
+  const { isActive: isTourActive } = useTour();
   // isListener = ownership-based: true if user created this session (listener_id or teacher_id matches)
   const [isListener, setIsListener] = useState(false);
   // Legacy alias for minimal code changes in JSX
@@ -145,13 +147,18 @@ export default function Classroom() {
   }, []);
 
   const getPageDimensions = useCallback(() => {
-    const hasBottomNav = windowSize.w < 1024;
-    const chromeHeight = hasBottomNav ? 220 : 160;
-    const maxH = Math.min(windowSize.h * 0.8, windowSize.h - chromeHeight);
-    const w = maxH * 0.7;
-    const clampedW = Math.min(w, 500);
-    const finalH = clampedW / 0.7;
-    return { width: clampedW, height: Math.min(maxH, finalH) };
+    // Portion controls now share the assignment rail, so the reader can use
+    // considerably more of the viewport without duplicating controls above it.
+    const compactHeight = windowSize.h <= 850;
+    // On 13-inch/short laptop screens, prominence matters more than fitting the
+    // entire session chrome above the fold. Let the Mushaf use 80% of the
+    // viewport height and keep secondary inspector content below the reader.
+    const reservedVerticalSpace = compactHeight ? 145 : 220;
+    const availableHeight = Math.max(440, windowSize.h - reservedVerticalSpace);
+    const maxHeight = Math.min(windowSize.h * (compactHeight ? 0.8 : 0.82), availableHeight, 820);
+    const widthCap = windowSize.w < 1280 ? 420 : windowSize.w < 1500 ? 480 : 560;
+    const width = Math.min(maxHeight * 0.7, widthCap);
+    return { width, height: width / 0.7 };
   }, [windowSize]);
 
   const pageDims = getPageDimensions();
@@ -174,7 +181,11 @@ export default function Classroom() {
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
-  const [performanceSaving, _setPerformanceSaving] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
+  const [showDeleteSessionConfirm, setShowDeleteSessionConfirm] = useState(false);
+  const [deletePortionId, setDeletePortionId] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const performanceSaving = false;
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // Add portion modal state
@@ -566,6 +577,10 @@ export default function Classroom() {
     });
     setWordPopup(null);
 
+    // Tutorial mistakes are disposable demonstrations. Keep their optimistic
+    // highlights in this session without changing the reciter's real history.
+    if (isTourActive) return;
+
     // Fire the actual API call in background (non-blocking for UI)
     try {
       const result = await addMistake({
@@ -629,14 +644,24 @@ export default function Classroom() {
     }
   };
 
-  const handleDeleteClass = () => {
-    if (!classData) return;
-    if (!confirm('Are you sure you want to delete this session?')) return;
+  const handleDeleteClass = async () => {
+    if (!classData || deletingClass) return;
 
-    // Navigate immediately (instant)
-    navigate(getBackRoute());
-    // Fire Supabase delete in background (non-blocking)
-    deleteClass(classData.id).catch(err => console.error('Failed to delete class:', err));
+    setDeletingClass(true);
+    try {
+      // Wait for the deletion before returning to lists so no stale session can render.
+      await deleteClass(classData.id);
+      invalidateCache('classes');
+      window.dispatchEvent(new CustomEvent('qurantrack:sessions-changed', {
+        detail: { action: 'deleted', sessionId: classData.id },
+      }));
+      navigate(getBackRoute(), { replace: true });
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+      setDialogError(err instanceof Error ? `Failed to delete session: ${err.message}` : 'Failed to delete session. Please try again.');
+      setShowDeleteSessionConfirm(false);
+      setDeletingClass(false);
+    }
   };
 
   const handleSaveNotes = async () => {
@@ -717,25 +742,19 @@ export default function Classroom() {
     }
   };
 
-  const handleDeletePortion = async (assignmentId: string) => {
-    if (!classData || !id) return;
-
-    const sectionAssignments = classData.assignments.filter(a => a.type === activeSection);
-    if (sectionAssignments.length <= 1) {
-      alert('Cannot delete the last portion in a section.');
-      return;
-    }
-
-    if (!confirm('Are you sure you want to delete this portion?')) return;
+  const handleDeletePortion = async () => {
+    if (!classData || !id || !deletePortionId) return;
 
     try {
-      await deleteAssignment(assignmentId);
+      await deleteAssignment(deletePortionId);
       const updatedClass = await getClass(id);
       setClassData(updatedClass);
       setSelectedPortionIndex(0);
+      setDeletePortionId(null);
     } catch (err) {
       console.error('Failed to delete portion:', err);
-      alert('Failed to delete portion');
+      setDeletePortionId(null);
+      setDialogError('The portion could not be deleted. Please try again.');
     }
   };
 
@@ -743,7 +762,7 @@ export default function Classroom() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="spinner mb-4"></div>
-        <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Loading session...</p>
+        <p className="text-slate-500">Loading session...</p>
       </div>
     );
   }
@@ -751,8 +770,8 @@ export default function Classroom() {
   if (!classData) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <h2 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Session not found</h2>
-        <button onClick={() => navigate(getBackRoute())} className="px-6 py-3 bg-cyan-600 text-white rounded-xl">
+        <h2 className="mb-2 text-xl font-semibold text-slate-900">Session not found</h2>
+        <button onClick={() => navigate(getBackRoute())} className="approved-primary-button">
           Back to Sessions
         </button>
       </div>
@@ -798,21 +817,21 @@ export default function Classroom() {
   const availableSections: SectionType[] = ['hifz', 'sabqi', 'revision'];
 
   return (
-    <div className="space-y-6">
+    <div className="approved-page approved-legacy-page approved-classroom-page space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate(getBackRoute())} className={`w-10 h-10 rounded-xl flex items-center justify-center ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50' : 'bg-slate-200 hover:bg-slate-300'}`}>
-          <svg className={`w-5 h-5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div className="classroom-header approved-page-header flex items-center gap-4">
+        <button onClick={() => navigate(getBackRoute())} className="desktop-icon-button flex-shrink-0" aria-label="Back to sessions">
+          <svg className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="flex-1">
-          <h1 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Session - {classData.day}, {classData.date}</h1>
+          <h1 className="approved-page-title">Session - {classData.day}, {classData.date}</h1>
           {isTeacher && classData.students && classData.students.length > 0 && (
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Reciter:</span>
+              <span className="text-sm text-slate-500">Reciter:</span>
               {classData.students.length === 1 ? (
-                <span className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                <span className="text-sm font-medium text-slate-700">
                   {classData.students[0].first_name} {classData.students[0].last_name}
                 </span>
               ) : (
@@ -823,11 +842,7 @@ export default function Classroom() {
                       key={s.id}
                       onClick={() => setSelectedStudentId(s.id)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-blue-500 text-white'
-                          : darkMode
-                            ? 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-300'
-                            : 'bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-700'
+                        isActive ? 'classroom-reciter-active' : 'classroom-reciter-idle'
                       }`}
                     >
                       {s.first_name}
@@ -846,7 +861,7 @@ export default function Classroom() {
 
           return (
             <div className="flex items-center gap-2">
-              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Performance:</span>
+              <span className="text-sm text-slate-500">Performance:</span>
               <div className="relative">
                 <select
                   data-tour="performance-dropdown"
@@ -868,19 +883,13 @@ export default function Classroom() {
                     }
                   }}
                   disabled={performanceSaving}
-                  className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${
-                    studentPerf === 'Excellent' ? darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
-                    : studentPerf === 'Very Good' ? darkMode ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-teal-100 text-teal-700 border border-teal-300'
-                    : studentPerf === 'Good' ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
-                    : studentPerf === 'Needs Work' ? darkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-300'
-                    : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
-                  }`}
+                  className="approved-input appearance-none cursor-pointer py-2 pl-3 pr-8 text-sm font-medium"
                 >
-                  <option value="" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Not rated</option>
-                  <option value="Excellent" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Excellent</option>
-                  <option value="Very Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Very Good</option>
-                  <option value="Good" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Good</option>
-                  <option value="Needs Work" className={darkMode ? 'bg-slate-800' : 'bg-white'}>Needs Work</option>
+                  <option value="">Not rated</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Very Good">Very Good</option>
+                  <option value="Good">Good</option>
+                  <option value="Needs Work">Needs Work</option>
                 </select>
                 <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -894,11 +903,7 @@ export default function Classroom() {
           <button
             data-tour="notes-btn"
             onClick={() => setShowNotesEditor(!showNotesEditor)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors ${
-              classData.notes
-                ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-300'
-                : darkMode ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-300'
-            }`}
+            className="approved-secondary-button"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -908,21 +913,21 @@ export default function Classroom() {
         )}
 
         {isTeacher && (
-          <button data-tour="delete-btn" onClick={handleDeleteClass} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/20">
+          <button data-tour="delete-btn" onClick={() => setShowDeleteSessionConfirm(true)} disabled={deletingClass} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 disabled:cursor-wait disabled:opacity-60">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Delete
+            {deletingClass ? 'Deleting…' : 'Delete'}
           </button>
         )}
       </div>
 
       {/* Notes Editor */}
       {showNotesEditor && (
-        <div className={`card p-5 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
+        <div className="card classroom-notes-editor border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>Listener Notes (ملاحظات المستمع)</h3>
-            <button onClick={() => setShowNotesEditor(false)} className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700/50 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}>
+            <h3 className="font-semibold text-slate-900">Listener Notes (ملاحظات المستمع)</h3>
+            <button onClick={() => setShowNotesEditor(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -936,7 +941,7 @@ export default function Classroom() {
                 onChange={(e) => setNotesText(e.target.value)}
                 placeholder="Add notes..."
                 rows={4}
-                className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500 resize-none"
+                className="classroom-notes-textarea w-full resize-none rounded-md border px-4 py-3"
               />
               <div className="flex justify-end gap-3 mt-3">
                 <button onClick={() => { setNotesText(classData.notes || ''); setShowNotesEditor(false); }} className="px-4 py-2 rounded-lg text-slate-400">
@@ -948,151 +953,120 @@ export default function Classroom() {
               </div>
             </>
           ) : (
-            <div className={`px-4 py-3 rounded-xl border ${darkMode ? 'border-slate-600 bg-slate-800/50 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700">
               {classData.notes || 'No notes for this session.'}
             </div>
           )}
         </div>
       )}
 
-      {/* Section Tabs */}
-      <div data-tour="section-tabs" className="flex items-center gap-3">
-        {availableSections.map((type) => {
-          const config = SECTION_LABELS[type];
-          const typeAssignments = classData.assignments.filter(a => {
-            if (a.type !== type) return false;
-            if (!a.student_id) return true;
-            if (isTeacher && selectedStudentId) return a.student_id === selectedStudentId;
-            if (!isTeacher && user?.id) return a.student_id === user.id;
-            return false;
-          });
-          const isActive = activeSection === type;
-
-          return (
-            <button
-              key={type}
-              onClick={() => setActiveSection(type)}
-              className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                isActive ? `${config.bgColor} ${config.borderColor} ${config.color}` : darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-              }`}
-            >
-              <div className="text-left">
-                <p className={`font-semibold ${isActive ? config.color : darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{config.label}</p>
-                {typeAssignments.length > 0 && (
-                  <p className={`text-sm mt-1 ${isActive ? 'opacity-80' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {typeAssignments.map((a, i) => <span key={a.id}>{i > 0 && ' + '}{formatAssignmentRange(a)}</span>)}
-                  </p>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Add Portion Button */}
-      {isTeacher && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => { setNewPortionType(activeSection); setShowAddPortionModal(true); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'}`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Add Portion
-          </button>
+      <section className="classroom-assignment-rail approved-card" data-tour="section-tabs">
+        <div className="classroom-assignment-summary">
+          <span className="classroom-control-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z" /></svg>
+          </span>
+          <div className="classroom-assignment-copy">
+            <small>{SECTION_LABELS[activeSection].description}</small>
+            <div className="classroom-rail-portions">
+              {sectionAssignments.length > 0 ? sectionAssignments.map((assignment, index) => (
+                <div key={assignment.id} className={`classroom-rail-portion ${selectedPortionIndex === index ? 'active' : ''}`}>
+                  <button type="button" onClick={() => setSelectedPortionIndex(index)}>
+                    {formatAssignmentRange(assignment)}
+                  </button>
+                  {isTeacher && (
+                    <div className="classroom-rail-portion-actions">
+                      <button
+                        type="button"
+                        className="classroom-icon-action"
+                        aria-label={`Edit ${formatAssignmentRange(assignment)}`}
+                        onClick={() => {
+                          setEditAssignmentId(assignment.id);
+                          setEditPortionType(assignment.type as SectionType);
+                          setEditPortionStart(assignment.start_surah);
+                          setEditPortionEnd(assignment.end_surah);
+                          setEditPortionStartAyah(assignment.start_ayah);
+                          setEditPortionEndAyah(assignment.end_ayah);
+                          setShowEditPortionModal(true);
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m4 16-.8 4 4-.8L18.5 7.9a2.1 2.1 0 0 0-3-3L4 16Z" /><path d="m13.8 6.6 3 3" /></svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="classroom-icon-action danger"
+                        aria-label={`Delete ${formatAssignmentRange(assignment)}`}
+                        onClick={() => setDeletePortionId(assignment.id)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )) : (
+                <strong className="classroom-no-portion">No {SECTION_LABELS[activeSection].shortLabel} portion</strong>
+              )}
+              {isTeacher && (
+                <button type="button" className="classroom-rail-add" onClick={() => { setNewPortionType(activeSection); setShowAddPortionModal(true); }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14" /></svg>
+                  Add
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="classroom-section-switch" role="tablist" aria-label="Recitation section">
+          {availableSections.map((type) => {
+            const config = SECTION_LABELS[type];
+            const count = classData.assignments.filter((assignment) => {
+              if (assignment.type !== type) return false;
+              if (!assignment.student_id) return true;
+              if (isTeacher && selectedStudentId) return assignment.student_id === selectedStudentId;
+              return !isTeacher && user?.id === assignment.student_id;
+            }).length;
+            return (
+              <button
+                key={type}
+                type="button"
+                role="tab"
+                aria-selected={activeSection === type}
+                className={activeSection === type ? 'active' : ''}
+                onClick={() => { setActiveSection(type); setSelectedPortionIndex(0); }}
+              >
+                <span>{config.shortLabel}</span>
+                <small>{count || 'Empty'}</small>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Content */}
       {currentAssignment ? (
         <>
-          {/* Portion selector */}
-          {sectionAssignments.length >= 1 && (
-            <div className={`card p-4 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
-              <div className="flex items-center gap-4">
-                <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Select Portion:</span>
-                <div className="flex flex-wrap gap-2">
-                  {sectionAssignments.map((assignment, index) => (
-                    <div key={assignment.id} className="flex items-center gap-1">
-                      <button
-                        onClick={() => setSelectedPortionIndex(index)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                          selectedPortionIndex === index
-                            ? `${SECTION_LABELS[activeSection].bgColor} ${SECTION_LABELS[activeSection].color} border ${SECTION_LABELS[activeSection].borderColor}`
-                            : 'bg-slate-700/50 text-slate-300'
-                        }`}
-                      >
-                        Portion {index + 1}: {formatAssignmentRange(assignment)}
-                      </button>
-                      {isTeacher && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditAssignmentId(assignment.id);
-                              setEditPortionType(assignment.type as SectionType);
-                              setEditPortionStart(assignment.start_surah);
-                              setEditPortionEnd(assignment.end_surah);
-                              setEditPortionStartAyah(assignment.start_ayah);
-                              setEditPortionEndAyah(assignment.end_ayah);
-                              setShowEditPortionModal(true);
-                            }}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-500'}`}
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeletePortion(assignment.id)}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'bg-slate-700/50 hover:bg-red-600/50 text-slate-400 hover:text-red-400' : 'bg-slate-200 hover:bg-red-100 text-slate-500 hover:text-red-500'}`}
-                            title="Delete portion"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="classroom-workspace">
+          <div className="classroom-quran-column">
+          <div className="classroom-reader-toolbar">
+            <div className="classroom-scope-switch" role="group" aria-label="Mistake scope">
+              <button type="button" className={mistakeFilter === 'page' ? 'active' : ''} onClick={() => setMistakeFilter('page')}>Current page</button>
+              <button type="button" className={mistakeFilter === 'all' ? 'active' : ''} onClick={() => setMistakeFilter('all')}>All mistakes</button>
             </div>
-          )}
-
-          {/* Legend */}
-          <div className={`card p-4 flex items-center justify-between flex-wrap gap-4 ${darkMode ? '' : 'bg-white border-slate-200'}`}>
-            <div className="flex items-center gap-4 text-sm">
-              <span className={`font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Legend:</span>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-1"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>1x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-2"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>2x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-3"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>3x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-4"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>4x</span></div>
-              <div className="flex items-center gap-2"><span className="w-5 h-5 rounded mistake-5"></span><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>5+</span></div>
+            <div className="classroom-line-legend" aria-label="Mistake occurrence legend">
+              <span>Legend</span>
+              <span><i className="level-1" />1x</span>
+              <span><i className="level-2" />2x</span>
+              <span><i className="level-3" />3x</span>
+              <span><i className="level-4" />4x</span>
+              <span><i className="level-5" />5+</span>
             </div>
-            <div className="flex items-center gap-4">
-              {isTeacher && <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Click words to mark. Right-click to remove.</p>}
-              <div className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                totalErrors === 0
-                  ? darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-600/50' : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
-                  : totalErrors < 5
-                  ? darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-600/50' : 'bg-amber-100 text-amber-700 border border-amber-300'
-                  : darkMode ? 'bg-red-500/20 text-red-400 border border-red-600/50' : 'bg-red-100 text-red-700 border border-red-300'
-              }`}>
-                {totalErrors} {totalErrors === 1 ? 'mistake' : 'mistakes'}
-              </div>
+            <div className="classroom-page-context">
+              <span>{totalErrors} on page</span>
+              <strong>Page {currentPage} <i /> {getSurahName(surahsOnPage[0] || currentAssignment.start_surah)}</strong>
             </div>
           </div>
 
-          {/* Page Indicator */}
-          <div className="flex flex-col items-center py-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold text-cyan-400">{currentPageInAssignment}</span>
-              <span className={`text-xl ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>/</span>
-              <span className={`text-xl ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{totalPagesInAssignment}</span>
-            </div>
-            <span className={`text-sm mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Page {currentPage} (Madani Mushaf)</span>
+          <div className="classroom-page-progress" aria-label={`Portion page ${currentPageInAssignment} of ${totalPagesInAssignment}`}>
+            <span>Portion page</span><strong>{currentPageInAssignment} / {totalPagesInAssignment}</strong>
           </div>
 
           {/* Quran Display with QPC v2 Fonts */}
@@ -1101,9 +1075,7 @@ export default function Classroom() {
             <button
               onClick={() => canGoNext && setCurrentPage(currentPage + 1)}
               disabled={!canGoNext}
-              className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
-                canGoNext ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white' : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
-              }`}
+              className="classroom-page-nav"
             >
               <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -1135,7 +1107,7 @@ export default function Classroom() {
                   dir="rtl"
                   style={{
                     fontFamily: `'QPC-Page-${currentPage}', 'Amiri Quran', serif`,
-                    fontSize: `${Math.min(28, Math.floor(pageDims.height / 21))}px`,
+                    fontSize: `${Math.min(34, Math.floor(pageDims.height / 21))}px`,
                   }}
                 >
                   {pageData.lines.map((line) => {
@@ -1147,7 +1119,7 @@ export default function Classroom() {
                           className="flex-none w-full px-4 py-1 border-2 border-cyan-200 rounded-lg bg-cyan-50 text-center"
                           style={{ fontFamily: "'Amiri', 'Noto Naskh Arabic', serif" }}
                         >
-                          <span className="text-cyan-800 font-bold" style={{ fontSize: '18px' }}>
+                          <span className="text-cyan-800 font-bold" style={{ fontSize: `${Math.min(24, Math.max(18, Math.floor(pageDims.height / 30)))}px` }}>
                             سُورَةُ {SURAH_NAMES[line.surah_number]}
                           </span>
                         </div>
@@ -1162,7 +1134,7 @@ export default function Classroom() {
                           className="flex-none text-center text-cyan-700"
                           style={{
                             fontFamily: "'Amiri Quran', 'Amiri', serif",
-                            fontSize: '18px',
+                            fontSize: `${Math.min(24, Math.max(18, Math.floor(pageDims.height / 30)))}px`,
                           }}
                         >
                           بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
@@ -1241,15 +1213,60 @@ export default function Classroom() {
             <button
               onClick={() => canGoPrev && setCurrentPage(currentPage - 1)}
               disabled={!canGoPrev}
-              className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full transition-all flex items-center justify-center ${
-                canGoPrev ? 'bg-cyan-600/80 hover:bg-cyan-500 text-white' : 'bg-slate-700/20 text-slate-500 cursor-not-allowed'
-              }`}
+              className="classroom-page-nav"
             >
               <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
+
+          </div>
+          <aside className="classroom-inspector">
+            <section className="approved-card p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="approved-card-title">Session notes</h2>
+                {(isTeacher || classData.notes) && (
+                  <button type="button" className="text-xs font-medium text-[var(--accent-primary)]" onClick={() => setShowNotesEditor(true)}>
+                    {classData.notes ? 'Edit' : 'Add'}
+                  </button>
+                )}
+              </div>
+              <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-[var(--text-secondary)]">
+                {classData.notes || 'No notes for this session.'}
+              </p>
+            </section>
+
+            <section className="approved-card p-4">
+              <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
+                <h2 className="approved-card-title">Page inspector</h2>
+                <span className="approved-count-badge">{currentMistakes.length}</span>
+              </div>
+              <dl className="approved-detail-list">
+                <div><dt>Page</dt><dd>{currentPage} / 604</dd></div>
+                <div><dt>Portion page</dt><dd>{currentPageInAssignment} / {totalPagesInAssignment}</dd></div>
+                <div><dt>Section</dt><dd className="capitalize">{activeSection === 'revision' ? 'Manzil' : activeSection}</dd></div>
+              </dl>
+              <div className="classroom-page-mistakes-scroll space-y-2">
+                <h3 className="text-xs font-semibold text-[var(--text-primary)]">Mistakes on this page</h3>
+                {currentMistakes.length > 0 ? currentMistakes.map((mistake) => (
+                  <button
+                    key={mistake.id}
+                    type="button"
+                    className="classroom-inspector-mistake"
+                    onClick={() => flashWord(mistake.surah_number, mistake.ayah_number, mistake.word_index)}
+                  >
+                    <span className="font-amiri text-lg" dir="rtl">{stripQuranMarks(mistake.word_text)}</span>
+                    <span>{mistake.surah_number}:{mistake.ayah_number}:{mistake.word_index + 1}</span>
+                    <span className="approved-count-badge !h-6 !w-6">{mistake.error_count}</span>
+                  </button>
+                )) : (
+                  <p className="rounded-md border border-dashed border-[var(--border-color)] p-4 text-center text-xs text-[var(--text-muted)]">
+                    No mistakes marked on this page.
+                  </p>
+                )}
+              </div>
+            </section>
 
           {/* Mistakes Summary */}
           {(summaryMistakes.length > 0 || allAssignmentMistakes.length > 0) && (() => {
@@ -1264,11 +1281,9 @@ export default function Classroom() {
             );
 
             const getMistakeColor = (errorCount: number) => {
-              if (errorCount >= 5) return darkMode ? 'bg-red-500/20 text-red-400 border-red-600/50' : 'bg-red-100 text-red-700 border-red-300';
-              if (errorCount >= 4) return darkMode ? 'bg-purple-500/20 text-purple-400 border-purple-600/50' : 'bg-purple-100 text-purple-700 border-purple-300';
-              if (errorCount >= 3) return darkMode ? 'bg-orange-500/20 text-orange-400 border-orange-600/50' : 'bg-orange-100 text-orange-700 border-orange-300';
-              if (errorCount >= 2) return darkMode ? 'bg-cyan-500/20 text-cyan-400 border-cyan-600/50' : 'bg-cyan-100 text-cyan-700 border-cyan-300';
-              return darkMode ? 'bg-amber-500/20 text-amber-400 border-amber-600/50' : 'bg-amber-100 text-amber-700 border-amber-300';
+              if (errorCount >= 4) return 'classroom-mistake-severe';
+              if (errorCount >= 2) return 'classroom-mistake-moderate';
+              return 'classroom-mistake-minor';
             };
 
             const renderMistake = (m: Mistake) => (
@@ -1284,15 +1299,14 @@ export default function Classroom() {
             );
 
             return (
-              <div data-tour="mistakes-area" className="space-y-4">
+              <div data-tour="mistakes-area" className="classroom-all-mistakes-scroll space-y-4">
                 {/* All / Page toggle */}
                 <div data-tour="page-all-toggle" className="flex items-center justify-center gap-1">
                   <button
                     onClick={() => setMistakeFilter('all')}
                     className={`px-4 py-1.5 rounded-l-lg text-sm font-medium transition-colors ${
                       mistakeFilter === 'all'
-                        ? 'bg-cyan-600 text-white'
-                        : darkMode ? 'bg-slate-700 text-slate-400 hover:bg-slate-600' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                        ? 'active' : ''
                     }`}
                   >
                     All ({allAssignmentMistakes.filter(m => m.occurrences?.some(o => o.class_id === currentClassId)).length})
@@ -1301,8 +1315,7 @@ export default function Classroom() {
                     onClick={() => setMistakeFilter('page')}
                     className={`px-4 py-1.5 rounded-r-lg text-sm font-medium transition-colors ${
                       mistakeFilter === 'page'
-                        ? 'bg-cyan-600 text-white'
-                        : darkMode ? 'bg-slate-700 text-slate-400 hover:bg-slate-600' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                        ? 'active' : ''
                     }`}
                   >
                     Page ({currentMistakes.filter(m => m.occurrences?.some(o => o.class_id === currentClassId)).length})
@@ -1311,8 +1324,8 @@ export default function Classroom() {
 
                 {/* Mistakes in this session */}
                 {mistakesInThisClass.length > 0 && (
-                  <div className="card p-6 border-2 border-cyan-600/30">
-                    <h3 className="font-semibold text-cyan-400 mb-4 flex items-center gap-2">
+                  <div className="classroom-history-group">
+                    <h3>
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -1352,7 +1365,7 @@ export default function Classroom() {
                   });
 
                   return (
-                    <div className="card p-6 border border-slate-600/50">
+                    <div className="classroom-history-group">
                       <h3 className="font-semibold text-slate-400 mb-4 flex items-center gap-2">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1384,10 +1397,19 @@ export default function Classroom() {
               </div>
             );
           })()}
+          </aside>
+          </div>
         </>
       ) : (
-        <div className="card p-12 text-center">
-          <p className="text-slate-400">No {activeSection} portion assigned for this session.</p>
+        <div className="classroom-empty-section approved-card">
+          <span className="classroom-control-icon" aria-hidden="true">+</span>
+          <h2>No {SECTION_LABELS[activeSection].shortLabel} portion</h2>
+          <p>This section can remain empty, or a Quran range can be added when it is needed.</p>
+          {isTeacher && (
+            <button type="button" className="approved-primary-button" onClick={() => { setNewPortionType(activeSection); setShowAddPortionModal(true); }}>
+              Add {SECTION_LABELS[activeSection].shortLabel} portion
+            </button>
+          )}
         </div>
       )}
 
@@ -1397,7 +1419,7 @@ export default function Classroom() {
           <div className="fixed inset-0 z-40" onClick={() => setWordPopup(null)} />
           <div
             data-tour="word-popup"
-            className="fixed z-50 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-3 w-[260px] max-h-[70vh] overflow-y-auto"
+            className="classroom-word-popup fixed z-50 w-[260px] max-h-[70vh] overflow-y-auto"
             style={{
               left: `${Math.min(Math.max(wordPopup.position.x, 140), window.innerWidth - 140)}px`,
               top: wordPopup.showAbove ? 'auto' : `${wordPopup.position.y}px`,
@@ -1405,19 +1427,19 @@ export default function Classroom() {
               transform: 'translateX(-50%)',
             }}
           >
-            <div className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 border-slate-600 ${
+            <div className={`classroom-word-popup-arrow absolute left-1/2 -translate-x-1/2 w-3 h-3 ${
               wordPopup.showAbove ? '-bottom-1.5 border-r border-b rotate-45' : '-top-1.5 border-l border-t rotate-45'
             }`} />
 
-            <div className="text-center mb-2 pb-2 border-b border-slate-700">
-              <p className="font-amiri text-xl text-slate-100">{wordPopup.word.text_uthmani || ''}</p>
-              <p className="text-xs text-slate-500 mt-1">{wordPopup.word.surah}:{wordPopup.word.ayah} word {wordPopup.word.word}</p>
+            <div className="classroom-word-popup-header">
+              <p className="font-amiri text-xl">{wordPopup.word.text_uthmani || ''}</p>
+              <p>{wordPopup.word.surah}:{wordPopup.word.ayah} word {wordPopup.word.word}</p>
             </div>
 
             <button
               data-tour="whole-word-btn"
               onClick={() => handleAddMistake(wordPopup.word.text_uthmani || '', undefined)}
-              className="w-full mb-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium"
+              className="classroom-word-whole"
             >
               Whole Word
             </button>
@@ -1427,13 +1449,13 @@ export default function Classroom() {
               return (
                 <>
                   <div data-tour="letter-mistakes" className="mb-2">
-                    <p className="text-xs text-slate-400 mb-1">Letters:</p>
+                    <p className="classroom-word-label">Letters</p>
                     <div className="flex flex-row-reverse flex-wrap gap-1.5 justify-center">
                       {letters.map((l) => (
                         <button
                           key={`letter-${l.index}`}
                           onClick={() => handleAddMistake(l.char, l.index)}
-                          className="w-8 h-8 font-amiri text-lg bg-slate-700/50 hover:bg-cyan-500/30 border border-slate-600 hover:border-cyan-500/50 rounded text-slate-200 hover:text-cyan-400 flex items-center justify-center"
+                          className="classroom-letter-button"
                         >
                           {l.char}
                         </button>
@@ -1443,13 +1465,13 @@ export default function Classroom() {
 
                   {harakat.length > 0 && (
                     <div data-tour="haraka-mistakes" className="mb-2">
-                      <p className="text-xs text-slate-400 mb-1">Harakat:</p>
+                      <p className="classroom-word-label">Harakat</p>
                       <div className="flex flex-row-reverse flex-wrap gap-1.5 justify-center">
                         {harakat.map((h) => (
                           <button
                             key={`haraka-${h.index}`}
                             onClick={() => handleAddMistake(h.char, h.index)}
-                            className="w-9 h-9 font-amiri text-xl bg-slate-700/50 hover:bg-purple-500/30 border border-slate-600 hover:border-purple-500/50 rounded text-slate-200 hover:text-purple-400 flex items-center justify-center"
+                            className="classroom-letter-button !h-9 !w-9 text-xl"
                           >
                             ـ{h.display}
                           </button>
@@ -1461,7 +1483,7 @@ export default function Classroom() {
               );
             })()}
 
-            <button onClick={() => setWordPopup(null)} className="w-full px-3 py-1.5 text-slate-500 hover:text-slate-300 text-xs mt-2">
+            <button onClick={() => setWordPopup(null)} className="classroom-word-cancel">
               Cancel
             </button>
           </div>
@@ -1470,22 +1492,35 @@ export default function Classroom() {
 
       {/* Add Portion Modal */}
       {showAddPortionModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl">
-            <div className="p-6 border-b border-slate-700/30">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-100">Add Portion</h2>
-                <button onClick={() => setShowAddPortionModal(false)} className="w-10 h-10 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="classroom-modal-backdrop">
+          <div className="classroom-portion-dialog" role="dialog" aria-modal="true" aria-labelledby="add-portion-title">
+            <header className="classroom-dialog-header">
+              <div>
+                <span className="approved-eyebrow">Session assignment</span>
+                <h2 id="add-portion-title">Add portion</h2>
+                <p>Add a verified Quran range to this recitation session.</p>
+              </div>
+                <button type="button" onClick={() => setShowAddPortionModal(false)} className="classroom-dialog-close" aria-label="Close add portion dialog">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-              </div>
-            </div>
+            </header>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Quick Fill from Juz (optional)</label>
+            <div className="classroom-dialog-body">
+              <fieldset className="classroom-dialog-fieldset">
+                <legend>Recitation section</legend>
+                <div className="classroom-dialog-sections">
+                  {availableSections.map((type) => (
+                    <button key={type} type="button" className={newPortionType === type ? 'active' : ''} onClick={() => setNewPortionType(type)}>
+                      <strong>{SECTION_LABELS[type].shortLabel}</strong>
+                      <small>{SECTION_LABELS[type].description}</small>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="classroom-dialog-field">
+                <span>Quick fill from Juz <small>Optional</small></span>
                 <select
                   value=""
                   onChange={(e) => {
@@ -1498,75 +1533,89 @@ export default function Classroom() {
                       setNewPortionEndAyah(boundary.endAyah);
                     }
                   }}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100"
+                  className="approved-input"
                 >
                   <option value="">— Select Juz —</option>
                   {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
                     <option key={j} value={j}>Juz {j}</option>
                   ))}
                 </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">From Surah</label>
-                  <select value={newPortionStart} onChange={(e) => { setNewPortionStart(Number(e.target.value)); setNewPortionEnd(Number(e.target.value)); }} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
+              </label>
+              <fieldset className="classroom-dialog-fieldset">
+                <legend>Quran range</legend>
+                <div className="classroom-dialog-grid">
+                  <label className="classroom-dialog-field">
+                    <span>From Surah</span>
+                  <select value={newPortionStart} onChange={(e) => { setNewPortionStart(Number(e.target.value)); setNewPortionEnd(Number(e.target.value)); }} className="approved-input">
                     {surahList.map((s) => <option key={s.number} value={s.number}>{s.number}. {s.englishName}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">To Surah</label>
-                  <select value={newPortionEnd} onChange={(e) => setNewPortionEnd(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
+                  </label>
+                  <label className="classroom-dialog-field">
+                    <span>To Surah</span>
+                  <select value={newPortionEnd} onChange={(e) => setNewPortionEnd(Number(e.target.value))} className="approved-input">
                     {surahList.map((s) => <option key={s.number} value={s.number}>{s.number}. {s.englishName}</option>)}
                   </select>
+                  </label>
+                  <label className="classroom-dialog-field">
+                    <span>From Ayah</span>
+                    <input type="number" min="1" value={newPortionStartAyah || ''} onChange={(e) => setNewPortionStartAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="Entire surah" className="approved-input" />
+                  </label>
+                  <label className="classroom-dialog-field">
+                    <span>To Ayah</span>
+                    <input type="number" min="1" value={newPortionEndAyah || ''} onChange={(e) => setNewPortionEndAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="Entire surah" className="approved-input" />
+                  </label>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">From Ayah</label>
-                  <input type="number" min="1" value={newPortionStartAyah || ''} onChange={(e) => setNewPortionStartAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="All" className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">To Ayah</label>
-                  <input type="number" min="1" value={newPortionEndAyah || ''} onChange={(e) => setNewPortionEndAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="All" className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500" />
-                </div>
-              </div>
+              </fieldset>
               {isTeacher && classData?.students && classData.students.length > 1 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Assign to Reciter</label>
-                  <select value={newPortionStudentId ?? 'all'} onChange={(e) => setNewPortionStudentId(e.target.value === 'all' ? null : e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
+                <label className="classroom-dialog-field">
+                  <span>Assign to reciter</span>
+                  <select value={newPortionStudentId ?? 'all'} onChange={(e) => setNewPortionStudentId(e.target.value === 'all' ? null : e.target.value)} className="approved-input">
                     <option value="all">All Reciters</option>
                     {classData.students.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name} only</option>)}
                   </select>
-                </div>
+                </label>
               )}
             </div>
 
-            <div className="p-6 bg-slate-800/50 border-t border-slate-700/30 flex gap-3">
-              <button onClick={() => { setShowAddPortionModal(false); setNewPortionStudentId(null); }} className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 font-medium">Cancel</button>
-              <button onClick={handleAddPortion} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-medium">Add Portion</button>
-            </div>
+            <footer className="classroom-dialog-footer">
+              <button type="button" onClick={() => { setShowAddPortionModal(false); setNewPortionStudentId(null); }} className="approved-secondary-button">Cancel</button>
+              <button type="button" onClick={handleAddPortion} className="approved-primary-button">Add portion</button>
+            </footer>
           </div>
         </div>
       )}
 
       {/* Edit Portion Modal */}
       {showEditPortionModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl">
-            <div className="p-6 border-b border-slate-700/30">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-100">Edit Portion</h2>
-                <button onClick={() => setShowEditPortionModal(false)} className="w-10 h-10 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="classroom-modal-backdrop">
+          <div className="classroom-portion-dialog" role="dialog" aria-modal="true" aria-labelledby="edit-portion-title">
+            <header className="classroom-dialog-header">
+              <div>
+                <span className="approved-eyebrow">Session assignment</span>
+                <h2 id="edit-portion-title">Edit portion</h2>
+                <p>Adjust the section or Quran range for this portion.</p>
+              </div>
+                <button type="button" onClick={() => setShowEditPortionModal(false)} className="classroom-dialog-close" aria-label="Close edit portion dialog">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-              </div>
-            </div>
+            </header>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Quick Fill from Juz (optional)</label>
+            <div className="classroom-dialog-body">
+              <fieldset className="classroom-dialog-fieldset">
+                <legend>Recitation section</legend>
+                <div className="classroom-dialog-sections">
+                  {availableSections.map((type) => (
+                    <button key={type} type="button" className={editPortionType === type ? 'active' : ''} onClick={() => setEditPortionType(type)}>
+                      <strong>{SECTION_LABELS[type].shortLabel}</strong>
+                      <small>{SECTION_LABELS[type].description}</small>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="classroom-dialog-field">
+                <span>Quick fill from Juz <small>Optional</small></span>
                 <select
                   value=""
                   onChange={(e) => {
@@ -1579,47 +1628,81 @@ export default function Classroom() {
                       setEditPortionEndAyah(boundary.endAyah);
                     }
                   }}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100"
+                  className="approved-input"
                 >
                   <option value="">— Select Juz —</option>
                   {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
                     <option key={j} value={j}>Juz {j}</option>
                   ))}
                 </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">From Surah</label>
-                  <select value={editPortionStart} onChange={(e) => { setEditPortionStart(Number(e.target.value)); setEditPortionEnd(Number(e.target.value)); }} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
+              </label>
+              <fieldset className="classroom-dialog-fieldset">
+                <legend>Quran range</legend>
+                <div className="classroom-dialog-grid">
+                  <label className="classroom-dialog-field">
+                    <span>From Surah</span>
+                  <select value={editPortionStart} onChange={(e) => { setEditPortionStart(Number(e.target.value)); setEditPortionEnd(Number(e.target.value)); }} className="approved-input">
                     {surahList.map((s) => <option key={s.number} value={s.number}>{s.number}. {s.englishName}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">To Surah</label>
-                  <select value={editPortionEnd} onChange={(e) => setEditPortionEnd(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100">
+                  </label>
+                  <label className="classroom-dialog-field">
+                    <span>To Surah</span>
+                  <select value={editPortionEnd} onChange={(e) => setEditPortionEnd(Number(e.target.value))} className="approved-input">
                     {surahList.map((s) => <option key={s.number} value={s.number}>{s.number}. {s.englishName}</option>)}
                   </select>
+                  </label>
+                  <label className="classroom-dialog-field">
+                    <span>From Ayah</span>
+                    <input type="number" min="1" value={editPortionStartAyah || ''} onChange={(e) => setEditPortionStartAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="Entire surah" className="approved-input" />
+                  </label>
+                  <label className="classroom-dialog-field">
+                    <span>To Ayah</span>
+                    <input type="number" min="1" value={editPortionEndAyah || ''} onChange={(e) => setEditPortionEndAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="Entire surah" className="approved-input" />
+                  </label>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">From Ayah</label>
-                  <input type="number" min="1" value={editPortionStartAyah || ''} onChange={(e) => setEditPortionStartAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="All" className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">To Ayah</label>
-                  <input type="number" min="1" value={editPortionEndAyah || ''} onChange={(e) => setEditPortionEndAyah(e.target.value ? Number(e.target.value) : undefined)} placeholder="All" className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 placeholder-slate-500" />
-                </div>
-              </div>
+              </fieldset>
             </div>
 
-            <div className="p-6 bg-slate-800/50 border-t border-slate-700/30 flex gap-3">
-              <button onClick={() => setShowEditPortionModal(false)} className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 font-medium">Cancel</button>
-              <button onClick={handleEditPortion} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-medium">Update Portion</button>
-            </div>
+            <footer className="classroom-dialog-footer">
+              <button type="button" onClick={() => setShowEditPortionModal(false)} className="approved-secondary-button">Cancel</button>
+              <button type="button" onClick={handleEditPortion} className="approved-primary-button">Update portion</button>
+            </footer>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteSessionConfirm}
+        eyebrow="Delete session"
+        title="Remove this session?"
+        message="This will permanently remove the session, its portions, and mistake occurrences recorded in it. This action cannot be undone."
+        confirmLabel="Delete session"
+        busy={deletingClass}
+        onCancel={() => setShowDeleteSessionConfirm(false)}
+        onConfirm={handleDeleteClass}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletePortionId)}
+        eyebrow="Delete portion"
+        title="Remove this Quran portion?"
+        message="The portion will be removed from this session. The section may remain empty and can be filled again later."
+        confirmLabel="Delete portion"
+        onCancel={() => setDeletePortionId(null)}
+        onConfirm={handleDeletePortion}
+      />
+
+      <ConfirmDialog
+        open={Boolean(dialogError)}
+        eyebrow="Action unsuccessful"
+        title="Something went wrong"
+        message={dialogError || ''}
+        confirmLabel="Close"
+        showCancel={false}
+        tone="primary"
+        onCancel={() => setDialogError(null)}
+        onConfirm={() => setDialogError(null)}
+      />
 
       {/* Flash highlight animation (shared with QuranReader) */}
       <style>{`

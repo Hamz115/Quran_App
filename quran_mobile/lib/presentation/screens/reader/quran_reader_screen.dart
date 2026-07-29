@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../config/app_colors.dart';
+import '../../../config/constants.dart';
 import '../../../data/quran_data.dart';
 import '../../../data/models/mistake.dart';
 import '../../../data/models/quran_page_data.dart';
@@ -29,7 +30,8 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 0);
+    _currentPage = ref.read(currentPageProvider);
+    _pageController = PageController(initialPage: _currentPage - 1);
   }
 
   @override
@@ -53,6 +55,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
   void _jumpToPage(int page) {
     if (page < 1 || page > totalPages) return;
     setState(() => _currentPage = page);
+    ref.read(currentPageProvider.notifier).state = page;
     _pageController.jumpToPage(page - 1);
   }
 
@@ -64,56 +67,187 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    // Always show mistakes — no role gating in v2.0.0
-    final mistakes = ref.watch(mistakesProvider).value ?? <Mistake>[];
-    final mistakesWithOccurrences =
-        ref.watch(readerMistakeOccurrencesProvider).value ?? <Mistake>[];
-
     return Scaffold(
       key: TourService.readerPageKey,
-      backgroundColor: AppColors.readerBackground(isDarkMode),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: AppColors.readerGradient(isDarkMode),
-        ),
-        child: GestureDetector(
-          onTap: _toggleOverlay,
-          child: Stack(
-            children: [
-              // Keep Mushaf glyphs below the system status bar.
-              Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.paddingOf(context).top,
-                ),
-                child: PageView.builder(
-                  controller: _pageController,
-                  reverse: true, // RTL: swipe left = next page
-                  itemCount: totalPages,
-                  onPageChanged: (index) {
-                    setState(() => _currentPage = index + 1);
-                  },
-                  itemBuilder: (context, index) {
-                    final pageNum = index + 1;
-                    return _PageLoader(
-                      pageNumber: pageNum,
-                      isDarkMode: isDarkMode,
-                      mistakes: mistakes,
-                      mistakesWithOccurrences: mistakesWithOccurrences,
-                    );
-                  },
-                ),
+      backgroundColor: AppColors.ivory,
+      body: Column(
+        children: [
+          _buildApprovedReaderHeader(isDarkMode),
+          _buildApprovedReaderSelector(isDarkMode),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: PageView.builder(
+                controller: _pageController,
+                reverse: true,
+                itemCount: totalPages,
+                onPageChanged: (index) {
+                  final page = index + 1;
+                  setState(() => _currentPage = page);
+                  ref.read(currentPageProvider.notifier).state = page;
+                },
+                itemBuilder: (context, index) {
+                  final pageNum = index + 1;
+                  return _PageLoader(
+                    pageNumber: pageNum,
+                    isDarkMode: false,
+                    mistakes: const <Mistake>[],
+                    mistakesWithOccurrences: const <Mistake>[],
+                  );
+                },
               ),
-
-              // Overlay controls (appear on tap)
-              if (_showOverlay) ...[
-                // Top overlay
-                _buildTopOverlay(isDarkMode),
-                // Bottom overlay
-                _buildBottomOverlay(isDarkMode),
-              ],
-            ],
+            ),
           ),
+          _buildApprovedReaderFooter(isDarkMode),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovedReaderHeader(bool isDarkMode) {
+    return Container(
+      color: AppColors.navy,
+      padding: const EdgeInsets.fromLTRB(8, 8, 12, 12),
+      child: SafeArea(
+        bottom: false,
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () => Navigator.maybePop(context),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+            ),
+            const Icon(
+              Icons.auto_stories,
+              color: AppColors.gold,
+              size: 28,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Quran Reader',
+                    style: GoogleFonts.cormorantGaramond(
+                      color: Colors.white,
+                      fontSize: 27,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: AppColors.emerald400,
+                        size: 14,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'Synced just now',
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => _showSurahPickerDialog(isDarkMode),
+              icon: const Icon(Icons.search, color: Colors.white),
+              tooltip: 'Jump to Surah',
+            ),
+            IconButton(
+              onPressed: () => _showJumpDialog(isDarkMode),
+              icon: const Icon(Icons.tune, color: Colors.white),
+              tooltip: 'Reader controls',
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildApprovedReaderSelector(bool isDarkMode) {
+    final surahsOnPage = getSurahsOnPage(_currentPage);
+    final primarySurah = surahsOnPage.isEmpty ? 1 : surahsOnPage.first;
+    return Container(
+      color: AppColors.lightSurface,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextButton.icon(
+              onPressed: () => _showSurahPickerDialog(isDarkMode),
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              label: Text(
+                AppConstants.surahNames[primarySurah] ??
+                    'Surah $primarySurah',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          Container(width: 1, height: 26, color: AppColors.goldBorder),
+          Expanded(
+            child: TextButton.icon(
+              onPressed: () => _showJumpDialog(isDarkMode),
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              label: Text('Page $_currentPage'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovedReaderFooter(bool isDarkMode) {
+    return Container(
+      color: AppColors.lightSurface,
+      padding: EdgeInsets.fromLTRB(
+        12,
+        8,
+        12,
+        MediaQuery.paddingOf(context).bottom + 8,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _currentPage > 1
+                ? () => _jumpToPage(_currentPage - 1)
+                : null,
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'Previous page',
+          ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$_currentPage of $totalPages',
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'Tap page controls to jump',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _currentPage < totalPages
+                ? () => _jumpToPage(_currentPage + 1)
+                : null,
+            icon: const Icon(Icons.chevron_right),
+            tooltip: 'Next page',
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.bookmark_border),
+            tooltip: 'Bookmark',
+          ),
+        ],
       ),
     );
   }

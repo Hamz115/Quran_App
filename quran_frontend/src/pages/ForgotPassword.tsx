@@ -10,7 +10,7 @@ export default function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { resetPassword } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +29,7 @@ export default function ForgotPassword() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-cover bg-center bg-no-repeat"
+      className="approved-auth-page min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage: 'url(/background.jpg)',
       }}
@@ -41,29 +41,8 @@ export default function ForgotPassword() {
           : 'bg-sky-100/70'
       }`} />
 
-      {/* Theme Toggle Button */}
-      <button
-        onClick={toggleDarkMode}
-        className={`fixed top-4 right-4 z-20 p-3 rounded-full transition-all duration-300 ${
-          darkMode
-            ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
-            : 'bg-white text-cyan-600 hover:bg-cyan-50 shadow-lg border border-cyan-200'
-        }`}
-        aria-label="Toggle dark mode"
-      >
-        {darkMode ? (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        )}
-      </button>
-
       {/* Main Card */}
-      <div className={`relative z-10 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-colors duration-300 ${
+      <div className={`approved-auth-card relative z-10 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-colors duration-300 ${
         darkMode ? 'bg-[rgb(30,41,59)]/95 border border-cyan-900/30 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm border border-cyan-200/50'
       }`}>
         <div className="p-8">

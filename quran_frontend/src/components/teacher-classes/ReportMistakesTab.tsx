@@ -14,7 +14,7 @@ export default function ReportMistakesTab({ mistakesBySurah, repeatedMistakes, d
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div className="report-mistake-analysis grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* Mistakes by Surah */}
       <div className={`rounded-xl border ${borderColor} overflow-hidden`}>
         <div className={`px-4.5 py-3.5 border-b ${borderColor} ${cardBg} flex items-center justify-between`}>

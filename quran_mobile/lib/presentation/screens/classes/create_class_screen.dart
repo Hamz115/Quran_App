@@ -117,51 +117,42 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     final isDarkMode = ref.watch(themeProvider);
     final studentsAsync = ref.watch(teacherStudentsProvider);
 
-    return PremiumSheetFrame(
-      height: MediaQuery.of(context).size.height * 0.9,
-      child: Column(
+    return Scaffold(
+      backgroundColor: AppColors.ivory,
+      body: Column(
         children: [
-          // Handle
           Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.textMuted(isDarkMode),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'New Session',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Configure today\'s teaching session',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary(isDarkMode),
-                        ),
-                      ),
-                    ],
+            color: AppColors.navy,
+            padding: const EdgeInsets.fromLTRB(8, 8, 18, 14),
+            child: SafeArea(
+              bottom: false,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                  color: AppColors.textSecondary(isDarkMode),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'New Session',
+                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                            color: Colors.white,
+                          ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.emerald400,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Synced just now',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -236,9 +227,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface(
-                isDarkMode,
-              ).withOpacity(isDarkMode ? 0.92 : 0.98),
+              color: AppColors.lightCard,
               border: Border(
                 top: BorderSide(
                   color: AppColors.border(isDarkMode).withOpacity(0.5),
@@ -274,7 +263,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     onPressed: _isCreating ? null : _createClass,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: AppColors.cyan600,
+                      backgroundColor: AppColors.emerald,
                     ),
                     child: _isCreating
                         ? const SizedBox(

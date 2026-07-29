@@ -6,35 +6,51 @@ class AppColors {
   AppColors._(); // Prevent instantiation
 
   // ============================================
+  // APPROVED QURANTRACK VISUAL SYSTEM
+  // ============================================
+  static const Color navy = Color(0xFF002E49);
+  static const Color navyDeep = Color(0xFF001F35);
+  static const Color navySoft = Color(0xFF0B4059);
+  static const Color emerald = Color(0xFF007A5A);
+  static const Color emeraldDark = Color(0xFF005E47);
+  static const Color emeraldSoft = Color(0xFFE7F2EC);
+  static const Color ivory = Color(0xFFFFFCF5);
+  static const Color ivoryWarm = Color(0xFFF8F1E3);
+  static const Color goldMuted = Color(0xFFC59432);
+  static const Color goldBorder = Color(0xFFE5CFA3);
+  static const Color ink = Color(0xFF10283B);
+  static const Color inkMuted = Color(0xFF536678);
+
+  // ============================================
   // PRIMARY COLORS (Cyan/Teal gradient)
   // ============================================
   static const Color cyan50 = Color(0xFFECFEFF);
   static const Color cyan100 = Color(0xFFCFFAFE);
   static const Color cyan200 = Color(0xFFA5F3FC);
-  static const Color cyan400 = Color(0xFF22D3EE);
-  static const Color cyan500 = Color(0xFF06B6D4);
-  static const Color cyan600 = Color(0xFF0891B2);
-  static const Color cyan700 = Color(0xFF0E7490);
-  static const Color cyan900 = Color(0xFF164E63);
+  static const Color cyan400 = Color(0xFF2B9B78);
+  static const Color cyan500 = emerald;
+  static const Color cyan600 = emeraldDark;
+  static const Color cyan700 = Color(0xFF004F3D);
+  static const Color cyan900 = navySoft;
 
   static const Color teal400 = Color(0xFF2DD4BF);
-  static const Color teal500 = Color(0xFF14B8A6);
-  static const Color teal600 = Color(0xFF0D9488);
-  static const Color teal700 = Color(0xFF0F766E);
+  static const Color teal500 = emerald;
+  static const Color teal600 = emeraldDark;
+  static const Color teal700 = Color(0xFF004F3D);
 
   // ============================================
   // PREMIUM QURANTRACK PALETTE
   // ============================================
-  static const Color deepTeal = Color(0xFF063B3D);
-  static const Color inkTeal = Color(0xFF052E33);
-  static const Color night = Color(0xFF071316);
-  static const Color nightSurface = Color(0xFF102126);
-  static const Color nightCard = Color(0xFF142B31);
-  static const Color parchment = Color(0xFFFFFBF0);
-  static const Color parchmentWarm = Color(0xFFF7F0DF);
+  static const Color deepTeal = navy;
+  static const Color inkTeal = navyDeep;
+  static const Color night = Color(0xFF001622);
+  static const Color nightSurface = navyDeep;
+  static const Color nightCard = navy;
+  static const Color parchment = ivory;
+  static const Color parchmentWarm = ivoryWarm;
   static const Color mist = Color(0xFFEAF8F6);
-  static const Color porcelain = Color(0xFFF6FCFB);
-  static const Color gold = Color(0xFFD7B56D);
+  static const Color porcelain = ivory;
+  static const Color gold = goldMuted;
   static const Color goldSoft = Color(0xFFF4E4B8);
   static const Color rose = Color(0xFFE46F7A);
 
@@ -42,8 +58,8 @@ class AppColors {
   // ACCENT COLORS (Emerald)
   // ============================================
   static const Color emerald400 = Color(0xFF34D399);
-  static const Color emerald500 = Color(0xFF10B981);
-  static const Color emerald600 = Color(0xFF059669);
+  static const Color emerald500 = emerald;
+  static const Color emerald600 = emeraldDark;
 
   // ============================================
   // SLATE COLORS (Grays)
@@ -110,21 +126,21 @@ class AppColors {
   // ============================================
   // LIGHT THEME SPECIFIC
   // ============================================
-  static const Color lightBackground = porcelain;
-  static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightCard = Color(0xFFFFFFFF);
-  static const Color lightBorder = Color(0xFFD9E9E6);
-  static const Color lightInputBg = Color(0xFFF3FBFA);
+  static const Color lightBackground = ivory;
+  static const Color lightSurface = Color(0xFFFFFEFA);
+  static const Color lightCard = Color(0xFFFFFEFA);
+  static const Color lightBorder = goldBorder;
+  static const Color lightInputBg = Color(0xFFFFFDF7);
   static const Color lightOverlay = Color(0xB3E0F2FE); // sky-100/70
-  static const Color lightText = Color(0xFF1E293B); // slate-800
-  static const Color lightTextSecondary = Color(0xFF64748B); // slate-500
+  static const Color lightText = ink;
+  static const Color lightTextSecondary = inkMuted;
   static const Color lightTextMuted = Color(0xFF94A3B8); // slate-400
 
   // ============================================
   // GRADIENT DEFINITIONS
   // ============================================
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [cyan600, teal600, emerald500],
+    colors: [emeraldDark, emerald],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -136,7 +152,7 @@ class AppColors {
   );
 
   static const LinearGradient premiumLightGradient = LinearGradient(
-    colors: [porcelain, mist, Color(0xFFFFFCF3)],
+    colors: [ivory, ivory, ivoryWarm],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -202,12 +218,12 @@ class AppColors {
   static Color overlay(bool isDark) => isDark ? darkOverlay : lightOverlay;
 
   /// Primary color adjusts slightly for light mode
-  static Color primary(bool isDark) => isDark ? cyan500 : cyan600;
-  static Color primaryLight(bool isDark) => isDark ? cyan400 : cyan500;
+  static Color primary(bool isDark) => isDark ? emerald500 : emerald;
+  static Color primaryLight(bool isDark) => isDark ? emerald400 : emerald;
   static Color elevatedSurface(bool isDark) =>
       isDark ? const Color(0xFF18363C) : lightSurface;
   static Color softSurface(bool isDark) =>
-      isDark ? const Color(0xFF10252A) : const Color(0xFFF7FCFB);
+      isDark ? navySoft : const Color(0xFFFFFAEF);
   static Color readerBackground(bool isDark) =>
       isDark ? Colors.black : parchment;
   static LinearGradient appBackgroundGradient(bool isDark) =>

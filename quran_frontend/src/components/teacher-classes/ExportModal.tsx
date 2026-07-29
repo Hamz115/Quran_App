@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { saveAs } from 'file-saver';
 import type { StudentReport, ReportFilters, ExportConfig } from '../../lib/report-types';
 import { formatDate } from './report-helpers';
-import { exportToPDFBackend, exportToCSV, exportToWord } from '../../lib/report-export';
+import { exportToPDF, exportToPDFBackend, exportToCSV, exportToWord } from '../../lib/report-export';
+import { isLocalSidecarEnabled } from '../../lib/local-api';
 import { surahNames } from '../../lib/quran-utils';
 
 interface ExportModalProps {
@@ -50,7 +51,14 @@ export default function ExportModal({ report, filters, darkMode, onClose }: Expo
       return;
     }
 
-    // PDF: use backend Playwright
+    // Hosted web/PWA builds generate PDF entirely in the browser. Only the
+    // packaged Tauri runtime may call its local Playwright sidecar.
+    if (!isLocalSidecarEnabled()) {
+      exportToPDF(config);
+      onClose();
+      return;
+    }
+
     setExportState('loading');
     setErrorMessage('');
 

@@ -17,8 +17,8 @@ import 'presentation/providers/providers.dart';
 import 'presentation/widgets/tour_tooltip.dart';
 import 'presentation/widgets/premium_scaffold.dart';
 import 'presentation/screens/auth/login_screen.dart';
-import 'presentation/screens/dashboard/dashboard_screen.dart';
-import 'presentation/screens/classes/classes_screen.dart';
+import 'presentation/screens/dashboard/approved_dashboard_screen.dart';
+import 'presentation/screens/classes/approved_sessions_screen.dart';
 import 'presentation/screens/classroom/classroom_screen.dart';
 import 'presentation/screens/reader/quran_reader_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
@@ -586,49 +586,31 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = ref.watch(themeProvider);
-
     // Unified screens — no role branching
     final screens = [
-      const DashboardScreen(),
-      const ClassesScreen(),
+      const ApprovedDashboardScreen(),
+      const ApprovedSessionsScreen(),
       const QuranReaderScreen(),
       const SettingsScreen(),
     ];
 
     // Unified nav items
     final navItems = [
-      _NavItem(Icons.dashboard_rounded, 'Dashboard'),
-      _NavItem(Icons.school_rounded, 'Sessions'),
-      _NavItem(Icons.menu_book_rounded, 'Reader'),
+      _NavItem(Icons.grid_view_rounded, 'Overview'),
+      _NavItem(Icons.calendar_month_outlined, 'Sessions'),
+      _NavItem(Icons.menu_book_outlined, 'Quran'),
       _NavItem(Icons.settings_rounded, 'Settings'),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.surface(
-              isDarkMode,
-            ).withOpacity(isDarkMode ? 0.94 : 0.98),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: AppColors.border(
-                isDarkMode,
-              ).withOpacity(isDarkMode ? 0.72 : 0.9),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDarkMode ? 0.42 : 0.12),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.navyDeep,
+          border: Border(top: BorderSide(color: AppColors.navySoft)),
+        ),
+        child: SafeArea(
+          top: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: navItems.asMap().entries.map((entry) {
@@ -637,10 +619,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                   entry.key,
                   entry.value.icon,
                   entry.value.label,
-                  isDarkMode,
                 ),
               );
             }).toList(),
+          ),
           ),
         ),
       ),
@@ -651,17 +633,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     int index,
     IconData icon,
     String label,
-    bool isDarkMode,
   ) {
     final isSelected = _currentIndex == index;
 
-    final accentColor = index == 1
-        ? AppColors.teal500
-        : index == 2
-        ? AppColors.gold
-        : AppColors.cyan500;
-    final selectedColor = isDarkMode ? AppColors.cyan400 : AppColors.cyan600;
-    final unselectedColor = AppColors.textMuted(isDarkMode);
+    const selectedColor = Colors.white;
+    final unselectedColor = Colors.white.withOpacity(0.72);
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -669,23 +645,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    accentColor.withOpacity(isDarkMode ? 0.34 : 0.20),
-                    accentColor.withOpacity(isDarkMode ? 0.18 : 0.11),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isSelected ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          border: isSelected
-              ? Border.all(color: accentColor.withOpacity(0.22))
-              : null,
+          color: isSelected ? AppColors.emerald : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -693,7 +657,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             Icon(
               icon,
               color: isSelected ? selectedColor : unselectedColor,
-              size: isSelected ? 25 : 23,
+              size: 24,
             ),
             const SizedBox(height: 4),
             Text(
