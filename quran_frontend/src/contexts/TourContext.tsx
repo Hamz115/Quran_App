@@ -183,6 +183,14 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (!eventTarget?.closest(target)) return;
       consumed = true;
 
+      // Route-gated actions may open a confirmation dialog (Delete) or show a
+      // network-backed working state (Start Session). Remove Driver's overlay
+      // immediately so the follow-up UI remains clickable while this listener
+      // continues watching for the promised route.
+      if (stepDef.waitForPath || stepDef.waitForPathPrefix) {
+        d.destroy();
+      }
+
       if (
         !stepDef.resultElement &&
         !stepDef.waitForPath &&
