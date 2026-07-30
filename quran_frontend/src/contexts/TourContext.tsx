@@ -48,6 +48,10 @@ function screenToRoute(screen: string, classId?: string): string {
       return classId ? `/sessions/${classId}` : '/';
     case 'reader':
       return '/reader';
+    case 'contacts':
+      return '/contacts';
+    case 'mistakes':
+      return '/mistakes';
     case 'settings':
       return '/settings';
     default:

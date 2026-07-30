@@ -134,13 +134,13 @@ export default function Contacts() {
 
       {error && <div className="approved-alert mb-4">{error}</div>}
 
-      <section className="approved-card mb-4 grid grid-cols-3 divide-x divide-[var(--border-color)] p-4 text-center">
+      <section data-tour="contacts-summary" className="approved-card mb-4 grid grid-cols-3 divide-x divide-[var(--border-color)] p-4 text-center">
         <div><strong className="approved-metric">{contacts.length}</strong><span className="approved-metric-label">Active contacts</span></div>
         <div><strong className="approved-metric">{sessions.length}</strong><span className="approved-metric-label">Recorded sessions</span></div>
         <div><strong className="approved-metric">{mistakes}</strong><span className="approved-metric-label">Selected contact mistakes</span></div>
       </section>
 
-      <div className="contacts-workspace">
+      <div data-tour="contacts-workspace" className="contacts-workspace">
         <section className="approved-card overflow-hidden">
           <div className="border-b border-[var(--border-color)] p-3">
             <input className="approved-input w-full" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search contacts or student ID" />

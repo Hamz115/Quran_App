@@ -6,7 +6,7 @@ import 'driver.js/dist/driver.css';
 export type StepType = 'info' | 'interactive';
 
 export interface TourStepDef {
-  screen: 'dashboard' | 'sessions' | 'classroom' | 'reader' | 'settings' | 'dashboard-final';
+  screen: 'dashboard' | 'sessions' | 'classroom' | 'reader' | 'contacts' | 'mistakes' | 'settings' | 'dashboard-final';
   element?: string; // data-tour selector, or undefined for full overlay
   title: string;
   description: string;
@@ -300,7 +300,47 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'info',
   },
 
-  // ── PHASE 8: SETTINGS ──
+  // ── PHASE 8: CONTACTS ──
+  {
+    screen: 'contacts',
+    element: '[data-tour="contacts-summary"]',
+    title: 'Contacts Overview',
+    description: 'The Contacts tab is your reciter roster. Its summary shows active contacts, recorded sessions, and the selected contact’s mistake count.',
+    side: 'bottom',
+    type: 'info',
+    waitForElement: '[data-tour="contacts-summary"]',
+  },
+  {
+    screen: 'contacts',
+    element: '[data-tour="contacts-workspace"]',
+    title: 'Manage Each Reciter',
+    description: 'Search and select a contact to review their current portion and session history. From the detail panel you can start a session, open their report, or remove the contact without deleting their account.',
+    side: 'top',
+    type: 'info',
+    waitForElement: '[data-tour="contacts-workspace"]',
+  },
+
+  // ── PHASE 9: MISTAKES & RECITATION REVIEW ──
+  {
+    screen: 'mistakes',
+    element: '[data-tour="mistakes-summary"]',
+    title: 'Mistakes & Recitation Review',
+    description: 'This tab shows only mistakes recorded while you were the reciter. The summary tracks total occurrences, repeated mistakes, and affected surahs.',
+    side: 'bottom',
+    type: 'info',
+    waitForElement: '[data-tour="mistakes-summary"]',
+  },
+  {
+    screen: 'mistakes',
+    element: '[data-tour="mistakes-history"]',
+    title: 'Inspect Your Mistake History',
+    description: 'Select a word to see its classification, occurrence count, linked sessions, and the listener who last recorded it. “Open in Quran” takes you directly to that exact word.',
+    side: 'top',
+    type: 'info',
+    waitForElement: '[data-tour="mistakes-history"]',
+  },
+
+  // ── PHASE 10: SETTINGS ──
   {
     screen: 'settings',
     element: '[data-tour="settings-section"]',
@@ -310,7 +350,7 @@ export const TOUR_STEPS: TourStepDef[] = [
     type: 'info',
   },
 
-  // ── PHASE 9: DELETE SESSION & FAREWELL ──
+  // ── PHASE 11: DELETE SESSION & FAREWELL ──
   {
     screen: 'classroom',
     element: '[data-tour="delete-btn"]',
@@ -334,7 +374,7 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     screen: 'dashboard-final',
     title: "You're All Set!",
-    description: "You've learned how to add contacts, create listening sessions, track letter/haraka/word mistakes, manage notes and performance, and delete sessions. A confirmation always appears before deleting — <strong>deleting a session permanently removes all its mistakes.</strong> Jazakumullahu Khairan!",
+    description: "You've learned how to manage contacts, create listening sessions, track letter/haraka/word mistakes, review your mistake history, manage notes and performance, and delete sessions. A confirmation always appears before deleting — <strong>deleting a session permanently removes all its mistakes.</strong> Jazakumullahu Khairan!",
     type: 'info',
   },
 ];

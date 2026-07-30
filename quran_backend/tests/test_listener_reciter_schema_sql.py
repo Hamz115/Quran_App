@@ -14,6 +14,8 @@ TOUR_CONTEXT_PATH = ROOT / "quran_frontend" / "src" / "contexts" / "TourContext.
 TOUR_PATH = ROOT / "quran_frontend" / "src" / "lib" / "tour.ts"
 TEACHER_CLASSES_PATH = ROOT / "quran_frontend" / "src" / "pages" / "TeacherClasses.tsx"
 DASHBOARD_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Dashboard.tsx"
+CONTACTS_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Contacts.tsx"
+MISTAKES_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Mistakes.tsx"
 FRONTEND_API_PATH = ROOT / "quran_frontend" / "src" / "api.ts"
 LOCAL_API_PATH = ROOT / "quran_frontend" / "src" / "lib" / "local-api.ts"
 CLASSROOM_PATH = ROOT / "quran_frontend" / "src" / "pages" / "Classroom.tsx"
@@ -200,6 +202,28 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             "element: '[data-tour=\"mode-by-surah\"]'",
             tour,
         )
+
+    def test_tour_includes_contacts_and_mistake_review_tabs(self):
+        tour = TOUR_PATH.read_text(encoding="utf-8")
+        tour_context = TOUR_CONTEXT_PATH.read_text(encoding="utf-8")
+        contacts = CONTACTS_PATH.read_text(encoding="utf-8")
+        mistakes = MISTAKES_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("screen: 'contacts'", tour)
+        self.assertIn("screen: 'mistakes'", tour)
+        self.assertIn("case 'contacts':\n      return '/contacts';", tour_context)
+        self.assertIn("case 'mistakes':\n      return '/mistakes';", tour_context)
+        for selector in (
+            'contacts-summary',
+            'contacts-workspace',
+            'mistakes-summary',
+            'mistakes-history',
+        ):
+            self.assertIn(f'[data-tour="{selector}"]', tour)
+        self.assertIn('data-tour="contacts-summary"', contacts)
+        self.assertIn('data-tour="contacts-workspace"', contacts)
+        self.assertIn('data-tour="mistakes-summary"', mistakes)
+        self.assertIn('data-tour="mistakes-history"', mistakes)
 
     def test_tour_transitions_do_not_use_legacy_fixed_delays(self):
         tour_context = TOUR_CONTEXT_PATH.read_text(encoding="utf-8")

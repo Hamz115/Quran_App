@@ -70,7 +70,7 @@ export default function Mistakes() {
 
       {error && <div className="approved-alert mb-4">{error}</div>}
 
-      <section className="approved-card mb-4 grid grid-cols-3 divide-x divide-[var(--border-color)] p-4 text-center">
+      <section data-tour="mistakes-summary" className="approved-card mb-4 grid grid-cols-3 divide-x divide-[var(--border-color)] p-4 text-center">
         <div><strong className="approved-metric">{totalOccurrences}</strong><span className="approved-metric-label">Total occurrences</span></div>
         <div><strong className="approved-metric">{repeated.length}</strong><span className="approved-metric-label">Repeated mistakes</span></div>
         <div><strong className="approved-metric">{surahSummary.length}</strong><span className="approved-metric-label">Surahs affected</span></div>
@@ -105,7 +105,7 @@ export default function Mistakes() {
         </section>
       </div>
 
-      <div className="mistakes-detail-grid mt-4">
+      <div data-tour="mistakes-history" className="mistakes-detail-grid mt-4">
         <section className="approved-card overflow-hidden">
           <div className="mistakes-table-header"><span>Arabic</span><span>Quran reference</span><span>Type</span><span>Occurrences</span><span>Last seen</span></div>
           {loading ? <div className="approved-empty-state">Loading mistakes...</div> : mistakes.map((mistake) => {
