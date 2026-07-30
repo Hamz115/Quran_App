@@ -175,7 +175,7 @@ export default function QuranReader() {
       try {
         const allMistakes: MistakeWithOccurrences[] = [];
         for (const surahNum of surahs) {
-          const surahMistakes = await getMistakesWithOccurrences(surahNum);
+          const surahMistakes = await getMistakesWithOccurrences(surahNum, user.id);
           allMistakes.push(...surahMistakes);
         }
         if (isMounted) setMistakes(allMistakes);

@@ -796,16 +796,19 @@ export async function getMistakes(surahNumber?: number, studentId?: string): Pro
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // A missing reciter argument means "my mistakes", never "every mistake RLS
+  // lets me read". Listeners can read their reciters' rows, so an unfiltered
+  // query would leak those rows into the listener's personal reader/review UI.
+  const targetReciterId = studentId ?? user.id;
+
   const data = await runWithLegacyFallback<any[]>(
     () => {
-      let query = (supabase as any).from('mistakes').select('*');
-      if (studentId) query = query.eq('reciter_id', studentId);
+      let query = (supabase as any).from('mistakes').select('*').eq('reciter_id', targetReciterId);
       if (surahNumber) query = query.eq('surah_number', surahNumber);
       return query.order('error_count', { ascending: false });
     },
     () => {
-      let query = (supabase as any).from('mistakes').select('*');
-      if (studentId) query = query.eq('student_id', studentId);
+      let query = (supabase as any).from('mistakes').select('*').eq('student_id', targetReciterId);
       if (surahNumber) query = query.eq('surah_number', surahNumber);
       return query.order('error_count', { ascending: false });
     },
@@ -830,6 +833,8 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  const targetReciterId = studentId ?? user.id;
+
   const data = await runWithLegacyFallback<any[]>(
     () => {
       let query = (supabase as any)
@@ -840,8 +845,8 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
             class_id,
             classes (date, day)
           )
-        `);
-      if (studentId) query = query.eq('reciter_id', studentId);
+        `)
+        .eq('reciter_id', targetReciterId);
       if (surahNumber) query = query.eq('surah_number', surahNumber);
       return query.order('error_count', { ascending: false });
     },
@@ -854,8 +859,8 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
             class_id,
             classes (date, day)
           )
-        `);
-      if (studentId) query = query.eq('student_id', studentId);
+        `)
+        .eq('student_id', targetReciterId);
       if (surahNumber) query = query.eq('surah_number', surahNumber);
       return query.order('error_count', { ascending: false });
     },

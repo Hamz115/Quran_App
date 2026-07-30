@@ -255,6 +255,17 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn("if (isTourActive || !selectedStudentId) return", classroom)
         self.assertGreaterEqual(supabase_api.count("query.maybeSingle()"), 2)
 
+    def test_personal_reader_and_mistake_queries_are_always_reciter_scoped(self):
+        supabase_api = SUPABASE_API_PATH.read_text(encoding="utf-8")
+        reader = (ROOT / "quran_frontend/src/pages/QuranReader.tsx").read_text(encoding="utf-8")
+        mistakes_page = (ROOT / "quran_frontend/src/pages/Mistakes.tsx").read_text(encoding="utf-8")
+
+        self.assertGreaterEqual(supabase_api.count("const targetReciterId = studentId ?? user.id"), 2)
+        self.assertIn(".eq('reciter_id', targetReciterId)", supabase_api)
+        self.assertIn(".eq('student_id', targetReciterId)", supabase_api)
+        self.assertIn("getMistakesWithOccurrences(surahNum, user.id)", reader)
+        self.assertIn("getMistakesWithOccurrences(undefined, user.id)", mistakes_page)
+
     def test_local_mistake_identity_is_scoped_per_reciter(self):
         backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
 
