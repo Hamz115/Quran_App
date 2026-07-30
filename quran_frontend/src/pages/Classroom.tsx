@@ -434,13 +434,18 @@ export default function Classroom() {
     return true;
   };
 
-  // Initialize currentPage when assignment changes
+  // Initialize currentPage when assignment changes. An exact-word deep link
+  // takes precedence over the assignment start page during initial loading.
   useEffect(() => {
+    if (hasLinkedWord && !linkedWordAppliedRef.current) {
+      setCurrentPage(getPageNumber(linkedSurah, linkedAyah));
+      return;
+    }
     if (currentAssignment) {
       const startPage = getPageNumber(currentAssignment.start_surah, currentAssignment.start_ayah || 1);
       setCurrentPage(startPage);
     }
-  }, [activeSection, selectedPortionIndex, currentAssignment?.start_surah, currentAssignment?.start_ayah]);
+  }, [activeSection, selectedPortionIndex, currentAssignment?.start_surah, currentAssignment?.start_ayah, hasLinkedWord, linkedSurah, linkedAyah]);
 
   // Mistake helpers - convert QPC 1-based position to 0-based word_index
   const getWordMistakeInfo = (word: QuranPageWord): {
