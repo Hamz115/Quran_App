@@ -35,6 +35,8 @@ interface MistakeOccurrence {
   occurred_at?: string;
   class_date?: string;
   class_day?: string;
+  listener_id?: string;
+  listener_name?: string;
 }
 
 interface Mistake {
@@ -164,6 +166,13 @@ export default function Classroom() {
   const pageDims = getPageDimensions();
 
   const preSelectedStudentId = searchParams.get('student');
+  const linkedSurah = Number(searchParams.get('surah'));
+  const linkedAyah = Number(searchParams.get('ayah'));
+  const linkedWord = Number(searchParams.get('word'));
+  const hasLinkedWord = Number.isInteger(linkedSurah) && linkedSurah > 0
+    && Number.isInteger(linkedAyah) && linkedAyah > 0
+    && Number.isInteger(linkedWord) && linkedWord >= 0;
+  const linkedWordAppliedRef = useRef(false);
 
   const getBackRoute = () => {
     // Legacy URL support
@@ -309,6 +318,24 @@ export default function Classroom() {
     return () => { isMounted = false; };
   }, [currentPage]);
 
+  // A deep link from Mistakes opens the correct Mushaf page and keeps the
+  // exact word highlighted long enough for the user to locate it.
+  useEffect(() => {
+    if (!pageData || !hasLinkedWord || linkedWordAppliedRef.current) return;
+    const targetPage = getPageNumber(linkedSurah, linkedAyah);
+    if (currentPage !== targetPage) {
+      setCurrentPage(targetPage);
+      return;
+    }
+    linkedWordAppliedRef.current = true;
+    const key = `${linkedSurah}-${linkedAyah}-${linkedWord}`;
+    setHighlightedWordKey(key);
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-word-key="${key}"]`)?.scrollIntoView({ block: 'center', inline: 'center' });
+    });
+    flashTimerRef.current = setTimeout(() => setHighlightedWordKey(null), 4000);
+  }, [pageData, currentPage, hasLinkedWord, linkedSurah, linkedAyah, linkedWord]);
+
   // Load class data
   useEffect(() => {
     if (!id) return;
@@ -328,7 +355,7 @@ export default function Classroom() {
           data.listener_id === user.id || data.teacher_id === user.id
         );
         setIsListener(amListener);
-        if (amListener && data.students && data.students.length > 0) {
+        if (data.students && data.students.length > 0) {
           const validPreSelected = preSelectedStudentId && data.students.some(s => s.id === preSelectedStudentId);
           setSelectedStudentId(validPreSelected ? preSelectedStudentId : data.students[0].id);
         }
@@ -358,11 +385,11 @@ export default function Classroom() {
     }
 
     let isMounted = true;
-    getMistakesWithOccurrences(undefined, isTeacher ? selectedStudentId || undefined : undefined)
+    getMistakesWithOccurrences(undefined, selectedStudentId || user?.id)
       .then(data => { if (isMounted) setMistakes(data || []); })
       .catch(console.error);
     return () => { isMounted = false; };
-  }, [isTeacher, selectedStudentId]);
+  }, [isTeacher, selectedStudentId, user?.id]);
 
   // Get assignments for active section
   const sectionAssignments = classData?.assignments.filter(a => {
@@ -1165,6 +1192,7 @@ export default function Classroom() {
                               return (
                                 <span
                                   key={word.id}
+                                  data-word-key={wordKey}
                                   onClick={(e) => inPortion && handleWordClick(e, word)}
                                   onContextMenu={(e) => inPortion && handleWordRightClick(e, word)}
                                   className={`${isTeacher && inPortion ? 'cursor-pointer' : ''} transition-all px-0.5 font-amiri inline-block ${
@@ -1181,6 +1209,7 @@ export default function Classroom() {
                             return (
                               <span
                                 key={word.id}
+                                data-word-key={wordKey}
                                 onClick={(e) => {
                                   if (inPortion && !word.is_end) {
                                     handleWordClick(e, word);
@@ -1345,30 +1374,26 @@ export default function Classroom() {
 
                 {/* Mistakes from previous sessions - grouped by day */}
                 {mistakesFromPrevious.length > 0 && (() => {
-                  const mistakesByDay: { [key: string]: { day: string; date: string; class_id: string; mistakes: Mistake[] }[] } = {};
+                  const sessions = new Map<string, { day: string; date: string; class_id: string; listener_name?: string; mistakes: Mistake[] }>();
 
                   mistakesFromPrevious.forEach(m => {
                     m.occurrences?.filter(o => o.class_id !== currentClassId).forEach(o => {
-                      const key = `${o.class_day}-${o.class_date}`;
-                      if (!mistakesByDay[key]) {
-                        mistakesByDay[key] = [];
+                      let entry = sessions.get(o.class_id);
+                      if (!entry) {
+                        entry = {
+                          day: o.class_day || '',
+                          date: o.class_date || '',
+                          class_id: o.class_id,
+                          listener_name: o.listener_name,
+                          mistakes: [],
+                        };
+                        sessions.set(o.class_id, entry);
                       }
-                      let classEntry = mistakesByDay[key].find(e => e.class_id === o.class_id);
-                      if (!classEntry) {
-                        classEntry = { day: o.class_day || '', date: o.class_date || '', class_id: o.class_id, mistakes: [] };
-                        mistakesByDay[key].push(classEntry);
-                      }
-                      if (!classEntry.mistakes.find(em => em.id === m.id)) {
-                        classEntry.mistakes.push(m);
-                      }
+                      if (!entry.mistakes.find(existing => existing.id === m.id)) entry.mistakes.push(m);
                     });
                   });
 
-                  const sortedDays = Object.keys(mistakesByDay).sort((a, b) => {
-                    const dateA = mistakesByDay[a][0]?.date || '';
-                    const dateB = mistakesByDay[b][0]?.date || '';
-                    return dateB.localeCompare(dateA);
-                  });
+                  const sortedSessions = [...sessions.values()].sort((a, b) => b.date.localeCompare(a.date));
 
                   return (
                     <div className="classroom-history-group">
@@ -1379,23 +1404,17 @@ export default function Classroom() {
                         Mistakes from previous sessions
                       </h3>
                       <div className="space-y-4">
-                        {sortedDays.map(dayKey => {
-                          const entries = mistakesByDay[dayKey];
-                          const { day, date } = entries[0];
-                          const allMistakes = entries.flatMap(e => e.mistakes);
-                          const uniqueMistakes = allMistakes.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
-
-                          return (
-                            <div key={dayKey} className="border-l-2 border-slate-600 pl-4">
-                              <h4 className="text-sm font-medium text-slate-300 mb-2">
-                                {day} <span className="text-slate-500 text-xs">({date})</span>
-                              </h4>
-                              <div className="flex flex-wrap gap-2">
-                                {uniqueMistakes.map(renderMistake)}
-                              </div>
+                        {sortedSessions.map(entry => (
+                          <div key={entry.class_id} className="border-l-2 border-slate-600 pl-4">
+                            <h4 className="text-sm font-medium text-slate-300 mb-2">
+                              {entry.day || 'Previous session'} <span className="text-slate-500 text-xs">({entry.date || 'date unavailable'})</span>
+                              {entry.listener_name && <span className="ml-2 text-xs text-[var(--accent-primary)]">Listened by {entry.listener_name}</span>}
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {entry.mistakes.map(renderMistake)}
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );

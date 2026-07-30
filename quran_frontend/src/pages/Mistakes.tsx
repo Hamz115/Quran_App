@@ -42,8 +42,17 @@ export default function Mistakes() {
   const maxSurahCount = Math.max(1, ...surahSummary.map(([, count]) => count));
 
   const openInSession = (mistake: MistakeWithOccurrences) => {
-    const sessionId = mistake.occurrences?.[0]?.class_id;
-    navigate(sessionId ? `/sessions/${sessionId}` : '/reader');
+    const latest = [...(mistake.occurrences || [])]
+      .sort((a, b) => b.class_date.localeCompare(a.class_date))[0];
+    const target = new URLSearchParams({
+      student: user?.id || '',
+      surah: String(mistake.surah_number),
+      ayah: String(mistake.ayah_number),
+      word: String(mistake.word_index),
+    });
+    navigate(latest?.class_id
+      ? `/sessions/${latest.class_id}?${target.toString()}`
+      : `/reader?${target.toString()}`);
   };
 
   return (
@@ -125,6 +134,7 @@ export default function Mistakes() {
                 <div><dt>Classification</dt><dd>{selected.char_index === undefined || selected.char_index === null ? 'Whole word' : `Character index ${selected.char_index}`}</dd></div>
                 <div><dt>Occurrences</dt><dd>{selected.error_count}</dd></div>
                 <div><dt>Linked sessions</dt><dd>{selected.occurrences?.length || 0}</dd></div>
+                <div><dt>Last recorded by</dt><dd>{[...(selected.occurrences || [])].sort((a, b) => b.class_date.localeCompare(a.class_date))[0]?.listener_name || 'Not linked'}</dd></div>
               </dl>
               <button type="button" className="approved-primary-button w-full" onClick={() => openInSession(selected)}>Open in Quran</button>
             </>

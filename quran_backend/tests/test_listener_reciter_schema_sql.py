@@ -266,6 +266,27 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn("getMistakesWithOccurrences(surahNum, user.id)", reader)
         self.assertIn("getMistakesWithOccurrences(undefined, user.id)", mistakes_page)
 
+    def test_cross_listener_history_has_attribution_and_exact_word_deep_links(self):
+        supabase_api = SUPABASE_API_PATH.read_text(encoding="utf-8")
+        reader = (ROOT / "quran_frontend/src/pages/QuranReader.tsx").read_text(encoding="utf-8")
+        classroom = CLASSROOM_PATH.read_text(encoding="utf-8")
+        mistakes_page = (ROOT / "quran_frontend/src/pages/Mistakes.tsx").read_text(encoding="utf-8")
+        migration = (ROOT / "docs/supabase_cross_listener_mistake_history.sql").read_text(encoding="utf-8")
+
+        self.assertIn("classes (date, day, listener_id)", supabase_api)
+        self.assertIn("listener_name", supabase_api)
+        self.assertIn("Listened by {entry.listener_name}", classroom)
+        self.assertIn("surah: String(mistake.surah_number)", mistakes_page)
+        self.assertIn("word: String(mistake.word_index)", mistakes_page)
+        self.assertIn('data-word-key={wordKey}', classroom)
+        self.assertIn('data-word-key={wordKey}', reader)
+        self.assertIn("linkedWordAppliedRef", classroom)
+        self.assertIn("linkedWordAppliedRef", reader)
+        self.assertIn('CREATE POLICY "Contact listeners can view reciter sessions"', migration)
+        self.assertIn('CREATE POLICY "Listeners can view co-listener profiles"', migration)
+        self.assertIn("SECURITY DEFINER", migration)
+        self.assertIn("GRANT EXECUTE", migration)
+
     def test_local_mistake_identity_is_scoped_per_reciter(self):
         backend_main = BACKEND_MAIN_PATH.read_text(encoding="utf-8")
 

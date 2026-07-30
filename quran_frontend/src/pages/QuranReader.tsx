@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getQuranPage, getMistakesWithOccurrences, type QuranPageData, type QuranPageWord, type MistakeWithOccurrences } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -60,7 +61,14 @@ const getMistakeColor = (errorCount: number, darkMode: boolean) => {
 export default function QuranReader() {
   const { user } = useAuth();
   const { darkMode } = useTheme();
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams] = useSearchParams();
+  const linkedSurah = Number(searchParams.get('surah'));
+  const linkedAyah = Number(searchParams.get('ayah'));
+  const linkedWord = Number(searchParams.get('word'));
+  const hasLinkedWord = Number.isInteger(linkedSurah) && linkedSurah > 0
+    && Number.isInteger(linkedAyah) && linkedAyah > 0
+    && Number.isInteger(linkedWord) && linkedWord >= 0;
+  const [currentPage, setCurrentPage] = useState(() => hasLinkedWord ? getPageNumber(linkedSurah, linkedAyah) : 1);
   const [pageData, setPageData] = useState<QuranPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
@@ -75,6 +83,7 @@ export default function QuranReader() {
   // Highlight state for click-to-flash
   const [highlightedWordKey, setHighlightedWordKey] = useState<string | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const linkedWordAppliedRef = useRef(false);
 
   const flashWord = (surah: number, ayah: number, wordIndex: number) => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
@@ -82,6 +91,17 @@ export default function QuranReader() {
     setHighlightedWordKey(key);
     flashTimerRef.current = setTimeout(() => setHighlightedWordKey(null), 1500);
   };
+
+  useEffect(() => {
+    if (!pageData || !hasLinkedWord || linkedWordAppliedRef.current) return;
+    linkedWordAppliedRef.current = true;
+    const key = `${linkedSurah}-${linkedAyah}-${linkedWord}`;
+    setHighlightedWordKey(key);
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-word-key="${key}"]`)?.scrollIntoView({ block: 'center', inline: 'center' });
+    });
+    flashTimerRef.current = setTimeout(() => setHighlightedWordKey(null), 4000);
+  }, [pageData, hasLinkedWord, linkedSurah, linkedAyah, linkedWord]);
 
   // Get highest mistake level for a word
   // Note: word position in v2 is 1-based, word_index in mistakes is 0-based
@@ -424,6 +444,7 @@ export default function QuranReader() {
                         return (
                           <span
                             key={word.id}
+                            data-word-key={wordKey}
                             className={`rounded px-0.5 ${
                               !word.is_end
                                 ? wordStyle.className

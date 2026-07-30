@@ -826,6 +826,8 @@ export interface MistakeWithOccurrences extends MistakeData {
     class_id: string;
     class_date: string;
     class_day: string;
+    listener_id?: string;
+    listener_name?: string;
   }[];
 }
 
@@ -843,7 +845,7 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
           *,
           mistake_occurrences (
             class_id,
-            classes (date, day)
+            classes (date, day, listener_id)
           )
         `)
         .eq('reciter_id', targetReciterId);
@@ -857,7 +859,7 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
           *,
           mistake_occurrences (
             class_id,
-            classes (date, day)
+            classes (date, day, teacher_id)
           )
         `)
         .eq('student_id', targetReciterId);
@@ -865,6 +867,24 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
       return query.order('error_count', { ascending: false });
     },
   );
+
+  // Resolve listener names separately. This keeps both schema versions
+  // compatible and identifies who recorded a cross-listener mistake.
+  const listenerIds = [...new Set((data ?? []).flatMap((mistake: any) =>
+    (mistake.mistake_occurrences ?? [])
+      .map((occ: any) => occ.classes?.listener_id ?? occ.classes?.teacher_id)
+      .filter(Boolean)
+  ))] as string[];
+  const listenerNames = new Map<string, string>();
+  if (listenerIds.length > 0) {
+    const { data: profiles, error: profilesError } = await (supabase as any)
+      .from('profiles')
+      .select('id, name')
+      .in('id', listenerIds);
+    if (!profilesError) {
+      for (const profile of profiles ?? []) listenerNames.set(profile.id, profile.name);
+    }
+  }
 
   // Transform the data to match expected format
   return (data ?? []).map((mistake: any) => ({
@@ -877,11 +897,16 @@ export async function getMistakesWithOccurrences(surahNumber?: number, studentId
     word_text: mistake.word_text,
     char_index: mistake.char_index,
     error_count: mistake.error_count,
-    occurrences: (mistake.mistake_occurrences ?? []).map((occ: any) => ({
-      class_id: occ.class_id,
-      class_date: occ.classes?.date || '',
-      class_day: occ.classes?.day || '',
-    })),
+    occurrences: (mistake.mistake_occurrences ?? []).map((occ: any) => {
+      const listenerId = occ.classes?.listener_id ?? occ.classes?.teacher_id;
+      return {
+        class_id: occ.class_id,
+        class_date: occ.classes?.date || '',
+        class_day: occ.classes?.day || '',
+        listener_id: listenerId,
+        listener_name: listenerId ? listenerNames.get(listenerId) || 'Another listener' : undefined,
+      };
+    }),
   }));
 }
 
