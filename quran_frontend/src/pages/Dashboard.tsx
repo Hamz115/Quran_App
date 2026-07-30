@@ -307,8 +307,8 @@ export default function Dashboard() {
 
       {showAddContactModal && (
         <div className="approved-modal-backdrop">
-          <div className="classroom-portion-dialog dashboard-contact-dialog">
-            <header><div><span className="approved-eyebrow">CONTACTS</span><h2>Add a reciter</h2><p>Find an existing QuranTrack account by email.</p></div><button onClick={closeAddContactModal} aria-label="Close">×</button></header>
+          <div className="classroom-portion-dialog dashboard-contact-dialog" data-tour="add-contact-dialog">
+            <header><div><span className="approved-eyebrow">CONTACTS</span><h2>Add a reciter</h2><p>Find an existing QuranTrack account by email.</p></div><button data-tour="close-add-contact-dialog" onClick={closeAddContactModal} aria-label="Close">×</button></header>
             <div className="dashboard-contact-search"><input type="email" value={emailInput} onChange={(event) => { setEmailInput(event.target.value); setLookupResult(null); setLookupError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') handleLookupContact(); }} placeholder="reciter@example.com" /><button onClick={handleLookupContact} disabled={!emailInput.trim() || isLookingUp}>{isLookingUp ? 'Searching…' : 'Find account'}</button></div>
             {lookupError && <p className="dashboard-contact-error">{lookupError}</p>}
             {lookupResult && <div className="dashboard-contact-result"><span className="approved-avatar">{initials(lookupResult.first_name, lookupResult.last_name)}</span><span><strong>{lookupResult.display_name}</strong><small>{lookupResult.email}</small></span><button onClick={handleAddContact} disabled={isAdding}>{isAdding ? 'Adding…' : 'Add contact'}</button></div>}

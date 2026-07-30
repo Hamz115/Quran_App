@@ -197,6 +197,20 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
             tour,
         )
         self.assertIn('data-tour="add-student-btn"', dashboard)
+        self.assertIn('data-tour="add-contact-dialog"', dashboard)
+        self.assertIn('data-tour="close-add-contact-dialog"', dashboard)
+        self.assertIn(
+            "interactiveTarget: '[data-tour=\"add-student-btn\"]'",
+            tour,
+        )
+        self.assertIn(
+            "resultElement: '[data-tour=\"add-contact-dialog\"]'",
+            tour,
+        )
+        self.assertIn(
+            "interactiveTarget: '[data-tour=\"close-add-contact-dialog\"]'",
+            tour,
+        )
         self.assertIn('data-tour="start-class-btn"', dashboard)
         self.assertIn(
             "element: '[data-tour=\"mode-by-surah\"]'",
