@@ -281,7 +281,7 @@ class ListenerReciterSchemaSqlTest(unittest.TestCase):
         self.assertIn('data-word-key={wordKey}', classroom)
         self.assertIn('data-word-key={wordKey}', reader)
         self.assertIn("linkedWordAppliedRef", classroom)
-        self.assertIn("if (hasLinkedWord && !linkedWordAppliedRef.current)", classroom)
+        self.assertIn("if (hasLinkedWord)", classroom)
         self.assertIn("linkedWordAppliedRef", reader)
         self.assertIn('CREATE POLICY "Contact listeners can view reciter sessions"', migration)
         self.assertIn('CREATE POLICY "Listeners can view co-listener profiles"', migration)

@@ -437,7 +437,7 @@ export default function Classroom() {
   // Initialize currentPage when assignment changes. An exact-word deep link
   // takes precedence over the assignment start page during initial loading.
   useEffect(() => {
-    if (hasLinkedWord && !linkedWordAppliedRef.current) {
+    if (hasLinkedWord) {
       setCurrentPage(getPageNumber(linkedSurah, linkedAyah));
       return;
     }
